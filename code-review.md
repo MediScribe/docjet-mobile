@@ -17,26 +17,78 @@ Forget the old review based on the `docjet_systems-shrey-feat-audio` branch. Tha
 5.  **Inefficient Duration Check (`_getAudioDuration`):** Creates and disposes an `AudioPlayer` instance just to check duration. Minor compared to other issues, but indicative of logic being in the wrong place.
 6.  **State Management during Stop/Concatenate:** The `stopRecording` method is overly complex due to handling concatenation, file cleanup, and state emission directly. The reliance on the fragile concatenation process makes the final `AudioRecorderStopped` state potentially misleading if concatenation fails.
 
-## Outstanding Issues / Next Steps (Revised & Prioritized):
+## The Fix: Implementing Clean Architecture
 
-1.  **Introduce Proper Architecture (CRITICAL):** Establish basic `domain` and `data` layers *first*.
-    *   **Action:** Create `lib/features/audio_recorder/domain/repositories/audio_recorder_repository.dart` (interface) and `lib/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart`. Define necessary methods.
-    *   **Action:** Create `lib/features/audio_recorder/data/datasources/audio_local_data_source.dart` (interface and implementation) to abstract low-level package interactions (`record`, `path_provider`, `dart:io`, etc.).
-    *   **Action:** Refactor `AudioRecorderCubit` to depend *only* on the `AudioRecorderRepository` interface (use DI). Remove all direct low-level calls and file system operations from the Cubit.
-2.  **Fix Concatenation (CRITICAL):** Once the architecture is in place, replace the `_concatenateAudioFiles` logic (which will then live in the DataSource/Repository) with a robust solution.
-    *   **Action:** Investigate and implement a reliable method (e.g., `ffmpeg_kit_flutter` - check licensing, platform channels using native APIs like `AVFoundation`/`MediaMuxer`, or other suitable packages).
-3.  **Implement Proper Error Handling (High Priority):**
-    *   **Action:** Define specific `Failure` types (e.g., `PermissionFailure`, `FileSystemFailure`, `RecordingFailure`, `ConcatenationFailure`) - potentially create `lib/core/error/failures.dart`.
-    *   **Action:** Refactor DataSource and Repository to return `Future<Either<Failure, SuccessType>>`. Map specific exceptions to `Failure`s.
-    *   **Action:** Update `AudioRecorderCubit` to handle `Either` results and map `Failure`s to specific states.
-4.  **Add Tests (High Priority):** Once the architecture is cleaner and DI is used, add comprehensive tests.
-    *   **Action:** Unit test `AudioRecorderCubit` (mocking repository).
+The current state is unacceptable. We will refactor using a clean architecture approach (`presentation`/`domain`/`data` with Use Cases) to fix these fundamental flaws.
+
+**Structure:**
+
+```
+lib/
+└── features/
+    └── audio_recorder/
+        ├── data/
+        │   ├── datasources/
+        │   │   ├── audio_local_data_source.dart  # Interface (abstract class)
+        │   │   └── audio_local_data_source_impl.dart # Implementation (record, io, path_provider, ffmpeg_kit?)
+        │   └── repositories/
+        │       └── audio_recorder_repository_impl.dart # Implements domain repo
+        ├── domain/
+        │   ├── entities/
+        │   │   └── audio_record.dart # Core business object
+        │   ├── repositories/
+        │   │   └── audio_recorder_repository.dart # Abstract contract
+        │   └── usecases/                 # Business logic actions
+        │       ├── check_permission.dart
+        │       ├── start_recording.dart
+        │       ├── stop_recording.dart
+        │       ├── pause_recording.dart
+        │       ├── resume_recording.dart
+        │       └── delete_recording.dart # etc.
+        └── presentation/
+            ├── cubit/
+            │   ├── audio_recorder_cubit.dart # Depends on Use Cases
+            │   └── audio_recorder_state.dart # (Exists)
+            ├── pages/
+            │   └── audio_recorder_page.dart  # (Exists)
+            └── widgets/                  # (Exists)
+                └── ... (UI components)
+```
+
+**Action Plan (Strict Order):**
+
+1.  **Establish Core Structure (CRITICAL):**
+    *   **Action:** Create the directory structure outlined above.
+    *   **Action:** Define the `domain/entities/audio_record.dart` entity.
+    *   **Action:** Define the `domain/repositories/audio_recorder_repository.dart` interface (abstract class) with required methods (e.g., `startRecording`, `stopRecording`, `checkPermission`, `deleteRecording`, etc.).
+    *   **Action:** Define the `data/datasources/audio_local_data_source.dart` interface (abstract class) abstracting low-level operations (permission checks, file system access, recording actions, *actual* concatenation).
+2.  **Implement Data Layer (High Priority):**
+    *   **Action:** Implement `data/datasources/audio_local_data_source_impl.dart` using `record`, `path_provider`, `permission_handler`, `dart:io`. **Critically, replace the playback-while-recording concatenation** with a robust method (investigate `ffmpeg_kit_flutter` or platform channels). Isolate all package interactions here.
+    *   **Action:** Implement `data/repositories/audio_recorder_repository_impl.dart`, depending on `AudioLocalDataSource`. It translates data source methods/exceptions into domain results (`Either<Failure, SuccessType>`).
+3.  **Implement Domain Layer (Use Cases) (High Priority):**
+    *   **Action:** Create specific Use Case classes (e.g., `StartRecording`, `StopRecording`) in `domain/usecases/`. Each takes the `AudioRecorderRepository` as a dependency and exposes a `call` method. They orchestrate repository calls.
+4.  **Refactor Presentation Layer (Cubit) (High Priority):**
+    *   **Action:** Inject the relevant Use Cases into `AudioRecorderCubit`.
+    *   **Action:** Remove *all* direct dependencies on `record`, `path_provider`, `dart:io`, `permission_handler`, `just_audio` from the Cubit.
+    *   **Action:** Update Cubit methods to call the Use Cases and handle their `Either<Failure, SuccessType>` results, mapping them to appropriate `AudioRecorderState`s.
+5.  **Implement Proper Error Handling (High Priority - Integrated with steps 2-4):**
+    *   **Action:** Define specific `Failure` types (e.g., `PermissionFailure`, `FileSystemFailure`, `RecordingFailure`, `ConcatenationFailure`) - potentially in `lib/core/error/failures.dart`.
+    *   **Action:** Ensure DataSource and Repository consistently return `Future<Either<Failure, SuccessType>>`.
+    *   **Action:** Ensure Use Cases propagate or handle these `Either` results.
+    *   **Action:** Ensure Cubit maps `Failure`s to specific, informative error states.
+6.  **Add Comprehensive Tests (High Priority - After Refactoring):**
+    *   **Action:** Unit test `AudioRecorderCubit` (mocking Use Cases).
+    *   **Action:** Unit test Use Cases (mocking Repository).
     *   **Action:** Unit test `AudioRecorderRepositoryImpl` (mocking DataSource).
-    *   **Action:** Unit test `AudioLocalDataSourceImpl` (mocking package interactions).
-5.  **Refine Duration Timer (Low Priority):** Consider replacing `Future.delayed` loop with `Timer.periodic` in the Cubit for updating recording duration.
+    *   **Action:** Unit test `AudioLocalDataSourceImpl` (mocking external packages like `record`, `ffmpeg_kit_flutter` etc.).
+7.  **Refine UI/Minor Issues (Low Priority):**
+    *   **Action:** Address UI improvements mentioned previously (e.g., `_build...UI` methods, subscription management).
+    *   **Action:** Replace `Future.delayed` timer loop with `Timer.periodic` in the Cubit if desired.
 
-## The Verdict (Updated):
+## The Verdict (Revised):
 
-This branch is **architecturally unsound**. The core feature logic is dangerously centralized in the `AudioRecorderCubit`. The concatenation implementation is critically flawed and must be replaced.
+The current implementation in `AudioRecorderCubit` is **critically flawed and architecturally unsound**. It violates fundamental design principles and relies on a disastrously broken concatenation method.
 
-**Priority:** Establish a proper `data`/`domain`/`presentation` separation **FIRST**. Then rip out and replace the concatenation logic. Then implement robust error handling. Then add tests. Do not proceed with other feature work until these fundamental issues are resolved.
+**DO NOT build further on this foundation.**
+
+**Mandatory Path Forward:** Execute the Action Plan above **sequentially**. Prioritize establishing the clean architecture, replacing the concatenation logic within the new `DataSource`, implementing robust error handling, refactoring the `Cubit`, and then writing comprehensive tests. Only then should minor refinements or new features be considered. This refactor is non-negotiable for a stable and maintainable feature.
