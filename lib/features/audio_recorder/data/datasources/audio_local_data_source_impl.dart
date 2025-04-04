@@ -6,8 +6,9 @@ import 'package:record/record.dart';
 import 'package:just_audio/just_audio.dart'; // For duration check
 
 import 'audio_local_data_source.dart';
+import '../exceptions/audio_exceptions.dart'; // Import the specific exceptions
 
-// TODO: Define specific exception types (e.g., PermissionException, FileSystemException)
+// No longer needed: // TODO: Define specific exception types (e.g., PermissionException, FileSystemException)
 
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
@@ -33,10 +34,8 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       final status = await microphonePermission.status;
       return status.isGranted;
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to check permission: $e',
-      ); // Replace with specific Exception
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      throw AudioPermissionException('Failed to check permission status', e);
     }
   }
 
@@ -46,10 +45,11 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       final status = await microphonePermission.request();
       return status.isGranted;
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to request permission: $e',
-      ); // Replace with specific Exception
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      throw AudioPermissionException(
+        'Failed to request microphone permission',
+        e,
+      );
     }
   }
 
@@ -58,9 +58,10 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     try {
       final hasPermission = await checkPermission();
       if (!hasPermission) {
-        throw Exception(
-          'Microphone permission not granted',
-        ); // Replace with specific Exception
+        // This specific check results in a permission exception
+        throw const AudioPermissionException(
+          'Microphone permission not granted to start recording',
+        );
       }
 
       final appDir = await getApplicationDocumentsDirectory();
@@ -79,61 +80,75 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       return filePath;
     } catch (e) {
       _currentRecordingPath = null;
-      // TODO: Log error
-      throw Exception(
-        'Failed to start recording: $e',
-      ); // Replace with specific Exception
+      // Catch permission exception specifically if it wasn't caught above
+      if (e is AudioPermissionException) {
+        rethrow; // Rethrow the specific exception
+      }
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      // Treat other errors as recording start failures
+      throw AudioRecordingException('Failed to start recording', e);
     }
   }
 
   @override
   Future<String> stopRecording() async {
     try {
-      await recorder.stop();
+      await recorder.stop(); // Stop the recording first
       final path = _currentRecordingPath;
-      _currentRecordingPath = null;
+      _currentRecordingPath =
+          null; // Clear the path regardless of subsequent errors
+
       if (path == null) {
-        throw Exception(
+        // If path was null, it means we weren't recording
+        throw const NoActiveRecordingException(
           'No recording was in progress to stop.',
-        ); // Replace with specific Exception
+        );
       }
-      // Verify file exists after stopping
+      // Verify file exists after stopping. If recorder.stop() doesn't throw,
+      // but the file is missing, it's a specific file not found issue.
       if (!await File(path).exists()) {
-        throw Exception(
-          'Recording file not found after stopping.',
-        ); // Replace with specific Exception
+        throw RecordingFileNotFoundException(
+          'Recording file not found at $path after stopping.',
+        );
       }
       return path;
     } catch (e) {
+      // Clear path in case of error during recorder.stop() itself
       _currentRecordingPath = null;
-      // TODO: Log error
-      throw Exception(
-        'Failed to stop recording: $e',
-      ); // Replace with specific Exception
+      // Rethrow specific exceptions if already caught
+      if (e is NoActiveRecordingException ||
+          e is RecordingFileNotFoundException) {
+        rethrow;
+      }
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      // Treat other errors as recording stop failures
+      throw AudioRecordingException('Failed to stop recording', e);
     }
   }
 
   @override
   Future<void> pauseRecording() async {
+    if (_currentRecordingPath == null) {
+      throw const NoActiveRecordingException('No active recording to pause.');
+    }
     try {
       await recorder.pause();
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to pause recording: $e',
-      ); // Replace with specific Exception
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      throw AudioRecordingException('Failed to pause recording', e);
     }
   }
 
   @override
   Future<void> resumeRecording() async {
+    if (_currentRecordingPath == null) {
+      throw const NoActiveRecordingException('No active recording to resume.');
+    }
     try {
       await recorder.resume();
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to resume recording: $e',
-      ); // Replace with specific Exception
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      throw AudioRecordingException('Failed to resume recording', e);
     }
   }
 
@@ -144,14 +159,20 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       if (await file.exists()) {
         await file.delete();
       } else {
-        // Optionally log that the file didn't exist to be deleted
-        // print('File $filePath did not exist for deletion.');
+        // Optionally log or handle the case where the file didn't exist
+        // For consistency, we might throw, or just complete silently.
+        // Let's throw for clarity that the requested file wasn't there.
+        throw RecordingFileNotFoundException(
+          'File $filePath not found for deletion.',
+        );
       }
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to delete recording: $e',
-      ); // Replace with specific Exception
+      if (e is RecordingFileNotFoundException) {
+        rethrow;
+      }
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      // Treat other errors as file system failures during deletion
+      throw AudioFileSystemException('Failed to delete recording $filePath', e);
     }
   }
 
@@ -159,14 +180,32 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   Future<Duration> getAudioDuration(String filePath) async {
     final player = AudioPlayer();
     try {
+      // Check if file exists before trying to load
+      if (!await File(filePath).exists()) {
+        throw RecordingFileNotFoundException(
+          'Audio file not found at $filePath',
+        );
+      }
       final duration = await player.setFilePath(filePath);
-      return duration ?? Duration.zero;
+      // If duration is null, the file might be corrupted or not audio
+      if (duration == null) {
+        throw AudioPlayerException(
+          'Could not determine duration for file $filePath (possibly invalid/corrupt)',
+        );
+      }
+      return duration;
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to get audio duration: $e',
-      ); // Replace with specific Exception
+      if (e is RecordingFileNotFoundException || e is AudioPlayerException) {
+        rethrow;
+      }
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      // Treat other errors (like player exceptions) as player failures
+      throw AudioPlayerException(
+        'Failed to get audio duration for $filePath',
+        e,
+      );
     } finally {
+      // Ensure player is always disposed
       await player.dispose();
     }
   }
@@ -175,6 +214,12 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   Future<List<String>> listRecordingFiles() async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
+      // Ensure the directory exists before trying to list
+      if (!await appDir.exists()) {
+        await appDir.create(recursive: true);
+        // If we just created it, it's empty
+        return [];
+      }
       final files =
           appDir
               .listSync()
@@ -183,10 +228,9 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
               .toList();
       return files;
     } catch (e) {
-      // TODO: Log error
-      throw Exception(
-        'Failed to list recording files: $e',
-      ); // Replace with specific Exception
+      // TODO: Consider logging 'e' here if needed via a dedicated logger service
+      // Treat errors during listing as file system failures
+      throw AudioFileSystemException('Failed to list recording files', e);
     }
   }
 
