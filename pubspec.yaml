@@ -52,6 +52,7 @@ dependencies:
   permission_handler: ^11.3.0
   # Others
   dartz: ^0.10.1
+  ffmpeg_kit_flutter_audio: ^6.0.3
 
 dev_dependencies:
   flutter_test:

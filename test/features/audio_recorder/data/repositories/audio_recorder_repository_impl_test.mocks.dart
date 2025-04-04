@@ -108,28 +108,6 @@ class MockAudioLocalDataSource extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<String> concatenateRecordings(
-    String? originalFilePath,
-    String? newSegmentPath,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#concatenateRecordings, [
-              originalFilePath,
-              newSegmentPath,
-            ]),
-            returnValue: _i3.Future<String>.value(
-              _i4.dummyValue<String>(
-                this,
-                Invocation.method(#concatenateRecordings, [
-                  originalFilePath,
-                  newSegmentPath,
-                ]),
-              ),
-            ),
-          )
-          as _i3.Future<String>);
-
-  @override
   _i3.Future<Duration> getAudioDuration(String? filePath) =>
       (super.noSuchMethod(
             Invocation.method(#getAudioDuration, [filePath]),
@@ -141,6 +119,19 @@ class MockAudioLocalDataSource extends _i1.Mock
             ),
           )
           as _i3.Future<Duration>);
+
+  @override
+  _i3.Future<String> concatenateRecordings(List<String>? inputFilePaths) =>
+      (super.noSuchMethod(
+            Invocation.method(#concatenateRecordings, [inputFilePaths]),
+            returnValue: _i3.Future<String>.value(
+              _i4.dummyValue<String>(
+                this,
+                Invocation.method(#concatenateRecordings, [inputFilePaths]),
+              ),
+            ),
+          )
+          as _i3.Future<String>);
 
   @override
   _i3.Future<List<String>> listRecordingFiles() =>

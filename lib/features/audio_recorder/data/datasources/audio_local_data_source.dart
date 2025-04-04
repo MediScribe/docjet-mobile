@@ -28,17 +28,17 @@ abstract class AudioLocalDataSource {
   /// Deletes the audio file at the given path.
   Future<void> deleteRecording(String filePath);
 
-  /// Concatenates the `newSegmentPath` onto the `originalFilePath`.
-  ///
-  /// Returns the path to the final concatenated file.
-  /// This requires a robust implementation (e.g., ffmpeg).
-  Future<String> concatenateRecordings(
-    String originalFilePath,
-    String newSegmentPath,
-  );
-
   /// Gets the duration of an audio file.
   Future<Duration> getAudioDuration(String filePath);
+
+  /// Concatenates multiple audio recording files into a single new file.
+  ///
+  /// Takes a list of [inputFilePaths] to concatenate in the specified order.
+  /// Returns the path to the newly created concatenated file.
+  /// Throws [AudioConcatenationException] if concatenation fails.
+  /// Throws [AudioFileSystemException] for underlying file system errors.
+  /// Throws [ArgumentError] if [inputFilePaths] is empty or contains invalid paths.
+  Future<String> concatenateRecordings(List<String> inputFilePaths);
 
   /// Lists all relevant audio files from the storage directory.
   /// Returns a list of file paths.

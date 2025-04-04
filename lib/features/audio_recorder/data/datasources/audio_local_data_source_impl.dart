@@ -7,22 +7,27 @@ import 'dart:io'; // Keep dart:io for FileSystemEntity type
 import 'package:permission_handler/permission_handler.dart'
     show Permission, PermissionStatus; // Keep specific types
 import 'package:record/record.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:meta/meta.dart';
 
 // Import interfaces
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
+import '../services/audio_duration_getter.dart';
 
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
+
+// Import ffmpeg_kit_flutter
+import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
 
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
   final FileSystem fileSystem; // Inject FileSystem
   final PathProvider pathProvider; // Inject PathProvider
   final PermissionHandler permissionHandler; // Inject PermissionHandler
+  final AudioDurationGetter audioDurationGetter; // Inject the new service
   final Permission microphonePermission =
       Permission.microphone; // Keep this definition
 
@@ -43,6 +48,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     required this.fileSystem,
     required this.pathProvider,
     required this.permissionHandler,
+    required this.audioDurationGetter,
   });
 
   @override
@@ -196,32 +202,41 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   Future<Duration> getAudioDuration(String filePath) async {
     // TODO: Refactor this - still creates AudioPlayer locally
     // Maybe inject an AudioPlayer factory or wrapper?
-    final player = AudioPlayer();
     try {
       // Use injected fileSystem
+      // Removed redundant file existence check, handled by audioDurationGetter
+      /*
       if (!await fileSystem.fileExists(filePath)) {
         throw RecordingFileNotFoundException(
           'Audio file not found at $filePath',
         );
       }
-      final duration = await player.setFilePath(filePath);
+      */
+      // Delegate to the injected service
+      final duration = await audioDurationGetter.getDuration(filePath);
+      // Removed null check, getter implementation should throw if null
+      /*
       if (duration == null) {
         throw AudioPlayerException(
           'Could not determine duration for file $filePath (possibly invalid/corrupt)',
         );
       }
+      */
       return duration;
     } catch (e) {
+      // Rethrow known exceptions from the getter
       if (e is RecordingFileNotFoundException || e is AudioPlayerException) {
         rethrow;
       }
+      // Wrap unexpected errors
       throw AudioPlayerException(
-        'Failed to get audio duration for $filePath',
+        'Unexpected error getting audio duration for $filePath',
         e,
       );
-    } finally {
+    } /* finally {
+      // Remove player disposal, handled by getter implementation
       await player.dispose();
-    }
+    } */
   }
 
   @override
@@ -238,6 +253,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
       // Use injected fileSystem (use async list now?)
       // Let's keep listSync for now to match original behaviour, but abstract it.
+      /*
       final files =
           fileSystem
               .listDirectorySync(appDir.path)
@@ -247,21 +263,115 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
               .map((item) => item.path)
               .toList();
       return files;
+      */
+      // Use async listing now
+      final List<String> files = [];
+      final stream = fileSystem.listDirectory(appDir.path);
+      await for (final entity in stream) {
+        // Ensure it's a file and ends with .m4a before adding
+        // Checking type via `is File` requires dart:io, use entity type property if available
+        // from the abstraction, otherwise rely on path extension.
+        if (entity.path.endsWith('.m4a')) {
+          // Check if it's actually a file using stat, avoid adding directories
+          try {
+            final stat = await fileSystem.stat(entity.path);
+            if (stat.type == FileSystemEntityType.file) {
+              files.add(entity.path);
+            }
+          } catch (_) {
+            // Ignore files we cannot stat (e.g., permission errors, broken links)
+          }
+        }
+      }
+      return files;
     } catch (e) {
       throw AudioFileSystemException('Failed to list recording files', e);
     }
   }
 
   @override
-  Future<String> concatenateRecordings(
-    String originalFilePath,
-    String newSegmentPath,
-  ) async {
-    // TODO: Implement using fileSystem and potentially ffmpeg
-    throw UnimplementedError(
-      'Audio concatenation is not implemented yet. Needs ffmpeg integration.',
-    );
-  }
+  Future<String> concatenateRecordings(List<String> inputFilePaths) async {
+    // TODO: Implement concatenation using ffmpeg_kit_flutter
+    // 1. Validate input: check if list is empty or has less than 2 paths?
+    if (inputFilePaths.length < 2) {
+      throw ArgumentError('Need at least two files to concatenate.');
+    }
+    // 2. Check file existence for all inputs (using fileSystem.fileExists)
+    for (final path in inputFilePaths) {
+      if (!await fileSystem.fileExists(path)) {
+        throw RecordingFileNotFoundException(
+          'Input file not found for concatenation: $path',
+        );
+      }
+    }
 
-  // Remove the old concatenateAudioFiles method
+    // 3. Generate output path and temporary list file path
+    final appDir = await pathProvider.getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final outputPath = '${appDir.path}/concat_$timestamp.m4a';
+    final listFilePath = '${appDir.path}/ffmpeg_list_$timestamp.txt';
+
+    // 4. Create ffmpeg command (using concat demuxer)
+    //    - Create and write to the temporary list file
+    String fileListContent = '';
+    for (final path in inputFilePaths) {
+      // FFmpeg requires paths to be escaped, especially on certain platforms
+      // Simple approach: wrap in single quotes. Robust escaping might be needed.
+      fileListContent += "file '$path'\n";
+    }
+
+    final listFile = File(listFilePath);
+    try {
+      await listFile.writeAsString(fileListContent);
+
+      // Construct the command
+      // -f concat: Use the concat demuxer
+      // -safe 0: Necessary for using relative/absolute paths in the list file
+      // -i listFilePath: Input file is the text file listing the real inputs
+      // -c copy: Copy codecs without re-encoding (faster, avoids quality loss)
+      // outputPath: The final output file
+      final command =
+          '-f concat -safe 0 -i "$listFilePath" -c copy "$outputPath"';
+
+      // 5. Execute using FFmpegKit.executeAsync() for non-blocking
+      // debugPrint('Executing FFmpeg command: $command'); // Optional debug log
+      final session = await FFmpegKit.executeAsync(command);
+      final returnCode = await session.getReturnCode();
+
+      // 6. Check result code and logs
+      if (ReturnCode.isSuccess(returnCode)) {
+        // 8. Return output path on success
+        // debugPrint('FFmpeg concatenation successful: $outputPath');
+        return outputPath;
+      } else {
+        // Concatenation failed
+        final logs = await session.getLogsAsString();
+        // debugPrint('FFmpeg concatenation failed. Logs:\n$logs');
+        throw AudioConcatenationException(
+          'FFmpeg concatenation failed with return code $returnCode',
+          null, // Pass null for originalException when it's an FFmpeg status code failure
+          logs: logs,
+        );
+      }
+    } catch (e) {
+      // Catch errors during file writing or ffmpeg execution
+      if (e is AudioConcatenationException) rethrow;
+      throw AudioConcatenationException(
+        'Error during concatenation process: ${e.toString()}',
+        e, // Pass the caught exception as originalException
+      );
+    } finally {
+      // 7. Delete temporary list file regardless of success/failure
+      try {
+        if (await listFile.exists()) {
+          await listFile.delete();
+        }
+      } catch (_) {
+        // Ignore errors during cleanup, but maybe log them?
+        // debugPrint('Failed to delete temporary ffmpeg list file: $listFilePath');
+      }
+    }
+    // Remove the UnimplementedError as logic is now present
+    // throw UnimplementedError('Concatenation not implemented yet.');
+  }
 }

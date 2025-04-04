@@ -34,9 +34,26 @@ class AudioPlayerException extends AudioException {
   const AudioPlayerException(super.message, [super.originalException]);
 }
 
-/// Exception specifically for concatenation failures.
+/// Exception related to audio file concatenation issues.
 class AudioConcatenationException extends AudioException {
-  const AudioConcatenationException(super.message, [super.originalException]);
+  final String? logs;
+
+  const AudioConcatenationException(
+    super.message,
+    super.originalException, {
+    this.logs,
+  });
+
+  @override
+  String toString() {
+    final cause =
+        super.originalException != null
+            ? ' (Caused by: ${super.originalException})'
+            : '';
+    final logMessage =
+        logs != null && logs!.isNotEmpty ? '\nFFmpeg Logs:\n$logs' : '';
+    return 'AudioConcatenationException: ${super.message}$cause$logMessage';
+  }
 }
 
 /// Exception for when an operation is attempted but no recording is active.
