@@ -192,9 +192,8 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
         AudioRecorderError('Failed to delete $filePath: ${failure.toString()}'),
       ),
       (_) {
-        // Deletion successful, transition back to Ready or reload list
-        emit(AudioRecorderReady()); // Simple transition
-        // TODO: Trigger loadRecordings here
+        // Deletion successful, reload the list to reflect the change.
+        loadRecordings(); // Call loadRecordings to refresh the state
       },
     );
   }
