@@ -1,372 +1,254 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
+import 'package:docjet_mobile/core/usecases/usecase.dart'; // For NoParams
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:record/record.dart';
-import 'audio_recorder_state.dart';
+import 'package:permission_handler/permission_handler.dart'; // Import for openAppSettings
+
+// TODO: Import LoadRecordingsUseCase and potentially append-related use cases
+
+import 'audio_recorder_state.dart'; // Keep existing states
 
 class AudioRecorderCubit extends Cubit<AudioRecorderState> {
-  AudioRecorderCubit() : super(AudioRecorderInitial());
+  final CheckPermission checkPermissionUseCase;
+  final StartRecording startRecordingUseCase;
+  final StopRecording stopRecordingUseCase;
+  final PauseRecording pauseRecordingUseCase;
+  final ResumeRecording resumeRecordingUseCase;
+  final DeleteRecording deleteRecordingUseCase;
+  final LoadRecordings loadRecordingsUseCase;
+  // TODO: Add LoadRecordingsUseCase etc.
 
-  final recorder = AudioRecorder();
-  String? _currentRecordingPath;
+  Timer? _durationTimer;
   DateTime? _recordingStartTime;
-  String? _originalFilePath;
-  Duration? _originalDuration;
+  String? _currentRecordingPath; // Still needed for duration calculation
 
+  AudioRecorderCubit({
+    required this.checkPermissionUseCase,
+    required this.startRecordingUseCase,
+    required this.stopRecordingUseCase,
+    required this.pauseRecordingUseCase,
+    required this.resumeRecordingUseCase,
+    required this.deleteRecordingUseCase,
+    required this.loadRecordingsUseCase,
+    // TODO: Add required LoadRecordingsUseCase
+  }) : super(AudioRecorderInitial());
+
+  /// Checks permission and moves to Ready or PermissionDenied state.
   void checkPermission() async {
-    try {
-      debugPrint(
-        '[AudioRecorderCubit] Checking permission via recorder.hasPermission()...',
-      );
-      // Use the recorder's own check first, as permission_handler seems unreliable
-      final bool hasPermission = await recorder.hasPermission();
-      debugPrint(
-        '[AudioRecorderCubit] recorder.hasPermission() result: $hasPermission',
-      );
+    emit(AudioRecorderLoading()); // Indicate checking
+    final result = await checkPermissionUseCase(NoParams());
+    result.fold(
+      (failure) => emit(
+        AudioRecorderError('Permission check failed: ${failure.toString()}'),
+      ), // Map Failure
+      (hasPermission) => emit(
+        hasPermission ? AudioRecorderReady() : AudioRecorderPermissionDenied(),
+      ),
+    );
+  }
 
-      if (hasPermission) {
-        debugPrint(
-          '[AudioRecorderCubit] Permission already granted according to recorder.',
+  /// Starts a new recording.
+  void startRecording({AudioRecord? appendTo}) async {
+    // TODO: Implement append logic using separate use cases if needed
+    if (appendTo != null) {
+      emit(AudioRecorderError("Append functionality not implemented yet."));
+      return;
+    }
+
+    emit(AudioRecorderLoading());
+    final result = await startRecordingUseCase(NoParams());
+
+    result.fold(
+      (failure) {
+        _cleanupTimer();
+        emit(
+          AudioRecorderError(
+            'Failed to start recording: ${failure.toString()}',
+          ),
         );
-        emit(AudioRecorderReady());
-      } else {
-        // If recorder says no permission, NOW we need to request it.
-        debugPrint(
-          '[AudioRecorderCubit] Permission not granted, requesting via permission_handler...',
+      },
+      (filePath) {
+        _recordingStartTime = DateTime.now();
+        _currentRecordingPath = filePath;
+        emit(
+          AudioRecorderRecording(filePath: filePath, duration: Duration.zero),
         );
-        final requestedStatus = await Permission.microphone.request();
-        debugPrint(
-          '[AudioRecorderCubit] Status after request: $requestedStatus',
-        );
-
-        if (requestedStatus.isGranted) {
-          debugPrint('[AudioRecorderCubit] Permission granted after request.');
-          emit(AudioRecorderReady());
-        } else {
-          // Covers denied, permanentlyDenied, restricted after request
-          debugPrint('[AudioRecorderCubit] Permission denied after request.');
-          emit(AudioRecorderPermissionDenied());
-        }
-      }
-    } catch (e) {
-      debugPrint(
-        '[AudioRecorderCubit] Error checking/requesting permissions: $e',
-      );
-      emit(AudioRecorderError('Failed to check/request permissions: $e'));
-    }
+        _startDurationTimer();
+      },
+    );
   }
 
-  Future<Duration> _getAudioDuration(String filePath) async {
-    final player = AudioPlayer();
-    try {
-      final duration = await player.setFilePath(filePath);
-      return duration ?? Duration.zero;
-    } finally {
-      await player.dispose();
-    }
-  }
-
-  void startRecording({AudioRecordState? appendTo}) async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-      if (appendTo != null) {
-        _originalFilePath = appendTo.filePath;
-        _originalDuration = await _getAudioDuration(_originalFilePath!);
-        _currentRecordingPath = '${appDir.path}/temp_recording_$timestamp.m4a';
-      } else {
-        _currentRecordingPath = '${appDir.path}/recording_$timestamp.m4a';
-      }
-
-      final hasPermission = await recorder.hasPermission();
-      if (!hasPermission) {
-        emit(AudioRecorderError('Microphone permission not granted'));
-        return;
-      }
-
-      _recordingStartTime = DateTime.now();
-      await recorder.start(
-        RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 128000,
-          sampleRate: 44100,
-        ),
-        path: _currentRecordingPath!,
-      );
-
-      emit(
-        AudioRecorderRecording(
-          filePath: _currentRecordingPath!,
-          duration: Duration.zero,
-        ),
-      );
-
-      // Start duration timer
-      _updateDuration();
-    } catch (e) {
-      emit(AudioRecorderError('Failed to start recording: $e'));
-    }
-  }
-
-  void _updateDuration() async {
-    if (state is AudioRecorderRecording) {
-      final duration = DateTime.now().difference(_recordingStartTime!);
-      emit(
-        AudioRecorderRecording(
-          filePath: _currentRecordingPath!,
-          duration: duration,
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 1));
-      if (state is AudioRecorderRecording) {
-        _updateDuration();
-      }
-    }
-  }
-
-  Future<void> _concatenateAudioFiles(
-    String outputPath,
-    List<String> inputPaths,
-  ) async {
-    final recorder = AudioRecorder();
-    final player = AudioPlayer();
-
-    try {
-      // Start recording the output
-      await recorder.start(
-        RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 128000,
-          sampleRate: 44100,
-        ),
-        path: outputPath,
-      );
-
-      // Play each file in sequence
-      for (final inputPath in inputPaths) {
-        // Set up the audio source
-        await player.setFilePath(inputPath);
-
-        // Play and wait for completion
-        await player.play();
-        await player.processingStateStream.firstWhere(
-          (state) => state == ProcessingState.completed,
-        );
-      }
-
-      // Stop recording
-      await recorder.stop();
-    } finally {
-      await player.dispose();
-    }
-  }
-
+  /// Stops the current recording.
   void stopRecording() async {
-    try {
-      // First emit a temporary state to stop the timer
-      emit(AudioRecorderLoading());
+    _cleanupTimer(); // Stop the UI timer first
+    emit(AudioRecorderLoading()); // Indicate processing
 
-      await recorder.stop();
-      final path = _currentRecordingPath!;
-      final duration =
-          _recordingStartTime != null
-              ? DateTime.now().difference(_recordingStartTime!)
-              : const Duration(seconds: 0);
+    final result = await stopRecordingUseCase(NoParams());
 
-      if (_originalFilePath != null) {
-        try {
-          // Create a new concatenated file
-          final appDir = await getApplicationDocumentsDirectory();
-          final timestamp = DateTime.now().millisecondsSinceEpoch;
-          final concatenatedPath = '${appDir.path}/concatenated_$timestamp.m4a';
+    _recordingStartTime = null;
+    _currentRecordingPath = null;
 
-          // Concatenate the audio files
-          await _concatenateAudioFiles(concatenatedPath, [
-            _originalFilePath!,
-            path,
-          ]);
-
-          // Verify the concatenated file exists and has content
-          final concatenatedFile = File(concatenatedPath);
-          if (!await concatenatedFile.exists()) {
-            throw Exception('Failed to create concatenated file');
-          }
-
-          final concatenatedSize = await concatenatedFile.length();
-          if (concatenatedSize == 0) {
-            throw Exception('Concatenated file is empty');
-          }
-
-          // Clean up temporary files
-          try {
-            await File(path).delete();
-          } catch (e) {
-            debugPrint('Error deleting temporary recording: $e');
-          }
-
-          try {
-            await File(_originalFilePath!).delete();
-          } catch (e) {
-            debugPrint('Error deleting original file: $e');
-          }
-
-          // Move concatenated file to original location
-          await concatenatedFile.rename(_originalFilePath!);
-
-          final totalDuration = (_originalDuration ?? Duration.zero) + duration;
-          final originalPath = _originalFilePath!;
-
-          _currentRecordingPath = null;
-          _recordingStartTime = null;
-          _originalFilePath = null;
-          _originalDuration = null;
-
-          emit(
-            AudioRecorderStopped(
-              record: AudioRecordState(
-                filePath: originalPath,
-                duration: totalDuration,
-                createdAt: DateTime.now(),
-              ),
-            ),
-          );
-
-          // Force a reload of the recordings list
-          await Future.delayed(const Duration(milliseconds: 500));
-          loadRecordings();
-        } catch (e) {
-          debugPrint('Error during audio concatenation: $e');
-          // If concatenation fails, at least save the new recording
-          _currentRecordingPath = null;
-          _recordingStartTime = null;
-          _originalFilePath = null;
-          _originalDuration = null;
-
-          emit(
-            AudioRecorderStopped(
-              record: AudioRecordState(
-                filePath: path,
-                duration: duration,
-                createdAt: DateTime.now(),
-              ),
-            ),
-          );
-
-          // Force a reload of the recordings list
-          await Future.delayed(const Duration(milliseconds: 500));
-          loadRecordings();
-        }
-      } else {
-        _currentRecordingPath = null;
-        _recordingStartTime = null;
-        _originalFilePath = null;
-        _originalDuration = null;
-
-        emit(
-          AudioRecorderStopped(
-            record: AudioRecordState(
-              filePath: path,
-              duration: duration,
-              createdAt: DateTime.now(),
-            ),
-          ),
+    result.fold(
+      (failure) => emit(
+        AudioRecorderError('Failed to stop recording: ${failure.toString()}'),
+      ),
+      (audioRecord) {
+        // Map Domain entity to Presentation state entity
+        final recordState = AudioRecordState(
+          filePath: audioRecord.filePath,
+          duration: audioRecord.duration,
+          createdAt: audioRecord.createdAt,
         );
-
-        // Force a reload of the recordings list
-        await Future.delayed(const Duration(milliseconds: 500));
-        loadRecordings();
-      }
-    } catch (e) {
-      emit(AudioRecorderError('Failed to stop recording: $e'));
-    }
+        emit(AudioRecorderStopped(record: recordState));
+      },
+    );
+    // TODO: Potentially trigger loadRecordings here or rely on UI to refresh
   }
 
+  /// Pauses the current recording.
   void pauseRecording() async {
-    try {
-      if (state is AudioRecorderRecording) {
-        await recorder.pause();
-        final recordingState = state as AudioRecorderRecording;
-        emit(
-          AudioRecorderPaused(
-            filePath: recordingState.filePath,
-            duration: recordingState.duration,
-          ),
-        );
-      }
-    } catch (e) {
-      emit(AudioRecorderError('Failed to pause recording: $e'));
-    }
+    // Keep timer running? Or pause it? Depends on desired UX. Let's pause it.
+    _durationTimer?.cancel();
+    // TODO: Consider emitting a specific Paused state if needed, requires state class change.
+    // For now, just call the use case. The UI might need to react differently based on knowing it's paused.
+    final result = await pauseRecordingUseCase(NoParams());
+    result.fold(
+      (failure) =>
+          emit(AudioRecorderError('Failed to pause: ${failure.toString()}')),
+      (_) {
+        // If successful, maybe update state to reflect paused status
+        // Assuming AudioRecorderRecording holds enough info for UI to show "paused"
+        if (state is AudioRecorderRecording) {
+          // Re-emit current state to potentially trigger UI update if needed
+          emit(state);
+        }
+      },
+    );
   }
 
+  /// Resumes a paused recording.
   void resumeRecording() async {
-    try {
-      if (state is AudioRecorderPaused) {
-        await recorder.resume();
-        final pausedState = state as AudioRecorderPaused;
-        emit(
-          AudioRecorderRecording(
-            filePath: pausedState.filePath,
-            duration: pausedState.duration,
-          ),
-        );
-        _updateDuration();
-      }
-    } catch (e) {
-      emit(AudioRecorderError('Failed to resume recording: $e'));
-    }
+    // TODO: Add check if we are actually paused?
+    _startDurationTimer(); // Restart the timer
+    final result = await resumeRecordingUseCase(NoParams());
+    result.fold(
+      (failure) =>
+          emit(AudioRecorderError('Failed to resume: ${failure.toString()}')),
+      (_) {
+        // If successful, state should already be AudioRecorderRecording
+        // Timer restart will handle duration updates.
+        if (state is AudioRecorderRecording) {
+          // Re-emit current state to potentially trigger UI update if needed
+          emit(state);
+        }
+      },
+    );
   }
 
-  void loadRecordings() async {
-    try {
-      emit(AudioRecorderLoading());
+  /// Deletes a specific recording file.
+  void deleteRecording(String filePath) async {
+    emit(AudioRecorderLoading()); // Or a specific "Deleting" state
+    final result = await deleteRecordingUseCase(
+      DeleteRecordingParams(filePath: filePath),
+    );
+    result.fold(
+      (failure) => emit(
+        AudioRecorderError('Failed to delete $filePath: ${failure.toString()}'),
+      ),
+      (_) {
+        // Deletion successful, transition back to Ready or reload list
+        emit(AudioRecorderReady()); // Simple transition
+        // TODO: Trigger loadRecordings here
+      },
+    );
+  }
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final recordingsDir = Directory(appDir.path);
-      final recordings = <AudioRecordState>[];
+  // --- Timer Logic ---
 
-      if (await recordingsDir.exists()) {
-        await for (final file in recordingsDir.list()) {
-          if (file.path.endsWith('.m4a') &&
-              !file.path.contains('temp_recording_') &&
-              !file.path.contains('concatenated_')) {
-            final stat = await File(file.path).stat();
-            final duration = await _getAudioDuration(file.path);
-            recordings.add(
-              AudioRecordState(
-                filePath: file.path,
+  void _startDurationTimer() {
+    _cleanupTimer(); // Ensure any existing timer is stopped
+    if (_recordingStartTime != null && _currentRecordingPath != null) {
+      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (state is AudioRecorderRecording) {
+          final duration = DateTime.now().difference(_recordingStartTime!);
+          // Ensure we're still in a recording state before emitting
+          // (stopRecording might have been called but state update delayed)
+          if (isClosed) {
+            return; // Corrected: Check if the cubit itself is closed
+          }
+          if (state is AudioRecorderRecording) {
+            // Double check state
+            emit(
+              AudioRecorderRecording(
+                filePath: _currentRecordingPath!,
                 duration: duration,
-                createdAt: stat.modified,
               ),
             );
+          } else {
+            _cleanupTimer(); // State changed unexpectedly, stop timer
           }
+        } else {
+          _cleanupTimer(); // Stop timer if not in recording state
         }
-      }
-
-      recordings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      emit(AudioRecorderListLoaded(recordings: recordings));
-    } catch (e) {
-      emit(AudioRecorderError('Failed to load recordings: $e'));
+      });
     }
   }
 
-  void deleteRecording(String filePath) async {
-    try {
-      final file = File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
-      loadRecordings(); // Reload the list after deletion
-    } catch (e) {
-      emit(AudioRecorderError('Failed to delete recording: $e'));
-    }
+  void _cleanupTimer() {
+    _durationTimer?.cancel();
+    _durationTimer = null;
   }
 
-  void openSettings() async {
-    debugPrint('[AudioRecorderCubit] Opening app settings...');
+  @override
+  Future<void> close() {
+    _cleanupTimer();
+    return super.close();
+  }
+
+  /// Opens the application settings page for the user to manage permissions.
+  Future<void> openSettings() async {
     await openAppSettings();
   }
+
+  /// Loads the list of existing recordings.
+  void loadRecordings() async {
+    emit(AudioRecorderLoading()); // Indicate loading
+    final result = await loadRecordingsUseCase(NoParams());
+
+    result.fold(
+      (failure) => emit(
+        AudioRecorderError('Failed to load recordings: ${failure.toString()}'),
+      ),
+      (recordings) {
+        // Map domain entities to presentation state entities
+        final recordStates =
+            recordings
+                .map(
+                  (record) => AudioRecordState(
+                    filePath: record.filePath,
+                    duration: record.duration,
+                    createdAt: record.createdAt,
+                  ),
+                )
+                .toList();
+        emit(AudioRecorderListLoaded(recordings: recordStates));
+      },
+    );
+  }
+
+  // TODO: Implement appendToRecording logic flow using appropriate use cases
+  // This will likely involve new states like AudioRecorderAppending
+  // and coordinating start/stop/concatenate use cases.
 }
+
+// Note: The original _concatenateAudioFiles and _getAudioDuration methods are GONE.
+// All direct file I/O, permission checks, and recording logic are GONE.
+// It now relies purely on injected UseCases.

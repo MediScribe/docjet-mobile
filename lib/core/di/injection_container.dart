@@ -1,9 +1,64 @@
 import 'package:get_it/get_it.dart';
+import 'package:record/record.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
+// TODO: Add imports for Append UseCases?
 import '../../features/audio_recorder/presentation/cubit/audio_recorder_cubit.dart';
 
 final sl = GetIt.instance;
 
 Future<void> init() async {
-  // Cubits
-  sl.registerFactory(() => AudioRecorderCubit());
+  // --- Feature: Audio Recorder ---
+
+  // Cubit (Depends on Use Cases)
+  sl.registerFactory(
+    () => AudioRecorderCubit(
+      checkPermissionUseCase: sl(),
+      startRecordingUseCase: sl(),
+      stopRecordingUseCase: sl(),
+      pauseRecordingUseCase: sl(),
+      resumeRecordingUseCase: sl(),
+      deleteRecordingUseCase: sl(),
+      loadRecordingsUseCase: sl(),
+      // TODO: Inject Append UseCases etc. when added
+    ),
+  );
+
+  // Use Cases (Depend on Repository)
+  sl.registerLazySingleton(() => CheckPermission(sl()));
+  sl.registerLazySingleton(() => StartRecording(sl()));
+  sl.registerLazySingleton(() => StopRecording(sl()));
+  sl.registerLazySingleton(() => PauseRecording(sl()));
+  sl.registerLazySingleton(() => ResumeRecording(sl()));
+  sl.registerLazySingleton(() => DeleteRecording(sl()));
+  sl.registerLazySingleton(() => LoadRecordings(sl()));
+  // TODO: Register Append UseCases etc.
+
+  // Repository (Depends on Data Source)
+  sl.registerLazySingleton<AudioRecorderRepository>(
+    () => AudioRecorderRepositoryImpl(localDataSource: sl()),
+  );
+
+  // Data Source (Depends on external libs)
+  sl.registerLazySingleton<AudioLocalDataSource>(
+    () => AudioLocalDataSourceImpl(recorder: sl()),
+  );
+
+  // --- External Dependencies ---
+  sl.registerLazySingleton(() => AudioRecorder()); // From 'record' package
+
+  // --- Core ---
+  // Register core dependencies if any (e.g., NetworkClient, Logger)
+
+  // --- Other Features ---
+  // Register dependencies for other features
 }

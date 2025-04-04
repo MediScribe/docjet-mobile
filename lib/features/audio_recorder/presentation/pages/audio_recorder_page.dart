@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 import '../cubit/audio_recorder_cubit.dart';
 import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 
 class AudioRecorderPage extends StatelessWidget {
-  final AudioRecordState? appendTo;
+  final AudioRecord? appendTo;
 
   const AudioRecorderPage({super.key, this.appendTo});
 
@@ -16,7 +17,7 @@ class AudioRecorderPage extends StatelessWidget {
 }
 
 class AudioRecorderView extends StatefulWidget {
-  final AudioRecordState? appendTo;
+  final AudioRecord? appendTo;
 
   const AudioRecorderView({super.key, this.appendTo});
 
