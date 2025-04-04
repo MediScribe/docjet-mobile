@@ -1,266 +1,357 @@
+import 'dart:io'; // Keep for Directory/File types used in mocks if needed
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart'
+    show Permission, PermissionStatus;
 import 'package:record/record.dart';
 
+// Import interfaces and exceptions
+import 'package:docjet_mobile/core/platform/file_system.dart';
+import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 
 // Import generated mocks
 import 'audio_local_data_source_impl_test.mocks.dart';
 
-// Annotations for mock generation
-@GenerateMocks([AudioRecorder, Permission])
+// Update mock annotations
+@GenerateMocks([
+  AudioRecorder,
+  FileSystem,
+  PathProvider,
+  PermissionHandler,
+  Directory, // Mock Directory for pathProvider return
+  File, // Mock File for listDirectorySync results
+  FileSystemEntity, // Mock base class for listDirectorySync
+])
 void main() {
-  // Initialize binding for platform channel testing (like permission_handler)
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   late AudioLocalDataSourceImpl dataSource;
   late MockAudioRecorder mockAudioRecorder;
-  late MockPermission mockPermission; // Use this mock
+  late MockFileSystem mockFileSystem;
+  late MockPathProvider mockPathProvider;
+  late MockPermissionHandler mockPermissionHandler;
+  late MockDirectory mockDirectory;
+
+  final tPermission = Permission.microphone;
+  const tFakeDocPath = '/fake/doc/path';
 
   setUp(() {
+    // Keep the main setup for initializing mocks
     mockAudioRecorder = MockAudioRecorder();
-    mockPermission = MockPermission(); // Initialize mock
+    mockFileSystem = MockFileSystem();
+    mockPathProvider = MockPathProvider();
+    mockPermissionHandler = MockPermissionHandler();
+    mockDirectory = MockDirectory();
 
-    // Inject the mock permission handler
     dataSource = AudioLocalDataSourceImpl(
       recorder: mockAudioRecorder,
-      microphonePermission: mockPermission, // Inject mock
+      fileSystem: mockFileSystem,
+      pathProvider: mockPathProvider,
+      permissionHandler: mockPermissionHandler,
     );
 
-    // Mocking path_provider and dart:io remains complex/out of scope for basic unit tests
+    // Minimal common setup - moved specific path setup into tests
+    when(mockDirectory.path).thenReturn(tFakeDocPath);
   });
 
-  // --- Test Groups ---
+  // --- Test Groups (Rewritten) ---
 
   group('checkPermission', () {
-    // These tests fail due to MissingPluginException for permission_handler
     test(
-      'should return true when recorder.hasPermission() returns true',
+      'should return true when permission handler status is granted',
       () async {
         // Arrange
-        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => true);
-        // Act
-        // final result = await dataSource.checkPermission(); // Fails due to plugin
-        // Assert
-        // expect(result, isTrue);
-        // verify(mockAudioRecorder.hasPermission());
-        // verifyNever(mockPermission.status);
-      },
-      skip: 'Requires native permission_handler implementation',
-    );
-    test(
-      'should return true when recorder.hasPermission() is false but permission_handler status is granted',
-      () async {
-        // Arrange
-        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => false);
         when(
-          mockPermission.status,
+          mockPermissionHandler.status(tPermission),
         ).thenAnswer((_) async => PermissionStatus.granted);
         // Act
-        // final result = await dataSource.checkPermission(); // Fails due to plugin
+        final result = await dataSource.checkPermission();
         // Assert
-        // expect(result, isTrue);
-        // verify(mockAudioRecorder.hasPermission());
-        // verify(mockPermission.status);
+        expect(result, isTrue);
+        verify(mockPermissionHandler.status(tPermission));
       },
-      skip: 'Requires native permission_handler implementation',
     );
+
     test(
-      'should return false when recorder.hasPermission() is false and permission_handler status is denied',
+      'should return false when permission handler status is denied',
       () async {
         // Arrange
-        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => false);
         when(
-          mockPermission.status,
+          mockPermissionHandler.status(tPermission),
         ).thenAnswer((_) async => PermissionStatus.denied);
         // Act
-        // final result = await dataSource.checkPermission(); // Fails due to plugin
+        final result = await dataSource.checkPermission();
         // Assert
-        // expect(result, isFalse);
-        // verify(mockAudioRecorder.hasPermission());
-        // verify(mockPermission.status);
+        expect(result, isFalse);
+        verify(mockPermissionHandler.status(tPermission));
       },
-      skip: 'Requires native permission_handler implementation',
     );
+
     test(
-      'should throw AudioPermissionException when recorder.hasPermission() throws',
+      'should throw AudioPermissionException when permission handler status throws',
       () async {
         // Arrange
-        when(
-          mockAudioRecorder.hasPermission(),
-        ).thenThrow(Exception('Recorder error'));
-        // Act
+        final exception = Exception('Handler error');
+        when(mockPermissionHandler.status(tPermission)).thenThrow(exception);
+        // Act & Assert
         expect(
           () => dataSource.checkPermission(),
           throwsA(isA<AudioPermissionException>()),
         );
-        // verify(mockAudioRecorder.hasPermission());
-        // verifyNever(mockPermission.status);
+        verify(mockPermissionHandler.status(tPermission));
       },
-      skip: 'Requires native permission_handler implementation',
-    );
-    test(
-      'should throw AudioPermissionException when permission_handler.status throws',
-      () async {
-        // Arrange
-        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => false);
-        when(
-          mockPermission.status,
-        ).thenThrow(Exception('Permission handler error'));
-        // Act
-        expect(
-          () => dataSource.checkPermission(),
-          throwsA(isA<AudioPermissionException>()),
-        );
-        // verify(mockAudioRecorder.hasPermission());
-        // verify(mockPermission.status);
-      },
-      skip: 'Requires native permission_handler implementation',
     );
   });
 
   group('requestPermission', () {
-    // These tests fail due to MissingPluginException for permission_handler
-    test(
-      'should return true when permission request is granted',
-      () async {
-        // Arrange
-        when(
-          mockPermission.request(),
-        ).thenAnswer((_) async => PermissionStatus.granted);
-        // Act
-        // final result = await dataSource.requestPermission(); // Fails due to plugin
-        // Assert
-        // expect(result, isTrue);
-        // verify(mockPermission.request());
-      },
-      skip: 'Requires native permission_handler implementation',
-    );
-    test(
-      'should return false when permission request is denied',
-      () async {
-        // Arrange
-        when(
-          mockPermission.request(),
-        ).thenAnswer((_) async => PermissionStatus.denied);
-        // Act
-        // final result = await dataSource.requestPermission(); // Fails due to plugin
-        // Assert
-        // expect(result, isFalse);
-        // verify(mockPermission.request());
-      },
-      skip: 'Requires native permission_handler implementation',
-    );
+    test('should return true when permission request is granted', () async {
+      // Arrange
+      when(
+        mockPermissionHandler.request([tPermission]),
+      ).thenAnswer((_) async => {tPermission: PermissionStatus.granted});
+      // Act
+      final result = await dataSource.requestPermission();
+      // Assert
+      expect(result, isTrue);
+      verify(mockPermissionHandler.request([tPermission]));
+    });
+
+    test('should return false when permission request is denied', () async {
+      // Arrange
+      when(
+        mockPermissionHandler.request([tPermission]),
+      ).thenAnswer((_) async => {tPermission: PermissionStatus.denied});
+      // Act
+      final result = await dataSource.requestPermission();
+      // Assert
+      expect(result, isFalse);
+      verify(mockPermissionHandler.request([tPermission]));
+    });
+
     test(
       'should throw AudioPermissionException when permission request throws',
       () async {
         // Arrange
-        when(mockPermission.request()).thenThrow(Exception('Request failed'));
-        // Act
+        final exception = Exception('Request failed');
+        when(mockPermissionHandler.request([tPermission])).thenThrow(exception);
+        // Act & Assert
         expect(
           () => dataSource.requestPermission(),
           throwsA(isA<AudioPermissionException>()),
         );
-        // verify(mockPermission.request());
+        verify(mockPermissionHandler.request([tPermission]));
       },
-      skip: 'Requires native permission_handler implementation',
     );
   });
 
   group('startRecording', () {
-    setUp(() {
-      // This setup might not be strictly needed if checkPermission tests are skipped
-      // Ensure checkPermission returns true for tests that might reach recorder.start
-      when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => true);
-    });
+    const tFilePathPrefix = '$tFakeDocPath/recording_';
 
-    // This test fails due to MissingPluginException for permission_handler (via checkPermission)
     test(
       'should throw AudioPermissionException if checkPermission returns false',
       () async {
         // Arrange
-        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => false);
         when(
-          mockPermission.status,
+          mockPermissionHandler.status(tPermission),
         ).thenAnswer((_) async => PermissionStatus.denied);
-        // Act
+        // Act & Assert
         expect(
           () => dataSource.startRecording(),
           throwsA(isA<AudioPermissionException>()),
         );
+        verify(mockPermissionHandler.status(tPermission));
+        verifyNever(mockPathProvider.getApplicationDocumentsDirectory());
+        verifyNever(mockAudioRecorder.start(any, path: anyNamed('path')));
       },
-      skip: 'Requires native permission_handler implementation',
     );
 
-    // This test fails due to MissingPluginException for path_provider
     test(
-      'should call recorder.start and return a file path on success',
+      'should call recorder.start with generated path and return path on success (dir exists)',
       () async {
         // Arrange
+        when(
+          mockPermissionHandler.status(tPermission),
+        ).thenAnswer((_) async => PermissionStatus.granted);
+        when(
+          mockPathProvider.getApplicationDocumentsDirectory(),
+        ).thenAnswer((_) async => mockDirectory); // Setup path provider
+        when(
+          mockFileSystem.directoryExists(tFakeDocPath),
+        ).thenAnswer((_) async => true);
         when(
           mockAudioRecorder.start(any, path: anyNamed('path')),
         ).thenAnswer((_) async => Future.value());
+
         // Act
-        // final resultPath = await dataSource.startRecording(); // Fails due to path_provider
+        final resultPath = await dataSource.startRecording();
+
         // Assert
-        // verify(mockAudioRecorder.start(any, path: anyNamed('path'))).called(1);
-        // expect(resultPath, isNotNull);
+        expect(resultPath, startsWith(tFilePathPrefix));
+        expect(resultPath, endsWith('.m4a'));
+        final pathCapture =
+            verify(
+              mockAudioRecorder.start(any, path: captureAnyNamed('path')),
+            ).captured.single;
+        expect(pathCapture, resultPath);
+        verify(mockPathProvider.getApplicationDocumentsDirectory());
+        verify(mockFileSystem.directoryExists(tFakeDocPath));
+        verifyNever(
+          mockFileSystem.createDirectory(any, recursive: anyNamed('recursive')),
+        );
       },
-      skip: 'Requires native path_provider implementation',
     );
 
-    // This test depends on the above passing, so skip it too.
     test(
-      'should throw AudioRecordingException if recorder.start throws an exception',
+      'should create directory if it does not exist then start recording',
       () async {
         // Arrange
-        final exception = Exception('Recorder failed to start');
+        when(
+          mockPermissionHandler.status(tPermission),
+        ).thenAnswer((_) async => PermissionStatus.granted);
+        when(
+          mockPathProvider.getApplicationDocumentsDirectory(),
+        ).thenAnswer((_) async => mockDirectory); // Setup path provider
+        when(
+          mockFileSystem.directoryExists(tFakeDocPath),
+        ).thenAnswer((_) async => false);
+        when(
+          mockFileSystem.createDirectory(tFakeDocPath, recursive: true),
+        ).thenAnswer((_) async => Future.value());
+        when(
+          mockAudioRecorder.start(any, path: anyNamed('path')),
+        ).thenAnswer((_) async => Future.value());
+
+        // Act
+        final resultPath = await dataSource.startRecording();
+
+        // Assert
+        expect(resultPath, startsWith(tFilePathPrefix));
+        verify(mockPermissionHandler.status(tPermission));
+        verify(mockPathProvider.getApplicationDocumentsDirectory());
+        verify(mockFileSystem.directoryExists(tFakeDocPath));
+        verify(mockFileSystem.createDirectory(tFakeDocPath, recursive: true));
+        verify(mockAudioRecorder.start(any, path: captureAnyNamed('path')));
+      },
+    );
+
+    test(
+      'should throw AudioRecordingException if recorder.start throws',
+      () async {
+        // Arrange
+        when(
+          mockPermissionHandler.status(tPermission),
+        ).thenAnswer((_) async => PermissionStatus.granted);
+        when(
+          mockPathProvider.getApplicationDocumentsDirectory(),
+        ).thenAnswer((_) async => mockDirectory);
+        when(
+          mockFileSystem.directoryExists(tFakeDocPath),
+        ).thenAnswer((_) async => true);
+        final exception = Exception('Recorder failed');
         when(
           mockAudioRecorder.start(any, path: anyNamed('path')),
         ).thenThrow(exception);
+
         // Act
+        AudioRecordingException? caughtException;
+        try {
+          await dataSource.startRecording();
+        } on AudioRecordingException catch (e) {
+          caughtException = e;
+        }
+
+        // Assert
         expect(
-          () => dataSource.startRecording(),
-          throwsA(isA<AudioRecordingException>()),
+          caughtException,
+          isNotNull,
+          reason: 'Expected AudioRecordingException was not thrown.',
         );
+        expect(caughtException, isA<AudioRecordingException>());
+        expect(
+          dataSource.currentRecordingPath,
+          isNull,
+          reason:
+              'currentRecordingPath should be null after startRecording fails.',
+        );
+        verify(mockAudioRecorder.start(any, path: anyNamed('path')));
       },
-      skip: 'Depends on path_provider for setup',
     );
   });
 
   group('stopRecording', () {
-    const tPath = '/path/test.m4a';
+    const tPath = '$tFakeDocPath/test.m4a';
 
-    // Skipped because File.exists() cannot be reliably mocked here.
     test(
       'should return path when recorder stops successfully and file exists',
       () async {
         // Arrange
         dataSource.testingSetCurrentRecordingPath = tPath;
         when(mockAudioRecorder.stop()).thenAnswer((_) async => Future.value());
+        when(mockFileSystem.fileExists(tPath)).thenAnswer((_) async => true);
         // Act
+        final result = await dataSource.stopRecording();
         // Assert
+        expect(result, tPath);
+        expect(dataSource.currentRecordingPath, isNull);
+        verify(mockAudioRecorder.stop());
+        verify(mockFileSystem.fileExists(tPath));
       },
-      skip: true,
     );
 
-    // This test SHOULD pass
-    test('should throw NoActiveRecordingException if path is null', () async {
-      // Arrange
-      dataSource.testingSetCurrentRecordingPath = null;
-      when(mockAudioRecorder.stop()).thenAnswer((_) async => Future.value());
-      // Act
-      expect(
-        () => dataSource.stopRecording(),
-        throwsA(isA<NoActiveRecordingException>()),
-      );
-      expect(dataSource.currentRecordingPath, isNull);
-    });
+    test(
+      'should throw RecordingFileNotFoundException if file does not exist after stop',
+      () async {
+        // Arrange
+        dataSource.testingSetCurrentRecordingPath = tPath;
+        when(mockAudioRecorder.stop()).thenAnswer((_) async => Future.value());
+        when(mockFileSystem.fileExists(tPath)).thenAnswer((_) async => false);
 
-    // This test SHOULD pass
+        // Act
+        RecordingFileNotFoundException? caughtException;
+        try {
+          await dataSource.stopRecording();
+        } on RecordingFileNotFoundException catch (e) {
+          caughtException = e;
+        }
+
+        // Assert
+        expect(
+          caughtException,
+          isNotNull,
+          reason: 'Expected RecordingFileNotFoundException was not thrown.',
+        );
+        expect(caughtException, isA<RecordingFileNotFoundException>());
+        expect(
+          dataSource.currentRecordingPath,
+          isNull,
+          reason:
+              'currentRecordingPath should be null after stopRecording fails due to missing file.',
+        );
+        verify(mockAudioRecorder.stop());
+        verify(mockFileSystem.fileExists(tPath));
+      },
+    );
+
+    test(
+      'should throw NoActiveRecordingException if path is null initially',
+      () async {
+        // Arrange
+        dataSource.testingSetCurrentRecordingPath = null;
+        when(mockAudioRecorder.stop()).thenAnswer((_) async => Future.value());
+
+        // Act & Assert
+        expect(
+          () => dataSource.stopRecording(),
+          throwsA(isA<NoActiveRecordingException>()),
+        );
+        verifyNever(mockAudioRecorder.stop());
+        verifyNever(mockFileSystem.fileExists(any));
+      },
+    );
+
     test(
       'should throw AudioRecordingException if recorder.stop throws',
       () async {
@@ -268,20 +359,20 @@ void main() {
         dataSource.testingSetCurrentRecordingPath = tPath;
         final exception = Exception('Stop failed');
         when(mockAudioRecorder.stop()).thenThrow(exception);
-        // Act
+        // Act & Assert
         expect(
           () => dataSource.stopRecording(),
           throwsA(isA<AudioRecordingException>()),
         );
         expect(dataSource.currentRecordingPath, isNull);
         verify(mockAudioRecorder.stop());
+        verifyNever(mockFileSystem.fileExists(any));
       },
     );
   });
 
-  // These groups SHOULD pass
   group('pauseRecording', () {
-    const tPath = '/path/test.m4a';
+    const tPath = '$tFakeDocPath/pause_test.m4a';
 
     test('should call recorder.pause when recording path is set', () async {
       // Arrange
@@ -296,10 +387,11 @@ void main() {
     test('should throw NoActiveRecordingException if path is null', () async {
       // Arrange
       dataSource.testingSetCurrentRecordingPath = null;
-      // Act
-      final call = dataSource.pauseRecording;
-      // Assert
-      expect(call, throwsA(isA<NoActiveRecordingException>()));
+      // Act & Assert
+      expect(
+        () => dataSource.pauseRecording(),
+        throwsA(isA<NoActiveRecordingException>()),
+      );
       verifyNever(mockAudioRecorder.pause());
     });
 
@@ -310,17 +402,18 @@ void main() {
         dataSource.testingSetCurrentRecordingPath = tPath;
         final exception = Exception('Pause failed');
         when(mockAudioRecorder.pause()).thenThrow(exception);
-        // Act
-        final call = dataSource.pauseRecording;
-        // Assert
-        expect(call, throwsA(isA<AudioRecordingException>()));
+        // Act & Assert
+        expect(
+          () => dataSource.pauseRecording(),
+          throwsA(isA<AudioRecordingException>()),
+        );
         verify(mockAudioRecorder.pause());
       },
     );
   });
 
   group('resumeRecording', () {
-    const tPath = '/path/test.m4a';
+    const tPath = '$tFakeDocPath/resume_test.m4a';
 
     test('should call recorder.resume when recording path is set', () async {
       // Arrange
@@ -335,10 +428,11 @@ void main() {
     test('should throw NoActiveRecordingException if path is null', () async {
       // Arrange
       dataSource.testingSetCurrentRecordingPath = null;
-      // Act
-      final call = dataSource.resumeRecording;
-      // Assert
-      expect(call, throwsA(isA<NoActiveRecordingException>()));
+      // Act & Assert
+      expect(
+        () => dataSource.resumeRecording(),
+        throwsA(isA<NoActiveRecordingException>()),
+      );
       verifyNever(mockAudioRecorder.resume());
     });
 
@@ -349,25 +443,84 @@ void main() {
         dataSource.testingSetCurrentRecordingPath = tPath;
         final exception = Exception('Resume failed');
         when(mockAudioRecorder.resume()).thenThrow(exception);
-        // Act
-        final call = dataSource.resumeRecording;
-        // Assert
-        expect(call, throwsA(isA<AudioRecordingException>()));
+        // Act & Assert
+        expect(
+          () => dataSource.resumeRecording(),
+          throwsA(isA<AudioRecordingException>()),
+        );
         verify(mockAudioRecorder.resume());
       },
     );
   });
 
-  // These remain skipped due to dart:io / path_provider / internal AudioPlayer() mocking issues
   group('deleteRecording', () {
+    const tFilePath = '$tFakeDocPath/delete_me.m4a';
+
+    test('should call fileSystem.deleteFile if file exists', () async {
+      // Arrange
+      when(mockFileSystem.fileExists(tFilePath)).thenAnswer((_) async => true);
+      when(
+        mockFileSystem.deleteFile(tFilePath),
+      ).thenAnswer((_) async => Future.value());
+      // Act
+      await dataSource.deleteRecording(tFilePath);
+      // Assert
+      verify(mockFileSystem.fileExists(tFilePath));
+      verify(mockFileSystem.deleteFile(tFilePath));
+    });
+
     test(
-      'should throw AudioFileSystemException for general errors during delete process',
-      () async {},
-      skip: 'Requires FileSystem wrapper for reliable testing.',
+      'should throw RecordingFileNotFoundException if file does not exist',
+      () async {
+        // Arrange
+        when(
+          mockFileSystem.fileExists(tFilePath),
+        ).thenAnswer((_) async => false);
+        // Act & Assert
+        expect(
+          () => dataSource.deleteRecording(tFilePath),
+          throwsA(isA<RecordingFileNotFoundException>()),
+        );
+        verify(mockFileSystem.fileExists(tFilePath));
+        verifyNever(mockFileSystem.deleteFile(any));
+      },
+    );
+
+    test(
+      'should throw AudioFileSystemException if fileSystem.deleteFile throws',
+      () async {
+        // Arrange
+        when(
+          mockFileSystem.fileExists(tFilePath),
+        ).thenAnswer((_) async => true);
+        final exception = Exception('Delete failed');
+        when(mockFileSystem.deleteFile(tFilePath)).thenThrow(exception);
+
+        // Act
+        AudioFileSystemException? caughtException;
+        try {
+          await dataSource.deleteRecording(tFilePath);
+        } on AudioFileSystemException catch (e) {
+          caughtException = e;
+        }
+
+        // Assert
+        expect(
+          caughtException,
+          isNotNull,
+          reason: 'Expected AudioFileSystemException was not thrown.',
+        );
+        expect(caughtException, isA<AudioFileSystemException>());
+        verify(mockFileSystem.fileExists(tFilePath));
+        verify(
+          mockFileSystem.deleteFile(tFilePath),
+        ); // Verify the call that threw
+      },
     );
   });
 
   group('getAudioDuration', () {
+    // Still skipped because AudioPlayer is created internally
     test(
       'should return duration when player gets it successfully',
       () async {},
@@ -388,15 +541,114 @@ void main() {
       () async {},
       skip: 'Cannot mock internal AudioPlayer() creation easily.',
     );
-  });
-
-  group('listRecordingFiles', () {
     test(
-      'tests skipped until FileSystem/PathProvider wrappers are injected',
-      () {},
-      skip: true,
+      'should throw RecordingFileNotFoundException if file does not exist before getting duration',
+      () async {},
+      skip: 'Cannot mock internal AudioPlayer() creation easily.',
     );
   });
 
-  // Concatenation methods are not tested here yet as they are unimplemented.
+  group('listRecordingFiles', () {
+    final tDirPath = tFakeDocPath; // Use constant
+    final tFile1Path = '$tDirPath/rec1.m4a';
+    final tFile2Path = '$tDirPath/rec2.m4a';
+    final tOtherFilePath = '$tDirPath/other.txt';
+
+    test(
+      'should return list of .m4a file paths when directory exists',
+      () async {
+        // Arrange
+        final mockFile1 = MockFile(); // Create mocks locally
+        final mockFile2 = MockFile();
+        final mockOtherFile = MockFile();
+        when(mockFile1.path).thenReturn(tFile1Path);
+        when(mockFile2.path).thenReturn(tFile2Path);
+        when(mockOtherFile.path).thenReturn(tOtherFilePath);
+
+        when(
+          mockPathProvider.getApplicationDocumentsDirectory(),
+        ).thenAnswer((_) async => mockDirectory); // Setup path provider
+        when(
+          mockFileSystem.directoryExists(tDirPath),
+        ).thenAnswer((_) async => true);
+        when(
+          mockFileSystem.listDirectorySync(tDirPath),
+        ).thenReturn([mockFile1, mockOtherFile, mockFile2]);
+
+        // Act
+        final result = await dataSource.listRecordingFiles();
+
+        // Assert
+        expect(result, equals([tFile1Path, tFile2Path]));
+        verify(mockPathProvider.getApplicationDocumentsDirectory());
+        verify(mockFileSystem.directoryExists(tDirPath));
+        verify(mockFileSystem.listDirectorySync(tDirPath));
+        verifyNever(
+          mockFileSystem.createDirectory(any, recursive: anyNamed('recursive')),
+        );
+      },
+    );
+
+    test(
+      'should return empty list and create directory if it does not exist',
+      () async {
+        // Arrange
+        when(
+          mockPathProvider.getApplicationDocumentsDirectory(),
+        ).thenAnswer((_) async => mockDirectory); // Setup path provider
+        when(
+          mockFileSystem.directoryExists(tDirPath),
+        ).thenAnswer((_) async => false);
+        when(
+          mockFileSystem.createDirectory(tDirPath, recursive: true),
+        ).thenAnswer((_) async => Future.value());
+
+        // Act
+        final result = await dataSource.listRecordingFiles();
+
+        // Assert
+        expect(result, isEmpty);
+        verify(mockPathProvider.getApplicationDocumentsDirectory());
+        verify(mockFileSystem.directoryExists(tDirPath));
+        verify(mockFileSystem.createDirectory(tDirPath, recursive: true));
+        verifyNever(mockFileSystem.listDirectorySync(any));
+      },
+    );
+
+    test(
+      'should throw AudioFileSystemException if listDirectorySync throws',
+      () async {
+        // Arrange
+        when(
+          mockPathProvider.getApplicationDocumentsDirectory(),
+        ).thenAnswer((_) async => mockDirectory);
+        when(
+          mockFileSystem.directoryExists(tDirPath),
+        ).thenAnswer((_) async => true);
+        final exception = Exception('List failed');
+        when(mockFileSystem.listDirectorySync(tDirPath)).thenThrow(exception);
+
+        // Act
+        AudioFileSystemException? caughtException;
+        try {
+          await dataSource.listRecordingFiles();
+        } on AudioFileSystemException catch (e) {
+          caughtException = e;
+        }
+
+        // Assert
+        expect(
+          caughtException,
+          isNotNull,
+          reason: 'Expected AudioFileSystemException was not thrown.',
+        );
+        expect(caughtException, isA<AudioFileSystemException>());
+        verify(mockPathProvider.getApplicationDocumentsDirectory());
+        verify(mockFileSystem.directoryExists(tDirPath));
+        verify(
+          mockFileSystem.listDirectorySync(tDirPath),
+        ); // Verify the call that threw
+      },
+    );
+  });
 }

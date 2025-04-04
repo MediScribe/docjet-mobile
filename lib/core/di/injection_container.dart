@@ -1,5 +1,8 @@
 import 'package:get_it/get_it.dart';
 import 'package:record/record.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
+import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
@@ -48,13 +51,24 @@ Future<void> init() async {
     () => AudioRecorderRepositoryImpl(localDataSource: sl()),
   );
 
-  // Data Source (Depends on external libs)
+  // Data Source (Depends on external libs and core platform interfaces)
   sl.registerLazySingleton<AudioLocalDataSource>(
-    () => AudioLocalDataSourceImpl(recorder: sl()),
+    () => AudioLocalDataSourceImpl(
+      recorder: sl(),
+      fileSystem: sl(),
+      pathProvider: sl(),
+      permissionHandler: sl(),
+    ),
   );
 
   // --- External Dependencies ---
   sl.registerLazySingleton(() => AudioRecorder()); // From 'record' package
+
+  // --- Core Platform Implementations ---
+  // Register concrete implementations for the platform interfaces
+  sl.registerLazySingleton<FileSystem>(() => IoFileSystem());
+  sl.registerLazySingleton<PathProvider>(() => AppPathProvider());
+  sl.registerLazySingleton<PermissionHandler>(() => AppPermissionHandler());
 
   // --- Core ---
   // Register core dependencies if any (e.g., NetworkClient, Logger)
