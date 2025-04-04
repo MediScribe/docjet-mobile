@@ -1,53 +1,54 @@
-# Code Review: Audio Feature (Post-Refactoring Analysis)
+# Code Review: Audio Feature (Progress Update)
 
-Alright, let's assess the damage... or progress, depending on whether you actually listened. You've refactored the audio feature, moving away from the monolithic `AudioRecorderCubit` disaster towards a clean architecture (`data`/`domain`/`presentation`).
+Alright, let's reassess the situation after cleaning up some of the initial mess. We're still dealing with the refactored audio feature (`data`/`domain`/`presentation`).
 
-**Good News:** You laid the foundation. The directory structure exists, dependencies are generally injected correctly (Cubit -> Use Cases -> Repository -> DataSource), and you're using `Either` for error handling flow. That's a fucking start.
+**Good News:** The clean architecture foundation remains. Dependencies seem okay. `Either` is still the vehicle for error handling. We've made *some* fucking progress tackling the initial slop.
 
-**Bad News:** You stopped halfway, like Mafee chickening out of a trade. Key functionality is missing, error handling is sloppy, and some implementation details are lazy.
+**Bad News:** The core feature is still missing, and other inefficiencies remain. Don't get complacent.
 
-## Current State & Outstanding Issues (Priority Order):
+## Current State & Outstanding Issues (Updated Priority Order):
 
-1.  **CRITICAL: Concatenation / Append is FUCKING MISSING:**
-    *   **Problem:** The single most critical flaw. You ripped out the old, broken playback-concatenation from the original `AudioRecorderCubit`, but the new `AudioLocalDataSourceImpl.concatenateRecordings` method **throws `UnimplementedError`**. You didn't replace it with `ffmpeg_kit_flutter` or anything else. The `AudioRecorderRepositoryImpl.appendToRecording` logic is also broken and placeholder.
-    *   **Impact:** Core functionality (appending to recordings) is non-existent. This isn't refactoring; it's deleting features.
-    *   **Action:** **IMPLEMENT** robust concatenation in `AudioLocalDataSourceImpl` using `ffmpeg_kit_flutter` NOW. Design and **IMPLEMENT** the full append workflow (likely requires dedicated `StartAppendUseCase`, `StopAndAppendUseCase` orchestrating the fixed repository/data source methods).
+1.  **CRITICAL: Concatenation / Append is STILL FUCKING MISSING:**
+    *   **Problem:** Unchanged. `AudioLocalDataSourceImpl.concatenateRecordings` and `AudioRecorderRepositoryImpl.appendToRecording` still throw `UnimplementedError`. No `ffmpeg_kit_flutter`, no replacement logic.
+    *   **Impact:** Core functionality is non-existent. This remains the biggest gaping hole.
+    *   **Action:** **IMPLEMENT** robust concatenation in `AudioLocalDataSourceImpl` using `ffmpeg_kit_flutter`. Design and **IMPLEMENT** the full append workflow (Use Cases, Repository orchestration). **THIS IS STILL TOP PRIORITY.**
 
-2.  **HIGH: Sloppy & Inconsistent Error Handling:**
-    *   **Problem:** While you're *using* `Either`, the implementation is half-assed.
-        *   `AudioLocalDataSourceImpl`: Still throws generic `Exception`s instead of specific, defined exception types (e.g., `PermissionException`, `FileSystemException`). `TODO` comments don't fix this.
-        *   `AudioRecorderRepositoryImpl`: Uses a `_tryCatch` helper but applies it inconsistently. Some methods manually catch and return the *wrong* `Failure` type (e.g., `CacheFailure` for permission/load errors - what the fuck?!). Specific `Failure` types (`RecordingFailure`, `PermissionFailure`, etc.) are used sometimes but not always. `TODO`s remain.
-        *   `AudioRecorderCubit`: Maps `Failure` to a generic `AudioRecorderError` string. This might be okay, but specific failures *could* map to more informative UI states.
-    *   **Impact:** Debugging is harder, error recovery is limited, and the domain layer receives inconsistent failure information. Misusing `CacheFailure` is just plain wrong.
-    *   **Action:** Define specific Exception types in the DataSource. **Consistently** map ALL caught exceptions in the Repository to appropriate, specific `Failure` types (defined centrally in `core/error/failures.dart`). **NO MORE** generic `Exception`s or misused `CacheFailure`s. Clean up all error-related `TODO`s.
+2.  **FIXED: Sloppy & Inconsistent Error Handling:**
+    *   **Original Problem:** Generic `Exception`s in DataSource, inconsistent `Failure` mapping in Repository (misusing `CacheFailure`), `TODO`s everywhere.
+    *   **Status: FIXED.**
+        *   Defined specific `AudioException` types (`AudioPermissionException`, `AudioFileSystemException`, etc.) in `data/exceptions/audio_exceptions.dart`.
+        *   `AudioLocalDataSourceImpl` now throws these specific exceptions.
+        *   `AudioRecorderRepositoryImpl` refactored with a consistent `_tryCatch` helper mapping specific exceptions to correct `Failure` types (e.g., `AudioPermissionException` -> `PermissionFailure`). Manual `try/catch` and `CacheFailure` misuse eliminated. Error-related `TODO`s cleaned up.
+    *   **Impact:** Debugging is easier, error flow is consistent, domain layer gets meaningful failures. Much fucking better.
 
-3.  **MEDIUM: Lazy Loading & Entity Data:**
-    *   **Problem:**
-        *   `AudioRecorderRepositoryImpl`: `loadRecordings` and `listRecordings` fetch duration individually per file using `getAudioDuration`, which creates/disposes an `AudioPlayer` each time. This is inefficient.
-        *   `AudioRecord` Entity: Uses placeholder `DateTime.now()` for `createdAt` when stopping or loading recordings.
-    *   **Impact:** Performance hit when loading many recordings. Entity data doesn't reflect reality.
-    *   **Action:** Get the *actual* file creation timestamp from file system metadata for `createdAt`. Investigate more efficient ways to get duration/metadata for `loadRecordings` if possible.
+3.  **PARTIALLY FIXED / MEDIUM: Lazy Loading & Entity Data:**
+    *   **Problem A (Entity Data):** `AudioRecord` Entity used placeholder `DateTime.now()` for `createdAt`.
+        *   **Status: FIXED.** Repository methods (`stopRecording`, `loadRecordings`, `listRecordings`) now use `FileStat.modified` to get the *actual* file modification timestamp.
+    *   **Problem B (Loading):** `loadRecordings`/`listRecordings` still fetch duration individually per file using `getAudioDuration`, creating/disposing `AudioPlayer` each time.
+        *   **Status: OUTSTANDING.** This inefficiency remains.
+    *   **Impact:** Fixed data accuracy. Performance hit when loading many recordings still exists.
+    *   **Action:** Investigate more efficient ways to get duration/metadata for `loadRecordings`/`listRecordings` (e.g., batch processing with `ffmpeg` if possible).
 
-4.  **LOW: Questionable Permission Logic:**
+4.  **POSTPONED / LOW: Questionable Permission Logic:**
     *   **Problem:** The dual-check (`recorder.hasPermission()` then `permission_handler`) in `AudioLocalDataSourceImpl` persists.
-    *   **Impact:** Potentially unnecessary complexity or masks an underlying issue with one of the checks.
-    *   **Action:** Investigate *why* this dual check is needed. Is `recorder.hasPermission()` unreliable? Simplify to a single, reliable check if possible, or document the necessity clearly.
+    *   **Impact:** Potential complexity or masks an underlying issue.
+    *   **Action:** Postponed. Investigate *why* this dual check is needed later. Simplify if possible or document necessity.
 
-5.  **LOW: Inefficient Duration Check:**
+5.  **POSTPONED / LOW: Inefficient Duration Check:**
     *   **Problem:** `AudioLocalDataSourceImpl.getAudioDuration` still creates/disposes an `AudioPlayer`.
-    *   **Impact:** Minor performance overhead if called frequently.
-    *   **Action:** Consider alternatives if this proves to be a bottleneck, but fix the higher priority shit first.
+    *   **Impact:** Minor performance overhead.
+    *   **Action:** Postponed. Consider alternatives if this proves a bottleneck after higher priority items are fixed.
 
 ## The Verdict (Updated):
 
-The clean architecture foundation is a significant improvement over the previous mess. However, the implementation is **incomplete and sloppy**. Critical features are missing, error handling is inconsistent and sometimes nonsensical, and lazy shortcuts were taken.
+We've cleaned up significant parts of the implementation mess – specifically the error handling and data accuracy (`createdAt`). That's good fucking work. However, the core functionality (**concatenation/append**) is **still completely missing**, and performance issues remain. The feature is far from complete.
 
-**Mandatory Path Forward:**
+**Mandatory Path Forward (Updated):**
 
-1.  **Fix Concatenation & Append (Highest Priority).**
-2.  **Fix Error Handling (DataSource Exceptions, Repository Failure Mapping).**
-3.  **Fix Lazy Loading & Entity Data (`createdAt`, duration efficiency).**
-4.  **Investigate/Simplify Permission Logic.**
-5.  **Add Comprehensive Tests** (Unit tests for Cubit, Use Cases, Repository, DataSource - mocking appropriately). *AFTER* fixing the above.
+1.  **Fix Concatenation & Append (Highest Priority - STILL).** This is blocking core functionality.
+2.  **Add Comprehensive Tests** for the **FIXED** parts (Error Handling, `createdAt` logic in Repository/DataSource). Lock in the progress *now*.
+3.  **Fix Loading Efficiency** (`loadRecordings`/`listRecordings` duration fetching). (Medium Priority)
+4.  **Investigate/Simplify Permission Logic & Duration Check.** (Low Priority / Postponed)
+5.  **Add Comprehensive Tests** for the remaining parts (Concatenation, Loading, Permissions, etc.) *after* they are fixed.
 
-Don't consider this feature complete until these issues are addressed. This isn't about *just* structure; it's about building something robust that fucking works. Now, execute.
+Don't mistake cleaning the bathroom for building the fucking house. The critical path is still blocked. Execute the next steps.
