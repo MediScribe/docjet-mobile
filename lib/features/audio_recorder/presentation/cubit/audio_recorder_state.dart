@@ -1,5 +1,15 @@
 import 'package:equatable/equatable.dart';
 
+// Base class for all states - make it Equatable
+abstract class AudioRecorderState extends Equatable {
+  const AudioRecorderState();
+
+  @override
+  List<Object?> get props => []; // Default: no props
+}
+
+// Specific state entity representing a single recording for the UI
+// TODO: Consider moving this to a presentation layer entities folder if it grows
 class AudioRecordState extends Equatable {
   final String filePath;
   final Duration duration;
@@ -15,21 +25,29 @@ class AudioRecordState extends Equatable {
   List<Object?> get props => [filePath, duration, createdAt];
 }
 
-abstract class AudioRecorderState extends Equatable {
-  const AudioRecorderState();
-
-  @override
-  List<Object?> get props => [];
-}
-
+// Initial State
 class AudioRecorderInitial extends AudioRecorderState {}
 
-class AudioRecorderReady extends AudioRecorderState {}
-
+// Loading State
 class AudioRecorderLoading extends AudioRecorderState {}
 
+// Error State
+class AudioRecorderError extends AudioRecorderState {
+  final String message;
+
+  const AudioRecorderError(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+// Permission Denied State
 class AudioRecorderPermissionDenied extends AudioRecorderState {}
 
+// Ready State (Permission granted, idle)
+class AudioRecorderReady extends AudioRecorderState {}
+
+// Recording State
 class AudioRecorderRecording extends AudioRecorderState {
   final String filePath;
   final Duration duration;
@@ -43,6 +61,7 @@ class AudioRecorderRecording extends AudioRecorderState {
   List<Object?> get props => [filePath, duration];
 }
 
+// Paused State
 class AudioRecorderPaused extends AudioRecorderState {
   final String filePath;
   final Duration duration;
@@ -53,6 +72,7 @@ class AudioRecorderPaused extends AudioRecorderState {
   List<Object?> get props => [filePath, duration];
 }
 
+// Stopped State (After successful recording)
 class AudioRecorderStopped extends AudioRecorderState {
   final AudioRecordState record;
 
@@ -62,6 +82,7 @@ class AudioRecorderStopped extends AudioRecorderState {
   List<Object?> get props => [record];
 }
 
+// State representing the list of loaded recordings
 class AudioRecorderListLoaded extends AudioRecorderState {
   final List<AudioRecordState> recordings;
 
@@ -69,13 +90,4 @@ class AudioRecorderListLoaded extends AudioRecorderState {
 
   @override
   List<Object?> get props => [recordings];
-}
-
-class AudioRecorderError extends AudioRecorderState {
-  final String message;
-
-  const AudioRecorderError(this.message);
-
-  @override
-  List<Object?> get props => [message];
 }

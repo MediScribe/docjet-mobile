@@ -23,5 +23,5 @@ class DeleteRecordingParams extends Equatable {
   const DeleteRecordingParams({required this.filePath});
 
   @override
-  List<Object> get props => [filePath];
+  List<Object?> get props => [filePath];
 }

@@ -182,20 +182,31 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
   }
 
   /// Deletes a specific recording file.
-  void deleteRecording(String filePath) async {
-    emit(AudioRecorderLoading()); // Or a specific "Deleting" state
-    final result = await deleteRecordingUseCase(
-      DeleteRecordingParams(filePath: filePath),
-    );
-    result.fold(
-      (failure) => emit(
-        AudioRecorderError('Failed to delete $filePath: ${failure.toString()}'),
-      ),
-      (_) {
-        // Deletion successful, reload the list to reflect the change.
-        loadRecordings(); // Call loadRecordings to refresh the state
-      },
-    );
+  Future<void> deleteRecording(String filePath) async {
+    // debugPrint('[CUBIT] deleteRecording called with path: $filePath');
+    final loadingState = AudioRecorderLoading();
+    // debugPrint('[CUBIT] Emitting state: $loadingState');
+    emit(loadingState);
+
+    final params = DeleteRecordingParams(filePath: filePath);
+    // debugPrint('[CUBIT] Calling deleteRecordingUseCase with params: $params');
+    final result = await deleteRecordingUseCase(params);
+    // debugPrint('[CUBIT] deleteRecordingUseCase result: $result');
+
+    if (result.isRight()) {
+      // Success case
+      // debugPrint('[CUBIT] Delete successful, awaiting loadRecordings...');
+      await loadRecordings();
+    } else {
+      // Failure case
+      result.leftMap((failure) {
+        final errorState = AudioRecorderError(
+          'Failed to delete $filePath: ${failure.toString()}',
+        );
+        // debugPrint('[CUBIT] Emitting state: $errorState');
+        emit(errorState);
+      });
+    }
   }
 
   // --- Timer Logic ---
@@ -246,27 +257,41 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
   }
 
   /// Loads the list of existing recordings.
-  void loadRecordings() async {
-    emit(AudioRecorderLoading()); // Indicate loading
-    final result = await loadRecordingsUseCase(NoParams());
+  Future<void> loadRecordings() async {
+    // debugPrint('[CUBIT] loadRecordings called');
+    final loadingState = AudioRecorderLoading();
+    emit(loadingState);
+
+    final params = NoParams();
+    final result = await loadRecordingsUseCase(params);
 
     result.fold(
-      (failure) => emit(
-        AudioRecorderError('Failed to load recordings: ${failure.toString()}'),
-      ),
+      (failure) {
+        final errorState = AudioRecorderError(
+          'Failed to load recordings: ${failure.toString()}',
+        );
+        emit(errorState);
+      },
       (recordings) {
         // Map domain entities to presentation state entities
         final recordStates =
             recordings
                 .map(
-                  (record) => AudioRecordState(
-                    filePath: record.filePath,
-                    duration: record.duration,
-                    createdAt: record.createdAt,
+                  (r) => AudioRecordState(
+                    filePath: r.filePath,
+                    duration: r.duration,
+                    createdAt: r.createdAt,
                   ),
                 )
                 .toList();
-        emit(AudioRecorderListLoaded(recordings: recordStates));
+
+        // Sort by creation date, newest first (optional)
+        recordStates.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        final listLoadedState = AudioRecorderListLoaded(
+          recordings: recordStates,
+        );
+        emit(listLoadedState);
       },
     );
   }
