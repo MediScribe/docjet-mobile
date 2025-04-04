@@ -115,40 +115,68 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
 
   /// Pauses the current recording.
   void pauseRecording() async {
-    // Keep timer running? Or pause it? Depends on desired UX. Let's pause it.
-    _durationTimer?.cancel();
-    // TODO: Consider emitting a specific Paused state if needed, requires state class change.
-    // For now, just call the use case. The UI might need to react differently based on knowing it's paused.
+    if (state is! AudioRecorderRecording) {
+      // Can only pause if currently recording
+      emit(AudioRecorderError('Cannot pause: Not currently recording.'));
+      return;
+    }
+
+    final currentRecordingState = state as AudioRecorderRecording;
+    _durationTimer?.cancel(); // Pause the UI timer
+
     final result = await pauseRecordingUseCase(NoParams());
+
     result.fold(
-      (failure) =>
-          emit(AudioRecorderError('Failed to pause: ${failure.toString()}')),
+      (failure) {
+        _startDurationTimer(); // Restart timer on failure
+        emit(AudioRecorderError('Failed to pause: ${failure.toString()}'));
+      },
       (_) {
-        // If successful, maybe update state to reflect paused status
-        // Assuming AudioRecorderRecording holds enough info for UI to show "paused"
-        if (state is AudioRecorderRecording) {
-          // Re-emit current state to potentially trigger UI update if needed
-          emit(state);
-        }
+        // Transition to Paused state
+        emit(
+          AudioRecorderPaused(
+            filePath: currentRecordingState.filePath,
+            duration: currentRecordingState.duration,
+          ),
+        );
       },
     );
   }
 
   /// Resumes a paused recording.
   void resumeRecording() async {
-    // TODO: Add check if we are actually paused?
-    _startDurationTimer(); // Restart the timer
+    if (state is! AudioRecorderPaused) {
+      // Can only resume if currently paused
+      emit(AudioRecorderError('Cannot resume: Not currently paused.'));
+      return;
+    }
+    final pausedState = state as AudioRecorderPaused;
+
+    // Emit loading before calling use case? Optional, depends on desired UX
+    // emit(AudioRecorderLoading());
+
     final result = await resumeRecordingUseCase(NoParams());
+
     result.fold(
-      (failure) =>
-          emit(AudioRecorderError('Failed to resume: ${failure.toString()}')),
+      (failure) {
+        // If resume fails, stay in Paused state but maybe show error?
+        // Or transition back to ready? Let's show error and stay paused for now.
+        emit(AudioRecorderError('Failed to resume: ${failure.toString()}'));
+        // Keep the Paused state data? Or revert to the error state fully?
+        // Let's emit error but maybe we should revert to Paused state explicitly
+        // emit(pausedState); // Re-emit paused state after error if needed
+      },
       (_) {
-        // If successful, state should already be AudioRecorderRecording
-        // Timer restart will handle duration updates.
-        if (state is AudioRecorderRecording) {
-          // Re-emit current state to potentially trigger UI update if needed
-          emit(state);
-        }
+        // Transition back to Recording state
+        _recordingStartTime = DateTime.now().subtract(pausedState.duration);
+        _currentRecordingPath = pausedState.filePath; // Ensure path is set
+        emit(
+          AudioRecorderRecording(
+            filePath: pausedState.filePath,
+            duration: pausedState.duration,
+          ),
+        );
+        _startDurationTimer(); // Restart the UI timer
       },
     );
   }
