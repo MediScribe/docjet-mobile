@@ -36,9 +36,31 @@ Alright, let's reassess AGAIN. We've cleaned up error handling and fixed the laz
     *   **Impact:** Minor overhead.
     *   **Action:** Investigate alternatives **AFTER** higher priority items.
 
+## Additional Concerns (Identified During Deeper Analysis):
+
+6.  **CODE SMELL: Testing Hacks:**
+    *   **Problem:** The presence of `testingSetCurrentRecordingPath` in `AudioLocalDataSourceImpl` is a workaround for poor testability.
+    *   **Impact:** Indicates underlying design issues and reliance on brittle testing strategies.
+    *   **Action:** This should become unnecessary and be removed **AFTER** the DataSource is refactored for proper dependency injection and testability (#1).
+
+7.  **REPOSITORY: DRY Violation:**
+    *   **Problem:** `AudioRecorderRepositoryImpl.loadRecordings` and `AudioRecorderRepositoryImpl.listRecordings` methods are identical.
+    *   **Impact:** Code duplication increases maintenance burden and risk of inconsistencies.
+    *   **Action:** Refactor to remove duplication **AFTER** higher priority items are addressed. Choose one method or extract shared logic.
+
+8.  **REPOSITORY: Silent Failures in Loading:**
+    *   **Problem:** The loops within `loadRecordings`/`listRecordings` catch exceptions (e.g., `AudioPlayerException`, `FileSystemException`) during individual file processing but do not log or report them.
+    *   **Impact:** Corrupted or problematic recordings might silently disappear from the list, hiding issues from the user and developers.
+    *   **Action:** Implement proper error logging or reporting for individual file failures within the loading process **AFTER** core functionality and testability are fixed.
+
+9.  **DATASOURCE: Synchronous I/O:**
+    *   **Problem:** `AudioLocalDataSourceImpl.listRecordingFiles` uses `listSync()`.
+    *   **Impact:** Potential performance bottlenecks by blocking the execution thread for file system operations, especially if the number of recordings grows.
+    *   **Action:** Consider switching to the asynchronous `list()` method **unless** synchronous behavior is strictly required and justified. Evaluate **AFTER** major refactoring.
+
 ## The Verdict (Revised & Harsher):
 
-Cleaning error handling and `createdAt` was necessary groundwork. However, the inability to properly unit test the `AudioLocalDataSourceImpl` due to poor dependency management is a **major fucking problem**. It reveals a weakness in the implementation that needs fixing NOW. Skipped tests are a sign of technical debt, and we don't carry that shit.
+Cleaning error handling and `createdAt` was necessary groundwork. However, the inability to properly unit test the `AudioLocalDataSourceImpl` due to poor dependency management is a **major fucking problem**. It reveals a weakness in the implementation that needs fixing NOW. Skipped tests are a sign of technical debt, and we don't carry that shit. The additional concerns highlight further sloppiness that needs addressing eventually.
 
 **Mandatory Path Forward (REVISED):**
 
