@@ -24,38 +24,37 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
 
+  // Subscriptions for listeners
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _durationSubscription;
+  StreamSubscription? _positionSubscription;
+
   @override
   void initState() {
     super.initState();
-    if (mounted) {
-      _setupAudioPlayer();
-    }
+    _setupAudioPlayer();
   }
 
   Future<void> _setupAudioPlayer() async {
     try {
-      _audioPlayer.onPlayerStateChanged.listen((state) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = state == PlayerState.playing;
-          });
-        }
+      _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((
+        state,
+      ) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
       });
 
-      _audioPlayer.onDurationChanged.listen((duration) {
-        if (mounted) {
-          setState(() {
-            _duration = duration;
-          });
-        }
+      _durationSubscription = _audioPlayer.onDurationChanged.listen((duration) {
+        setState(() {
+          _duration = duration;
+        });
       });
 
-      _audioPlayer.onPositionChanged.listen((position) {
-        if (mounted) {
-          setState(() {
-            _position = position;
-          });
-        }
+      _positionSubscription = _audioPlayer.onPositionChanged.listen((position) {
+        setState(() {
+          _position = position;
+        });
       });
 
       // Set a longer timeout for source initialization
@@ -64,12 +63,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           .timeout(
             const Duration(seconds: 60),
             onTimeout: () {
-              if (mounted) {
-                setState(() {
-                  _hasError = true;
-                  _isLoading = false;
-                });
-              }
+              setState(() {
+                _hasError = true;
+                _isLoading = false;
+              });
               throw TimeoutException(
                 'Failed to load audio file',
                 const Duration(seconds: 60),
@@ -77,18 +74,14 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             },
           );
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _hasError = true;
+        _isLoading = false;
+      });
       debugPrint('Error setting up audio player: $e');
     }
   }
@@ -102,6 +95,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   @override
   void dispose() {
+    // Cancel subscriptions before disposing the player
+    _playerStateSubscription?.cancel();
+    _durationSubscription?.cancel();
+    _positionSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -109,35 +106,49 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
+      return _buildLoadingIndicator();
     }
 
     if (_hasError) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Failed to load audio',
-                style: TextStyle(color: Colors.red),
-              ),
-              IconButton(
-                onPressed: widget.onDelete,
-                icon: const Icon(Icons.delete),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorState();
     }
 
+    return _buildPlayerControls(context);
+  }
+
+  // --- START: UI Builder Helper Methods ---
+
+  Widget _buildLoadingIndicator() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Failed to load audio',
+              style: TextStyle(color: Colors.red),
+            ),
+            IconButton(
+              onPressed: widget.onDelete, // Still allow delete on error
+              icon: const Icon(Icons.delete),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerControls(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -149,6 +160,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
               children: [
                 IconButton(
                   onPressed: () async {
+                    // Capture context before the async operation
+                    final capturedContext = context;
                     try {
                       if (_isPlaying) {
                         await _audioPlayer.pause();
@@ -158,11 +171,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                         );
                       }
                     } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error playing audio: $e')),
-                        );
-                      }
+                      // Check capturedContext.mounted before using it
+                      if (!capturedContext.mounted) return;
+                      ScaffoldMessenger.of(capturedContext).showSnackBar(
+                        SnackBar(content: Text('Error playing audio: $e')),
+                      );
                     }
                   },
                   icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
@@ -180,16 +193,18 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                       _duration.inSeconds.toDouble(),
                     ),
                     onChanged: (value) async {
+                      // Capture context before the async operation
+                      final capturedContext = context;
                       try {
                         await _audioPlayer.seek(
                           Duration(seconds: value.toInt()),
                         );
                       } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error seeking audio: $e')),
-                          );
-                        }
+                        // Check capturedContext.mounted before using it
+                        if (!capturedContext.mounted) return;
+                        ScaffoldMessenger.of(capturedContext).showSnackBar(
+                          SnackBar(content: Text('Error seeking audio: $e')),
+                        );
                       }
                     },
                   ),
@@ -206,4 +221,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       ),
     );
   }
+
+  // --- END: UI Builder Helper Methods ---
 }

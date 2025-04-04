@@ -94,8 +94,10 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
-        _handleNavigation(context);
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _handleNavigation(context);
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -123,14 +125,34 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
               });
               // _handleNavigation(context); // Ensure this is still removed
             } else if (state is AudioRecorderStopped) {
+              // Capture context before the async gap
+              final capturedContext = context;
               Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted) {
-                  _handleNavigation(context);
+                // Use capturedContext and check ITS mounted property
+                if (capturedContext.mounted) {
+                  _handleNavigation(capturedContext);
                 }
               });
             }
           },
           builder: (context, state) {
+            // Main content area widget determination
+            Widget mainContent;
+            if (state is AudioRecorderInitial ||
+                state is AudioRecorderLoading) {
+              mainContent = _buildLoadingUI();
+            } else if (state is AudioRecorderReady) {
+              mainContent = _buildReadyUI(context, state);
+            } else if (state is AudioRecorderRecording ||
+                state is AudioRecorderPaused) {
+              mainContent = _buildRecordingPausedUI(context, state);
+            } else if (state is AudioRecorderStopped) {
+              mainContent = _buildStoppedUI(context, state);
+            } else {
+              // Fallback for any unexpected state (e.g., permission denied handled by listener)
+              mainContent = const SizedBox.shrink(); // Or some placeholder
+            }
+
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -146,55 +168,8 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                     ),
                   const SizedBox(height: 16), // Consistent spacing
                   // --- Main Content Area based on State ---
-                  if (state is AudioRecorderInitial ||
-                      state is AudioRecorderLoading) ...[
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    const Text('Checking permissions...'),
-                  ] else if (state is AudioRecorderReady) ...[
-                    // Show only the initial record button
-                    _buildRecordButton(context, state),
-                  ] else if (state is AudioRecorderRecording ||
-                      state is AudioRecorderPaused) ...[
-                    // Show timer and active controls
-                    Text(
-                      _formatDuration(
-                        state is AudioRecorderRecording
-                            ? state.duration
-                            : (state as AudioRecorderPaused).duration,
-                      ),
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildRecordButton(context, state), // Stop button
-                        const SizedBox(width: 16),
-                        _buildPauseResumeButton(context, state),
-                      ],
-                    ),
-                  ] else if (state is AudioRecorderStopped) ...[
-                    // Show playback widget and Done button
-                    const Text('Recording Complete'), // Simple title
-                    const SizedBox(height: 16),
-                    AudioPlayerWidget(
-                      filePath: state.record.filePath,
-                      onDelete: () {
-                        context.read<AudioRecorderCubit>().deleteRecording(
-                          state.record.filePath,
-                        );
-                        // Maybe navigate back automatically after delete?
-                        // _handleNavigation(context);
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => _handleNavigation(context),
-                      child: const Text('Done'),
-                    ),
-                  ],
-                  // Note: AudioRecorderPermissionDenied is handled by the bottom sheet
+                  mainContent, // Use the determined widget
+                  // Note: AudioRecorderPermissionDenied is handled by the bottom sheet listener
                 ],
               ),
             );
@@ -242,4 +217,78 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
       child: Icon(isRecording ? Icons.pause : Icons.play_arrow),
     );
   }
+
+  // --- START: New UI Builder Methods ---
+
+  Widget _buildLoadingUI() {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        CircularProgressIndicator(),
+        SizedBox(height: 16),
+        Text('Checking permissions...'),
+      ],
+    );
+  }
+
+  Widget _buildReadyUI(BuildContext context, AudioRecorderReady state) {
+    return _buildRecordButton(context, state); // Just the record button
+  }
+
+  Widget _buildRecordingPausedUI(
+    BuildContext context,
+    AudioRecorderState state,
+  ) {
+    // Handles both Recording and Paused states
+    final duration =
+        state is AudioRecorderRecording
+            ? state.duration
+            : (state as AudioRecorderPaused).duration;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          _formatDuration(duration),
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildRecordButton(context, state), // Stop button
+            const SizedBox(width: 16),
+            _buildPauseResumeButton(context, state), // Pause/Resume button
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoppedUI(BuildContext context, AudioRecorderStopped state) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('Recording Complete'), // Simple title
+        const SizedBox(height: 16),
+        AudioPlayerWidget(
+          filePath: state.record.filePath,
+          onDelete: () {
+            context.read<AudioRecorderCubit>().deleteRecording(
+              state.record.filePath,
+            );
+            // Consider if navigation should happen automatically after delete
+            // _handleNavigation(context);
+          },
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () => _handleNavigation(context),
+          child: const Text('Done'),
+        ),
+      ],
+    );
+  }
+
+  // --- END: New UI Builder Methods ---
 }
