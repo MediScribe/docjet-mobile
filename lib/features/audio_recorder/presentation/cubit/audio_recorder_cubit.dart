@@ -18,14 +18,44 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
 
   void checkPermission() async {
     try {
-      final status = await Permission.microphone.request();
-      if (!status.isGranted) {
-        emit(AudioRecorderPermissionDenied());
-      } else {
+      debugPrint(
+        '[AudioRecorderCubit] Checking permission via recorder.hasPermission()...',
+      );
+      // Use the recorder's own check first, as permission_handler seems unreliable
+      final bool hasPermission = await recorder.hasPermission();
+      debugPrint(
+        '[AudioRecorderCubit] recorder.hasPermission() result: $hasPermission',
+      );
+
+      if (hasPermission) {
+        debugPrint(
+          '[AudioRecorderCubit] Permission already granted according to recorder.',
+        );
         emit(AudioRecorderReady());
+      } else {
+        // If recorder says no permission, NOW we need to request it.
+        debugPrint(
+          '[AudioRecorderCubit] Permission not granted, requesting via permission_handler...',
+        );
+        final requestedStatus = await Permission.microphone.request();
+        debugPrint(
+          '[AudioRecorderCubit] Status after request: $requestedStatus',
+        );
+
+        if (requestedStatus.isGranted) {
+          debugPrint('[AudioRecorderCubit] Permission granted after request.');
+          emit(AudioRecorderReady());
+        } else {
+          // Covers denied, permanentlyDenied, restricted after request
+          debugPrint('[AudioRecorderCubit] Permission denied after request.');
+          emit(AudioRecorderPermissionDenied());
+        }
       }
     } catch (e) {
-      emit(AudioRecorderError('Failed to check permissions: $e'));
+      debugPrint(
+        '[AudioRecorderCubit] Error checking/requesting permissions: $e',
+      );
+      emit(AudioRecorderError('Failed to check/request permissions: $e'));
     }
   }
 
@@ -333,5 +363,10 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
     } catch (e) {
       emit(AudioRecorderError('Failed to delete recording: $e'));
     }
+  }
+
+  void openSettings() async {
+    debugPrint('[AudioRecorderCubit] Opening app settings...');
+    await openAppSettings();
   }
 }

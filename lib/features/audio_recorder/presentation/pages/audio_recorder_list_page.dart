@@ -194,24 +194,30 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'list_fab',
-        onPressed: () async {
+        onPressed: () {
           final cubit = context.read<AudioRecorderCubit>();
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) => BlocProvider.value(
-                    value: cubit,
-                    child: const AudioRecorderPage(),
-                  ),
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            enableDrag: true,
+            isDismissible: true,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
-          );
-          if (result == true && context.mounted) {
-            cubit.loadRecordings();
-            if (context.mounted) {
-              setState(() {}); // Force rebuild after new recording
+            builder: (sheetContext) {
+              return BlocProvider.value(
+                value: cubit,
+                child: const AudioRecorderPage(),
+              );
+            },
+          ).then((result) {
+            if (result == true && context.mounted) {
+              cubit.loadRecordings();
+              if (context.mounted) {
+                setState(() {});
+              }
             }
-          }
+          });
         },
         child: const Icon(Icons.add),
       ),

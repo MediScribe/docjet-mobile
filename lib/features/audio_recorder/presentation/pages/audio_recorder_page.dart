@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/di/injection_container.dart';
 import '../cubit/audio_recorder_cubit.dart';
 import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
@@ -12,7 +11,6 @@ class AudioRecorderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    context.read<AudioRecorderCubit>().checkPermission();
     return AudioRecorderView(appendTo: appendTo);
   }
 }
@@ -28,6 +26,49 @@ class AudioRecorderView extends StatefulWidget {
 
 class _AudioRecorderViewState extends State<AudioRecorderView> {
   bool _isNavigating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<AudioRecorderCubit>().checkPermission();
+  }
+
+  // Method to show the permission request bottom sheet
+  void _showPermissionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (sheetContext) => Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  'Microphone Permission Required',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'This app needs access to your microphone to record audio. Please grant permission in the app settings.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  child: const Text('Open App Settings'),
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop(); // Close the sheet
+                    context.read<AudioRecorderCubit>().openSettings();
+                  },
+                ),
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -73,14 +114,14 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                 context,
               ).showSnackBar(SnackBar(content: Text(state.message)));
             } else if (state is AudioRecorderPermissionDenied) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Microphone permission is required to record audio',
-                  ),
-                ),
-              );
-              _handleNavigation(context);
+              // Show the bottom sheet instead of just a snackbar
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  // Ensure widget is still in the tree
+                  _showPermissionSheet(context);
+                }
+              });
+              // _handleNavigation(context); // Ensure this is still removed
             } else if (state is AudioRecorderStopped) {
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) {
@@ -103,8 +144,19 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                  if (state is AudioRecorderRecording ||
-                      state is AudioRecorderPaused)
+                  const SizedBox(height: 16), // Consistent spacing
+                  // --- Main Content Area based on State ---
+                  if (state is AudioRecorderInitial ||
+                      state is AudioRecorderLoading) ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    const Text('Checking permissions...'),
+                  ] else if (state is AudioRecorderReady) ...[
+                    // Show only the initial record button
+                    _buildRecordButton(context, state),
+                  ] else if (state is AudioRecorderRecording ||
+                      state is AudioRecorderPaused) ...[
+                    // Show timer and active controls
                     Text(
                       _formatDuration(
                         state is AudioRecorderRecording
@@ -113,29 +165,36 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                       ),
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildRecordButton(context, state),
-                      if (state is AudioRecorderRecording ||
-                          state is AudioRecorderPaused) ...[
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildRecordButton(context, state), // Stop button
                         const SizedBox(width: 16),
                         _buildPauseResumeButton(context, state),
                       ],
-                    ],
-                  ),
-                  if (state is AudioRecorderStopped) ...[
-                    const SizedBox(height: 32),
+                    ),
+                  ] else if (state is AudioRecorderStopped) ...[
+                    // Show playback widget and Done button
+                    const Text('Recording Complete'), // Simple title
+                    const SizedBox(height: 16),
                     AudioPlayerWidget(
                       filePath: state.record.filePath,
                       onDelete: () {
                         context.read<AudioRecorderCubit>().deleteRecording(
                           state.record.filePath,
                         );
+                        // Maybe navigate back automatically after delete?
+                        // _handleNavigation(context);
                       },
                     ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => _handleNavigation(context),
+                      child: const Text('Done'),
+                    ),
                   ],
+                  // Note: AudioRecorderPermissionDenied is handled by the bottom sheet
                 ],
               ),
             );
