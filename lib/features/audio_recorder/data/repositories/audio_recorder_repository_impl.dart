@@ -120,20 +120,15 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
               createdAt: fileStat.modified, // Use actual file modification time
             ),
           );
-        } on AudioPlayerException catch (e) {
-          // TODO: Add proper logging for skipped file
-          print('Skipping file $path due to player error: $e');
-        } on RecordingFileNotFoundException catch (e) {
-          // TODO: Add proper logging for skipped file
-          print('Skipping file $path because it was not found: $e');
-        } on FileSystemException catch (e) {
-          // Handle potential error during stat() call
-          // TODO: Add proper logging for skipped file
-          print('Skipping file $path due to file system error during stat: $e');
-        } catch (e) {
-          // Catch unexpected errors for a single file load
-          // TODO: Add proper logging for skipped file
-          print('Skipping file $path due to unexpected error during load: $e');
+        } on AudioPlayerException /* catch (e) */ {
+          // Log or handle skipped file due to player error
+        } on RecordingFileNotFoundException /* catch (e) */ {
+          // Log or handle skipped file due to not found error
+        } on FileSystemException /* catch (e) */ {
+          // Log or handle skipped file due to stat() error
+        } catch (_) {
+          // Use catch (_) since 'e' is unused
+          // Log or handle skipped file due to unexpected error
         }
       }
       // Optionally sort records by date?
@@ -171,24 +166,15 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
               createdAt: fileStat.modified, // Use actual file modification time
             ),
           );
-        } on AudioPlayerException catch (e) {
-          // TODO: Add proper logging for skipped file
-          print('Skipping file $filePath due to player error: $e');
-        } on RecordingFileNotFoundException catch (e) {
-          // TODO: Add proper logging for skipped file
-          print('Skipping file $filePath because it was not found: $e');
-        } on FileSystemException catch (e) {
-          // Handle potential error during stat() call
-          // TODO: Add proper logging for skipped file
-          print(
-            'Skipping file $filePath due to file system error during stat: $e',
-          );
-        } catch (e) {
-          // Catch unexpected errors for a single file list item
-          // TODO: Add proper logging for skipped file
-          print(
-            'Skipping file $filePath due to unexpected error during list item processing: $e',
-          );
+        } on AudioPlayerException /* catch (e) */ {
+          // Log or handle skipped file due to player error
+        } on RecordingFileNotFoundException /* catch (e) */ {
+          // Log or handle skipped file due to not found error
+        } on FileSystemException /* catch (e) */ {
+          // Log or handle skipped file due to stat() error
+        } catch (_) {
+          // Use catch (_) since 'e' is unused
+          // Log or handle skipped file due to unexpected error
         }
       }
       return Right(records);

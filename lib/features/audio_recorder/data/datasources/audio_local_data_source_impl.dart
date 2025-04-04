@@ -4,11 +4,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:just_audio/just_audio.dart'; // For duration check
+import 'package:meta/meta.dart'; // Import for annotation
 
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart'; // Import the specific exceptions
-
-// No longer needed: // TODO: Define specific exception types (e.g., PermissionException, FileSystemException)
 
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
@@ -20,7 +19,13 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     this.microphonePermission = Permission.microphone,
   });
 
-  String? _currentRecordingPath;
+  @visibleForTesting
+  String? currentRecordingPath;
+  // Use setter for testing - RENAME to lowerCamelCase
+  @visibleForTesting
+  set testingSetCurrentRecordingPath(String? path) {
+    currentRecordingPath = path;
+  }
 
   @override
   Future<bool> checkPermission() async {
@@ -67,7 +72,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       final appDir = await getApplicationDocumentsDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filePath = '${appDir.path}/recording_$timestamp.m4a';
-      _currentRecordingPath = filePath;
+      currentRecordingPath = filePath;
 
       await recorder.start(
         const RecordConfig(
@@ -79,7 +84,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       );
       return filePath;
     } catch (e) {
-      _currentRecordingPath = null;
+      currentRecordingPath = null;
       // Catch permission exception specifically if it wasn't caught above
       if (e is AudioPermissionException) {
         rethrow; // Rethrow the specific exception
@@ -94,9 +99,8 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   Future<String> stopRecording() async {
     try {
       await recorder.stop(); // Stop the recording first
-      final path = _currentRecordingPath;
-      _currentRecordingPath =
-          null; // Clear the path regardless of subsequent errors
+      final path = currentRecordingPath;
+      currentRecordingPath = null;
 
       if (path == null) {
         // If path was null, it means we weren't recording
@@ -114,7 +118,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       return path;
     } catch (e) {
       // Clear path in case of error during recorder.stop() itself
-      _currentRecordingPath = null;
+      currentRecordingPath = null;
       // Rethrow specific exceptions if already caught
       if (e is NoActiveRecordingException ||
           e is RecordingFileNotFoundException) {
@@ -128,7 +132,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
   @override
   Future<void> pauseRecording() async {
-    if (_currentRecordingPath == null) {
+    if (currentRecordingPath == null) {
       throw const NoActiveRecordingException('No active recording to pause.');
     }
     try {
@@ -141,7 +145,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
   @override
   Future<void> resumeRecording() async {
-    if (_currentRecordingPath == null) {
+    if (currentRecordingPath == null) {
       throw const NoActiveRecordingException('No active recording to resume.');
     }
     try {
