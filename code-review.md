@@ -24,10 +24,10 @@ Alright, let's cut the crap and look at where we *really* stand after fixing a c
         *   ~~Use a decent mocking framework or `package:file` for a memory file system in tests.~~ **DONE (Mockito).**
         *   ~~**THIS IS JOB #1.** Nothing else matters until this is fixed and those skipped tests are passing.~~ **DONE.**
 
-2.  **CRITICAL: Concatenation / Append is STILL FUCKING MISSING:**
-    *   **Problem:** Unchanged. `AudioLocalDataSourceImpl` still lacks the needed method, and `AudioRecorderRepositoryImpl.appendToRecording` throws `UnimplementedError`. Like yelling "trade" but having no shares.
-    *   **Impact:** Core functionality non-existent. What are we even building here?
-    *   **Action:** Implement robust concatenation using `ffmpeg_kit_flutter`. Design and implement the full append workflow. **THIS IS THE NEW JOB #1.**
+2.  **CRITICAL: Concatenation / Append is STILL FUCKING MISSING (at Repository Level):**
+    *   **Problem:** ~~Unchanged. `AudioLocalDataSourceImpl` still lacks the needed method, and~~ `AudioRecorderRepositoryImpl.appendToRecording` still throws `UnimplementedError`. The low-level `AudioLocalDataSourceImpl.concatenateRecordings` **IS NOW IMPLEMENTED** using `ffmpeg_kit_flutter_audio`, but the feature isn't usable yet. Like having the algorithm but forgetting to place the trade.
+    *   **Impact:** Core functionality non-existent *from the application's perspective*. What are we even building here?
+    *   **Action:** Implement `AudioRecorderRepositoryImpl.appendToRecording` to orchestrate the calls to `startRecording`, `stopRecording`, and the *new* `concatenateRecordings` method in the DataSource. **THIS IS STILL JOB #1.**
 
 3.  **MEDIUM: Lazy Loading & Entity Data (Still Needs Work):**
     *   **Problem A (Entity Data):** `createdAt` placeholder.
@@ -71,8 +71,10 @@ Okay, we wrestled that `AudioLocalDataSourceImpl` pig into slightly better shape
 
 1.  ~~**REFACTOR `AudioLocalDataSourceImpl` NOW.** Inject abstractions. Fix async. Make it testable.~~ **DONE.**
 2.  ~~**WRITE & PASS ALL 18+ Unit Tests** for `AudioLocalDataSourceImpl` using mocks. Kill the skipped tests.~~ **DONE.**
-3.  **Implement Concatenation & Append (#2).** Test it thoroughly. **THIS IS NEXT.**
-4.  **Address Loading Efficiency & Silent Failures (#3B & #7).** Do this after concat.
+3.  **Implement Concatenation & Append (#2).**
+    *   ~~Implement `AudioLocalDataSourceImpl.concatenateRecordings` using `ffmpeg`.~~ **DONE.**
+    *   Implement `AudioRecorderRepositoryImpl.appendToRecording`. Test it thoroughly. **THIS IS NEXT.**
+4.  **Address Loading Efficiency & Silent Failures (#3B & #7).** Do this after concat/append.
 5.  Clean up the remaining low-priority crap (#4, #5, #6) when everything else works.
 
-Stop polishing the fenders when the engine is seized. ~~Fix the fucking engine.~~ **Build the fucking engine (Concatenation).** Execute.
+Stop polishing the fenders when the engine is seized. ~~Fix the fucking engine.~~ ~~Build the fucking engine (Concatenation).~~ **Connect the fucking engine (Implement Repository Append).** Execute.
