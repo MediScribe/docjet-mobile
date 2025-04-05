@@ -6,8 +6,9 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 *   **Core Abstractions (`FileSystem`, `PathProvider`, `PermissionHandler`, `AudioDurationGetter`):** These interfaces and their implementations seem clean. They successfully decouple the DataSource from platform bullshit. **GOOD.**
 *   **Layering (Presentation -> Domain -> Data):** The separation is conceptually sound. Cubit -> Repository -> DataSource flow is respected.
 *   **Dependency Injection:** It's being used correctly at all layers. This is non-negotiable and you didn't fuck it up.
+*   **Refactoring Step (Concatenation Service):** Extracted concatenation logic from DataSource into a dedicated `FFmpegAudioConcatenator` service. DI and relevant tests updated and **PASSING**. Good first step in cleaning up the DataSource SRP violation. **GOOD.**
 *   `createdAt` timestamp uses `FileStat.modified`. About fucking time.
-*   `AudioLocalDataSourceImpl` unit tests are **PASSING**. This *proves* the abstraction strategy worked for *that layer*.
+*   `AudioLocalDataSourceImpl` unit tests are **PASSING** (post-refactor DI fixes). This *proves* the abstraction strategy worked for *that layer*.
 
 **The Shit That Still Stinks (And Some New Smells):**
 
@@ -40,9 +41,9 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
     *   **Action:** Refactor the DataSource's internal state management related to `_currentRecordingPath` so this hack is **NO LONGER NEEDED**. This needs thought, maybe return/use session objects. Do this AFTER fixing the Repository (#1, #2).
 
 4.  **MEDIUM: DataSource Bloat (SRP Violation):**
-    *   **Problem:** `AudioLocalDataSourceImpl` is a 400-line behemoth juggling multiple responsibilities: permissions, recording lifecycle, file ops, duration fetching, *complex concatenation logic*, internal state. This violates the Single Responsibility Principle harder than Wags violates HR policies.
-    *   **Impact:** Hard to read, hard to test thoroughly, hard to maintain. A change in ffmpeg logic forces a change in the same class that handles permissions.
-    *   **Action:** Break this fat bastard down. Extract distinct responsibilities into separate classes/services. Start by moving the `concatenateRecordings` logic into its own `AudioConcatenationService` (or similar) that gets injected into the DataSource. Address this AFTER the critical Repository fixes (#1, #2).
+    *   **Problem:** `AudioLocalDataSourceImpl` is ~~a 400-line~~ *still* a large behemoth juggling multiple responsibilities: permissions, recording lifecycle, file ops, duration fetching, ~~complex concatenation logic,~~ internal state. This violates the Single Responsibility Principle harder than Wags violates HR policies.
+    *   **Impact:** Hard to read, hard to test thoroughly, hard to maintain. A change in duration logic forces a change in the same class that handles permissions.
+    *   **Action:** **PARTIALLY ADDRESSED.** Concatenation logic successfully extracted into `AudioConcatenationService`. **Continue** breaking this fat bastard down. Evaluate extracting other responsibilities (e.g., duration fetching, file listing) if they become complex or warrant separation.
 
 5.  **LOW: Questionable Use Case Layer:**
     *   **Problem:** Use cases like `StartRecording`, `StopRecording` seem to be simple pass-throughs to the Repository methods without adding logic.
@@ -59,9 +60,9 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 
 ## The Verdict (Hard Bob Style - Updated):
 
-Okay, the DataSource isn't a complete tire fire anymore thanks to the abstractions and DI. Good. You laid *a* foundation.
+Okay, the DataSource isn't a complete tire fire anymore thanks to the abstractions and DI, **and we successfully ripped out the concatenation logic into its own service.** Good. You laid *a* foundation and cleaned up *one* messy corner.
 
-**BUT**, the `AudioRecorderRepositoryImpl` is now the problem child. It's leaky, inefficient, duplicated, error-prone, and *still missing the main fucking feature*. The `testingSetCurrentRecordingPath` hack persists, mocking your DI efforts, and the DataSource itself is a bloated mess violating SRP. And you might have a useless Use Case layer adding dead weight.
+**BUT**, the `AudioRecorderRepositoryImpl` is now the problem child. It's leaky, inefficient, duplicated, error-prone, and *still missing the main fucking feature*. The `testingSetCurrentRecordingPath` hack persists, mocking your DI efforts, and the DataSource itself *still* has other responsibilities crammed together. And you might have a useless Use Case layer adding dead weight.
 
 It's like you fixed the plumbing in one bathroom only to find the main sewer line backing up into the kitchen, *and* the water heater is trying to do the job of the furnace too.
 
@@ -74,8 +75,8 @@ It's like you fixed the plumbing in one bathroom only to find the main sewer lin
     *   Fix N+1 (likely requires DataSource interface change).
     *   Log errors properly in the loop.
 3.  **Eliminate `testingSetCurrentRecordingPath` (#3).** Refactor DataSource state.
-4.  **Refactor `AudioLocalDataSourceImpl` (#4).** Extract concatenation logic (and potentially others) into separate services/classes to fix SRP violation.
+4.  **Refactor `AudioLocalDataSourceImpl` (#4).** **(Concatenation DONE)**. Continue evaluating other potential extractions (duration, listing?) as needed / lower priority.
 5.  **Evaluate & potentially remove the Use Case layer (#5).** Simplify if possible.
 6.  Clean up any remaining low-priority crap (#6) only when the critical shit works.
 
-Stop admiring the one clean bathroom. Fix the fucking sewer line (Repository), the leaky faucet (DataSource hack), and stop the water heater from trying to do too much (DataSource SRP). Execute.
+Stop admiring the one clean bathroom and the new soap dispenser (concatenation service). Fix the fucking sewer line (Repository) and the leaky faucet (DataSource hack). Execute.

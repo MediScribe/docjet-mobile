@@ -13,6 +13,7 @@ import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 
 // Import generated mocks
 import 'audio_local_data_source_impl_file_ops_test.mocks.dart';
@@ -28,6 +29,7 @@ import 'audio_local_data_source_impl_file_ops_test.mocks.dart';
   // Add mocks for unused dependencies required by constructor
   MockSpec<AudioRecorder>(),
   MockSpec<PermissionHandler>(), // Keep mock spec
+  MockSpec<AudioConcatenationService>(), // Add mock spec for the new service
 ])
 void main() {
   late AudioLocalDataSourceImpl dataSource;
@@ -38,6 +40,8 @@ void main() {
   // Declare unused mocks
   late MockAudioRecorder mockAudioRecorder;
   late MockPermissionHandler mockPermissionHandler; // Keep mock declaration
+  late MockAudioConcatenationService
+  mockAudioConcatenationService; // Declare mock
 
   const tFakeDocPath = '/fake/doc/path';
 
@@ -53,6 +57,8 @@ void main() {
     // Instantiate unused mocks
     mockAudioRecorder = MockAudioRecorder();
     mockPermissionHandler = MockPermissionHandler(); // Keep instantiation
+    mockAudioConcatenationService =
+        MockAudioConcatenationService(); // Instantiate mock
 
     dataSource = AudioLocalDataSourceImpl(
       recorder: mockAudioRecorder, // Provide unused mock
@@ -60,6 +66,7 @@ void main() {
       pathProvider: mockPathProvider, // Provide used mock
       permissionHandler: mockPermissionHandler, // Keep passing mock
       audioDurationGetter: mockAudioDurationGetter, // Provide used mock
+      audioConcatenationService: mockAudioConcatenationService, // Provide mock
     );
 
     // Common setup for path provider

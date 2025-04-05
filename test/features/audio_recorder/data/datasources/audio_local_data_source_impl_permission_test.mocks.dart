@@ -10,9 +10,12 @@ import 'dart:typed_data' as _i8;
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i9;
 import 'package:docjet_mobile/core/platform/path_provider.dart' as _i10;
 import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i4;
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
+    as _i12;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart'
     as _i11;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i13;
 import 'package:permission_handler/permission_handler.dart' as _i6;
 import 'package:record/src/record.dart' as _i7;
 import 'package:record_platform_interface/record_platform_interface.dart'
@@ -384,4 +387,29 @@ class MockAudioDurationGetter extends _i1.Mock
             ),
           )
           as _i5.Future<Duration>);
+}
+
+/// A class which mocks [AudioConcatenationService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAudioConcatenationService extends _i1.Mock
+    implements _i12.AudioConcatenationService {
+  @override
+  _i5.Future<String> concatenate(List<String>? inputFilePaths) =>
+      (super.noSuchMethod(
+            Invocation.method(#concatenate, [inputFilePaths]),
+            returnValue: _i5.Future<String>.value(
+              _i13.dummyValue<String>(
+                this,
+                Invocation.method(#concatenate, [inputFilePaths]),
+              ),
+            ),
+            returnValueForMissingStub: _i5.Future<String>.value(
+              _i13.dummyValue<String>(
+                this,
+                Invocation.method(#concatenate, [inputFilePaths]),
+              ),
+            ),
+          )
+          as _i5.Future<String>);
 }

@@ -14,13 +14,14 @@ import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import '../services/audio_duration_getter.dart';
+import '../services/audio_concatenation_service.dart'; // Import the new service
 
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
 
-// Import ffmpeg_kit_flutter
-import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
+// Remove ffmpeg imports, they are now in the service
+// import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
+// import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
 
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
@@ -28,6 +29,8 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final PathProvider pathProvider; // Inject PathProvider
   final PermissionHandler permissionHandler; // Inject PermissionHandler
   final AudioDurationGetter audioDurationGetter; // Inject the new service
+  final AudioConcatenationService
+  audioConcatenationService; // Inject the concatenation service
   final Permission microphonePermission =
       Permission.microphone; // Keep this definition
 
@@ -49,6 +52,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     required this.pathProvider,
     required this.permissionHandler,
     required this.audioDurationGetter,
+    required this.audioConcatenationService, // Add to constructor
   });
 
   @override
@@ -291,87 +295,19 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
   @override
   Future<String> concatenateRecordings(List<String> inputFilePaths) async {
-    // TODO: Implement concatenation using ffmpeg_kit_flutter
-    // 1. Validate input: check if list is empty or has less than 2 paths?
-    if (inputFilePaths.length < 2) {
-      throw ArgumentError('Need at least two files to concatenate.');
-    }
-    // 2. Check file existence for all inputs (using fileSystem.fileExists)
-    for (final path in inputFilePaths) {
-      if (!await fileSystem.fileExists(path)) {
-        throw RecordingFileNotFoundException(
-          'Input file not found for concatenation: $path',
-        );
-      }
-    }
-
-    // 3. Generate output path and temporary list file path
-    final appDir = await pathProvider.getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final outputPath = '${appDir.path}/concat_$timestamp.m4a';
-    final listFilePath = '${appDir.path}/ffmpeg_list_$timestamp.txt';
-
-    // 4. Create ffmpeg command (using concat demuxer)
-    //    - Create and write to the temporary list file
-    String fileListContent = '';
-    for (final path in inputFilePaths) {
-      // FFmpeg requires paths to be escaped, especially on certain platforms
-      // Simple approach: wrap in single quotes. Robust escaping might be needed.
-      fileListContent += "file '$path'\n";
-    }
-
-    final listFile = File(listFilePath);
+    // Delegate the entire operation to the injected service.
+    // The service now handles validation, ffmpeg execution, and error handling.
     try {
-      await listFile.writeAsString(fileListContent);
-
-      // Construct the command
-      // -f concat: Use the concat demuxer
-      // -safe 0: Necessary for using relative/absolute paths in the list file
-      // -i listFilePath: Input file is the text file listing the real inputs
-      // -c copy: Copy codecs without re-encoding (faster, avoids quality loss)
-      // outputPath: The final output file
-      final command =
-          '-f concat -safe 0 -i "$listFilePath" -c copy "$outputPath"';
-
-      // 5. Execute using FFmpegKit.executeAsync() for non-blocking
-      // debugPrint('Executing FFmpeg command: $command'); // Optional debug log
-      final session = await FFmpegKit.executeAsync(command);
-      final returnCode = await session.getReturnCode();
-
-      // 6. Check result code and logs
-      if (ReturnCode.isSuccess(returnCode)) {
-        // 8. Return output path on success
-        // debugPrint('FFmpeg concatenation successful: $outputPath');
-        return outputPath;
-      } else {
-        // Concatenation failed
-        final logs = await session.getLogsAsString();
-        // debugPrint('FFmpeg concatenation failed. Logs:\n$logs');
-        throw AudioConcatenationException(
-          'FFmpeg concatenation failed with return code $returnCode',
-          null, // Pass null for originalException when it's an FFmpeg status code failure
-          logs: logs,
-        );
-      }
+      return await audioConcatenationService.concatenate(inputFilePaths);
     } catch (e) {
-      // Catch errors during file writing or ffmpeg execution
-      if (e is AudioConcatenationException) rethrow;
-      throw AudioConcatenationException(
-        'Error during concatenation process: ${e.toString()}',
-        e, // Pass the caught exception as originalException
-      );
-    } finally {
-      // 7. Delete temporary list file regardless of success/failure
-      try {
-        if (await listFile.exists()) {
-          await listFile.delete();
-        }
-      } catch (_) {
-        // Ignore errors during cleanup, but maybe log them?
-        // debugPrint('Failed to delete temporary ffmpeg list file: $listFilePath');
-      }
+      // The service should throw specific exceptions (ArgumentError,
+      // RecordingFileNotFoundException, AudioConcatenationException, AudioFileSystemException).
+      // We might want to re-wrap them here ONLY if the Repository layer expects
+      // *only* exceptions defined in audio_exceptions.dart.
+      // For now, let's rethrow directly, assuming the Repository's _tryCatch
+      // can handle ArgumentError and the specific audio exceptions.
+      // If _tryCatch needs updates, that's a separate step.
+      rethrow;
     }
-    // Remove the UnimplementedError as logic is now present
-    // throw UnimplementedError('Concatenation not implemented yet.');
   }
 }

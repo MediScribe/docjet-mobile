@@ -5,35 +5,39 @@ import 'package:permission_handler/permission_handler.dart'
     show Permission, PermissionStatus;
 
 // Import interfaces and exceptions
+import 'package:docjet_mobile/core/platform/file_system.dart';
+import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
+// Import the new service interface
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 // Import interfaces needed for the DataSource constructor, even if not directly mocked/used here
 import 'package:record/record.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
-import 'package:docjet_mobile/core/platform/path_provider.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
 
 // Import generated mocks (will be generated for this file)
 import 'audio_local_data_source_impl_permission_test.mocks.dart';
 
-// Generate mocks ONLY for what's needed in these tests + DataSource dependencies
+// Generate mocks ONLY for PermissionHandler and unused DataSource dependencies
 @GenerateNiceMocks([
   MockSpec<PermissionHandler>(),
-  // Add mocks for unused dependencies required by constructor
   MockSpec<AudioRecorder>(),
   MockSpec<FileSystem>(),
   MockSpec<PathProvider>(),
   MockSpec<AudioDurationGetter>(),
+  MockSpec<AudioConcatenationService>(), // Add mock spec
 ])
 void main() {
   late AudioLocalDataSourceImpl dataSource;
   late MockPermissionHandler mockPermissionHandler;
-  // Declare mocks for unused dependencies
+  // Declare unused mocks
   late MockAudioRecorder mockAudioRecorder;
   late MockFileSystem mockFileSystem;
   late MockPathProvider mockPathProvider;
   late MockAudioDurationGetter mockAudioDurationGetter;
+  late MockAudioConcatenationService
+  mockAudioConcatenationService; // Declare mock
 
   final tPermission = Permission.microphone;
 
@@ -44,13 +48,16 @@ void main() {
     mockFileSystem = MockFileSystem();
     mockPathProvider = MockPathProvider();
     mockAudioDurationGetter = MockAudioDurationGetter();
+    mockAudioConcatenationService =
+        MockAudioConcatenationService(); // Instantiate mock
 
     dataSource = AudioLocalDataSourceImpl(
-      recorder: mockAudioRecorder, // Provide unused mock
-      fileSystem: mockFileSystem, // Provide unused mock
-      pathProvider: mockPathProvider, // Provide unused mock
-      permissionHandler: mockPermissionHandler, // Provide used mock
-      audioDurationGetter: mockAudioDurationGetter, // Provide unused mock
+      recorder: mockAudioRecorder,
+      fileSystem: mockFileSystem,
+      pathProvider: mockPathProvider,
+      permissionHandler: mockPermissionHandler,
+      audioDurationGetter: mockAudioDurationGetter,
+      audioConcatenationService: mockAudioConcatenationService, // Provide mock
     );
   });
 

@@ -40,6 +40,11 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
       // Specific handling for unimplemented features, mapping to ConcatenationFailure
       // might be temporary if other features are marked Unimplemented.
       return Left(ConcatenationFailure(e.message ?? 'Feature not implemented'));
+    } on ArgumentError catch (e) {
+      // Catch invalid arguments specifically (e.g., from concatenation service)
+      return Left(
+        ValidationFailure(e.message),
+      ); // Assuming ValidationFailure exists or is desired
     } catch (e) {
       // Catch-all for unexpected errors from the data source or other issues
       return Left(

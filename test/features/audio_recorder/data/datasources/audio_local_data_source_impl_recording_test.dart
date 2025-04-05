@@ -15,6 +15,8 @@ import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_loc
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 // Import interfaces needed for the DataSource constructor, even if not directly mocked/used here
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
+// Import the new service interface
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 
 // Import generated mocks (will be generated for this file)
 import 'audio_local_data_source_impl_recording_test.mocks.dart';
@@ -28,6 +30,7 @@ import 'audio_local_data_source_impl_recording_test.mocks.dart';
   MockSpec<Directory>(), // Mock Directory for pathProvider return
   // Add mock for unused AudioDurationGetter
   MockSpec<AudioDurationGetter>(),
+  MockSpec<AudioConcatenationService>(), // Add mock spec
 ])
 void main() {
   late AudioLocalDataSourceImpl dataSource;
@@ -38,6 +41,8 @@ void main() {
   late MockDirectory mockDirectory;
   // Declare unused mock
   late MockAudioDurationGetter mockAudioDurationGetter;
+  late MockAudioConcatenationService
+  mockAudioConcatenationService; // Declare mock (Fixed formatting)
 
   final tPermission = Permission.microphone;
   const tFakeDocPath = '/fake/doc/path';
@@ -50,6 +55,8 @@ void main() {
     mockDirectory = MockDirectory();
     // Instantiate unused mock
     mockAudioDurationGetter = MockAudioDurationGetter();
+    mockAudioConcatenationService =
+        MockAudioConcatenationService(); // Instantiate mock (Fixed formatting)
 
     dataSource = AudioLocalDataSourceImpl(
       recorder: mockAudioRecorder, // Provide used mock
@@ -57,6 +64,7 @@ void main() {
       pathProvider: mockPathProvider, // Provide used mock
       permissionHandler: mockPermissionHandler, // Provide used mock
       audioDurationGetter: mockAudioDurationGetter, // Provide unused mock
+      audioConcatenationService: mockAudioConcatenationService, // Provide mock
     );
 
     // Common setup for path provider
@@ -68,6 +76,9 @@ void main() {
     when(
       mockPermissionHandler.status(tPermission),
     ).thenAnswer((_) async => PermissionStatus.granted);
+    when(mockPermissionHandler.request(any)).thenAnswer(
+      (_) async => {Permission.microphone: PermissionStatus.granted},
+    );
   });
 
   group('startRecording', () {

@@ -18,6 +18,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recor
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
 // TODO: Add imports for Append UseCases?
 import '../../features/audio_recorder/presentation/cubit/audio_recorder_cubit.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 
 final sl = GetIt.instance;
 
@@ -61,6 +62,7 @@ Future<void> init() async {
       pathProvider: sl(),
       permissionHandler: sl(),
       audioDurationGetter: sl(),
+      audioConcatenationService: sl(),
     ),
   );
 
@@ -82,5 +84,9 @@ Future<void> init() async {
   // Audio Services
   sl.registerLazySingleton<AudioDurationGetter>(
     () => JustAudioDurationGetterImpl(fileSystem: sl()),
+  );
+
+  sl.registerLazySingleton<AudioConcatenationService>(
+    () => FFmpegAudioConcatenator(fileSystem: sl(), pathProvider: sl()),
   );
 }

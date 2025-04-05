@@ -80,3 +80,12 @@ class PlatformFailure extends Failure {
   @override
   List<Object> get props => [message];
 }
+
+/// Failure related to invalid input or arguments.
+class ValidationFailure extends Failure {
+  final String message;
+  const ValidationFailure([this.message = 'Invalid input provided']);
+
+  @override
+  List<Object> get props => [message];
+}
