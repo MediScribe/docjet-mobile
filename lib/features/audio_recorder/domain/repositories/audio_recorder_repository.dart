@@ -43,6 +43,5 @@ abstract class AudioRecorderRepository {
   /// Loads all existing audio recordings.
   Future<Either<Failure, List<AudioRecord>>> loadRecordings();
 
-  /// Lists all existing audio recordings.
-  Future<Either<Failure, List<AudioRecord>>> listRecordings();
+  /// Appends the currently stopped recording segment to an existing recording file.
 }

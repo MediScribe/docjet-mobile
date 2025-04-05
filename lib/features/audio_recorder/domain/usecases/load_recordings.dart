@@ -11,6 +11,6 @@ class LoadRecordings implements UseCase<List<AudioRecord>, NoParams> {
 
   @override
   Future<Either<Failure, List<AudioRecord>>> call(NoParams params) async {
-    return await repository.listRecordings();
+    return await repository.loadRecordings();
   }
 }

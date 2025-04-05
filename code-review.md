@@ -27,13 +27,13 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 
 2.  **HIGH: Repository `loadRecordings`/`listRecordings` is Fucked Six Ways From Sunday:**
     *   **Problem A (Duplication - DRY Violation):** The two methods are nearly identical. Lazy copy-paste bullshit. (Mentioned before, still true).
-    *   **Problem B (Leaky Abstraction & `dart:io`):** Uses `File(path).stat()` directly, ignoring the fucking `FileSystem` abstraction you built! What's the point of the abstraction if you bypass it?
+    *   **Problem B (Leaky Abstraction & `dart:io`):** ~~Uses `File(path).stat()` directly, ignoring the fucking `FileSystem` abstraction you built! What's the point of the abstraction if you bypass it?~~ **FIXED (Partially).** Added `getFileStat` to `DataSource` interface/impl and updated Repository to use `localDataSource.getFileStat()`. Still needs N+1 fix.
     *   **Problem C (Performance - N+1):** Fetches file list, then loops calling `getAudioDuration` and `stat` *for each file*. Inefficient as hell. Will crawl with many recordings.
     *   **Problem D (Silent Failures):** Empty `catch {}` blocks in the loop. If getting info for one file fails, it vanishes without a trace. **Data loss waiting to happen.** Hiding bad news like a junior analyst.
     *   **Impact:** Maintenance nightmare, performance bottleneck, potential data loss, architectural inconsistency. A total shitshow.
     *   **Action:**
         *   Refactor into one method (e.g., `loadRecordings`).
-        *   Use `fileSystem.stat()`, damn it!
+        *   **DONE** via `localDataSource.getFileStat()`.
         *   Fix the N+1 query. Modify the DataSource interface (`listRecordingDetails`?) to get all required info efficiently.
         *   **LOG ERRORS** in the loop. Don't just swallow them. Decide how to report failures (partial list? error indicators?).
 
@@ -72,7 +72,7 @@ It's like you fixed the plumbing in one bathroom only to find the main sewer lin
 
 1.  **~~Implement `AudioRecorderRepositoryImpl.appendToRecording` (#1).~~** **DEFERRED** due to lack of supported concatenation package. Keep existing infra & dummy service.
 2.  **Fix `AudioRecorderRepositoryImpl.loadRecordings` (#2):**
-    *   Use `fileSystem.stat()`. (HIGH PRIORITY)
+    *   **DONE** (via DataSource abstraction).
     *   Consolidate `loadRecordings`/`listRecordings`. (HIGH PRIORITY)
     *   Fix N+1 (likely requires DataSource interface change). (HIGH PRIORITY)
     *   Log errors properly in the loop. (HIGH PRIORITY)

@@ -80,7 +80,7 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
       // If stopRecording succeeded, attempt to get duration and file stats
       final duration = await localDataSource.getAudioDuration(filePath);
       // Get file stats to find the modification time
-      final fileStat = await File(filePath).stat();
+      final fileStat = await localDataSource.getFileStat(filePath);
       return AudioRecord(
         filePath: filePath,
         duration: duration,
@@ -117,7 +117,8 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
         try {
           // Get duration and file stats individually
           final duration = await localDataSource.getAudioDuration(path);
-          final fileStat = await File(path).stat();
+          // Use the new DataSource method
+          final fileStat = await localDataSource.getFileStat(path);
           records.add(
             AudioRecord(
               filePath: path,
@@ -152,39 +153,6 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
       throw UnimplementedError(
         'Audio concatenation service not implemented (awaiting native solution).',
       );
-    });
-  }
-
-  @override
-  Future<Either<Failure, List<AudioRecord>>> listRecordings() async {
-    final filePathsEither = await _tryCatch(localDataSource.listRecordingFiles);
-
-    return filePathsEither.fold((failure) => Left(failure), (filePaths) async {
-      final List<AudioRecord> records = [];
-      for (final filePath in filePaths) {
-        try {
-          // Get duration and file stats individually
-          final duration = await localDataSource.getAudioDuration(filePath);
-          final fileStat = await File(filePath).stat();
-          records.add(
-            AudioRecord(
-              filePath: filePath,
-              duration: duration,
-              createdAt: fileStat.modified, // Use actual file modification time
-            ),
-          );
-        } on AudioPlayerException /* catch (e) */ {
-          // Log or handle skipped file due to player error
-        } on RecordingFileNotFoundException /* catch (e) */ {
-          // Log or handle skipped file due to not found error
-        } on FileSystemException /* catch (e) */ {
-          // Log or handle skipped file due to stat() error
-        } catch (_) {
-          // Use catch (_) since 'e' is unused
-          // Log or handle skipped file due to unexpected error
-        }
-      }
-      return Right(records);
     });
   }
 }

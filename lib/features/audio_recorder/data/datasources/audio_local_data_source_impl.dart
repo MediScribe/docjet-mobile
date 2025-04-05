@@ -213,43 +213,40 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
   @override
   Future<Duration> getAudioDuration(String filePath) async {
-    // TODO: Refactor this - still creates AudioPlayer locally
-    // Maybe inject an AudioPlayer factory or wrapper?
     try {
-      // Use injected fileSystem
-      // Removed redundant file existence check, handled by audioDurationGetter
-      /*
-      if (!await fileSystem.fileExists(filePath)) {
-        throw RecordingFileNotFoundException(
-          'Audio file not found at $filePath',
-        );
-      }
-      */
       // Delegate to the injected service
-      final duration = await audioDurationGetter.getDuration(filePath);
-      // Removed null check, getter implementation should throw if null
-      /*
-      if (duration == null) {
-        throw AudioPlayerException(
-          'Could not determine duration for file $filePath (possibly invalid/corrupt)',
-        );
-      }
-      */
-      return duration;
+      return await audioDurationGetter.getDuration(filePath);
+    } on RecordingFileNotFoundException {
+      // Rethrow known exceptions directly
+      rethrow;
+    } on AudioPlayerException {
+      // Rethrow known exceptions directly (if getter throws this)
+      rethrow;
     } catch (e) {
-      // Rethrow known exceptions from the getter
-      if (e is RecordingFileNotFoundException || e is AudioPlayerException) {
-        rethrow;
-      }
-      // Wrap unexpected errors
+      // Wrap unexpected errors from the getter as AudioPlayerException
       throw AudioPlayerException(
-        'Unexpected error getting audio duration for $filePath',
+        'Unexpected error getting audio duration for $filePath from getter',
         e,
       );
-    } /* finally {
-      // Remove player disposal, handled by getter implementation
-      await player.dispose();
-    } */
+    }
+  }
+
+  @override
+  Future<FileStat> getFileStat(String filePath) async {
+    try {
+      return await fileSystem.stat(filePath);
+    } on FileSystemException catch (e) {
+      throw AudioFileSystemException(
+        'Failed to get file stats for $filePath',
+        e,
+      );
+    } catch (e) {
+      // Catch any other potential errors during stat call
+      throw AudioFileSystemException(
+        'Unexpected error getting file stats for $filePath',
+        e,
+      );
+    }
   }
 
   @override

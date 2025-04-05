@@ -1,3 +1,5 @@
+import 'dart:io';
+
 /// Abstract contract for low-level audio operations (permissions, file system, recording package).
 ///
 /// Methods in the implementation should throw specific exceptions on failure,
@@ -30,6 +32,10 @@ abstract class AudioLocalDataSource {
 
   /// Gets the duration of an audio file.
   Future<Duration> getAudioDuration(String filePath);
+
+  /// Retrieves file system stats for the given path.
+  /// Throws [AudioFileSystemException] if the file doesn't exist or stats cannot be read.
+  Future<FileStat> getFileStat(String filePath);
 
   /// Concatenates multiple audio recording files into a single new file.
   ///

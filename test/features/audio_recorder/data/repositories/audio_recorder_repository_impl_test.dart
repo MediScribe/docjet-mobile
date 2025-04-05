@@ -1,3 +1,4 @@
+import 'dart:io'; // Import needed for FileStat
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -11,6 +12,30 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_reco
 
 // Import the generated mock file (will be created by build_runner)
 import 'audio_recorder_repository_impl_test.mocks.dart';
+
+// --- Helper Fake Class ---
+class FakeFileStat implements FileStat {
+  final DateTime modifiedTime;
+  FakeFileStat(this.modifiedTime);
+
+  @override
+  DateTime get modified => modifiedTime;
+
+  // Implement other required fields/methods with dummy values or throw UnimplementedError
+  @override
+  DateTime get accessed => throw UnimplementedError();
+  @override
+  DateTime get changed => throw UnimplementedError();
+  @override
+  int get mode => throw UnimplementedError();
+  @override
+  String modeString() => throw UnimplementedError();
+  @override
+  int get size => throw UnimplementedError();
+  @override
+  FileSystemEntityType get type => throw UnimplementedError();
+}
+// --- End Helper Fake Class ---
 
 // Annotation to generate mock for AudioLocalDataSource
 @GenerateMocks([AudioLocalDataSource])
@@ -241,6 +266,10 @@ void main() {
     const tFilePath = '/path/to/stopped.m4a';
     const tDuration = Duration(seconds: 30);
 
+    // Helper dummy FileStat for mocking
+    final tModifiedTime = DateTime.now().subtract(const Duration(minutes: 5));
+    final tFileStat = FakeFileStat(tModifiedTime);
+
     // Note: Cannot reliably test the exact createdAt timestamp here because
     // File(path).stat() is a dart:io call not easily mocked in this unit test
     // without refactoring the repository to use an injected FileSystem wrapper.
@@ -256,6 +285,11 @@ void main() {
           mockAudioLocalDataSource.getAudioDuration(tFilePath),
         ).thenAnswer((_) async => tDuration);
 
+        // ADDED: Mock the getFileStat call
+        when(
+          mockAudioLocalDataSource.getFileStat(tFilePath),
+        ).thenAnswer((_) async => tFileStat);
+
         // Act
         final result = await repository.stopRecording();
 
@@ -267,11 +301,14 @@ void main() {
             expect(record.filePath, tFilePath);
             expect(record.duration, tDuration);
             // Check that createdAt is *some* DateTime, actual value depends on unmocked stat()
-            expect(record.createdAt, isA<DateTime>());
+            // UPDATED: Now we can assert the mocked time
+            expect(record.createdAt, tModifiedTime);
           },
         );
         verify(mockAudioLocalDataSource.stopRecording());
         verify(mockAudioLocalDataSource.getAudioDuration(tFilePath));
+        // ADDED: Verify getFileStat call
+        verify(mockAudioLocalDataSource.getFileStat(tFilePath));
         verifyNoMoreInteractions(mockAudioLocalDataSource);
       },
     );
@@ -599,7 +636,11 @@ void main() {
     const tPath2 = '/path/file2.m4a';
     const tDuration1 = Duration(seconds: 10);
     const tDuration2 = Duration(seconds: 20);
-    // Timestamps cannot be reliably asserted due to File.stat() mocking limitations
+    // UPDATED: Moved inside group
+    final tModifiedTime1 = DateTime.now().subtract(const Duration(hours: 1));
+    final tModifiedTime2 = DateTime.now().subtract(const Duration(minutes: 30));
+    final tFileStat1 = FakeFileStat(tModifiedTime1);
+    final tFileStat2 = FakeFileStat(tModifiedTime2);
 
     test(
       'should return list of AudioRecords when listing and loading are successful',
@@ -615,6 +656,14 @@ void main() {
           mockAudioLocalDataSource.getAudioDuration(tPath2),
         ).thenAnswer((_) async => tDuration2);
 
+        // ADDED: Mock getFileStat calls
+        when(
+          mockAudioLocalDataSource.getFileStat(tPath1),
+        ).thenAnswer((_) async => tFileStat1);
+        when(
+          mockAudioLocalDataSource.getFileStat(tPath2),
+        ).thenAnswer((_) async => tFileStat2);
+
         // Act
         final result = await repository.loadRecordings();
 
@@ -627,13 +676,19 @@ void main() {
           // Check content based on path/duration, ignore createdAt
           expect(
             records.any(
-              (r) => r.filePath == tPath1 && r.duration == tDuration1,
+              (r) =>
+                  r.filePath == tPath1 &&
+                  r.duration == tDuration1 &&
+                  r.createdAt == tModifiedTime1, // Assert createdAt
             ),
             isTrue,
           );
           expect(
             records.any(
-              (r) => r.filePath == tPath2 && r.duration == tDuration2,
+              (r) =>
+                  r.filePath == tPath2 &&
+                  r.duration == tDuration2 &&
+                  r.createdAt == tModifiedTime2, // Assert createdAt
             ),
             isTrue,
           );
@@ -641,6 +696,9 @@ void main() {
         verify(mockAudioLocalDataSource.listRecordingFiles());
         verify(mockAudioLocalDataSource.getAudioDuration(tPath1));
         verify(mockAudioLocalDataSource.getAudioDuration(tPath2));
+        // ADDED: Verify getFileStat calls
+        verify(mockAudioLocalDataSource.getFileStat(tPath1));
+        verify(mockAudioLocalDataSource.getFileStat(tPath2));
         verifyNoMoreInteractions(mockAudioLocalDataSource);
       },
     );
@@ -678,6 +736,10 @@ void main() {
         when(
           mockAudioLocalDataSource.getAudioDuration(tPath1),
         ).thenAnswer((_) async => tDuration1);
+        // ADDED: Mock getFileStat for successful file 1
+        when(
+          mockAudioLocalDataSource.getFileStat(tPath1),
+        ).thenAnswer((_) async => tFileStat1);
         // File 2 fails duration load
         const exception = AudioPlayerException(
           'Failed to get duration for file 2',
@@ -697,12 +759,17 @@ void main() {
           expect(records.length, 1); // Only the first record should be present
           expect(records[0].filePath, tPath1);
           expect(records[0].duration, tDuration1);
+          expect(records[0].createdAt, tModifiedTime1); // Assert createdAt
         });
         verify(mockAudioLocalDataSource.listRecordingFiles());
         verify(mockAudioLocalDataSource.getAudioDuration(tPath1));
         verify(
           mockAudioLocalDataSource.getAudioDuration(tPath2),
         ); // Verify attempt was made
+        // ADDED: Verify getFileStat call for file 1
+        verify(mockAudioLocalDataSource.getFileStat(tPath1));
+        // Verify getFileStat was NOT called for file 2 because duration failed first
+        verifyNever(mockAudioLocalDataSource.getFileStat(tPath2));
         verifyNoMoreInteractions(mockAudioLocalDataSource);
       },
     );
@@ -718,140 +785,6 @@ void main() {
 
         // Act
         final result = await repository.loadRecordings();
-
-        // Assert
-        expect(result, equals(Left(FileSystemFailure(exception.message))));
-        verify(mockAudioLocalDataSource.listRecordingFiles());
-        verifyNever(mockAudioLocalDataSource.getAudioDuration(any));
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-  });
-
-  group('listRecordings', () {
-    // Tests are very similar to loadRecordings as both currently fetch full details.
-    const tPath1 = '/path/file1.m4a';
-    const tPath2 = '/path/file2.m4a';
-    const tDuration1 = Duration(seconds: 10);
-    const tDuration2 = Duration(seconds: 20);
-
-    test(
-      'should return list of AudioRecords when listing and loading details are successful',
-      () async {
-        // Arrange
-        when(
-          mockAudioLocalDataSource.listRecordingFiles(),
-        ).thenAnswer((_) async => [tPath1, tPath2]);
-        when(
-          mockAudioLocalDataSource.getAudioDuration(tPath1),
-        ).thenAnswer((_) async => tDuration1);
-        when(
-          mockAudioLocalDataSource.getAudioDuration(tPath2),
-        ).thenAnswer((_) async => tDuration2);
-
-        // Act
-        final result = await repository.listRecordings();
-
-        // Assert
-        expect(result.isRight(), isTrue);
-        result.fold((failure) => fail('Expected Right, got Left($failure)'), (
-          records,
-        ) {
-          expect(records.length, 2);
-          // Check content based on path/duration, ignore createdAt
-          expect(
-            records.any(
-              (r) => r.filePath == tPath1 && r.duration == tDuration1,
-            ),
-            isTrue,
-          );
-          expect(
-            records.any(
-              (r) => r.filePath == tPath2 && r.duration == tDuration2,
-            ),
-            isTrue,
-          );
-        });
-        verify(mockAudioLocalDataSource.listRecordingFiles());
-        verify(mockAudioLocalDataSource.getAudioDuration(tPath1));
-        verify(mockAudioLocalDataSource.getAudioDuration(tPath2));
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-
-    test(
-      'should return empty list when listRecordingFiles returns empty list',
-      () async {
-        // Arrange
-        when(
-          mockAudioLocalDataSource.listRecordingFiles(),
-        ).thenAnswer((_) async => []);
-        // Act
-        final result = await repository.listRecordings();
-        // Assert
-        // Check type and emptiness instead of direct equals comparison
-        expect(result.isRight(), isTrue);
-        result.fold(
-          (failure) => fail('Expected Right, got Left($failure)'),
-          (records) => expect(records, isEmpty),
-        );
-        verify(mockAudioLocalDataSource.listRecordingFiles());
-        verifyNever(mockAudioLocalDataSource.getAudioDuration(any));
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-
-    test(
-      'should return list with successfully processed records when one file fails detail loading',
-      () async {
-        // Arrange
-        when(
-          mockAudioLocalDataSource.listRecordingFiles(),
-        ).thenAnswer((_) async => [tPath1, tPath2]);
-        // File 1 succeeds
-        when(
-          mockAudioLocalDataSource.getAudioDuration(tPath1),
-        ).thenAnswer((_) async => tDuration1);
-        // File 2 fails duration load
-        const exception = AudioPlayerException(
-          'Failed to get duration for file 2',
-        );
-        when(
-          mockAudioLocalDataSource.getAudioDuration(tPath2),
-        ).thenThrow(exception);
-
-        // Act
-        final result = await repository.listRecordings();
-
-        // Assert
-        expect(result.isRight(), isTrue);
-        result.fold((failure) => fail('Expected Right, got Left($failure)'), (
-          records,
-        ) {
-          expect(records.length, 1); // Only the first record should be present
-          expect(records[0].filePath, tPath1);
-          expect(records[0].duration, tDuration1);
-        });
-        verify(mockAudioLocalDataSource.listRecordingFiles());
-        verify(mockAudioLocalDataSource.getAudioDuration(tPath1));
-        verify(
-          mockAudioLocalDataSource.getAudioDuration(tPath2),
-        ); // Verify attempt
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-
-    test(
-      'should return FileSystemFailure when listRecordingFiles throws AudioFileSystemException',
-      () async {
-        // Arrange
-        const exception = AudioFileSystemException('Cannot list files');
-        when(
-          mockAudioLocalDataSource.listRecordingFiles(),
-        ).thenThrow(exception);
-
-        // Act
-        final result = await repository.listRecordings();
 
         // Assert
         expect(result, equals(Left(FileSystemFailure(exception.message))));
