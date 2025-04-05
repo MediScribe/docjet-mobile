@@ -15,16 +15,18 @@ class CheckPermission implements UseCase<bool, NoParams> {
     // First check current status
     final checkResult = await repository.checkPermission();
 
-    return checkResult.fold((failure) => Left(failure), (hasPermission) async {
-      if (hasPermission) {
-        return Right(true);
-      } else {
-        // If not granted, attempt to request it
-        // print(
-        //   '[CheckPermissionUseCase] Permission not granted, attempting request...',
-        // );
-        return await repository.requestPermission();
-      }
-    });
+    return checkResult.fold(
+      (failure) {
+        return Left(failure);
+      },
+      (hasPermission) async {
+        if (hasPermission) {
+          return Right(true);
+        } else {
+          final requestResult = await repository.requestPermission();
+          return requestResult;
+        }
+      },
+    );
   }
 }

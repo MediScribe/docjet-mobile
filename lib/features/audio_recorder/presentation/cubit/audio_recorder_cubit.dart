@@ -46,12 +46,18 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
     emit(AudioRecorderLoading()); // Indicate checking
     final result = await checkPermissionUseCase(NoParams());
     result.fold(
-      (failure) => emit(
-        AudioRecorderError('Permission check failed: ${failure.toString()}'),
-      ), // Map Failure
-      (hasPermission) => emit(
-        hasPermission ? AudioRecorderReady() : AudioRecorderPermissionDenied(),
-      ),
+      (failure) {
+        emit(
+          AudioRecorderError('Permission check failed: ${failure.toString()}'),
+        );
+      }, // Map Failure
+      (hasPermission) {
+        emit(
+          hasPermission
+              ? AudioRecorderReady()
+              : AudioRecorderPermissionDenied(),
+        );
+      },
     );
   }
 

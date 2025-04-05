@@ -31,6 +31,7 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
   @override
   void initState() {
     super.initState();
+    // print('[AudioRecorderPage] initState: Calling checkPermission...');
     context.read<AudioRecorderCubit>().checkPermission();
   }
 
@@ -117,14 +118,27 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                 context,
               ).showSnackBar(SnackBar(content: Text(state.message)));
             } else if (state is AudioRecorderPermissionDenied) {
+              // === MODIFICATION START ===
+              // // Temporarily show a simple SnackBar instead of the sheet
+              // print(
+              //   '[AudioRecorderPage] Received AudioRecorderPermissionDenied. Showing SnackBar.',
+              // );
+              // ScaffoldMessenger.of(context).showSnackBar(
+              //   const SnackBar(
+              //     content: Text('Microphone Permission Permanently Denied.'),
+              //     duration: Duration(seconds: 5),
+              //   ),
+              // );
+              // === ORIGINAL CODE REINSTATED ===
               // Show the bottom sheet instead of just a snackbar
               WidgetsBinding.instance.addPostFrameCallback((_) {
+                // print('[AudioRecorderPage] PostFrameCallback: Showing permission sheet.'); // Optional: Keep print for debug if needed
                 if (mounted) {
                   // Ensure widget is still in the tree
                   _showPermissionSheet(context);
                 }
               });
-              // _handleNavigation(context); // Ensure this is still removed
+              // === MODIFICATION END ===
             } else if (state is AudioRecorderStopped) {
               // Capture context before the async gap
               final capturedContext = context;

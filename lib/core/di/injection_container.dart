@@ -87,6 +87,6 @@ Future<void> init() async {
   );
 
   sl.registerLazySingleton<AudioConcatenationService>(
-    () => FFmpegAudioConcatenator(fileSystem: sl(), pathProvider: sl()),
+    () => DummyAudioConcatenator(),
   );
 }

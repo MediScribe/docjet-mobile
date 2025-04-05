@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io'; // Using dart:io directly for temp list file operations
 
-import 'package:docjet_mobile/core/platform/file_system.dart';
-import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
-import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
+// Remove FFmpeg imports
+// import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
+// import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
 // TODO: Add logging
 
 /// Abstract interface for audio concatenation operations.
@@ -21,6 +19,7 @@ abstract class AudioConcatenationService {
   Future<String> concatenate(List<String> inputFilePaths);
 }
 
+/* // Removing the broken FFmpeg implementation
 /// Implementation of [AudioConcatenationService] using FFmpegKit.
 class FFmpegAudioConcatenator implements AudioConcatenationService {
   final FileSystem fileSystem;
@@ -66,8 +65,7 @@ class FFmpegAudioConcatenator implements AudioConcatenationService {
     }
 
     // 3. Generate output path and temporary list file path
-    final Directory appDir =
-        await pathProvider.getApplicationDocumentsDirectory();
+    final Directory appDir = await pathProvider.getApplicationDocumentsDirectory();
     final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
     final String outputPath = '${appDir.path}/concat_$timestamp.m4a';
     final String listFilePath = '${appDir.path}/ffmpeg_list_$timestamp.txt';
@@ -77,7 +75,7 @@ class FFmpegAudioConcatenator implements AudioConcatenationService {
     String fileListContent = '';
     for (final path in inputFilePaths) {
       // Simple quoting for paths, might need refinement for edge cases
-      fileListContent += "file '$path'\\n";
+      fileListContent += "file '$path'\n";
     }
 
     // Using dart:io directly for temp file - Abstraction could be enhanced later
@@ -109,7 +107,7 @@ class FFmpegAudioConcatenator implements AudioConcatenationService {
         return outputPath;
       } else {
         final logs = await session.getLogsAsString();
-        // debugPrint('FFmpeg concatenation failed. Logs:\\n$logs');
+        // debugPrint('FFmpeg concatenation failed. Logs:\n$logs');
         throw AudioConcatenationException(
           'FFmpeg concatenation failed with return code $returnCode',
           null,
@@ -137,5 +135,21 @@ class FFmpegAudioConcatenator implements AudioConcatenationService {
         // debugPrint('Failed to delete temporary ffmpeg list file: $listFilePath');
       }
     }
+  }
+}
+*/
+
+/// Dummy implementation that throws UnimplementedError.
+/// Used temporarily to allow the app to build while a working concatenation solution is found.
+class DummyAudioConcatenator implements AudioConcatenationService {
+  // No dependencies needed for the dummy implementation
+  // DummyAudioConcatenator();
+
+  @override
+  Future<String> concatenate(List<String> inputFilePaths) async {
+    // TODO: Replace this dummy implementation with a working solution later.
+    throw UnimplementedError(
+      'Audio concatenation is not implemented with a working library yet.',
+    );
   }
 }

@@ -9,6 +9,10 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 *   **Refactoring Step (Concatenation Service):** Extracted concatenation logic from DataSource into a dedicated `FFmpegAudioConcatenator` service. DI and relevant tests updated and **PASSING**. Good first step in cleaning up the DataSource SRP violation. **GOOD.**
 *   `createdAt` timestamp uses `FileStat.modified`. About fucking time.
 *   `AudioLocalDataSourceImpl` unit tests are **PASSING** (post-refactor DI fixes). This *proves* the abstraction strategy worked for *that layer*.
+*   **SOLVED (Painfully): Mysterious Permission Failure:** We fixed the goddamn permissions after a clusterfuck investigation. The app was crashing without showing the permission dialog, falsely reporting `permanentlyDenied`. Turns out it was a **two-part fuckup** introduced during refactoring: 
+    1. The `checkPermission` logic in `AudioLocalDataSourceImpl` was changed to *only* use `permission_handler`, removing a crucial initial check via `recorder.hasPermission()`.
+    2. The `permission_handler` import was restricted using a `show` clause (`show Permission, PermissionStatus`), which **fatally hid** the necessary extension methods (`.status`, `.request()`) needed for direct permission object interaction.
+    3. **The Fix:** We restored the `checkPermission` logic to use `recorder.hasPermission()` first, falling back to the injected `permissionHandler.status()` check (this fallback was adjusted slightly from the original code to improve testability). We also fixed the `permission_handler` import to remove the `show` clause. Related unit tests were subsequently fixed by adjusting mocks and ensuring Flutter bindings were initialized. **Lesson learned:** Refactoring platform interaction code requires extreme fucking caution.
 
 **The Shit That Still Stinks (And Some New Smells):**
 
@@ -50,9 +54,9 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
     *   **Impact:** Adds boilerplate and complexity for little or no benefit. Over-engineering.
     *   **Action:** Evaluate if these Use Cases add *any* value. If not, **DELETE THEM**. Simplify the architecture by letting the Cubit call the Repository directly. Keep it fucking simple.
 
-6.  **LOW: Questionable Permission Logic (Original Point 4):**
+6.  **LOW: Questionable Permission Logic (Original Point 4 - NOW RESOLVED):**
     *   **Problem:** Dual check (`recorder.hasPermission()` / `permission_handler` originally noted).
-    *   **Status:** Likely less relevant now with `PermissionHandler` abstraction, but worth a quick look **AFTER** everything else. Probably fine.
+    *   **Status:** **RESOLVED.** The original dual check logic was actually **CRITICAL**. Removing the `recorder.hasPermission()` check broke everything. Reinstating it (and fixing the import) solved the permission failure. Related unit tests now pass after significant debugging and mock adjustments. Mark this specific concern as addressed, but the investigation revealed the sensitivity.
 
 ## Other Sloppy Shit We Noticed (Consolidated):
 

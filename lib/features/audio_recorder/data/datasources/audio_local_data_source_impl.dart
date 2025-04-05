@@ -4,15 +4,15 @@ import 'dart:io'; // Keep dart:io for FileSystemEntity type
 // Remove direct package imports
 // import 'package:path_provider/path_provider.dart';
 // import 'package:permission_handler/permission_handler.dart';
-import 'package:permission_handler/permission_handler.dart'
-    show Permission, PermissionStatus; // Keep specific types
+import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:meta/meta.dart';
 
 // Import interfaces
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
-import 'package:docjet_mobile/core/platform/permission_handler.dart';
+import 'package:docjet_mobile/core/platform/permission_handler.dart'
+    as custom_ph;
 import '../services/audio_duration_getter.dart';
 import '../services/audio_concatenation_service.dart'; // Import the new service
 
@@ -27,12 +27,11 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
   final FileSystem fileSystem; // Inject FileSystem
   final PathProvider pathProvider; // Inject PathProvider
-  final PermissionHandler permissionHandler; // Inject PermissionHandler
+  final custom_ph.PermissionHandler
+  permissionHandler; // Inject PermissionHandler
   final AudioDurationGetter audioDurationGetter; // Inject the new service
   final AudioConcatenationService
   audioConcatenationService; // Inject the concatenation service
-  final Permission microphonePermission =
-      Permission.microphone; // Keep this definition
 
   // Keep the private field
   String? _currentRecordingPath;
@@ -52,19 +51,29 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     required this.pathProvider,
     required this.permissionHandler,
     required this.audioDurationGetter,
-    required this.audioConcatenationService, // Add to constructor
+    required this.audioConcatenationService,
   });
 
+  // Define the permission object locally, needed for the requestPermission call
+  final Permission microphonePermission = Permission.microphone;
+
+  // Restore checkPermission to use the INJECTED handler for fallback (easier to test)
   @override
   Future<bool> checkPermission() async {
     try {
+      final bool recorderHasPermission = await recorder.hasPermission();
+      if (recorderHasPermission) {
+        return true;
+      }
       final status = await permissionHandler.status(microphonePermission);
-      return status == PermissionStatus.granted;
+      final bool granted = status == PermissionStatus.granted;
+      return granted;
     } catch (e) {
       throw AudioPermissionException('Failed to check permission status', e);
     }
   }
 
+  // requestPermission already uses the injected handler
   @override
   Future<bool> requestPermission() async {
     try {

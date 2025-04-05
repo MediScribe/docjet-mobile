@@ -7,7 +7,8 @@ import 'package:permission_handler/permission_handler.dart'
 // Import interfaces and exceptions
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
-import 'package:docjet_mobile/core/platform/permission_handler.dart';
+import 'package:docjet_mobile/core/platform/permission_handler.dart'
+    as custom_ph;
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
@@ -21,35 +22,33 @@ import 'audio_local_data_source_impl_permission_test.mocks.dart';
 
 // Generate mocks ONLY for PermissionHandler and unused DataSource dependencies
 @GenerateNiceMocks([
-  MockSpec<PermissionHandler>(),
   MockSpec<AudioRecorder>(),
+  MockSpec<custom_ph.PermissionHandler>(as: #MockPermissionHandler),
   MockSpec<FileSystem>(),
   MockSpec<PathProvider>(),
   MockSpec<AudioDurationGetter>(),
-  MockSpec<AudioConcatenationService>(), // Add mock spec
+  MockSpec<AudioConcatenationService>(),
 ])
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late AudioLocalDataSourceImpl dataSource;
   late MockPermissionHandler mockPermissionHandler;
-  // Declare unused mocks
   late MockAudioRecorder mockAudioRecorder;
   late MockFileSystem mockFileSystem;
   late MockPathProvider mockPathProvider;
   late MockAudioDurationGetter mockAudioDurationGetter;
-  late MockAudioConcatenationService
-  mockAudioConcatenationService; // Declare mock
+  late MockAudioConcatenationService mockAudioConcatenationService;
 
   final tPermission = Permission.microphone;
 
   setUp(() {
     mockPermissionHandler = MockPermissionHandler();
-    // Instantiate unused mocks
     mockAudioRecorder = MockAudioRecorder();
     mockFileSystem = MockFileSystem();
     mockPathProvider = MockPathProvider();
     mockAudioDurationGetter = MockAudioDurationGetter();
-    mockAudioConcatenationService =
-        MockAudioConcatenationService(); // Instantiate mock
+    mockAudioConcatenationService = MockAudioConcatenationService();
 
     dataSource = AudioLocalDataSourceImpl(
       recorder: mockAudioRecorder,
@@ -57,78 +56,76 @@ void main() {
       pathProvider: mockPathProvider,
       permissionHandler: mockPermissionHandler,
       audioDurationGetter: mockAudioDurationGetter,
-      audioConcatenationService: mockAudioConcatenationService, // Provide mock
+      audioConcatenationService: mockAudioConcatenationService,
     );
   });
 
   group('checkPermission', () {
     test(
-      'should return true when permission handler status is granted',
+      'should return true when recorder.hasPermission returns true',
       () async {
-        // Arrange
+        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => true);
+        final result = await dataSource.checkPermission();
+        expect(result, isTrue);
+        verify(mockAudioRecorder.hasPermission());
+        verifyNever(mockPermissionHandler.status(any));
+      },
+    );
+
+    test(
+      'should check handler status when recorder.hasPermission is false and return true if handler status is granted',
+      () async {
+        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => false);
         when(
           mockPermissionHandler.status(tPermission),
         ).thenAnswer((_) async => PermissionStatus.granted);
-        // Act
         final result = await dataSource.checkPermission();
-        // Assert
+        verify(mockAudioRecorder.hasPermission());
+        verify(mockPermissionHandler.status(tPermission));
         expect(result, isTrue);
-        verify(mockPermissionHandler.status(tPermission));
       },
     );
 
     test(
-      'should return false when permission handler status is denied',
+      'should check handler status when recorder.hasPermission is false and return false if handler status is not granted',
       () async {
-        // Arrange
-        when(
-          mockPermissionHandler.status(tPermission),
-        ).thenAnswer((_) async => PermissionStatus.denied);
-        // Act
+        when(mockAudioRecorder.hasPermission()).thenAnswer((_) async => false);
         final result = await dataSource.checkPermission();
-        // Assert
+        verify(mockAudioRecorder.hasPermission());
         expect(result, isFalse);
-        verify(mockPermissionHandler.status(tPermission));
       },
     );
 
     test(
-      'should throw AudioPermissionException when permission handler status throws',
+      'should throw AudioPermissionException when recorder.hasPermission throws',
       () async {
-        // Arrange
-        final exception = Exception('Handler error');
-        when(mockPermissionHandler.status(tPermission)).thenThrow(exception);
-        // Act & Assert
+        final exception = Exception('Recorder error');
+        when(mockAudioRecorder.hasPermission()).thenThrow(exception);
         expect(
           () => dataSource.checkPermission(),
           throwsA(isA<AudioPermissionException>()),
         );
-        verify(mockPermissionHandler.status(tPermission));
+        verify(mockAudioRecorder.hasPermission());
+        verifyNever(mockPermissionHandler.status(any));
       },
     );
   });
 
   group('requestPermission', () {
     test('should return true when permission request is granted', () async {
-      // Arrange
       when(
         mockPermissionHandler.request([tPermission]),
       ).thenAnswer((_) async => {tPermission: PermissionStatus.granted});
-      // Act
       final result = await dataSource.requestPermission();
-      // Assert
       expect(result, isTrue);
       verify(mockPermissionHandler.request([tPermission]));
     });
 
     test('should return false when permission request is denied', () async {
-      // Arrange
       when(
         mockPermissionHandler.request([tPermission]),
       ).thenAnswer((_) async => {tPermission: PermissionStatus.denied});
-      // Act
       final result = await dataSource.requestPermission();
-      // Assert
       expect(result, isFalse);
       verify(mockPermissionHandler.request([tPermission]));
     });
@@ -136,10 +133,8 @@ void main() {
     test(
       'should throw AudioPermissionException when permission request throws',
       () async {
-        // Arrange
         final exception = Exception('Request failed');
         when(mockPermissionHandler.request([tPermission])).thenThrow(exception);
-        // Act & Assert
         expect(
           () => dataSource.requestPermission(),
           throwsA(isA<AudioPermissionException>()),
