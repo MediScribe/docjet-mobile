@@ -863,47 +863,31 @@ void main() {
   });
 
   group('appendToRecording', () {
-    final tExistingRecord = AudioRecord(
-      filePath: '/path/existing.m4a',
-      duration: const Duration(seconds: 60),
-      createdAt: DateTime.now(),
-    );
-
     test(
-      'should return ConcatenationFailure as the feature is not implemented',
+      'appendToRecording should return ConcatenationFailure as the feature is not implemented',
       () async {
         // Arrange
-        // Stub the startRecording call that happens before the UnimplementedError
-        when(
-          mockAudioLocalDataSource.startRecording(),
-        ).thenAnswer((_) async => '/dummy/path');
+        final tExistingRecord = AudioRecord(
+          filePath: 'existing.m4a',
+          duration: const Duration(seconds: 10),
+          createdAt: DateTime.now(),
+        );
+        // No mocks needed as the method should throw immediately
 
         // Act
         final result = await repository.appendToRecording(tExistingRecord);
 
         // Assert
-        expect(result.isLeft(), isTrue);
-        expect(
-          result.fold((l) => l, (r) => r), // Extract the Failure
-          isA<ConcatenationFailure>(),
+        // Expect Left(ConcatenationFailure) because _tryCatch maps UnimplementedError
+        expect(result, isA<Left<Failure, AudioRecord>>());
+        result.fold(
+          (failure) => expect(failure, isA<ConcatenationFailure>()),
+          (record) => fail('Should have returned a Failure'),
         );
-
-        // Check if the message matches what _tryCatch maps UnimplementedError to
-        result.fold((failure) {
-          // Check that the failure message contains either expected text
-          final message = (failure as ConcatenationFailure).message;
-          expect(
-            message.contains('Append flow needs refinement') ||
-                message.contains('Feature not implemented'),
-            isTrue,
-            reason:
-                'Expected message to contain either "Append flow..." or "Feature not implemented..." but got: $message',
-          );
-        }, (_) => fail('Expected Left, got Right'));
-
-        // Depending on the exact placeholder code in appendToRecording,
-        // a call to startRecording might occur before the UnimplementedError.
-        // verify(mockAudioLocalDataSource.startRecording()); // Uncomment/adjust if needed
+        // Verify no datasource methods were called
+        verifyNever(mockAudioLocalDataSource.startRecording());
+        verifyNever(mockAudioLocalDataSource.stopRecording());
+        verifyNever(mockAudioLocalDataSource.concatenateRecordings(any));
       },
     );
   });

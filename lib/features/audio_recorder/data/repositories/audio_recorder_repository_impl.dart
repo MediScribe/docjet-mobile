@@ -145,11 +145,13 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
   Future<Either<Failure, AudioRecord>> appendToRecording(
     AudioRecord existingRecord,
   ) async {
-    // Use the refined _tryCatch. It will handle the UnimplementedError.
+    // Immediately signal that the underlying concatenation is not implemented.
+    // The _tryCatch helper will catch this and convert it appropriately
+    // (likely to ConcatenationFailure based on current _tryCatch logic).
     return _tryCatch<AudioRecord>(() async {
-      // Current logic still throws UnimplementedError
-      await localDataSource.startRecording(); // Example step
-      throw UnimplementedError('Append flow needs refinement in UseCase/Cubit');
+      throw UnimplementedError(
+        'Audio concatenation service not implemented (awaiting native solution).',
+      );
     });
   }
 

@@ -16,16 +16,14 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 
 **The Shit That Still Stinks (And Some New Smells):**
 
-*   **THE ELEPHANT IN THE FUCKING ROOM:** The core goddamn feature (concatenation/append) is **STILL NOT USABLE**.
+*   **THE ELEPHANT IN THE FUCKING ROOM:** The core goddamn feature (concatenation/append) is **STILL NOT USABLE**. (See #1 below)
 *   **REPOSITORY IS LEAKING & INEFFICIENT:** This layer is now the primary source of bullshit.
 *   **CODE SMELL:** That `testingSetCurrentRecordingPath` hack in the DataSource is still kicking.
 
-## The Real Fucking Situation & What Needs Fixing NOW:
-
-1.  **CRITICAL: Concatenation / Append is STILL FUCKING MISSING (at Repository Level):**
-    *   **Problem:** `AudioLocalDataSourceImpl.concatenateRecordings` exists, but `AudioRecorderRepositoryImpl.appendToRecording` still throws `UnimplementedError`. The feature is dead in the water from the application's perspective. Like having Axe's Quotron feed but no balls to place the trade.
-    *   **Impact:** Core functionality non-existent. What are we even building here?
-    *   **Action:** Implement `AudioRecorderRepositoryImpl.appendToRecording` to orchestrate the calls (`startRecording`, `stopRecording`, `concatenateRecordings`, cleanup). **THIS IS STILL JOB #1. NO FUCKING EXCUSES.**
+1.  **CRITICAL: Concatenation / Append Implementation BLOCKED:**
+    *   **Problem:** `AudioRecorderRepositoryImpl.appendToRecording` orchestrates the flow BUT the underlying concatenation **cannot be implemented** currently. The intended package (`ffmpeg_kit_flutter_audio`) is **no longer supported**, and native platform channel implementation is deferred pending specialist help. The `AudioConcatenationService` currently uses `DummyAudioConcatenator`.
+    *   **Impact:** Core functionality (appending recordings via concatenation) is blocked. Pause/Resume works independently.
+    *   **Action:** **DEFERRED.** Keep the clean `AudioConcatenationService` infrastructure and `DummyAudioConcatenator`. Document this limitation clearly. Focus on other critical issues. Revisit when native implementation is feasible.
 
 2.  **HIGH: Repository `loadRecordings`/`listRecordings` is Fucked Six Ways From Sunday:**
     *   **Problem A (Duplication - DRY Violation):** The two methods are nearly identical. Lazy copy-paste bullshit. (Mentioned before, still true).
@@ -70,17 +68,17 @@ Okay, the DataSource isn't a complete tire fire anymore thanks to the abstractio
 
 It's like you fixed the plumbing in one bathroom only to find the main sewer line backing up into the kitchen, *and* the water heater is trying to do the job of the furnace too.
 
-**Mandatory Path Forward (NO DEVIATION):**
+**Mandatory Path Forward (NO DEVIATION - Updated):**
 
-1.  **Implement `AudioRecorderRepositoryImpl.appendToRecording` (#1).** Get the core feature working. NOW.
+1.  **~~Implement `AudioRecorderRepositoryImpl.appendToRecording` (#1).~~** **DEFERRED** due to lack of supported concatenation package. Keep existing infra & dummy service.
 2.  **Fix `AudioRecorderRepositoryImpl.loadRecordings` (#2):**
-    *   Use `fileSystem.stat()`.
-    *   Consolidate `loadRecordings`/`listRecordings`.
-    *   Fix N+1 (likely requires DataSource interface change).
-    *   Log errors properly in the loop.
+    *   Use `fileSystem.stat()`. (HIGH PRIORITY)
+    *   Consolidate `loadRecordings`/`listRecordings`. (HIGH PRIORITY)
+    *   Fix N+1 (likely requires DataSource interface change). (HIGH PRIORITY)
+    *   Log errors properly in the loop. (HIGH PRIORITY)
 3.  **Eliminate `testingSetCurrentRecordingPath` (#3).** Refactor DataSource state.
-4.  **Refactor `AudioLocalDataSourceImpl` (#4).** **(Concatenation DONE)**. Continue evaluating other potential extractions (duration, listing?) as needed / lower priority.
+4.  **Refactor `AudioLocalDataSourceImpl` (#4).** **(Concatenation DONE via extraction)**. Continue evaluating other potential extractions (duration, listing?) as needed / lower priority.
 5.  **Evaluate & potentially remove the Use Case layer (#5).** Simplify if possible.
-6.  Clean up any remaining low-priority crap (#6) only when the critical shit works.
+6.  Clean up any remaining low-priority crap (#6 - Permission part resolved) only when the critical shit works.
 
 Stop admiring the one clean bathroom and the new soap dispenser (concatenation service). Fix the fucking sewer line (Repository) and the leaky faucet (DataSource hack). Execute.
