@@ -39,12 +39,17 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
     *   **Impact:** Brittle tests, sign of a design flaw. Makes the DataSource less robust.
     *   **Action:** Refactor the DataSource's internal state management related to `_currentRecordingPath` so this hack is **NO LONGER NEEDED**. This needs thought, maybe return/use session objects. Do this AFTER fixing the Repository (#1, #2).
 
-4.  **LOW: Questionable Use Case Layer:**
+4.  **MEDIUM: DataSource Bloat (SRP Violation):**
+    *   **Problem:** `AudioLocalDataSourceImpl` is a 400-line behemoth juggling multiple responsibilities: permissions, recording lifecycle, file ops, duration fetching, *complex concatenation logic*, internal state. This violates the Single Responsibility Principle harder than Wags violates HR policies.
+    *   **Impact:** Hard to read, hard to test thoroughly, hard to maintain. A change in ffmpeg logic forces a change in the same class that handles permissions.
+    *   **Action:** Break this fat bastard down. Extract distinct responsibilities into separate classes/services. Start by moving the `concatenateRecordings` logic into its own `AudioConcatenationService` (or similar) that gets injected into the DataSource. Address this AFTER the critical Repository fixes (#1, #2).
+
+5.  **LOW: Questionable Use Case Layer:**
     *   **Problem:** Use cases like `StartRecording`, `StopRecording` seem to be simple pass-throughs to the Repository methods without adding logic.
     *   **Impact:** Adds boilerplate and complexity for little or no benefit. Over-engineering.
     *   **Action:** Evaluate if these Use Cases add *any* value. If not, **DELETE THEM**. Simplify the architecture by letting the Cubit call the Repository directly. Keep it fucking simple.
 
-5.  **LOW: Questionable Permission Logic (Original Point 4):**
+6.  **LOW: Questionable Permission Logic (Original Point 4):**
     *   **Problem:** Dual check (`recorder.hasPermission()` / `permission_handler` originally noted).
     *   **Status:** Likely less relevant now with `PermissionHandler` abstraction, but worth a quick look **AFTER** everything else. Probably fine.
 
@@ -56,9 +61,9 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 
 Okay, the DataSource isn't a complete tire fire anymore thanks to the abstractions and DI. Good. You laid *a* foundation.
 
-**BUT**, the `AudioRecorderRepositoryImpl` is now the problem child. It's leaky, inefficient, duplicated, error-prone, and *still missing the main fucking feature*. The `testingSetCurrentRecordingPath` hack persists, mocking your DI efforts. And you might have a useless Use Case layer adding dead weight.
+**BUT**, the `AudioRecorderRepositoryImpl` is now the problem child. It's leaky, inefficient, duplicated, error-prone, and *still missing the main fucking feature*. The `testingSetCurrentRecordingPath` hack persists, mocking your DI efforts, and the DataSource itself is a bloated mess violating SRP. And you might have a useless Use Case layer adding dead weight.
 
-It's like you fixed the plumbing in one bathroom only to find the main sewer line backing up into the kitchen.
+It's like you fixed the plumbing in one bathroom only to find the main sewer line backing up into the kitchen, *and* the water heater is trying to do the job of the furnace too.
 
 **Mandatory Path Forward (NO DEVIATION):**
 
@@ -69,7 +74,8 @@ It's like you fixed the plumbing in one bathroom only to find the main sewer lin
     *   Fix N+1 (likely requires DataSource interface change).
     *   Log errors properly in the loop.
 3.  **Eliminate `testingSetCurrentRecordingPath` (#3).** Refactor DataSource state.
-4.  **Evaluate & potentially remove the Use Case layer (#4).** Simplify if possible.
-5.  Clean up any remaining low-priority crap (#5) only when the critical shit works.
+4.  **Refactor `AudioLocalDataSourceImpl` (#4).** Extract concatenation logic (and potentially others) into separate services/classes to fix SRP violation.
+5.  **Evaluate & potentially remove the Use Case layer (#5).** Simplify if possible.
+6.  Clean up any remaining low-priority crap (#6) only when the critical shit works.
 
-Stop admiring the one clean bathroom. Fix the fucking sewer line (Repository) and the leaky faucet (DataSource hack). Execute.
+Stop admiring the one clean bathroom. Fix the fucking sewer line (Repository), the leaky faucet (DataSource hack), and stop the water heater from trying to do too much (DataSource SRP). Execute.
