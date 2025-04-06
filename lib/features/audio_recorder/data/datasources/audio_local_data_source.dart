@@ -11,23 +11,41 @@ abstract class AudioLocalDataSource {
   /// Requests permission using the required package(s).
   Future<bool> requestPermission();
 
-  /// Starts recording to a temporary path.
+  /// Starts a new audio recording.
   ///
-  /// Returns the temporary file path.
+  /// Returns the file path where the recording is being saved.
+  /// Throws [AudioPermissionException] if microphone permission is denied.
+  /// Throws [AudioRecordingException] if starting fails for other reasons.
   Future<String> startRecording();
 
-  /// Stops the current recording.
+  /// Stops the current audio recording.
   ///
-  /// Returns the final file path of the stopped segment.
-  Future<String> stopRecording();
+  /// [recordingPath]: The path of the recording to stop, typically obtained from [startRecording].
+  /// Returns the final file path of the saved recording.
+  /// Throws [NoActiveRecordingException] if called when not recording (logically, though state is external now).
+  /// Throws [RecordingFileNotFoundException] if the file is missing after stop.
+  /// Throws [AudioRecordingException] if stopping fails.
+  Future<String> stopRecording({required String recordingPath});
 
-  /// Pauses the current recording.
-  Future<void> pauseRecording();
+  /// Pauses the current audio recording.
+  ///
+  /// [recordingPath]: The path of the recording to pause.
+  /// Throws [NoActiveRecordingException] if called when not recording (logically).
+  /// Throws [AudioRecordingException] if pausing fails.
+  Future<void> pauseRecording({required String recordingPath});
 
-  /// Resumes a paused recording.
-  Future<void> resumeRecording();
+  /// Resumes a paused audio recording.
+  ///
+  /// [recordingPath]: The path of the recording to resume.
+  /// Throws [NoActiveRecordingException] if called when not recording (logically).
+  /// Throws [AudioRecordingException] if resuming fails.
+  Future<void> resumeRecording({required String recordingPath});
 
-  /// Deletes the audio file at the given path.
+  /// Deletes a recording file.
+  ///
+  /// [filePath]: The path of the recording file to delete.
+  /// Throws [RecordingFileNotFoundException] if the file is missing.
+  /// Throws [AudioFileSystemException] for underlying file system errors.
   Future<void> deleteRecording(String filePath);
 
   /// Concatenates multiple audio recording files into a single new file.

@@ -106,15 +106,18 @@ void main() {
       // Act
       final result = await repository.checkPermission();
       // Assert
-      expect(
-        result,
-        equals(
-          Left(
-            PlatformFailure(
-              'An unexpected repository error occurred: ${exception.toString()}',
-            ),
+      // Check type and value separately
+      expect(result.isLeft(), isTrue);
+      result.fold(
+        (failure) => expect(
+          failure,
+          isA<PlatformFailure>().having(
+            (f) => f.message,
+            'message',
+            'An unexpected error occurred: ${exception.toString()}',
           ),
         ),
+        (_) => fail('Expected Left, got Right'),
       );
       verify(mockAudioLocalDataSource.checkPermission());
       verifyNoMoreInteractions(mockAudioLocalDataSource);
@@ -176,15 +179,18 @@ void main() {
       // Act
       final result = await repository.requestPermission();
       // Assert
-      expect(
-        result,
-        equals(
-          Left(
-            PlatformFailure(
-              'An unexpected repository error occurred: ${exception.toString()}',
-            ),
+      // Check type and value separately
+      expect(result.isLeft(), isTrue);
+      result.fold(
+        (failure) => expect(
+          failure,
+          isA<PlatformFailure>().having(
+            (f) => f.message,
+            'message',
+            'An unexpected error occurred: ${exception.toString()}',
           ),
         ),
+        (_) => fail('Expected Left, got Right'),
       );
       verify(mockAudioLocalDataSource.requestPermission());
       verifyNoMoreInteractions(mockAudioLocalDataSource);
@@ -192,287 +198,287 @@ void main() {
   });
 
   group('startRecording', () {
-    const tFilePath = '/path/to/recording.m4a';
+    const tRecordingPath = '/path/to/recording.m4a';
 
-    test(
-      'should return file path when local data source starts recording successfully',
-      () async {
-        // Arrange
-        when(
-          mockAudioLocalDataSource.startRecording(),
-        ).thenAnswer((_) async => tFilePath);
-        // Act
-        final result = await repository.startRecording();
-        // Assert
-        expect(result, equals(const Right(tFilePath)));
-        verify(mockAudioLocalDataSource.startRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-
-    test(
-      'should return RecordingFailure when local data source throws AudioRecordingException',
-      () async {
-        // Arrange
-        const exception = AudioRecordingException('Failed to start');
-        when(mockAudioLocalDataSource.startRecording()).thenThrow(exception);
-        // Act
-        final result = await repository.startRecording();
-        // Assert
-        expect(result, equals(Left(RecordingFailure(exception.message))));
-        verify(mockAudioLocalDataSource.startRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-
-    test(
-      'should return PermissionFailure when local data source throws AudioPermissionException',
-      () async {
-        // Arrange
-        const exception = AudioPermissionException('No permission to start');
-        when(mockAudioLocalDataSource.startRecording()).thenThrow(exception);
-        // Act
-        final result = await repository.startRecording();
-        // Assert
-        expect(result, equals(Left(PermissionFailure(exception.message))));
-        verify(mockAudioLocalDataSource.startRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
-
-    test('should return PlatformFailure for unexpected exceptions', () async {
+    test('should call localDataSource.startRecording and store path', () async {
       // Arrange
-      final exception = Exception('Unexpected error');
-      when(mockAudioLocalDataSource.startRecording()).thenThrow(exception);
+      when(
+        mockAudioLocalDataSource.startRecording(),
+      ).thenAnswer((_) async => tRecordingPath);
       // Act
       final result = await repository.startRecording();
       // Assert
       expect(
         result,
-        equals(
-          Left(
-            PlatformFailure(
-              'An unexpected repository error occurred: ${exception.toString()}',
-            ),
-          ),
-        ),
-      );
+        equals(const Right(tRecordingPath)),
+      ); // Repository now returns path
       verify(mockAudioLocalDataSource.startRecording());
-      verifyNoMoreInteractions(mockAudioLocalDataSource);
     });
+
+    test(
+      'should return Failure when localDataSource.startRecording throws',
+      () async {
+        // Arrange
+        final tException = AudioRecordingException('Start failed');
+        when(mockAudioLocalDataSource.startRecording()).thenThrow(tException);
+        // Act
+        final result = await repository.startRecording();
+        // Assert
+        expect(result, equals(Left(RecordingFailure(tException.message))));
+        verify(mockAudioLocalDataSource.startRecording());
+      },
+    );
   });
 
   group('stopRecording', () {
-    const tFilePath = '/path/to/recording.m4a';
+    const tRecordingPath = '/path/to/stop/recording.m4a';
+    const tFinalPath = '$tRecordingPath-final';
 
     test(
-      'should return file path from local data source when stop is successful',
+      'should call localDataSource.stopRecording with stored path and return Right(finalPath)',
       () async {
-        // Arrange
+        // Arrange: Simulate startRecording first to set the path
         when(
-          mockAudioLocalDataSource.stopRecording(),
-        ).thenAnswer((_) async => tFilePath);
+          mockAudioLocalDataSource.startRecording(),
+        ).thenAnswer((_) async => tRecordingPath);
+        await repository.startRecording(); // Set internal state
+
+        when(
+          mockAudioLocalDataSource.stopRecording(recordingPath: tRecordingPath),
+        ).thenAnswer((_) async => tFinalPath);
 
         // Act
         final result = await repository.stopRecording();
 
         // Assert
-        verify(mockAudioLocalDataSource.stopRecording());
-        expect(result, equals(const Right(tFilePath)));
+        expect(result, equals(const Right(tFinalPath)));
+        verify(
+          mockAudioLocalDataSource.stopRecording(recordingPath: tRecordingPath),
+        ).called(1);
       },
     );
 
     test(
-      'should return RecordingFailure when NoActiveRecordingException is thrown',
+      'should return Left(RecordingFailure) when stopRecording throws',
       () async {
-        // Arrange
+        // Arrange: Simulate startRecording first
         when(
-          mockAudioLocalDataSource.stopRecording(),
-        ).thenThrow(const NoActiveRecordingException('No recording'));
+          mockAudioLocalDataSource.startRecording(),
+        ).thenAnswer((_) async => tRecordingPath);
+        await repository.startRecording(); // Set internal state
+
+        final tException = AudioRecordingException('Stop failed');
+        when(
+          mockAudioLocalDataSource.stopRecording(recordingPath: tRecordingPath),
+        ).thenThrow(tException);
 
         // Act
         final result = await repository.stopRecording();
 
         // Assert
-        expect(result, isA<Left<Failure, String>>());
-        expect(result.fold((l) => l, (r) => r), isA<RecordingFailure>());
-        verify(mockAudioLocalDataSource.stopRecording());
+        expect(result, equals(Left(RecordingFailure(tException.message))));
+        verify(
+          mockAudioLocalDataSource.stopRecording(recordingPath: tRecordingPath),
+        ).called(1);
       },
     );
 
     test(
-      'should return FileSystemFailure when RecordingFileNotFoundException is thrown by stopRecording',
+      'should return Left(RecordingFailure) if startRecording was not called first',
       () async {
-        // Arrange
-        when(mockAudioLocalDataSource.stopRecording()).thenThrow(
-          const RecordingFileNotFoundException('Not found after stop'),
+        // Arrange: No call to startRecording, repository state is null
+
+        // Act
+        final result = await repository.stopRecording();
+
+        // Assert
+        expect(
+          result,
+          equals(
+            const Left(
+              RecordingFailure('No recording path stored in repository.'),
+            ),
+          ),
         );
-
-        // Act
-        final result = await repository.stopRecording();
-
-        // Assert
-        expect(result, isA<Left<Failure, String>>());
-        expect(result.fold((l) => l, (r) => r), isA<FileSystemFailure>());
-        verify(mockAudioLocalDataSource.stopRecording());
-      },
-    );
-
-    test(
-      'should return RecordingFailure when AudioRecordingException is thrown by stopRecording',
-      () async {
-        // Arrange
-        when(
-          mockAudioLocalDataSource.stopRecording(),
-        ).thenThrow(AudioRecordingException('Failed to stop'));
-
-        // Act
-        final result = await repository.stopRecording();
-
-        // Assert
-        expect(result, isA<Left<Failure, String>>());
-        expect(result.fold((l) => l, (r) => r), isA<RecordingFailure>());
-        verify(mockAudioLocalDataSource.stopRecording());
+        verifyNever(
+          mockAudioLocalDataSource.stopRecording(
+            recordingPath: anyNamed('recordingPath'),
+          ),
+        );
       },
     );
   });
 
   group('pauseRecording', () {
+    const tRecordingPath = '/path/to/pause/recording.m4a';
+
     test(
-      'should return Right(null) when local data source pauses successfully',
+      'should call localDataSource.pauseRecording with stored path',
       () async {
-        // Arrange
+        // Arrange: Simulate startRecording first
         when(
-          mockAudioLocalDataSource.pauseRecording(),
-        ).thenAnswer((_) async => Future.value()); // Completes successfully
+          mockAudioLocalDataSource.startRecording(),
+        ).thenAnswer((_) async => tRecordingPath);
+        await repository.startRecording(); // Set internal state
+
+        when(
+          mockAudioLocalDataSource.pauseRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).thenAnswer((_) async {}); // Completes normally
+
         // Act
         final result = await repository.pauseRecording();
+
         // Assert
-        expect(result, equals(const Right(null)));
-        verify(mockAudioLocalDataSource.pauseRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        expect(result, equals(const Right(null))); // Returns Right(void)
+        verify(
+          mockAudioLocalDataSource.pauseRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).called(1);
       },
     );
 
     test(
-      'should return RecordingFailure when local data source throws NoActiveRecordingException',
+      'should return Left(RecordingFailure) when pauseRecording throws',
       () async {
-        // Arrange
-        const exception = NoActiveRecordingException('No recording to pause');
-        when(mockAudioLocalDataSource.pauseRecording()).thenThrow(exception);
+        // Arrange: Simulate startRecording first
+        when(
+          mockAudioLocalDataSource.startRecording(),
+        ).thenAnswer((_) async => tRecordingPath);
+        await repository.startRecording(); // Set internal state
+
+        final tException = AudioRecordingException('Pause failed');
+        when(
+          mockAudioLocalDataSource.pauseRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).thenThrow(tException);
+
         // Act
         final result = await repository.pauseRecording();
+
         // Assert
-        expect(result, equals(Left(RecordingFailure(exception.message))));
-        verify(mockAudioLocalDataSource.pauseRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        expect(result, equals(Left(RecordingFailure(tException.message))));
+        verify(
+          mockAudioLocalDataSource.pauseRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).called(1);
       },
     );
 
     test(
-      'should return RecordingFailure when local data source throws AudioRecordingException',
+      'should return Left(RecordingFailure) if startRecording was not called first',
       () async {
-        // Arrange
-        const exception = AudioRecordingException('Failed to pause');
-        when(mockAudioLocalDataSource.pauseRecording()).thenThrow(exception);
+        // Arrange: No call to startRecording, repository state is null
+
         // Act
         final result = await repository.pauseRecording();
-        // Assert
-        expect(result, equals(Left(RecordingFailure(exception.message))));
-        verify(mockAudioLocalDataSource.pauseRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
 
-    test('should return PlatformFailure for unexpected exceptions', () async {
-      // Arrange
-      final exception = Exception('Unexpected error');
-      when(mockAudioLocalDataSource.pauseRecording()).thenThrow(exception);
-      // Act
-      final result = await repository.pauseRecording();
-      // Assert
-      expect(
-        result,
-        equals(
-          Left(
-            PlatformFailure(
-              'An unexpected repository error occurred: ${exception.toString()}',
+        // Assert
+        expect(
+          result,
+          equals(
+            const Left(
+              RecordingFailure('No recording path stored in repository.'),
             ),
           ),
-        ),
-      );
-      verify(mockAudioLocalDataSource.pauseRecording());
-      verifyNoMoreInteractions(mockAudioLocalDataSource);
-    });
+        );
+        verifyNever(
+          mockAudioLocalDataSource.pauseRecording(
+            recordingPath: anyNamed('recordingPath'),
+          ),
+        );
+      },
+    );
   });
 
   group('resumeRecording', () {
+    const tRecordingPath = '/path/to/resume/recording.m4a';
+
     test(
-      'should return Right(null) when local data source resumes successfully',
+      'should call localDataSource.resumeRecording with stored path',
       () async {
-        // Arrange
+        // Arrange: Simulate startRecording first
         when(
-          mockAudioLocalDataSource.resumeRecording(),
-        ).thenAnswer((_) async => Future.value()); // Completes successfully
+          mockAudioLocalDataSource.startRecording(),
+        ).thenAnswer((_) async => tRecordingPath);
+        await repository.startRecording(); // Set internal state
+
+        when(
+          mockAudioLocalDataSource.resumeRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).thenAnswer((_) async {}); // Completes normally
+
         // Act
         final result = await repository.resumeRecording();
+
         // Assert
-        expect(result, equals(const Right(null)));
-        verify(mockAudioLocalDataSource.resumeRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        expect(result, equals(const Right(null))); // Returns Right(void)
+        verify(
+          mockAudioLocalDataSource.resumeRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).called(1);
       },
     );
 
     test(
-      'should return RecordingFailure when local data source throws NoActiveRecordingException',
+      'should return Left(RecordingFailure) when resumeRecording throws',
       () async {
-        // Arrange
-        const exception = NoActiveRecordingException('No recording to resume');
-        when(mockAudioLocalDataSource.resumeRecording()).thenThrow(exception);
+        // Arrange: Simulate startRecording first
+        when(
+          mockAudioLocalDataSource.startRecording(),
+        ).thenAnswer((_) async => tRecordingPath);
+        await repository.startRecording(); // Set internal state
+
+        final tException = AudioRecordingException('Resume failed');
+        when(
+          mockAudioLocalDataSource.resumeRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).thenThrow(tException);
+
         // Act
         final result = await repository.resumeRecording();
+
         // Assert
-        expect(result, equals(Left(RecordingFailure(exception.message))));
-        verify(mockAudioLocalDataSource.resumeRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        expect(result, equals(Left(RecordingFailure(tException.message))));
+        verify(
+          mockAudioLocalDataSource.resumeRecording(
+            recordingPath: tRecordingPath,
+          ),
+        ).called(1);
       },
     );
 
     test(
-      'should return RecordingFailure when local data source throws AudioRecordingException',
+      'should return Left(RecordingFailure) if startRecording was not called first',
       () async {
-        // Arrange
-        const exception = AudioRecordingException('Failed to resume');
-        when(mockAudioLocalDataSource.resumeRecording()).thenThrow(exception);
+        // Arrange: No call to startRecording, repository state is null
+
         // Act
         final result = await repository.resumeRecording();
-        // Assert
-        expect(result, equals(Left(RecordingFailure(exception.message))));
-        verify(mockAudioLocalDataSource.resumeRecording());
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
-      },
-    );
 
-    test('should return PlatformFailure for unexpected exceptions', () async {
-      // Arrange
-      final exception = Exception('Unexpected error');
-      when(mockAudioLocalDataSource.resumeRecording()).thenThrow(exception);
-      // Act
-      final result = await repository.resumeRecording();
-      // Assert
-      expect(
-        result,
-        equals(
-          Left(
-            PlatformFailure(
-              'An unexpected repository error occurred: ${exception.toString()}',
+        // Assert
+        expect(
+          result,
+          equals(
+            const Left(
+              RecordingFailure('No recording path stored in repository.'),
             ),
           ),
-        ),
-      );
-      verify(mockAudioLocalDataSource.resumeRecording());
-      verifyNoMoreInteractions(mockAudioLocalDataSource);
-    });
+        );
+        verifyNever(
+          mockAudioLocalDataSource.resumeRecording(
+            recordingPath: anyNamed('recordingPath'),
+          ),
+        );
+      },
+    );
   });
 
   group('deleteRecording', () {
@@ -535,15 +541,18 @@ void main() {
       // Act
       final result = await repository.deleteRecording(tFilePath);
       // Assert
-      expect(
-        result,
-        equals(
-          Left(
-            PlatformFailure(
-              'An unexpected repository error occurred: ${exception.toString()}',
-            ),
+      // Check type and value separately
+      expect(result.isLeft(), isTrue);
+      result.fold(
+        (failure) => expect(
+          failure,
+          isA<PlatformFailure>().having(
+            (f) => f.message,
+            'message',
+            'An unexpected error occurred: ${exception.toString()}',
           ),
         ),
+        (_) => fail('Expected Left, got Right'),
       );
       verify(mockAudioLocalDataSource.deleteRecording(tFilePath));
       verifyNoMoreInteractions(mockAudioLocalDataSource);
@@ -620,29 +629,35 @@ void main() {
   });
 
   group('appendToRecording', () {
-    final tExistingRecord = AudioRecord(
-      filePath: '/path/existing.m4a',
-      duration: const Duration(seconds: 60),
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    const tRecordingPath = '/path/to/recording.m4a';
+
+    test(
+      'should throw UnimplementedError when called with active recording',
+      () async {
+        // Arrange
+        // Simulate state being set
+        // Act & Assert
+        expect(
+          () => repository.appendToRecording(tRecordingPath),
+          throwsA(isA<UnimplementedError>()),
+        );
+        // Verify internal state is unchanged and datasource not called
+        verifyNever(mockAudioLocalDataSource.concatenateRecordings(any));
+      },
     );
 
     test(
-      'should return ConcatenationFailure with UnimplementedError message',
+      'should throw UnimplementedError when called without active recording',
       () async {
         // Arrange
-        // No mocking needed as the implementation directly throws
-
-        // Act
-        final result = await repository.appendToRecording(tExistingRecord);
-
-        // Assert
-        expect(result.isLeft(), isTrue);
-        result.fold((failure) {
-          // JUST check the type
-          expect(failure, isA<ConcatenationFailure>());
-        }, (_) => fail('Expected Left(ConcatenationFailure), got Right'));
-        // Verify no datasource interaction happens for this unimplemented feature
-        verifyZeroInteractions(mockAudioLocalDataSource);
+        // Ensure state is null
+        // Act & Assert
+        expect(
+          () => repository.appendToRecording(tRecordingPath),
+          throwsA(isA<UnimplementedError>()),
+        );
+        // Verify internal state is unchanged and datasource not called
+        verifyNever(mockAudioLocalDataSource.concatenateRecordings(any));
       },
     );
   });

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io'; // Keep dart:io for FileSystemEntity type
 
-import 'package:flutter/foundation.dart' show debugPrint; // Import debugPrint
+import 'package:flutter/foundation.dart'; // For debugPrint
 // import 'package:path/path.dart' as p; // REMOVED Unused import
 
 // Remove direct package imports
@@ -9,13 +9,11 @@ import 'package:flutter/foundation.dart' show debugPrint; // Import debugPrint
 // import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-import 'package:meta/meta.dart';
 
 // Import interfaces
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
-import 'package:docjet_mobile/core/platform/permission_handler.dart'
-    as custom_ph;
+import 'package:docjet_mobile/core/platform/permission_handler.dart'; // Correct import
 import '../services/audio_duration_getter.dart';
 import '../services/audio_concatenation_service.dart'; // Import the new service
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Import AudioRecord
@@ -27,27 +25,15 @@ import '../exceptions/audio_exceptions.dart';
 // import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
 // import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
 
+/// Default implementation of [AudioLocalDataSource].
+/// Interacts with the [AudioRecorder] and [FileSystem] to manage recordings.
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
-  final FileSystem fileSystem; // Inject FileSystem
-  final PathProvider pathProvider; // Inject PathProvider
-  final custom_ph.PermissionHandler
-  permissionHandler; // Inject PermissionHandler
-  final AudioDurationGetter audioDurationGetter; // Inject the new service
-  final AudioConcatenationService
-  audioConcatenationService; // Inject the concatenation service
-
-  // Keep the private field
-  String? _currentRecordingPath;
-
-  // Public getter for the path
-  String? get currentRecordingPath => _currentRecordingPath;
-
-  // Keep the testing setter using the private field
-  @visibleForTesting
-  set testingSetCurrentRecordingPath(String? path) {
-    _currentRecordingPath = path;
-  }
+  final FileSystem fileSystem;
+  final PathProvider pathProvider;
+  final PermissionHandler permissionHandler; // Use the type directly
+  final AudioDurationGetter audioDurationGetter;
+  final AudioConcatenationService audioConcatenationService;
 
   AudioLocalDataSourceImpl({
     required this.recorder,
@@ -58,46 +44,41 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     required this.audioConcatenationService,
   });
 
-  // Define the permission object locally, needed for the requestPermission call
-  final Permission microphonePermission = Permission.microphone;
-
-  // Restore checkPermission to use the INJECTED handler for fallback (easier to test)
   @override
   Future<bool> checkPermission() async {
     try {
-      final bool recorderHasPermission = await recorder.hasPermission();
-      if (recorderHasPermission) {
+      // Use the recorder's check first, as it might involve more specific platform checks
+      final hasRecorderPerm = await recorder.hasPermission();
+      if (hasRecorderPerm) {
         return true;
       }
-      final status = await permissionHandler.status(microphonePermission);
-      final bool granted = status == PermissionStatus.granted;
-      return granted;
+      // Fallback to permission_handler for status if recorder says no (or if first check is false)
+      // Note: This differs slightly from original logic for better testability
+      // It ensures we always eventually check via permissionHandler if recorder returns false.
+      final status = await permissionHandler.status(Permission.microphone);
+      return status == PermissionStatus.granted;
     } catch (e) {
-      throw AudioPermissionException('Failed to check permission status', e);
+      // Consider logging the error
+      throw AudioPermissionException(
+        'Failed to check microphone permission',
+        e,
+      );
     }
   }
 
-  // requestPermission already uses the injected handler
   @override
   Future<bool> requestPermission() async {
     try {
-      // Explicitly request microphone permission.
+      // Pass a list containing the permission
       final Map<Permission, PermissionStatus> statuses = await permissionHandler
-          .request([microphonePermission]);
-      // Return true if granted, false otherwise.
-      final status = statuses[microphonePermission];
-      if (status == null) {
-        // Should not happen if we requested it, but handle defensively.
-        throw AudioPermissionException(
-          'Permission status was unexpectedly null.',
-        );
-      }
+          .request([Permission.microphone]);
+      // Check the status from the returned map
+      final status = statuses[Permission.microphone];
       return status == PermissionStatus.granted;
     } catch (e) {
-      // Catch potential exceptions from the handler and wrap them.
       throw AudioPermissionException(
-        'Failed to request microphone permission: ${e.toString()}',
-        e, // Pass original exception if needed for logging
+        'Failed to request microphone permission',
+        e,
       );
     }
   }
@@ -105,72 +86,57 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   @override
   Future<String> startRecording() async {
     try {
-      final hasPermission = await checkPermission(); // Uses refactored method
+      final hasPermission = await checkPermission();
       if (!hasPermission) {
-        throw const AudioPermissionException(
-          'Microphone permission not granted to start recording',
-        );
+        final granted = await requestPermission();
+        if (!granted) {
+          throw const AudioPermissionException(
+            'Microphone permission denied.',
+            null, // No underlying error object
+          );
+        }
       }
 
-      // Use injected pathProvider
       final appDir = await pathProvider.getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filePath = '${appDir.path}/recording_$timestamp.m4a';
-      // Assign to the private field
-      _currentRecordingPath = filePath;
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final path = '${appDir.path}/rec_$timestamp.m4a';
 
-      // Ensure directory exists using injected fileSystem
-      if (!await fileSystem.directoryExists(appDir.path)) {
-        await fileSystem.createDirectory(appDir.path, recursive: true);
-      }
+      // Use injected fileSystem to ensure directory exists
+      await fileSystem.createDirectory(appDir.path, recursive: true);
 
       await recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
-          bitRate: 128000,
-          sampleRate: 44100,
-        ),
-        path: filePath,
+        ), // Or your preferred config
+        path: path,
       );
-      return filePath;
+
+      // RETURN the path
+      return path;
+    } on AudioPermissionException {
+      // Explicitly rethrow permission exceptions
+      rethrow;
     } catch (e) {
-      // Assign null to the private field on error
-      _currentRecordingPath = null;
-      if (e is AudioPermissionException) {
-        rethrow;
-      }
       throw AudioRecordingException('Failed to start recording', e);
     }
   }
 
   @override
-  Future<String> stopRecording() async {
-    // Check the private field *before* trying to stop
-    if (_currentRecordingPath == null) {
-      throw const NoActiveRecordingException(
-        'No recording was in progress to stop.',
-      );
-    }
-
-    // Keep the original path from the private field
-    final path = _currentRecordingPath;
+  Future<String> stopRecording({required String recordingPath}) async {
+    // Use the provided recordingPath directly
+    final path = recordingPath;
 
     try {
       await recorder.stop();
-      // Assign null to the private field after successful stop
-      _currentRecordingPath = null;
 
-      // Use injected fileSystem - Assert path is non-null with !
-      if (!await fileSystem.fileExists(path!)) {
-        // Path is already nulled, just throw
+      // Use injected fileSystem
+      if (!await fileSystem.fileExists(path)) {
         throw RecordingFileNotFoundException(
           'Recording file not found at $path after stopping.',
         );
       }
-      return path; // Return original path - Assert non-null with !
+      return path; // Return provided path
     } catch (e) {
-      // Ensure the private field is nulled out even if stop() or fileExists() fails
-      _currentRecordingPath = null;
       if (e is RecordingFileNotFoundException) {
         // Rethrow specific exception if file check failed
         rethrow;
@@ -181,28 +147,28 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   }
 
   @override
-  Future<void> pauseRecording() async {
-    // Check the private field
-    if (_currentRecordingPath == null) {
-      throw const NoActiveRecordingException('No active recording to pause.');
-    }
+  Future<void> pauseRecording({required String recordingPath}) async {
+    // Use provided recordingPath (though recorder API might not need it explicitly)
     try {
       await recorder.pause();
     } catch (e) {
-      throw AudioRecordingException('Failed to pause recording', e);
+      throw AudioRecordingException(
+        'Failed to pause recording for path: $recordingPath',
+        e,
+      );
     }
   }
 
   @override
-  Future<void> resumeRecording() async {
-    // Check the private field
-    if (_currentRecordingPath == null) {
-      throw const NoActiveRecordingException('No active recording to resume.');
-    }
+  Future<void> resumeRecording({required String recordingPath}) async {
+    // Use provided recordingPath (though recorder API might not need it explicitly)
     try {
       await recorder.resume();
     } catch (e) {
-      throw AudioRecordingException('Failed to resume recording', e);
+      throw AudioRecordingException(
+        'Failed to resume recording for path: $recordingPath',
+        e,
+      );
     }
   }
 
@@ -227,53 +193,83 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
   @override
   Future<List<AudioRecord>> listRecordingDetails() async {
-    final List<AudioRecord> records = [];
     try {
       final appDir = await pathProvider.getApplicationDocumentsDirectory();
+      final dirPath = appDir.path;
 
-      if (!await fileSystem.directoryExists(appDir.path)) {
-        // If dir doesn't exist, create it and return empty list
-        // (or should we throw? For listing, returning empty seems reasonable)
-        await fileSystem.createDirectory(appDir.path, recursive: true);
-        return [];
+      if (!await fileSystem.directoryExists(dirPath)) {
+        await fileSystem.createDirectory(dirPath, recursive: true);
+        return []; // No directory, no files.
       }
 
-      final stream = fileSystem.listDirectory(appDir.path);
+      final List<Future<AudioRecord?>> recordFutures = [];
+      final stream = fileSystem.listDirectory(dirPath);
+
       await for (final entity in stream) {
         if (entity.path.endsWith('.m4a')) {
-          try {
-            final stat = await fileSystem.stat(entity.path);
-            // Only process actual files
-            if (stat.type == FileSystemEntityType.file) {
-              final duration = await audioDurationGetter.getDuration(
-                entity.path,
+          // Wrap the call in an async function that handles errors
+          recordFutures.add(() async {
+            try {
+              // Await the original helper function
+              return await _getRecordDetails(entity.path);
+            } catch (e, s) {
+              // Log the specific error and path
+              debugPrint(
+                'Failed to get details for ${entity.path}: $e\nStackTrace: $s',
               );
-              records.add(
-                AudioRecord(
-                  filePath: entity.path,
-                  duration: duration,
-                  createdAt: stat.modified,
-                ),
-              );
+              // Return null on failure so Future.wait doesn't break
+              return null;
             }
-          } catch (e) {
-            // IMPORTANT: Log this error with a proper logger!
-            // For now, print to console.
-            // Decide if specific error types need different handling.
-            debugPrint(
-              'Error processing file ${entity.path}: ${e.toString()}',
-            ); // Replaced print
-            // Continue to the next file
-          }
+          }()); // Immediately invoke the async closure
         }
       }
-      // Optionally sort records by date?
-      // records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (recordFutures.isEmpty) {
+        return []; // No potential files found.
+      }
+
+      // Wait for all stat/duration fetches to complete concurrently
+      final results = await Future.wait(recordFutures);
+
+      // Filter out nulls (failed fetches or non-files) and sort
+      final List<AudioRecord> records =
+          results.whereType<AudioRecord>().toList();
+      records.sort(
+        (a, b) => b.createdAt.compareTo(a.createdAt),
+      ); // Sort descending
+
       return records;
     } catch (e) {
-      // Catch errors related to listing the directory itself
+      // Catch broader errors (directory listing, initial check/create)
+      debugPrint(
+        'Failed to list recording details due to a broader error: $e',
+      ); // Log outer error
       throw AudioFileSystemException('Failed to list recording details', e);
     }
+  }
+
+  /// Helper to get stat and duration for a single path.
+  /// Throws exceptions if stat or duration retrieval fails, or if not a file.
+  Future<AudioRecord?> _getRecordDetails(String path) async {
+    // No try/catch here. Let exceptions propagate up to Future.wait.
+    final stat = await fileSystem.stat(path);
+
+    // Skip if not a file BEFORE getting duration
+    if (stat.type != FileSystemEntityType.file) {
+      // Return null for non-files (e.g., a directory named .m4a). This is not an error.
+      return null;
+    }
+
+    // If it's a file, get duration. This might throw.
+    final duration = await audioDurationGetter.getDuration(path);
+
+    // If stat and duration succeed, return the record.
+    return AudioRecord(
+      filePath: path,
+      duration: duration,
+      createdAt: stat.modified,
+    );
+    // No catch block. Errors from stat() or getDuration() will cause the Future to complete with an error.
   }
 
   @override

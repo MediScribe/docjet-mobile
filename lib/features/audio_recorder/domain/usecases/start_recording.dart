@@ -10,8 +10,11 @@ class StartRecording implements UseCase<String, NoParams> {
 
   StartRecording(this.repository);
 
+  /// Executes the use case.
+  /// Returns [Right(String)] with the recording path on success, otherwise [Left(Failure)].
   @override
   Future<Either<Failure, String>> call(NoParams params) async {
+    // Directly return the result from the repository
     return await repository.startRecording();
   }
 }

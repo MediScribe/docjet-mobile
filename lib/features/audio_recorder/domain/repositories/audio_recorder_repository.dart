@@ -13,34 +13,37 @@ abstract class AudioRecorderRepository {
   /// Requests microphone permission.
   Future<Either<Failure, bool>> requestPermission();
 
-  /// Starts a new audio recording.
-  ///
-  /// Returns the path where the recording is being saved.
+  /// Starts a new recording session.
+  /// Returns [Right(String)] with the recording path on success, or a [Failure] on the Left.
   Future<Either<Failure, String>> startRecording();
 
-  /// Stops the current recording.
-  ///
-  /// Returns the completed [AudioRecord] entity.
+  /// Stops the current recording session.
+  /// Returns [Right(String)] with the final recording path on success,
+  /// or a [Failure] on the Left.
   Future<Either<Failure, String>> stopRecording();
 
-  /// Pauses the current recording.
+  /// Pauses the current recording session.
+  /// Returns [Right(void)] on success, or a [Failure] on the Left.
   Future<Either<Failure, void>> pauseRecording();
 
-  /// Resumes a paused recording.
+  /// Resumes a paused recording session.
+  /// Returns [Right(void)] on success, or a [Failure] on the Left.
   Future<Either<Failure, void>> resumeRecording();
 
-  /// Deletes a specific audio recording.
+  /// Deletes a specific recording file.
+  /// Returns [Right(void)] on success, or a [Failure] on the Left.
   Future<Either<Failure, void>> deleteRecording(String filePath);
 
-  /// Appends new audio to an existing recording.
+  /// Appends a new recording segment to the currently active recording.
   ///
-  /// Takes the existing [AudioRecord] and returns the updated [AudioRecord].
-  /// This is where the concatenation logic will eventually be triggered.
-  Future<Either<Failure, AudioRecord>> appendToRecording(
-    AudioRecord existingRecord,
-  );
+  /// [segmentPath]: The path of the new audio segment to append.
+  /// Returns [Right(String)] with the path to the *new*, concatenated file on success,
+  /// or a [Failure] on the Left.
+  /// Note: The implementation should handle cleanup of the original files.
+  Future<Either<Failure, String>> appendToRecording(String segmentPath);
 
-  /// Loads all existing audio recordings.
+  /// Loads metadata for all existing recordings.
+  /// Returns [Right(List<AudioRecord>)] on success, or a [Failure] on the Left.
   Future<Either<Failure, List<AudioRecord>>> loadRecordings();
 
   /// Appends the currently stopped recording segment to an existing recording file.

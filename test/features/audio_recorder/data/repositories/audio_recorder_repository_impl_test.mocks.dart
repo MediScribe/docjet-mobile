@@ -65,31 +65,39 @@ class MockAudioLocalDataSource extends _i1.Mock
           as _i3.Future<String>);
 
   @override
-  _i3.Future<String> stopRecording() =>
+  _i3.Future<String> stopRecording({required String? recordingPath}) =>
       (super.noSuchMethod(
-            Invocation.method(#stopRecording, []),
+            Invocation.method(#stopRecording, [], {
+              #recordingPath: recordingPath,
+            }),
             returnValue: _i3.Future<String>.value(
               _i4.dummyValue<String>(
                 this,
-                Invocation.method(#stopRecording, []),
+                Invocation.method(#stopRecording, [], {
+                  #recordingPath: recordingPath,
+                }),
               ),
             ),
           )
           as _i3.Future<String>);
 
   @override
-  _i3.Future<void> pauseRecording() =>
+  _i3.Future<void> pauseRecording({required String? recordingPath}) =>
       (super.noSuchMethod(
-            Invocation.method(#pauseRecording, []),
+            Invocation.method(#pauseRecording, [], {
+              #recordingPath: recordingPath,
+            }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> resumeRecording() =>
+  _i3.Future<void> resumeRecording({required String? recordingPath}) =>
       (super.noSuchMethod(
-            Invocation.method(#resumeRecording, []),
+            Invocation.method(#resumeRecording, [], {
+              #recordingPath: recordingPath,
+            }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
