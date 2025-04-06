@@ -9,7 +9,8 @@ import 'package:docjet_mobile/features/audio_recorder/data/services/audio_durati
 import 'package:docjet_mobile/features/audio_recorder/data/services/just_audio_duration_getter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
-import '../../features/audio_recorder/presentation/cubit/audio_recorder_cubit.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 
 final sl = GetIt.instance;
@@ -17,10 +18,9 @@ final sl = GetIt.instance;
 Future<void> init() async {
   // --- Feature: Audio Recorder ---
 
-  // Cubit (Now depends directly on Repository)
-  sl.registerFactory(
-    () => AudioRecorderCubit(repository: sl()), // Inject repository
-  );
+  // Cubits (Now depend directly on Repository)
+  sl.registerFactory(() => AudioListCubit(repository: sl()));
+  sl.registerFactory(() => AudioRecordingCubit(repository: sl()));
 
   // Repository (Depends on Data Source)
   sl.registerLazySingleton<AudioRecorderRepository>(

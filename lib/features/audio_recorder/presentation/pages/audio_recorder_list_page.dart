@@ -1,30 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-// import '../../../../core/di/injection_container.dart'; // REMOVED Unused import
-import '../cubit/audio_recorder_cubit.dart';
-import '../cubit/audio_recorder_state.dart';
+// Import the DI container for sl
+import 'package:docjet_mobile/core/di/injection_container.dart';
+// Import the specific Cubits and States needed
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
+// Remove old imports
+// import '../cubit/audio_recorder_cubit.dart';
+// import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 
-// Convert to StatefulWidget (REMOVED local state management)
+// This outer widget can remain StatelessWidget, it just provides the context
 class AudioRecorderListPage extends StatelessWidget {
-  // Changed to StatelessWidget
   const AudioRecorderListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // No longer need BlocProvider.value here, it's provided above.
+    // The BlocProvider<AudioListCubit> is now handled in main.dart
     debugPrint(
-      "[AudioRecorderListPage] build: Using Cubit provided from above.",
+      "[AudioRecorderListPage] build: Using AudioListCubit provided from above.",
     );
-    // Initial action moved to BlocProvider create in main.dart
-    // context.read<AudioRecorderCubit>().checkPermission(); NO - done in main.dart
     return const AudioRecorderListView(); // Child remains the same
   }
 }
 
+// The main view is StatefulWidget to potentially handle local UI state if needed,
+// but core logic is driven by the BlocConsumer below.
 class AudioRecorderListView extends StatefulWidget {
   const AudioRecorderListView({super.key});
 
@@ -33,21 +38,7 @@ class AudioRecorderListView extends StatefulWidget {
 }
 
 class _AudioRecorderListViewState extends State<AudioRecorderListView> {
-  @override
-  void initState() {
-    super.initState();
-    // REMOVED: Direct call to loadRecordings() from initState.
-    /*
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        debugPrint(
-          "[AudioRecorderListView] initState: Triggering loadRecordings().",
-        );
-        context.read<AudioRecorderCubit>().loadRecordings();
-      }
-    });
-    */
-  }
+  // initState is no longer needed as loadRecordings is called in main.dart's provider
 
   String _formatDateTime(DateTime dateTime) {
     final hour = dateTime.hour.toString().padLeft(2, '0');
@@ -64,32 +55,62 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
   }
 
   void _showRecordingOptions(BuildContext context, AudioRecord recording) {
+    // Get the AudioListCubit instance from the context
+    final listCubit = context.read<AudioListCubit>();
     showModalBottomSheet(
       context: context,
       builder: (bottomSheetContext) {
-        // Use the cubit from the context, not a local field
-        final cubit = context.read<AudioRecorderCubit>();
-        return BlocProvider.value(
-          value: cubit, // Pass the cubit found in the context
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.delete),
-                  title: const Text('Delete Recording'),
-                  onTap: () {
-                    Navigator.pop(bottomSheetContext); // Close bottom sheet
-                    // Use context.read here
-                    cubit.deleteRecording(recording.filePath);
-                  },
-                ),
-              ],
-            ),
+        // No need to provide the cubit again if just calling methods on it
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('Delete Recording'),
+                onTap: () {
+                  Navigator.pop(bottomSheetContext); // Close bottom sheet
+                  // Call delete on the correct cubit instance
+                  listCubit.deleteRecording(recording.filePath);
+                },
+              ),
+              // Add other options like Rename, Share later if needed
+            ],
           ),
         );
       },
     );
+  }
+
+  // Navigation logic updated
+  Future<void> _showAudioRecorderPage(BuildContext context) async {
+    debugPrint("[AudioRecorderListView] _showAudioRecorderPage called.");
+    // <<--- Get the Cubit instance BEFORE the await --- >>
+    final listCubit = context.read<AudioListCubit>();
+
+    // Use Navigator.push and await the result
+    final bool? shouldRefresh = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => BlocProvider<AudioRecordingCubit>.value(
+              // Create a NEW, SCOPED instance of AudioRecordingCubit for this page
+              value: sl<AudioRecordingCubit>()..prepareRecorder(),
+              child: const AudioRecorderPage(),
+            ),
+      ),
+    );
+
+    debugPrint(
+      "[AudioRecorderListView] Returned from AudioRecorderPage. shouldRefresh: $shouldRefresh",
+    );
+
+    // If the recorder page popped with 'true', refresh the list
+    // Use the cubit instance captured before the await, AFTER checking mounted
+    if (shouldRefresh == true && mounted) {
+      debugPrint("[AudioRecorderListView] Refreshing recordings list.");
+      listCubit.loadRecordings(); // Use the captured instance
+    }
   }
 
   @override
@@ -98,118 +119,91 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Recordings')),
-      body: BlocConsumer<AudioRecorderCubit, AudioRecorderState>(
+      // Use the correct Cubit and State types
+      body: BlocConsumer<AudioListCubit, AudioListState>(
         listener: (context, state) {
           debugPrint(
             "[AudioRecorderListView] Listener received state: ${state.runtimeType}",
           );
-          if (state is AudioRecorderError) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
-          } else if (state is AudioRecorderPermissionDenied) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Microphone permission is required to record audio',
-                ),
-              ),
-            );
+          // Only handle errors relevant to the list loading process
+          if (state is AudioListError) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar() // Hide previous snackbar if any
+              ..showSnackBar(
+                SnackBar(content: Text("List Error: ${state.message}")),
+              );
           }
-          // RESTORED: Trigger loadRecordings from listener when Ready
-          else if (state is AudioRecorderReady) {
-            debugPrint(
-              "[AudioRecorderListView] Listener received Ready state. Triggering loadRecordings.",
-            );
-            context
-                .read<AudioRecorderCubit>()
-                .loadRecordings(); // Use context.read
-          }
+          // Removed listener logic for PermissionDenied and Ready states
+          // as they belong to the recording cubit, not the list cubit.
         },
         builder: (context, state) {
           debugPrint(
             "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
           );
-          // ADDED: Print before the cascade
-          debugPrint("[AudioRecorderListView] Builder: Checking state type...");
-          if (state is AudioRecorderLoading) {
+
+          // Handle Loading state
+          if (state is AudioListLoading) {
             debugPrint(
-              "[AudioRecorderListView] Builder: State IS AudioRecorderLoading.",
+              "[AudioRecorderListView] Builder: State IS AudioListLoading.",
             );
             return const Center(child: CircularProgressIndicator());
-          } else if (state is AudioRecorderPermissionDenied) {
+          }
+          // Removed PermissionDenied state handling - this page doesn't manage that
+          /*
+          else if (state is AudioRecorderPermissionDenied) { ... }
+          */
+          // Handle Error state
+          else if (state is AudioListError) {
             debugPrint(
-              "[AudioRecorderListView] Builder: State IS AudioRecorderPermissionDenied.",
+              "[AudioRecorderListView] Builder: State IS AudioListError.",
             );
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Microphone permission denied.'),
+                  Text('Error loading recordings: ${state.message}'),
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: () {
-                      // Request permission again or guide user to settings
-                      // Example: Open app settings
-                      context.read<AudioRecorderCubit>().openAppSettings();
-                    },
-                    child: const Text('Open Settings'),
-                  ),
-                  ElevatedButton(
-                    // Add button to retry permission check/request
+                    // Use the correct cubit to retry loading
                     onPressed:
-                        // Use context.read here
-                        () =>
-                            context
-                                .read<AudioRecorderCubit>()
-                                .requestPermission(),
-                    child: const Text('Retry Permission'),
-                  ),
-                ],
-              ),
-            );
-          } else if (state is AudioRecorderError) {
-            debugPrint(
-              "[AudioRecorderListView] Builder: State IS AudioRecorderError.",
-            );
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Error: ${state.message}'),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    // Add retry button for errors
-                    onPressed:
-                        // Use context.read here
-                        () =>
-                            context.read<AudioRecorderCubit>().loadRecordings(),
+                        () => context.read<AudioListCubit>().loadRecordings(),
                     child: const Text('Retry Loading'),
                   ),
                 ],
               ),
             );
-          } else if (state is AudioRecorderLoaded) {
+          }
+          // Handle Loaded state
+          else if (state is AudioListLoaded) {
             debugPrint(
-              "[AudioRecorderListView] Builder: State IS AudioRecorderLoaded.",
+              "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
             );
             if (state.recordings.isEmpty) {
               debugPrint(
-                "[AudioRecorderListView] Builder: ListLoaded is empty. Returning 'No recordings' text.",
+                "[AudioRecorderListView] Builder: ListLoaded is empty.",
               );
               return const Center(
                 child: Text('No recordings yet. Tap + to start recording.'),
               );
             }
             debugPrint(
-              "[AudioRecorderListView] Builder: ListLoaded has ${state.recordings.length} items. Returning ListView.",
+              "[AudioRecorderListView] Builder: ListLoaded has ${state.recordings.length} items.",
             );
+            // Sort recordings by creation date, newest first
+            final sortedRecordings = List<AudioRecord>.from(state.recordings)
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
             return ListView.builder(
-              itemCount: state.recordings.length,
+              // Use sorted list
+              itemCount: sortedRecordings.length,
               itemBuilder: (context, index) {
-                final recording = state.recordings[index];
+                // Use sorted list
+                final recording = sortedRecordings[index];
+                // Calculate end time based on duration (assuming domain entity has duration)
                 final startTime = recording.createdAt;
-                final endTime = startTime.add(recording.duration);
+                final endTime = startTime.add(
+                  recording.duration,
+                ); // Requires duration in AudioRecord
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -220,6 +214,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ListTile(
+                        // Display index + 1 for user-friendly numbering
                         title: Text(
                           'Recording ${index + 1}',
                           style: Theme.of(context).textTheme.titleMedium,
@@ -229,15 +224,20 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                           children: [
                             const SizedBox(height: 4),
                             Text(
+                              'Path: ${recording.filePath.split('/').last}', // Show only filename
+                              style: Theme.of(context).textTheme.bodySmall,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
                               'Start: ${_formatDateTime(startTime)}',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             Text(
                               'End: ${_formatDateTime(endTime)}',
                               style: Theme.of(context).textTheme.bodyMedium,
-                            ),
+                            ), // Requires endTime calculation
                             Text(
-                              'Duration: ${_formatDuration(recording.duration)}',
+                              'Duration: ${_formatDuration(recording.duration)}', // Requires duration
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
@@ -248,14 +248,27 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                           onPressed:
                               () => _showRecordingOptions(context, recording),
                         ),
+                        // Optional: Add onTap for the whole tile if needed
+                        // onTap: () { /* Playback or details? */ },
                       ),
-                      AudioPlayerWidget(
-                        filePath: recording.filePath,
-                        onDelete: () {
-                          context.read<AudioRecorderCubit>().deleteRecording(
-                            recording.filePath,
-                          );
-                        },
+                      // Integrate the AudioPlayerWidget for playback controls
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16.0,
+                          right: 16.0,
+                          bottom: 8.0,
+                        ),
+                        // Ensure AudioPlayerWidget exists and takes filePath
+                        child: AudioPlayerWidget(
+                          filePath: recording.filePath,
+                          // Add the required onDelete callback
+                          onDelete: () {
+                            // Use the cubit from context to delete
+                            context.read<AudioListCubit>().deleteRecording(
+                              recording.filePath,
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -263,52 +276,23 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
               },
             );
           }
-          // ADDED: Handler for AudioRecorderReady state in BUILDER
-          else if (state is AudioRecorderReady) {
+          // Handle Initial state or other unexpected states
+          else {
             debugPrint(
-              "[AudioRecorderListView] Builder: State IS AudioRecorderReady. Showing loading indicator while load is triggered by initState.",
+              "[AudioRecorderListView] Builder: State is unexpected (${state.runtimeType}). Showing initial/empty view.",
             );
-            return const Center(
-              child: CircularProgressIndicator(),
-            ); // Show loading while list loads
+            // Show a default view, maybe loading or empty text
+            // Could also be an error state if this shouldn't happen
+            return const Center(child: Text('Initializing...'));
           }
-
-          // Fallback for Initial state or any other unexpected state
-          // ADDED: Print inside fallback
-          debugPrint(
-            "[AudioRecorderListView] Builder: State (${state.runtimeType}) did NOT match any specific handler. Returning FALLBACK 'Initializing...'.",
-          );
-          return const Center(child: Text('Initializing...'));
         },
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'list_fab',
+        // Update onPressed to call the new navigation method
         onPressed: () => _showAudioRecorderPage(context),
         tooltip: 'New Recording',
         child: const Icon(Icons.add),
       ),
     );
-  }
-
-  // Updated function to use Navigator.push
-  void _showAudioRecorderPage(BuildContext context) {
-    // Get the cubit instance from context BEFORE the async gap
-    final cubit = context.read<AudioRecorderCubit>();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => BlocProvider.value(
-              value: cubit,
-              child: const AudioRecorderPage(),
-            ),
-      ),
-    ).then((result) {
-      // Refresh list if recording was successful (result == true)
-      if (result == true) {
-        cubit.loadRecordings(); // Use the cubit instance obtained earlier
-      }
-    });
   }
 }
