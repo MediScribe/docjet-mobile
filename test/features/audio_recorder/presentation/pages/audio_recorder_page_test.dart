@@ -36,7 +36,7 @@ void main() {
     // Stub the stream to prevent Null errors with whenListen/BlocConsumer
     when(
       () => mockAudioRecordingCubit.stream,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     // Stub methods that might be called
     when(
       () => mockAudioRecordingCubit.prepareRecorder(),
@@ -131,7 +131,9 @@ void main() {
     WidgetTester tester,
   ) async {
     // Arrange
-    when(() => mockAudioRecordingCubit.state).thenReturn(AudioRecordingReady());
+    when(
+      () => mockAudioRecordingCubit.state,
+    ).thenReturn(const AudioRecordingReady());
     await pumpRecorderPage(tester);
 
     // Assert: Ready UI is shown
@@ -193,9 +195,9 @@ void main() {
     // Arrange
     const duration = Duration(seconds: 15);
     const filePath = '/path/to/paused.aac';
-    when(
-      () => mockAudioRecordingCubit.state,
-    ).thenReturn(AudioRecordingPaused(filePath: filePath, duration: duration));
+    when(() => mockAudioRecordingCubit.state).thenReturn(
+      const AudioRecordingPaused(filePath: filePath, duration: duration),
+    );
     await pumpRecorderPage(tester);
 
     // Assert: Paused UI is shown
@@ -339,7 +341,7 @@ void main() {
             filePath: 'dummy',
             duration: Duration.zero,
           ),
-          AudioRecordingStopped(filePath),
+          const AudioRecordingStopped(filePath),
         ]),
         initialState: AudioRecordingInitial(),
       );

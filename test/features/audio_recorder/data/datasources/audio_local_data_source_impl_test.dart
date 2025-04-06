@@ -147,7 +147,7 @@ void main() {
         'should throw AudioFileSystemException when deleteFile throws',
         () async {
           // Arrange
-          final tException = FileSystemException('Disk full');
+          const tException = FileSystemException('Disk full');
           when(
             mockFileSystem.fileExists(tFilePath),
           ).thenAnswer((_) async => true);
@@ -218,9 +218,9 @@ void main() {
         'should return list of AudioRecords sorted descending by date for .m4a files',
         () async {
           // Arrange
-          final pathOlder = '$tFakeDocPath/rec_older.m4a';
-          final pathNewer = '$tFakeDocPath/rec_newer.m4a';
-          final pathOther = '$tFakeDocPath/config.txt';
+          const pathOlder = '$tFakeDocPath/rec_older.m4a';
+          const pathNewer = '$tFakeDocPath/rec_newer.m4a';
+          const pathOther = '$tFakeDocPath/config.txt';
 
           final entityOlder = createMockEntity(pathOlder);
           final entityNewer = createMockEntity(pathNewer);
@@ -284,9 +284,9 @@ void main() {
         'should return partial list when some file stats fail, without throwing',
         () async {
           // Arrange
-          final pathGood1 = '$tFakeDocPath/rec_good1.m4a';
-          final pathBadStat = '$tFakeDocPath/rec_bad_stat.m4a';
-          final pathGood2 = '$tFakeDocPath/rec_good2.m4a'; // Newer than good1
+          const pathGood1 = '$tFakeDocPath/rec_good1.m4a';
+          const pathBadStat = '$tFakeDocPath/rec_bad_stat.m4a';
+          const pathGood2 = '$tFakeDocPath/rec_good2.m4a'; // Newer than good1
 
           final entityGood1 = createMockEntity(pathGood1);
           final entityBadStat = createMockEntity(pathBadStat);
@@ -300,7 +300,7 @@ void main() {
             tNow,
             FileSystemEntityType.file,
           ); // Newer
-          final statException = FileSystemException('Cannot stat file');
+          const statException = FileSystemException('Cannot stat file');
 
           const durationGood1 = Duration(seconds: 5);
           const durationGood2 = Duration(seconds: 25);
@@ -363,9 +363,9 @@ void main() {
         'should return partial list when some getDuration calls fail, without throwing',
         () async {
           // Arrange
-          final pathGood1 = '$tFakeDocPath/rec_good1.m4a';
-          final pathBadDuration = '$tFakeDocPath/rec_bad_duration.m4a';
-          final pathGood2 = '$tFakeDocPath/rec_good2.m4a';
+          const pathGood1 = '$tFakeDocPath/rec_good1.m4a';
+          const pathBadDuration = '$tFakeDocPath/rec_bad_duration.m4a';
+          const pathGood2 = '$tFakeDocPath/rec_good2.m4a';
 
           final entityGood1 = createMockEntity(pathGood1);
           final entityBadDuration = createMockEntity(pathBadDuration);
@@ -449,8 +449,8 @@ void main() {
 
       test('should ignore entities ending in .m4a that are not files', () async {
         // Arrange
-        final pathFile = '$tFakeDocPath/rec_real_file.m4a';
-        final pathDir =
+        const pathFile = '$tFakeDocPath/rec_real_file.m4a';
+        const pathDir =
             '$tFakeDocPath/rec_fake_dir.m4a'; // Directory named like a recording
 
         final entityFile = createMockEntity(pathFile);

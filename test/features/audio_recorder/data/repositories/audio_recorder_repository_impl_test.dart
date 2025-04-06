@@ -219,7 +219,7 @@ void main() {
       'should return Failure when localDataSource.startRecording throws',
       () async {
         // Arrange
-        final tException = AudioRecordingException('Start failed');
+        const tException = AudioRecordingException('Start failed');
         when(mockAudioLocalDataSource.startRecording()).thenThrow(tException);
         // Act
         final result = await repository.startRecording();
@@ -267,7 +267,7 @@ void main() {
         ).thenAnswer((_) async => tRecordingPath);
         await repository.startRecording(); // Set internal state
 
-        final tException = AudioRecordingException('Stop failed');
+        const tException = AudioRecordingException('Stop failed');
         when(
           mockAudioLocalDataSource.stopRecording(recordingPath: tRecordingPath),
         ).thenThrow(tException);
@@ -349,7 +349,7 @@ void main() {
         ).thenAnswer((_) async => tRecordingPath);
         await repository.startRecording(); // Set internal state
 
-        final tException = AudioRecordingException('Pause failed');
+        const tException = AudioRecordingException('Pause failed');
         when(
           mockAudioLocalDataSource.pauseRecording(
             recordingPath: tRecordingPath,
@@ -435,7 +435,7 @@ void main() {
         ).thenAnswer((_) async => tRecordingPath);
         await repository.startRecording(); // Set internal state
 
-        final tException = AudioRecordingException('Resume failed');
+        const tException = AudioRecordingException('Resume failed');
         when(
           mockAudioLocalDataSource.resumeRecording(
             recordingPath: tRecordingPath,
@@ -610,7 +610,7 @@ void main() {
 
     test('should return FileSystemFailure when data source throws', () async {
       // Arrange
-      final tException = AudioFileSystemException('Cannot list');
+      const tException = AudioFileSystemException('Cannot list');
       when(
         mockAudioLocalDataSource.listRecordingDetails(),
       ).thenThrow(tException);

@@ -113,7 +113,7 @@ void main() {
           () => <AudioListState>[
             // Note: We don't have a specific 'Deleting' state, so it goes Loading -> Loaded
             AudioListLoading(), // State during the loadRecordings call after delete
-            AudioListLoaded([]), // State after successful reload
+            const AudioListLoaded([]), // State after successful reload
           ],
       verify: (_) {
         verify(

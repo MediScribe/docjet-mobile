@@ -40,7 +40,7 @@ void main() {
   late MockAudioDurationGetter mockAudioDurationGetter;
   late MockAudioConcatenationService mockAudioConcatenationService;
 
-  final tPermission = Permission.microphone;
+  const tPermission = Permission.microphone;
 
   setUp(() {
     mockPermissionHandler = MockPermissionHandler();

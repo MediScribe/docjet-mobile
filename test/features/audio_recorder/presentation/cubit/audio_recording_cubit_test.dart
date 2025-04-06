@@ -44,7 +44,7 @@ void main() {
   // Sample data
   const tFilePath = 'test/path/recording.aac';
   final tServerFailure = ServerFailure(); // No message needed
-  final tPermissionFailure = PermissionFailure();
+  const tPermissionFailure = PermissionFailure();
 
   setUp(() {
     mockAudioRecorderRepository = MockAudioRecorderRepository();
@@ -84,7 +84,7 @@ void main() {
       expect:
           () => <AudioRecordingState>[
             AudioRecordingLoading(),
-            AudioRecordingReady(),
+            const AudioRecordingReady(),
           ],
       verify: (_) {
         verify(mockAudioRecorderRepository.checkPermission()).called(1);
@@ -117,7 +117,7 @@ void main() {
       build: () {
         when(
           mockAudioRecorderRepository.checkPermission(),
-        ).thenAnswer((_) async => Left(tPermissionFailure));
+        ).thenAnswer((_) async => const Left(tPermissionFailure));
         return audioRecordingCubit;
       },
       act: (cubit) => cubit.checkPermission(),
@@ -148,7 +148,7 @@ void main() {
       expect:
           () => <AudioRecordingState>[
             AudioRecordingLoading(),
-            AudioRecordingReady(),
+            const AudioRecordingReady(),
           ],
       verify: (_) {
         verify(mockAudioRecorderRepository.requestPermission()).called(1);
@@ -188,7 +188,7 @@ void main() {
       build: () {
         when(
           mockAudioRecorderRepository.requestPermission(),
-        ).thenAnswer((_) async => Left(tPermissionFailure));
+        ).thenAnswer((_) async => const Left(tPermissionFailure));
         return audioRecordingCubit;
       },
       act: (cubit) => cubit.requestPermission(),
@@ -220,7 +220,7 @@ void main() {
       expect:
           () => <AudioRecordingState>[
             AudioRecordingLoading(), // from checkPermission
-            AudioRecordingReady(), // from checkPermission
+            const AudioRecordingReady(), // from checkPermission
           ],
       verify: (_) {
         verify(mockAudioRecorderRepository.checkPermission()).called(1);
@@ -249,7 +249,7 @@ void main() {
       expect:
           () => <AudioRecordingState>[
             AudioRecordingLoading(), // from checkPermission
-            AudioRecordingReady(), // from checkPermission
+            const AudioRecordingReady(), // from checkPermission
           ],
       verify: (_) {
         // Verify checkPermission was called (implicitly after openAppSettings)
@@ -270,7 +270,7 @@ void main() {
         ).thenAnswer((_) async => const Right(tFilePath));
         return audioRecordingCubit;
       },
-      seed: () => AudioRecordingReady(), // Start from Ready state
+      seed: () => const AudioRecordingReady(), // Start from Ready state
       act: (cubit) => cubit.startRecording(),
       // Fix expect to wrap the TypeMatcher
       expect:
@@ -294,7 +294,7 @@ void main() {
         ).thenAnswer((_) async => Left(tServerFailure));
         return audioRecordingCubit;
       },
-      seed: () => AudioRecordingReady(),
+      seed: () => const AudioRecordingReady(),
       act: (cubit) => cubit.startRecording(),
       expect:
           () => <AudioRecordingState>[
@@ -312,7 +312,7 @@ void main() {
 
   group('stopRecording', () {
     // ... tests remain the same ...
-    final recordingState = AudioRecordingInProgress(
+    const recordingState = AudioRecordingInProgress(
       filePath: tFilePath,
       duration: Duration(seconds: 5),
     );
@@ -330,7 +330,7 @@ void main() {
       expect:
           () => <AudioRecordingState>[
             AudioRecordingLoading(),
-            AudioRecordingStopped(tFilePath),
+            const AudioRecordingStopped(tFilePath),
           ],
       verify: (_) {
         verify(mockAudioRecorderRepository.stopRecording()).called(1);
@@ -364,7 +364,7 @@ void main() {
     blocTest<AudioRecordingCubit, AudioRecordingState>(
       'should do nothing if not in Recording or Paused state',
       build: () => audioRecordingCubit,
-      seed: () => AudioRecordingReady(), // Start from Ready state
+      seed: () => const AudioRecordingReady(), // Start from Ready state
       act: (cubit) => cubit.stopRecording(),
       expect: () => <AudioRecordingState>[], // No state changes expected
       verify: (_) {
@@ -376,7 +376,7 @@ void main() {
   });
 
   group('pauseRecording', () {
-    final recordingState = AudioRecordingInProgress(
+    const recordingState = AudioRecordingInProgress(
       filePath: tFilePath,
       duration: Duration(seconds: 5),
     );
@@ -433,11 +433,11 @@ void main() {
     blocTest<AudioRecordingCubit, AudioRecordingState>(
       'should emit [Error] if not in Recording state',
       build: () => audioRecordingCubit,
-      seed: () => AudioRecordingReady(), // Start from Ready state
+      seed: () => const AudioRecordingReady(), // Start from Ready state
       act: (cubit) => cubit.pauseRecording(),
       expect:
           () => <AudioRecordingState>[
-            AudioRecordingError('Cannot pause: Not currently recording.'),
+            const AudioRecordingError('Cannot pause: Not currently recording.'),
           ],
       verify: (_) {
         verifyNever(mockAudioRecorderRepository.pauseRecording());
@@ -447,7 +447,7 @@ void main() {
   });
 
   group('resumeRecording', () {
-    final pausedState = AudioRecordingPaused(
+    const pausedState = AudioRecordingPaused(
       filePath: tFilePath,
       duration: Duration(seconds: 5),
     );
@@ -504,11 +504,11 @@ void main() {
     blocTest<AudioRecordingCubit, AudioRecordingState>(
       'should emit [Error] if not in Paused state',
       build: () => audioRecordingCubit,
-      seed: () => AudioRecordingReady(), // Start from Ready state
+      seed: () => const AudioRecordingReady(), // Start from Ready state
       act: (cubit) => cubit.resumeRecording(),
       expect:
           () => <AudioRecordingState>[
-            AudioRecordingError('Cannot resume: Not currently paused.'),
+            const AudioRecordingError('Cannot resume: Not currently paused.'),
           ],
       verify: (_) {
         verifyNever(mockAudioRecorderRepository.resumeRecording());

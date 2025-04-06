@@ -37,7 +37,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
       (granted) {
         if (granted) {
           debugPrint('[REC_CUBIT] Permission granted. Emitting Ready state.');
-          emit(AudioRecordingReady());
+          emit(const AudioRecordingReady());
         } else {
           debugPrint(
             '[REC_CUBIT] Permission check returned false. Emitting PermissionDenied state.',
@@ -62,7 +62,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
           debugPrint(
             "[REC_CUBIT] Permission granted via request. Emitting Ready state.",
           );
-          emit(AudioRecordingReady());
+          emit(const AudioRecordingReady());
         } else {
           debugPrint("[REC_CUBIT] Permission request denied.");
           // TODO(HardBob): Implement getPermissionStatus in Repository and uncomment this check
@@ -191,7 +191,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   /// Pauses the current recording.
   void pauseRecording() async {
     if (state is! AudioRecordingInProgress) {
-      emit(AudioRecordingError('Cannot pause: Not currently recording.'));
+      emit(const AudioRecordingError('Cannot pause: Not currently recording.'));
       return;
     }
 
@@ -221,7 +221,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   /// Resumes a paused recording.
   void resumeRecording() async {
     if (state is! AudioRecordingPaused) {
-      emit(AudioRecordingError('Cannot resume: Not currently paused.'));
+      emit(const AudioRecordingError('Cannot resume: Not currently paused.'));
       return;
     }
     final pausedState = state as AudioRecordingPaused;
