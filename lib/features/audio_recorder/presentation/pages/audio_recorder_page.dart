@@ -1,9 +1,10 @@
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
+
+import '../../../../core/di/injection_container.dart'; // Import sl
 import '../cubit/audio_recorder_cubit.dart';
 import '../cubit/audio_recorder_state.dart';
-import '../widgets/audio_player_widget.dart';
 
 class AudioRecorderPage extends StatelessWidget {
   final AudioRecord? appendTo;
@@ -27,12 +28,23 @@ class AudioRecorderView extends StatefulWidget {
 
 class _AudioRecorderViewState extends State<AudioRecorderView> {
   bool _isNavigating = false;
+  late final AudioRecorderCubit _cubit; // Declare Cubit instance
 
   @override
   void initState() {
     super.initState();
-    // print('[AudioRecorderPage] initState: Calling checkPermission...');
-    context.read<AudioRecorderCubit>().checkPermission();
+    _cubit = sl<AudioRecorderCubit>(); // Create new instance
+    debugPrint(
+      '[AudioRecorderPage] initState: Created new Cubit. Calling checkPermission...',
+    );
+    _cubit.checkPermission(); // Check permission for this page
+  }
+
+  @override
+  void dispose() {
+    debugPrint('[AudioRecorderPage] dispose: Closing cubit.');
+    _cubit.close(); // Dispose the cubit
+    super.dispose();
   }
 
   // Method to show the permission request bottom sheet
@@ -59,7 +71,7 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                   child: const Text('Open App Settings'),
                   onPressed: () {
                     Navigator.of(sheetContext).pop(); // Close the sheet
-                    context.read<AudioRecorderCubit>().openSettings();
+                    _cubit.openSettings();
                   },
                 ),
                 TextButton(
@@ -83,10 +95,6 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
     if (!_isNavigating) {
       _isNavigating = true;
 
-      // Force refresh the recordings list
-      final cubit = context.read<AudioRecorderCubit>();
-      cubit.loadRecordings();
-
       // Return true to indicate success
       Navigator.of(context).pop(true);
     }
@@ -94,101 +102,129 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          _handleNavigation(context);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.appendTo != null ? 'Append Recording' : 'Record Audio',
+    // Provide the local cubit instance
+    return BlocProvider.value(
+      value: _cubit,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) {
+            // Use the local _cubit instance
+            _handleNavigation(context);
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(
+              widget.appendTo != null ? 'Append Recording' : 'Record Audio',
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              // Use the local _cubit instance
+              onPressed: () => _handleNavigation(context),
+            ),
           ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => _handleNavigation(context),
-          ),
-        ),
-        body: BlocConsumer<AudioRecorderCubit, AudioRecorderState>(
-          listener: (context, state) {
-            if (state is AudioRecorderError) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
-            } else if (state is AudioRecorderPermissionDenied) {
-              // === MODIFICATION START ===
-              // // Temporarily show a simple SnackBar instead of the sheet
-              // print(
-              //   '[AudioRecorderPage] Received AudioRecorderPermissionDenied. Showing SnackBar.',
-              // );
-              // ScaffoldMessenger.of(context).showSnackBar(
-              //   const SnackBar(
-              //     content: Text('Microphone Permission Permanently Denied.'),
-              //     duration: Duration(seconds: 5),
-              //   ),
-              // );
-              // === ORIGINAL CODE REINSTATED ===
-              // Show the bottom sheet instead of just a snackbar
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // print('[AudioRecorderPage] PostFrameCallback: Showing permission sheet.'); // Optional: Keep print for debug if needed
-                if (mounted) {
-                  // Ensure widget is still in the tree
-                  _showPermissionSheet(context);
-                }
-              });
-              // === MODIFICATION END ===
-            } else if (state is AudioRecorderStopped) {
-              // Capture context before the async gap
-              final capturedContext = context;
-              Future.delayed(const Duration(milliseconds: 500), () {
-                // Use capturedContext and check ITS mounted property
-                if (capturedContext.mounted) {
-                  _handleNavigation(capturedContext);
-                }
-              });
-            }
-          },
-          builder: (context, state) {
-            // Main content area widget determination
-            Widget mainContent;
-            if (state is AudioRecorderInitial ||
-                state is AudioRecorderLoading) {
-              mainContent = _buildLoadingUI();
-            } else if (state is AudioRecorderReady) {
-              mainContent = _buildReadyUI(context, state);
-            } else if (state is AudioRecorderRecording ||
-                state is AudioRecorderPaused) {
-              mainContent = _buildRecordingPausedUI(context, state);
-            } else if (state is AudioRecorderStopped) {
-              mainContent = _buildStoppedUI(context, state);
-            } else {
-              // Fallback for any unexpected state (e.g., permission denied handled by listener)
-              mainContent = const SizedBox.shrink(); // Or some placeholder
-            }
+          body: BlocConsumer<AudioRecorderCubit, AudioRecorderState>(
+            listener: (context, state) {
+              debugPrint(
+                '[AudioRecorderPage] Listener received state: ${state.runtimeType}',
+              );
+              if (state is AudioRecorderError) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.message)));
+              } else if (state is AudioRecorderPermissionDenied) {
+                // === MODIFICATION START ===
+                // // Temporarily show a simple SnackBar instead of the sheet
+                // print(
+                //   '[AudioRecorderPage] Received AudioRecorderPermissionDenied. Showing SnackBar.',
+                // );
+                // ScaffoldMessenger.of(context).showSnackBar(
+                //   const SnackBar(
+                //     content: Text('Microphone Permission Permanently Denied.'),
+                //     duration: Duration(seconds: 5),
+                //   ),
+                // );
+                // === ORIGINAL CODE REINSTATED ===
+                // Show the bottom sheet instead of just a snackbar
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  // print('[AudioRecorderPage] PostFrameCallback: Showing permission sheet.'); // Optional: Keep print for debug if needed
+                  if (mounted) {
+                    // Ensure widget is still in the tree
+                    _showPermissionSheet(context);
+                  }
+                });
+                // === MODIFICATION END ===
+              } else if (state is AudioRecorderStopped) {
+                // --- MODIFICATION START ---
+                debugPrint(
+                  '[AudioRecorderPage] Received AudioRecorderStopped. Navigating back.',
+                );
+                // No need for delay, just navigate back immediately
+                // Ensure we don't double-navigate
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _handleNavigation(context);
+                  }
+                });
+                // --- MODIFICATION END ---
+              }
+            },
+            builder: (context, state) {
+              debugPrint(
+                '[AudioRecorderPage] Builder received state: ${state.runtimeType}',
+              );
+              // Main content area widget determination
+              Widget mainContent;
+              if (state is AudioRecorderInitial ||
+                  state is AudioRecorderLoading) {
+                mainContent = _buildLoadingUI();
+              } else if (state is AudioRecorderReady) {
+                mainContent = _buildReadyUI(context, state);
+              } else if (state is AudioRecorderRecording ||
+                  state is AudioRecorderPaused) {
+                mainContent = _buildRecordingPausedUI(context, state);
+              } else if (state is AudioRecorderStopped) {
+                // --- MODIFICATION START ---
+                // mainContent = _buildStoppedUI(context, state); // REMOVED CALL
+                // Instead, show loading briefly while navigating back
+                debugPrint(
+                  '[AudioRecorderPage] Builder received AudioRecorderStopped. Showing loading.',
+                );
+                mainContent =
+                    _buildLoadingUI(); // Show loading indicator briefly
+                // The listener will handle navigation
+                // --- MODIFICATION END ---
+              } else {
+                // Fallback for any unexpected state (e.g., permission denied handled by listener, Error state shows SnackBar)
+                debugPrint(
+                  '[AudioRecorderPage] Builder received unhandled state: ${state.runtimeType}. Showing empty box.',
+                );
+                mainContent = const SizedBox.shrink(); // Or some placeholder
+              }
 
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.appendTo != null)
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'Appending to recording from ${widget.appendTo!.createdAt.toString()}',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium,
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (widget.appendTo != null)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Appending to recording from ${widget.appendTo!.createdAt.toString()}',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 16), // Consistent spacing
-                  // --- Main Content Area based on State ---
-                  mainContent, // Use the determined widget
-                  // Note: AudioRecorderPermissionDenied is handled by the bottom sheet listener
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 16), // Consistent spacing
+                    // --- Main Content Area based on State ---
+                    mainContent, // Use the determined widget
+                    // Note: AudioRecorderPermissionDenied is handled by the bottom sheet listener
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -202,11 +238,9 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
       heroTag: 'record_fab',
       onPressed: () {
         if (isRecording || isPaused) {
-          context.read<AudioRecorderCubit>().stopRecording();
+          _cubit.stopRecording();
         } else {
-          context.read<AudioRecorderCubit>().startRecording(
-            appendTo: widget.appendTo,
-          );
+          _cubit.startRecording(appendTo: widget.appendTo);
         }
       },
       backgroundColor: isRecording || isPaused ? Colors.red : null,
@@ -218,15 +252,16 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
     BuildContext context,
     AudioRecorderState state,
   ) {
+    // Handles both Recording and Paused states
     final isRecording = state is AudioRecorderRecording;
 
     return FloatingActionButton(
       heroTag: 'pause_resume_fab',
       onPressed: () {
         if (isRecording) {
-          context.read<AudioRecorderCubit>().pauseRecording();
+          _cubit.pauseRecording();
         } else {
-          context.read<AudioRecorderCubit>().resumeRecording();
+          _cubit.resumeRecording();
         }
       },
       child: Icon(isRecording ? Icons.pause : Icons.play_arrow),
@@ -241,7 +276,7 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
       children: [
         CircularProgressIndicator(),
         SizedBox(height: 16),
-        Text('Checking permissions...'),
+        Text('Processing...'), // More generic message
       ],
     );
   }
@@ -252,54 +287,43 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
 
   Widget _buildRecordingPausedUI(
     BuildContext context,
-    AudioRecorderState state,
+    AudioRecorderState state, // Accept base state
   ) {
-    // Handles both Recording and Paused states
-    final duration =
-        state is AudioRecorderRecording
-            ? state.duration
-            : (state as AudioRecorderPaused).duration;
+    Duration currentDuration = Duration.zero;
+    String? currentPath;
+
+    if (state is AudioRecorderRecording) {
+      currentDuration = state.duration;
+      currentPath = state.filePath;
+    } else if (state is AudioRecorderPaused) {
+      currentDuration = state.duration;
+      currentPath = state.filePath;
+    }
+
+    // Basic null check for safety, though path should exist in these states
+    final displayPath = currentPath?.split('/').last ?? 'Recording...';
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          _formatDuration(duration),
+          _formatDuration(currentDuration),
           style: Theme.of(context).textTheme.headlineMedium,
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 8),
+        Text(
+          displayPath,
+          style: Theme.of(context).textTheme.bodySmall,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _buildRecordButton(context, state), // Stop button
-            const SizedBox(width: 16),
-            _buildPauseResumeButton(context, state), // Pause/Resume button
+            const SizedBox(width: 24),
+            _buildPauseResumeButton(context, state), // Pause/Resume
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStoppedUI(BuildContext context, AudioRecorderStopped state) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text('Recording Complete'), // Simple title
-        const SizedBox(height: 16),
-        AudioPlayerWidget(
-          filePath: state.record.filePath,
-          onDelete: () {
-            context.read<AudioRecorderCubit>().deleteRecording(
-              state.record.filePath,
-            );
-            // Consider if navigation should happen automatically after delete
-            // _handleNavigation(context);
-          },
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: () => _handleNavigation(context),
-          child: const Text('Done'),
         ),
       ],
     );

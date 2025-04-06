@@ -9,7 +9,7 @@ import 'package:dartz/dartz.dart' as _i3;
 import 'package:docjet_mobile/core/error/failures.dart' as _i6;
 import 'package:docjet_mobile/core/usecases/usecase.dart' as _i7;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'
-    as _i10;
+    as _i15;
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart'
     as _i2;
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart'
@@ -20,12 +20,14 @@ import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recor
     as _i14;
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart'
     as _i11;
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart'
+    as _i8;
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart'
     as _i12;
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart'
-    as _i8;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart'
     as _i9;
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart'
+    as _i10;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -86,10 +88,43 @@ class MockCheckPermission extends _i1.Mock implements _i4.CheckPermission {
           as _i5.Future<_i3.Either<_i6.Failure, bool>>);
 }
 
+/// A class which mocks [RequestPermission].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockRequestPermission extends _i1.Mock implements _i8.RequestPermission {
+  MockRequestPermission() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i2.AudioRecorderRepository get repository =>
+      (super.noSuchMethod(
+            Invocation.getter(#repository),
+            returnValue: _FakeAudioRecorderRepository_0(
+              this,
+              Invocation.getter(#repository),
+            ),
+          )
+          as _i2.AudioRecorderRepository);
+
+  @override
+  _i5.Future<_i3.Either<_i6.Failure, bool>> call(_i7.NoParams? params) =>
+      (super.noSuchMethod(
+            Invocation.method(#call, [params]),
+            returnValue: _i5.Future<_i3.Either<_i6.Failure, bool>>.value(
+              _FakeEither_1<_i6.Failure, bool>(
+                this,
+                Invocation.method(#call, [params]),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.Either<_i6.Failure, bool>>);
+}
+
 /// A class which mocks [StartRecording].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockStartRecording extends _i1.Mock implements _i8.StartRecording {
+class MockStartRecording extends _i1.Mock implements _i9.StartRecording {
   MockStartRecording() {
     _i1.throwOnMissingStub(this);
   }
@@ -122,7 +157,7 @@ class MockStartRecording extends _i1.Mock implements _i8.StartRecording {
 /// A class which mocks [StopRecording].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockStopRecording extends _i1.Mock implements _i9.StopRecording {
+class MockStopRecording extends _i1.Mock implements _i10.StopRecording {
   MockStopRecording() {
     _i1.throwOnMissingStub(this);
   }
@@ -139,20 +174,17 @@ class MockStopRecording extends _i1.Mock implements _i9.StopRecording {
           as _i2.AudioRecorderRepository);
 
   @override
-  _i5.Future<_i3.Either<_i6.Failure, _i10.AudioRecord>> call(
-    _i7.NoParams? params,
-  ) =>
+  _i5.Future<_i3.Either<_i6.Failure, String>> call(_i7.NoParams? params) =>
       (super.noSuchMethod(
             Invocation.method(#call, [params]),
-            returnValue:
-                _i5.Future<_i3.Either<_i6.Failure, _i10.AudioRecord>>.value(
-                  _FakeEither_1<_i6.Failure, _i10.AudioRecord>(
-                    this,
-                    Invocation.method(#call, [params]),
-                  ),
-                ),
+            returnValue: _i5.Future<_i3.Either<_i6.Failure, String>>.value(
+              _FakeEither_1<_i6.Failure, String>(
+                this,
+                Invocation.method(#call, [params]),
+              ),
+            ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, _i10.AudioRecord>>);
+          as _i5.Future<_i3.Either<_i6.Failure, String>>);
 }
 
 /// A class which mocks [PauseRecording].
@@ -276,19 +308,19 @@ class MockLoadRecordings extends _i1.Mock implements _i14.LoadRecordings {
           as _i2.AudioRecorderRepository);
 
   @override
-  _i5.Future<_i3.Either<_i6.Failure, List<_i10.AudioRecord>>> call(
+  _i5.Future<_i3.Either<_i6.Failure, List<_i15.AudioRecord>>> call(
     _i7.NoParams? params,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#call, [params]),
             returnValue: _i5.Future<
-              _i3.Either<_i6.Failure, List<_i10.AudioRecord>>
+              _i3.Either<_i6.Failure, List<_i15.AudioRecord>>
             >.value(
-              _FakeEither_1<_i6.Failure, List<_i10.AudioRecord>>(
+              _FakeEither_1<_i6.Failure, List<_i15.AudioRecord>>(
                 this,
                 Invocation.method(#call, [params]),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, List<_i10.AudioRecord>>>);
+          as _i5.Future<_i3.Either<_i6.Failure, List<_i15.AudioRecord>>>);
 }

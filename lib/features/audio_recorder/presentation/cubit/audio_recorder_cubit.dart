@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart'; // Add this import
 
-import 'package:docjet_mobile/core/usecases/usecase.dart'; // For NoParams
+import 'package:bloc/bloc.dart';
+import 'package:docjet_mobile/core/usecases/usecase.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
@@ -24,6 +27,7 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
   final ResumeRecording resumeRecordingUseCase;
   final DeleteRecording deleteRecordingUseCase;
   final LoadRecordings loadRecordingsUseCase;
+  final RequestPermission requestPermissionUseCase;
   // TODO: Add LoadRecordingsUseCase etc.
 
   Timer? _durationTimer;
@@ -32,6 +36,7 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
 
   AudioRecorderCubit({
     required this.checkPermissionUseCase,
+    required this.requestPermissionUseCase,
     required this.startRecordingUseCase,
     required this.stopRecordingUseCase,
     required this.pauseRecordingUseCase,
@@ -42,81 +47,126 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
   }) : super(AudioRecorderInitial());
 
   /// Checks permission and moves to Ready or PermissionDenied state.
-  void checkPermission() async {
-    emit(AudioRecorderLoading()); // Indicate checking
+  Future<void> checkPermission() async {
+    debugPrint("[CUBIT] checkPermission() called.");
+    emit(AudioRecorderLoading());
     final result = await checkPermissionUseCase(NoParams());
     result.fold(
-      (failure) {
-        emit(
-          AudioRecorderError('Permission check failed: ${failure.toString()}'),
-        );
-      }, // Map Failure
-      (hasPermission) {
-        emit(
-          hasPermission
-              ? AudioRecorderReady()
-              : AudioRecorderPermissionDenied(),
-        );
+      (failure) => emit(
+        AudioRecorderError('Permission check failed: ${failure.toString()}'),
+      ),
+      (hasPermission) async {
+        if (hasPermission) {
+          debugPrint("[CUBIT] Permission granted. Emitting Ready state.");
+          emit(AudioRecorderReady());
+        } else {
+          debugPrint("[CUBIT] Permission denied.");
+          emit(AudioRecorderPermissionDenied());
+        }
+      },
+    );
+  }
+
+  /// Requests permission and moves to Ready or PermissionDenied state.
+  Future<void> requestPermission() async {
+    debugPrint("[CUBIT] requestPermission() called.");
+    emit(AudioRecorderLoading());
+    final result = await requestPermissionUseCase(NoParams());
+    result.fold(
+      (failure) => emit(
+        AudioRecorderError('Permission request failed: ${failure.toString()}'),
+      ),
+      (granted) async {
+        if (granted) {
+          debugPrint(
+            "[CUBIT] Permission granted via request. Emitting Ready state.",
+          );
+          emit(AudioRecorderReady());
+        } else {
+          debugPrint("[CUBIT] Permission request denied.");
+          emit(AudioRecorderPermissionDenied());
+        }
       },
     );
   }
 
   /// Starts a new recording.
   void startRecording({AudioRecord? appendTo}) async {
+    debugPrint(
+      '[CUBIT] startRecording called. appendTo: ${appendTo?.filePath}',
+    );
     // TODO: Implement append logic using separate use cases if needed
     if (appendTo != null) {
-      emit(AudioRecorderError("Append functionality not implemented yet."));
+      final errorState = AudioRecorderError(
+        "Append functionality not implemented yet.",
+      );
+      debugPrint('[CUBIT] Emitting state: $errorState');
+      emit(errorState);
       return;
     }
 
-    emit(AudioRecorderLoading());
+    final loadingState = AudioRecorderLoading();
+    debugPrint('[CUBIT] Emitting state: $loadingState');
+    emit(loadingState);
+
+    debugPrint('[CUBIT] Calling startRecordingUseCase...');
     final result = await startRecordingUseCase(NoParams());
+    debugPrint('[CUBIT] startRecordingUseCase result: $result');
 
     result.fold(
       (failure) {
         _cleanupTimer();
-        emit(
-          AudioRecorderError(
-            'Failed to start recording: ${failure.toString()}',
-          ),
+        final errorState = AudioRecorderError(
+          'Failed to start recording: ${failure.toString()}',
         );
+        debugPrint('[CUBIT] Emitting state: $errorState');
+        emit(errorState);
       },
       (filePath) {
         _recordingStartTime = DateTime.now();
         _currentRecordingPath = filePath;
-        emit(
-          AudioRecorderRecording(filePath: filePath, duration: Duration.zero),
+        final recordingState = AudioRecorderRecording(
+          filePath: filePath,
+          duration: Duration.zero,
         );
+        debugPrint('[CUBIT] Emitting state: $recordingState');
+        emit(recordingState);
+        debugPrint('[CUBIT] Starting duration timer...');
         _startDurationTimer();
       },
     );
   }
 
   /// Stops the current recording.
-  void stopRecording() async {
-    _cleanupTimer(); // Stop the UI timer first
-    emit(AudioRecorderLoading()); // Indicate processing
+  Future<void> stopRecording() async {
+    debugPrint("[CUBIT] stopRecording() called.");
+    if (state is AudioRecorderRecording || state is AudioRecorderPaused) {
+      emit(AudioRecorderLoading());
+      _cleanupTimer();
 
-    final result = await stopRecordingUseCase(NoParams());
+      final resultEither = await stopRecordingUseCase(NoParams());
 
-    _recordingStartTime = null;
-    _currentRecordingPath = null;
-
-    result.fold(
-      (failure) => emit(
-        AudioRecorderError('Failed to stop recording: ${failure.toString()}'),
-      ),
-      (audioRecord) {
-        // Map Domain entity to Presentation state entity
-        final recordState = AudioRecordState(
-          filePath: audioRecord.filePath,
-          duration: audioRecord.duration,
-          createdAt: audioRecord.createdAt,
-        );
-        emit(AudioRecorderStopped(record: recordState));
-      },
-    );
-    // TODO: Potentially trigger loadRecordings here or rely on UI to refresh
+      resultEither.fold(
+        (failure) async {
+          debugPrint("[CUBIT] stopRecording failed: ${failure.toString()}");
+          emit(
+            AudioRecorderError(
+              'Failed to stop recording: ${failure.toString()}',
+            ),
+          );
+        },
+        (filePath) async {
+          debugPrint(
+            "[CUBIT] stopRecording successful. Path: $filePath. Emitting Stopped state.",
+          );
+          emit(AudioRecorderStopped());
+        },
+      );
+    } else {
+      debugPrint(
+        "[CUBIT] stopRecording called but not in Recording/Paused state. No action taken.",
+      );
+    }
   }
 
   /// Pauses the current recording.
@@ -189,30 +239,31 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
 
   /// Deletes a specific recording file.
   Future<void> deleteRecording(String filePath) async {
-    // debugPrint('[CUBIT] deleteRecording called with path: $filePath');
-    final loadingState = AudioRecorderLoading();
-    // debugPrint('[CUBIT] Emitting state: $loadingState');
-    emit(loadingState);
-
+    debugPrint("[CUBIT] deleteRecording() called for: $filePath");
+    emit(AudioRecorderLoading());
     final params = DeleteRecordingParams(filePath: filePath);
-    // debugPrint('[CUBIT] Calling deleteRecordingUseCase with params: $params');
     final result = await deleteRecordingUseCase(params);
-    // debugPrint('[CUBIT] deleteRecordingUseCase result: $result');
 
-    if (result.isRight()) {
-      // Success case
-      // debugPrint('[CUBIT] Delete successful, awaiting loadRecordings...');
-      await loadRecordings();
-    } else {
-      // Failure case
-      result.leftMap((failure) {
-        final errorState = AudioRecorderError(
-          'Failed to delete $filePath: ${failure.toString()}',
+    result.fold(
+      (failure) {
+        debugPrint("[CUBIT] deleteRecording failed: ${failure.toString()}");
+        emit(
+          AudioRecorderError(
+            'Failed to delete $filePath: ${failure.toString()}',
+          ),
         );
-        // debugPrint('[CUBIT] Emitting state: $errorState');
-        emit(errorState);
-      });
-    }
+        debugPrint(
+          "[CUBIT] deleteRecording failed. Calling loadRecordings() anyway.",
+        );
+        loadRecordings();
+      },
+      (_) async {
+        debugPrint(
+          "[CUBIT] deleteRecording successful. Calling loadRecordings().",
+        );
+        await loadRecordings();
+      },
+    );
   }
 
   // --- Timer Logic ---
@@ -264,23 +315,27 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
 
   /// Loads the list of existing recordings.
   Future<void> loadRecordings() async {
-    // debugPrint('[CUBIT] loadRecordings called');
-    final loadingState = AudioRecorderLoading();
-    emit(loadingState);
-
-    final params = NoParams();
-    final result = await loadRecordingsUseCase(params);
+    debugPrint("[CUBIT] loadRecordings() called.");
+    emit(AudioRecorderLoading());
+    debugPrint("[CUBIT] Calling loadRecordingsUseCase...");
+    final result = await loadRecordingsUseCase(NoParams());
+    debugPrint("[CUBIT] loadRecordingsUseCase finished.");
 
     result.fold(
       (failure) {
-        final errorState = AudioRecorderError(
-          'Failed to load recordings: ${failure.toString()}',
+        debugPrint("[CUBIT] loadRecordings failed: ${failure.toString()}");
+        emit(
+          AudioRecorderError(
+            'Failed to load recordings: ${failure.toString()}',
+          ),
         );
-        emit(errorState);
       },
       (recordings) {
+        debugPrint(
+          "[CUBIT] loadRecordings succeeded. Found ${recordings.length} recordings.",
+        );
         // Map domain entities to presentation state entities
-        final recordStates =
+        final recordingStates =
             recordings
                 .map(
                   (r) => AudioRecordState(
@@ -290,14 +345,7 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
                   ),
                 )
                 .toList();
-
-        // Sort by creation date, newest first (optional)
-        recordStates.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-        final listLoadedState = AudioRecorderListLoaded(
-          recordings: recordStates,
-        );
-        emit(listLoadedState);
+        emit(AudioRecorderListLoaded(recordings: recordingStates));
       },
     );
   }

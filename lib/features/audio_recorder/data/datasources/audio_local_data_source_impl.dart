@@ -15,6 +15,7 @@ import 'package:docjet_mobile/core/platform/permission_handler.dart'
     as custom_ph;
 import '../services/audio_duration_getter.dart';
 import '../services/audio_concatenation_service.dart'; // Import the new service
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Import AudioRecord
 
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
@@ -77,13 +78,23 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   @override
   Future<bool> requestPermission() async {
     try {
+      // Explicitly request microphone permission.
       final Map<Permission, PermissionStatus> statuses = await permissionHandler
           .request([microphonePermission]);
-      return statuses[microphonePermission] == PermissionStatus.granted;
+      // Return true if granted, false otherwise.
+      final status = statuses[microphonePermission];
+      if (status == null) {
+        // Should not happen if we requested it, but handle defensively.
+        throw AudioPermissionException(
+          'Permission status was unexpectedly null.',
+        );
+      }
+      return status == PermissionStatus.granted;
     } catch (e) {
+      // Catch potential exceptions from the handler and wrap them.
       throw AudioPermissionException(
-        'Failed to request microphone permission',
-        e,
+        'Failed to request microphone permission: ${e.toString()}',
+        e, // Pass original exception if needed for logging
       );
     }
   }
@@ -212,90 +223,53 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   }
 
   @override
-  Future<Duration> getAudioDuration(String filePath) async {
+  Future<List<AudioRecord>> listRecordingDetails() async {
+    final List<AudioRecord> records = [];
     try {
-      // Delegate to the injected service
-      return await audioDurationGetter.getDuration(filePath);
-    } on RecordingFileNotFoundException {
-      // Rethrow known exceptions directly
-      rethrow;
-    } on AudioPlayerException {
-      // Rethrow known exceptions directly (if getter throws this)
-      rethrow;
-    } catch (e) {
-      // Wrap unexpected errors from the getter as AudioPlayerException
-      throw AudioPlayerException(
-        'Unexpected error getting audio duration for $filePath from getter',
-        e,
-      );
-    }
-  }
-
-  @override
-  Future<FileStat> getFileStat(String filePath) async {
-    try {
-      return await fileSystem.stat(filePath);
-    } on FileSystemException catch (e) {
-      throw AudioFileSystemException(
-        'Failed to get file stats for $filePath',
-        e,
-      );
-    } catch (e) {
-      // Catch any other potential errors during stat call
-      throw AudioFileSystemException(
-        'Unexpected error getting file stats for $filePath',
-        e,
-      );
-    }
-  }
-
-  @override
-  Future<List<String>> listRecordingFiles() async {
-    try {
-      // Use injected pathProvider
       final appDir = await pathProvider.getApplicationDocumentsDirectory();
 
-      // Use injected fileSystem
       if (!await fileSystem.directoryExists(appDir.path)) {
+        // If dir doesn't exist, create it and return empty list
+        // (or should we throw? For listing, returning empty seems reasonable)
         await fileSystem.createDirectory(appDir.path, recursive: true);
         return [];
       }
 
-      // Use injected fileSystem (use async list now?)
-      // Let's keep listSync for now to match original behaviour, but abstract it.
-      /*
-      final files =
-          fileSystem
-              .listDirectorySync(appDir.path)
-              .where(
-                (item) => item.path.endsWith('.m4a') && item is File,
-              ) // File type check might need adjustment if abstraction changes
-              .map((item) => item.path)
-              .toList();
-      return files;
-      */
-      // Use async listing now
-      final List<String> files = [];
       final stream = fileSystem.listDirectory(appDir.path);
       await for (final entity in stream) {
-        // Ensure it's a file and ends with .m4a before adding
-        // Checking type via `is File` requires dart:io, use entity type property if available
-        // from the abstraction, otherwise rely on path extension.
         if (entity.path.endsWith('.m4a')) {
-          // Check if it's actually a file using stat, avoid adding directories
           try {
             final stat = await fileSystem.stat(entity.path);
+            // Only process actual files
             if (stat.type == FileSystemEntityType.file) {
-              files.add(entity.path);
+              final duration = await audioDurationGetter.getDuration(
+                entity.path,
+              );
+              records.add(
+                AudioRecord(
+                  filePath: entity.path,
+                  duration: duration,
+                  createdAt: stat.modified,
+                ),
+              );
             }
-          } catch (_) {
-            // Ignore files we cannot stat (e.g., permission errors, broken links)
+          } catch (e) {
+            // IMPORTANT: Log this error with a proper logger!
+            // For now, print to console.
+            // Decide if specific error types need different handling.
+            print(
+              'Error processing file ${entity.path}: ${e.toString()}', // TODO: Use logger
+            );
+            // Continue to the next file
           }
         }
       }
-      return files;
+      // Optionally sort records by date?
+      // records.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return records;
     } catch (e) {
-      throw AudioFileSystemException('Failed to list recording files', e);
+      // Catch errors related to listing the directory itself
+      throw AudioFileSystemException('Failed to list recording details', e);
     }
   }
 

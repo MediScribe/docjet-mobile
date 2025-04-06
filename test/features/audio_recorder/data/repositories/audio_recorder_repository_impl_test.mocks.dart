@@ -3,13 +3,14 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
-import 'dart:io' as _i2;
+import 'dart:async' as _i3;
 
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart'
-    as _i3;
+    as _i2;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'
+    as _i5;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i5;
+import 'package:mockito/src/dummies.dart' as _i4;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -25,138 +26,104 @@ import 'package:mockito/src/dummies.dart' as _i5;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeDuration_0 extends _i1.SmartFake implements Duration {
-  _FakeDuration_0(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-class _FakeFileStat_1 extends _i1.SmartFake implements _i2.FileStat {
-  _FakeFileStat_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
 /// A class which mocks [AudioLocalDataSource].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioLocalDataSource extends _i1.Mock
-    implements _i3.AudioLocalDataSource {
+    implements _i2.AudioLocalDataSource {
   MockAudioLocalDataSource() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<bool> checkPermission() =>
+  _i3.Future<bool> checkPermission() =>
       (super.noSuchMethod(
             Invocation.method(#checkPermission, []),
-            returnValue: _i4.Future<bool>.value(false),
+            returnValue: _i3.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i3.Future<bool>);
 
   @override
-  _i4.Future<bool> requestPermission() =>
+  _i3.Future<bool> requestPermission() =>
       (super.noSuchMethod(
             Invocation.method(#requestPermission, []),
-            returnValue: _i4.Future<bool>.value(false),
+            returnValue: _i3.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i3.Future<bool>);
 
   @override
-  _i4.Future<String> startRecording() =>
+  _i3.Future<String> startRecording() =>
       (super.noSuchMethod(
             Invocation.method(#startRecording, []),
-            returnValue: _i4.Future<String>.value(
-              _i5.dummyValue<String>(
+            returnValue: _i3.Future<String>.value(
+              _i4.dummyValue<String>(
                 this,
                 Invocation.method(#startRecording, []),
               ),
             ),
           )
-          as _i4.Future<String>);
+          as _i3.Future<String>);
 
   @override
-  _i4.Future<String> stopRecording() =>
+  _i3.Future<String> stopRecording() =>
       (super.noSuchMethod(
             Invocation.method(#stopRecording, []),
-            returnValue: _i4.Future<String>.value(
-              _i5.dummyValue<String>(
+            returnValue: _i3.Future<String>.value(
+              _i4.dummyValue<String>(
                 this,
                 Invocation.method(#stopRecording, []),
               ),
             ),
           )
-          as _i4.Future<String>);
+          as _i3.Future<String>);
 
   @override
-  _i4.Future<void> pauseRecording() =>
+  _i3.Future<void> pauseRecording() =>
       (super.noSuchMethod(
             Invocation.method(#pauseRecording, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i4.Future<void> resumeRecording() =>
+  _i3.Future<void> resumeRecording() =>
       (super.noSuchMethod(
             Invocation.method(#resumeRecording, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i4.Future<void> deleteRecording(String? filePath) =>
+  _i3.Future<void> deleteRecording(String? filePath) =>
       (super.noSuchMethod(
             Invocation.method(#deleteRecording, [filePath]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i4.Future<Duration> getAudioDuration(String? filePath) =>
-      (super.noSuchMethod(
-            Invocation.method(#getAudioDuration, [filePath]),
-            returnValue: _i4.Future<Duration>.value(
-              _FakeDuration_0(
-                this,
-                Invocation.method(#getAudioDuration, [filePath]),
-              ),
-            ),
-          )
-          as _i4.Future<Duration>);
-
-  @override
-  _i4.Future<_i2.FileStat> getFileStat(String? filePath) =>
-      (super.noSuchMethod(
-            Invocation.method(#getFileStat, [filePath]),
-            returnValue: _i4.Future<_i2.FileStat>.value(
-              _FakeFileStat_1(
-                this,
-                Invocation.method(#getFileStat, [filePath]),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.FileStat>);
-
-  @override
-  _i4.Future<String> concatenateRecordings(List<String>? inputFilePaths) =>
+  _i3.Future<String> concatenateRecordings(List<String>? inputFilePaths) =>
       (super.noSuchMethod(
             Invocation.method(#concatenateRecordings, [inputFilePaths]),
-            returnValue: _i4.Future<String>.value(
-              _i5.dummyValue<String>(
+            returnValue: _i3.Future<String>.value(
+              _i4.dummyValue<String>(
                 this,
                 Invocation.method(#concatenateRecordings, [inputFilePaths]),
               ),
             ),
           )
-          as _i4.Future<String>);
+          as _i3.Future<String>);
 
   @override
-  _i4.Future<List<String>> listRecordingFiles() =>
+  _i3.Future<List<_i5.AudioRecord>> listRecordingDetails() =>
       (super.noSuchMethod(
-            Invocation.method(#listRecordingFiles, []),
-            returnValue: _i4.Future<List<String>>.value(<String>[]),
+            Invocation.method(#listRecordingDetails, []),
+            returnValue: _i3.Future<List<_i5.AudioRecord>>.value(
+              <_i5.AudioRecord>[],
+            ),
           )
-          as _i4.Future<List<String>>);
+          as _i3.Future<List<_i5.AudioRecord>>);
 }

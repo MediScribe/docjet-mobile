@@ -7,6 +7,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_perm
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
@@ -19,6 +20,7 @@ import 'package:mockito/mockito.dart';
 // Generate mocks for all the use cases
 @GenerateMocks([
   CheckPermission,
+  RequestPermission,
   StartRecording,
   StopRecording,
   PauseRecording,
@@ -32,6 +34,7 @@ void main() {
   // Declare late variables for the cubit and mocks
   late AudioRecorderCubit cubit;
   late MockCheckPermission mockCheckPermission;
+  late MockRequestPermission mockRequestPermission;
   late MockStartRecording mockStartRecording;
   late MockStopRecording mockStopRecording;
   late MockPauseRecording mockPauseRecording;
@@ -42,6 +45,7 @@ void main() {
   setUp(() {
     // Initialize mocks
     mockCheckPermission = MockCheckPermission();
+    mockRequestPermission = MockRequestPermission();
     mockStartRecording = MockStartRecording();
     mockStopRecording = MockStopRecording();
     mockPauseRecording = MockPauseRecording();
@@ -52,6 +56,7 @@ void main() {
     // Initialize the cubit with mocks
     cubit = AudioRecorderCubit(
       checkPermissionUseCase: mockCheckPermission,
+      requestPermissionUseCase: mockRequestPermission,
       startRecordingUseCase: mockStartRecording,
       stopRecordingUseCase: mockStopRecording,
       pauseRecordingUseCase: mockPauseRecording,
@@ -68,7 +73,6 @@ void main() {
     });
 
     group('deleteRecording', () {
-      // Tests for deleteRecording will go here
       const tFilePath = 'test/path/recording.m4a';
       final tDeleteParams = DeleteRecordingParams(filePath: tFilePath);
       final tNoParams = NoParams(); // Added for clarity
@@ -116,6 +120,9 @@ void main() {
       final tFailure = PermissionFailure(
         'Deletion failed',
       ); // Define failure here
+      final List<AudioRecord> tEmptyRecordings =
+          []; // Define empty list for load mock
+      final List<AudioRecordState> tEmptyStates = []; // Define empty state list
 
       blocTest<AudioRecorderCubit, AudioRecorderState>(
         'emits [Loading, Error] and calls delete use case when delete fails',
@@ -124,6 +131,10 @@ void main() {
           when(
             mockDeleteRecording(tDeleteParams),
           ).thenAnswer((_) async => Left(tFailure));
+          // Arrange: Mock subsequent loadRecordings call (should succeed even if delete failed)
+          when(
+            mockLoadRecordings(tNoParams),
+          ).thenAnswer((_) async => Right(tEmptyRecordings));
           return cubit;
         },
         act: (cubit) => cubit.deleteRecording(tFilePath),
@@ -133,11 +144,16 @@ void main() {
               AudioRecorderError(
                 'Failed to delete $tFilePath: ${tFailure.toString()}',
               ),
+              AudioRecorderLoading(), // From the subsequent loadRecordings call
+              AudioRecorderListLoaded(
+                recordings: tEmptyStates,
+              ), // From the loadRecordings success
             ],
         verify: (_) {
           // Verify delete was called, load was NOT called
           verify(mockDeleteRecording(tDeleteParams)).called(1);
-          verifyNever(mockLoadRecordings(any));
+          // Verify load WAS called after delete failure
+          verify(mockLoadRecordings(tNoParams)).called(1);
         },
       );
 
@@ -272,64 +288,104 @@ void main() {
     });
 
     group('stopRecording', () {
-      final tNoParams = NoParams();
-      final tNow = DateTime.now();
-      final tAudioRecord = AudioRecord(
-        filePath: 'stopped/recording.m4a',
-        duration: const Duration(minutes: 1, seconds: 30),
-        createdAt: tNow,
-      );
-      final tAudioRecordState = AudioRecordState(
-        filePath: tAudioRecord.filePath,
-        duration: tAudioRecord.duration,
-        createdAt: tAudioRecord.createdAt,
-      );
+      const tFilePath = 'stopped/path.m4a';
+      final tRecordings = [
+        AudioRecord(
+          filePath: tFilePath,
+          duration: const Duration(seconds: 5),
+          createdAt: DateTime.now(),
+        ),
+      ]; // Sample list returned by loadRecordings
 
+      // ADD: Map domain entities to state entities for assertion
+      final tRecordingStates =
+          tRecordings
+              .map(
+                (r) => AudioRecordState(
+                  filePath: r.filePath,
+                  duration: r.duration,
+                  createdAt: r.createdAt,
+                ),
+              )
+              .toList();
+
+      // REFACTORING to use blocTest for better lifecycle management
       blocTest<AudioRecorderCubit, AudioRecorderState>(
-        'emits [Loading, Stopped] when stopRecording succeeds',
+        'emits [Loading, Stopped] after stopping successfully',
         build: () {
+          // Arrange: Mock stop success
           when(
-            mockStopRecording(tNoParams),
-          ).thenAnswer((_) async => Right(tAudioRecord));
+            mockStopRecording(any),
+          ).thenAnswer((_) async => const Right(tFilePath));
           return cubit;
         },
+        seed:
+            () => const AudioRecorderRecording(
+              // Arrange: Initial state
+              filePath: 'some/path',
+              duration: Duration.zero,
+            ),
         act: (cubit) => cubit.stopRecording(),
         expect:
             () => [
+              // Assert: Expected states
               AudioRecorderLoading(),
-              AudioRecorderStopped(record: tAudioRecordState),
+              AudioRecorderStopped(),
             ],
         verify: (_) {
-          verify(mockStopRecording(tNoParams)).called(1);
-          // Optionally: Verify timer stopped if mockable/testable
+          // Verify
+          verify(mockStopRecording(NoParams()));
+          verifyNever(mockLoadRecordings(any));
         },
       );
 
-      // Add test for stopRecording failure
-      final tStopFailure = RecordingFailure('Failed to stop');
-
       blocTest<AudioRecorderCubit, AudioRecorderState>(
-        'emits [Loading, Error] when stopRecording fails',
+        'emits [Loading, Error] when stop fails',
         build: () {
-          when(
-            mockStopRecording(tNoParams),
-          ).thenAnswer((_) async => Left(tStopFailure));
+          // Arrange: Mock stop failure
+          final tFailure = RecordingFailure('Stop failed');
+          when(mockStopRecording(any)).thenAnswer((_) async => Left(tFailure));
           return cubit;
         },
+        seed:
+            () => const AudioRecorderRecording(
+              // Arrange: Initial state
+              filePath: 'some/path',
+              duration: Duration.zero,
+            ),
         act: (cubit) => cubit.stopRecording(),
         expect:
             () => [
+              // Assert: Expected states
               AudioRecorderLoading(),
               AudioRecorderError(
-                'Failed to stop recording: ${tStopFailure.toString()}',
+                'Failed to stop recording: RecordingFailure(Stop failed)', // Ensure full error message
               ),
             ],
         verify: (_) {
-          verify(mockStopRecording(tNoParams)).called(1);
+          // Verify
+          verify(mockStopRecording(NoParams()));
+          verifyNever(mockLoadRecordings(any));
         },
       );
 
-      // TODO: Add test for stopRecording failure
+      blocTest<AudioRecorderCubit, AudioRecorderState>(
+        'emits nothing if stop called when not in Recording/Paused state',
+        build: () {
+          // No mocks needed as use cases shouldn't be called
+          return cubit;
+        },
+        seed:
+            () =>
+                AudioRecorderInitial(), // Arrange: Initial state (not Recording/Paused)
+        act: (cubit) => cubit.stopRecording(),
+        expect: () => [], // Assert: Expect NO state changes
+        verify: (_) {
+          // Verify
+          verifyNever(mockStopRecording(any));
+          verifyNever(mockLoadRecordings(any));
+        },
+      );
     });
 
     group('pauseRecording', () {
@@ -483,6 +539,8 @@ void main() {
 
     group('checkPermission', () {
       final tNoParams = NoParams();
+      final List<AudioRecord> tEmptyRecordings = [];
+      final List<AudioRecordState> tEmptyStates = [];
 
       blocTest<AudioRecorderCubit, AudioRecorderState>(
         'emits [Loading, Ready] when checkPermission returns true',
@@ -496,26 +554,11 @@ void main() {
         expect: () => [AudioRecorderLoading(), AudioRecorderReady()],
         verify: (_) {
           verify(mockCheckPermission(tNoParams)).called(1);
+          verifyNever(mockLoadRecordings(any));
         },
       );
 
       // Add test for checkPermission returning false
-      blocTest<AudioRecorderCubit, AudioRecorderState>(
-        'emits [Loading, PermissionDenied] when checkPermission returns false',
-        build: () {
-          when(
-            mockCheckPermission(tNoParams),
-          ).thenAnswer((_) async => const Right(false));
-          return cubit;
-        },
-        act: (cubit) => cubit.checkPermission(),
-        expect: () => [AudioRecorderLoading(), AudioRecorderPermissionDenied()],
-        verify: (_) {
-          verify(mockCheckPermission(tNoParams)).called(1);
-        },
-      );
-
-      // Add test for checkPermission failure
       final tCheckFailure = PermissionFailure('Permission check failed');
 
       blocTest<AudioRecorderCubit, AudioRecorderState>(
@@ -536,6 +579,70 @@ void main() {
             ],
         verify: (_) {
           verify(mockCheckPermission(tNoParams)).called(1);
+          verifyNever(
+            mockLoadRecordings(any),
+          ); // Ensure load not called on failure
+        },
+      );
+    });
+
+    group('requestPermission', () {
+      final tNoParams = NoParams();
+      final tRequestFailure = PermissionFailure('Request failed');
+      final List<AudioRecord> tEmptyRecordings = [];
+      final List<AudioRecordState> tEmptyStates = [];
+
+      blocTest<AudioRecorderCubit, AudioRecorderState>(
+        'emits [Loading, Ready] when requestPermission succeeds',
+        build: () {
+          when(
+            mockRequestPermission(tNoParams),
+          ).thenAnswer((_) async => const Right(true));
+          return cubit;
+        },
+        act: (cubit) => cubit.requestPermission(),
+        expect: () => [AudioRecorderLoading(), AudioRecorderReady()],
+        verify: (_) {
+          verify(mockRequestPermission(tNoParams)).called(1);
+          verifyNever(mockLoadRecordings(any));
+        },
+      );
+
+      blocTest<AudioRecorderCubit, AudioRecorderState>(
+        'emits [Loading, PermissionDenied] when requestPermission returns false',
+        build: () {
+          when(
+            mockRequestPermission(tNoParams),
+          ).thenAnswer((_) async => const Right(false));
+          return cubit;
+        },
+        act: (cubit) => cubit.requestPermission(),
+        expect: () => [AudioRecorderLoading(), AudioRecorderPermissionDenied()],
+        verify: (_) {
+          verify(mockRequestPermission(tNoParams)).called(1);
+          verifyNever(mockLoadRecordings(any));
+        },
+      );
+
+      blocTest<AudioRecorderCubit, AudioRecorderState>(
+        'emits [Loading, Error] when requestPermission fails',
+        build: () {
+          when(
+            mockRequestPermission(tNoParams),
+          ).thenAnswer((_) async => Left(tRequestFailure));
+          return cubit;
+        },
+        act: (cubit) => cubit.requestPermission(),
+        expect:
+            () => [
+              AudioRecorderLoading(),
+              AudioRecorderError(
+                'Permission request failed: ${tRequestFailure.toString()}',
+              ),
+            ],
+        verify: (_) {
+          verify(mockRequestPermission(tNoParams)).called(1);
+          verifyNever(mockLoadRecordings(any));
         },
       );
     });

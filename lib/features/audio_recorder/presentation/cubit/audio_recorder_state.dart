@@ -74,12 +74,7 @@ class AudioRecorderPaused extends AudioRecorderState {
 
 // Stopped State (After successful recording)
 class AudioRecorderStopped extends AudioRecorderState {
-  final AudioRecordState record;
-
-  const AudioRecorderStopped({required this.record});
-
-  @override
-  List<Object?> get props => [record];
+  const AudioRecorderStopped();
 }
 
 // State representing the list of loaded recordings

@@ -21,7 +21,7 @@ abstract class AudioRecorderRepository {
   /// Stops the current recording.
   ///
   /// Returns the completed [AudioRecord] entity.
-  Future<Either<Failure, AudioRecord>> stopRecording();
+  Future<Either<Failure, String>> stopRecording();
 
   /// Pauses the current recording.
   Future<Either<Failure, void>> pauseRecording();

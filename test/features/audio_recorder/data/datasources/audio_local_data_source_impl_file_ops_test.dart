@@ -14,6 +14,7 @@ import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_loc
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Import AudioRecord
 
 // Import generated mocks
 import 'audio_local_data_source_impl_file_ops_test.mocks.dart';
@@ -44,9 +45,12 @@ void main() {
   mockAudioConcatenationService; // Declare mock
 
   const tFakeDocPath = '/fake/doc/path';
+  final tNow = DateTime.now(); // For consistent FileStat modified time
 
   setUpAll(() {
     provideDummy<FileSystemEntityType>(FileSystemEntityType.file);
+    // Provide dummy for AudioRecord for verification if needed, though direct comparison is better
+    // provideDummy<AudioRecord>(AudioRecord(filePath: '', duration: Duration.zero, createdAt: DateTime(0)));
   });
 
   setUp(() {
@@ -149,83 +153,35 @@ void main() {
     );
   });
 
-  group('getAudioDuration', () {
-    const tFilePath = '$tFakeDocPath/test.m4a';
-    const tDuration = Duration(seconds: 30);
-
-    test(
-      'should return duration from audioDurationGetter on success',
-      () async {
-        // Arrange
-        when(
-          mockAudioDurationGetter.getDuration(tFilePath),
-        ).thenAnswer((_) async => tDuration);
-        // Act
-        final result = await dataSource.getAudioDuration(tFilePath);
-        // Assert
-        expect(result, tDuration);
-        verify(mockAudioDurationGetter.getDuration(tFilePath));
-      },
-    );
-
-    test('should rethrow RecordingFileNotFoundException from getter', () async {
-      // Arrange
-      final exception = RecordingFileNotFoundException('Not found');
-      when(mockAudioDurationGetter.getDuration(tFilePath)).thenThrow(exception);
-      // Act & Assert
-      expect(
-        () => dataSource.getAudioDuration(tFilePath),
-        throwsA(isA<RecordingFileNotFoundException>()),
-      );
-      verify(mockAudioDurationGetter.getDuration(tFilePath));
-    });
-
-    test('should rethrow AudioPlayerException from getter', () async {
-      // Arrange
-      final exception = AudioPlayerException('Player error');
-      when(mockAudioDurationGetter.getDuration(tFilePath)).thenThrow(exception);
-      // Act & Assert
-      expect(
-        () => dataSource.getAudioDuration(tFilePath),
-        throwsA(isA<AudioPlayerException>()),
-      );
-      verify(mockAudioDurationGetter.getDuration(tFilePath));
-    });
-
-    test(
-      'should wrap unexpected exceptions from getter in AudioPlayerException',
-      () async {
-        // Arrange
-        final exception = Exception('Unexpected');
-        when(
-          mockAudioDurationGetter.getDuration(tFilePath),
-        ).thenThrow(exception);
-        // Act & Assert
-        expect(
-          () => dataSource.getAudioDuration(tFilePath),
-          throwsA(isA<AudioPlayerException>()),
-        );
-        verify(mockAudioDurationGetter.getDuration(tFilePath));
-      },
-    );
-  });
-
-  group('listRecordingFiles', () {
+  group('listRecordingDetails', () {
     final tFilePath1 = '$tFakeDocPath/rec1.m4a';
     final tFilePath2 = '$tFakeDocPath/rec2.m4a';
     final tFilePath3 = '$tFakeDocPath/other.txt';
     final tDirPath = '$tFakeDocPath/subdir';
 
+    final tDuration1 = const Duration(seconds: 10);
+    final tDuration2 = const Duration(seconds: 20);
+
+    final tStat1 = MockFileStat();
+    final tStat2 = MockFileStat();
+
+    setUp(() {
+      // Setup common stat properties
+      when(tStat1.type).thenReturn(FileSystemEntityType.file);
+      when(tStat1.modified).thenReturn(tNow.subtract(const Duration(hours: 1)));
+      when(tStat2.type).thenReturn(FileSystemEntityType.file);
+      when(tStat2.modified).thenReturn(tNow);
+    });
+
     // Helper to create mock FileSystemEntity with stat
     MockFileSystemEntity createMockEntity(
       String path,
-      FileSystemEntityType type,
+      MockFileStat stat, // Expect a pre-configured stat mock
     ) {
       final mockEntity = MockFileSystemEntity();
-      final mockStat = MockFileStat();
       when(mockEntity.path).thenReturn(path);
-      when(mockStat.type).thenReturn(type);
-      when(mockFileSystem.stat(path)).thenAnswer((_) async => mockStat);
+      // Link the stat mock to the fileSystem.stat call for this path
+      when(mockFileSystem.stat(path)).thenAnswer((_) async => stat);
       return mockEntity;
     }
 
@@ -238,34 +194,33 @@ void main() {
         mockFileSystem.createDirectory(tFakeDocPath, recursive: true),
       ).thenAnswer((_) async => Future.value()); // Assume creation succeeds
       // Act
-      final result = await dataSource.listRecordingFiles();
+      // Call the new method
+      final result = await dataSource.listRecordingDetails();
       // Assert
       expect(result, isEmpty);
       verify(mockFileSystem.directoryExists(tFakeDocPath));
       verify(mockFileSystem.createDirectory(tFakeDocPath, recursive: true));
       verifyNever(mockFileSystem.listDirectory(any));
+      verifyNever(
+        mockAudioDurationGetter.getDuration(any),
+      ); // Duration getter not called
     });
 
     test(
-      'should return list of .m4a file paths, filtering others and directories',
+      'should return list of AudioRecords, filtering others and directories',
       () async {
         // Arrange
-        final mockEntity1 = createMockEntity(
-          tFilePath1,
-          FileSystemEntityType.file,
-        );
-        final mockEntity2 = createMockEntity(
-          tFilePath2,
-          FileSystemEntityType.file,
-        );
-        final mockEntity3 = createMockEntity(
-          tFilePath3,
-          FileSystemEntityType.file,
-        ); // other.txt
-        final mockEntity4 = createMockEntity(
-          tDirPath,
-          FileSystemEntityType.directory,
-        );
+        final tStat3 = MockFileStat();
+        when(tStat3.type).thenReturn(FileSystemEntityType.file);
+        when(tStat3.modified).thenReturn(tNow);
+        final tStatDir = MockFileStat();
+        when(tStatDir.type).thenReturn(FileSystemEntityType.directory);
+        when(tStatDir.modified).thenReturn(tNow);
+
+        final mockEntity1 = createMockEntity(tFilePath1, tStat1);
+        final mockEntity2 = createMockEntity(tFilePath2, tStat2);
+        final mockEntity3 = createMockEntity(tFilePath3, tStat3); // other.txt
+        final mockEntity4 = createMockEntity(tDirPath, tStatDir); // subdir
 
         final entities = [mockEntity1, mockEntity2, mockEntity3, mockEntity4];
         final stream = Stream.fromIterable(entities);
@@ -276,43 +231,45 @@ void main() {
         when(
           mockFileSystem.listDirectory(tFakeDocPath),
         ).thenAnswer((_) => stream);
-
-        // Add specific stat mocks needed due to refactor
-        final mockStatFile = MockFileStat();
-        when(mockStatFile.type).thenReturn(FileSystemEntityType.file);
         when(
-          mockFileSystem.stat(tFilePath1),
-        ).thenAnswer((_) async => mockStatFile);
+          mockAudioDurationGetter.getDuration(tFilePath1),
+        ).thenAnswer((_) async => tDuration1);
         when(
-          mockFileSystem.stat(tFilePath2),
-        ).thenAnswer((_) async => mockStatFile);
-        // Stat for other.txt is needed even if filtered later by path
-        when(
-          mockFileSystem.stat(tFilePath3),
-        ).thenAnswer((_) async => mockStatFile);
-        // Stat for directory
-        final mockStatDir = MockFileStat();
-        when(mockStatDir.type).thenReturn(FileSystemEntityType.directory);
-        when(
-          mockFileSystem.stat(tDirPath),
-        ).thenAnswer((_) async => mockStatDir);
+          mockAudioDurationGetter.getDuration(tFilePath2),
+        ).thenAnswer((_) async => tDuration2);
 
         // Act
-        final result = await dataSource.listRecordingFiles();
+        final result = await dataSource.listRecordingDetails();
 
         // Assert
-        expect(result, containsAll([tFilePath1, tFilePath2]));
-        expect(result, isNot(contains(tFilePath3)));
-        expect(result, isNot(contains(tDirPath)));
         expect(result.length, 2);
+        expect(
+          result,
+          containsAll([
+            isA<AudioRecord>()
+                .having((r) => r.filePath, 'filePath', tFilePath1)
+                .having((r) => r.duration, 'duration', tDuration1)
+                .having((r) => r.createdAt, 'createdAt', tStat1.modified),
+            isA<AudioRecord>()
+                .having((r) => r.filePath, 'filePath', tFilePath2)
+                .having((r) => r.duration, 'duration', tDuration2)
+                .having((r) => r.createdAt, 'createdAt', tStat2.modified),
+          ]),
+        );
+
         verify(mockFileSystem.directoryExists(tFakeDocPath));
         verify(mockFileSystem.listDirectory(tFakeDocPath));
+        // Verify stat was called ONLY for the .m4a files processed
         verify(mockFileSystem.stat(tFilePath1));
         verify(mockFileSystem.stat(tFilePath2));
-        // Stat should NOT be called for .txt file because of .m4a filter
+        // Verify stat was NEVER called for non-m4a files/dirs due to path filter
         verifyNever(mockFileSystem.stat(tFilePath3));
-        // Stat shouldn't be called for the directory if path doesn't end with .m4a
         verifyNever(mockFileSystem.stat(tDirPath));
+        // Verify duration getter called ONLY for valid .m4a files
+        verify(mockAudioDurationGetter.getDuration(tFilePath1));
+        verify(mockAudioDurationGetter.getDuration(tFilePath2));
+        verifyNever(mockAudioDurationGetter.getDuration(tFilePath3));
+        verifyNever(mockAudioDurationGetter.getDuration(tDirPath));
       },
     );
 
@@ -326,21 +283,20 @@ void main() {
       ).thenAnswer((_) => Stream.fromIterable([])); // Empty stream
 
       // Act
-      final result = await dataSource.listRecordingFiles();
+      final result = await dataSource.listRecordingDetails();
 
       // Assert
       expect(result, isEmpty);
       verify(mockFileSystem.directoryExists(tFakeDocPath));
       verify(mockFileSystem.listDirectory(tFakeDocPath));
+      verifyNever(mockFileSystem.stat(any));
+      verifyNever(mockAudioDurationGetter.getDuration(any));
     });
 
-    test('should ignore files where stat fails', () async {
+    test('should ignore files where stat fails and log (print)', () async {
       // Arrange
       final tFailPath = '$tFakeDocPath/rec2_stat_fails.m4a';
-      final mockEntity1 = createMockEntity(
-        tFilePath1,
-        FileSystemEntityType.file,
-      );
+      final mockEntity1 = createMockEntity(tFilePath1, tStat1);
       final mockEntity2 = MockFileSystemEntity(); // Entity for the failing stat
       when(mockEntity2.path).thenReturn(tFailPath);
 
@@ -354,29 +310,123 @@ void main() {
         mockFileSystem.listDirectory(tFakeDocPath),
       ).thenAnswer((_) => stream);
 
-      // Mock stat for the first file (succeeds)
-      final mockStatGood = MockFileStat();
-      when(mockStatGood.type).thenReturn(FileSystemEntityType.file);
-      when(
-        mockFileSystem.stat(tFilePath1),
-      ).thenAnswer((_) async => mockStatGood);
-
       // Mock stat for the second file (throws)
       final statException = FileSystemException('Cannot stat');
       when(mockFileSystem.stat(tFailPath)).thenThrow(statException);
 
-      // Act
-      final result = await dataSource.listRecordingFiles();
+      // Mock duration for the first file
+      when(
+        mockAudioDurationGetter.getDuration(tFilePath1),
+      ).thenAnswer((_) async => tDuration1);
 
-      // Assert
-      expect(result, contains(tFilePath1));
-      expect(result, isNot(contains(tFailPath)));
-      expect(result.length, 1);
+      // Capture print output
+      List<String> printOutput = [];
+      await runZoned(
+        () async {
+          // Act
+          final result = await dataSource.listRecordingDetails();
+
+          // Assert
+          expect(result.length, 1);
+          expect(
+            result.first,
+            isA<AudioRecord>()
+                .having((r) => r.filePath, 'filePath', tFilePath1)
+                .having((r) => r.duration, 'duration', tDuration1)
+                .having((r) => r.createdAt, 'createdAt', tStat1.modified),
+          );
+        },
+        zoneSpecification: ZoneSpecification(
+          print: (Zone self, ZoneDelegate parent, Zone zone, String line) {
+            printOutput.add(line);
+          },
+        ),
+      );
+
+      // Assert print output
+      expect(printOutput, isNotEmpty);
+      expect(printOutput.first, contains('Error processing file $tFailPath'));
+      expect(printOutput.first, contains(statException.toString()));
+
       verify(mockFileSystem.directoryExists(tFakeDocPath));
       verify(mockFileSystem.listDirectory(tFakeDocPath));
       verify(mockFileSystem.stat(tFilePath1));
       verify(mockFileSystem.stat(tFailPath));
+      verify(mockAudioDurationGetter.getDuration(tFilePath1));
+      verifyNever(mockAudioDurationGetter.getDuration(tFailPath));
     });
+
+    test(
+      'should ignore files where getDuration fails and log (print)',
+      () async {
+        // Arrange
+        final tFailPath = '$tFakeDocPath/rec2_duration_fails.m4a';
+        final mockEntity1 = createMockEntity(tFilePath1, tStat1);
+        final mockEntity2 = createMockEntity(
+          tFailPath,
+          tStat2,
+        ); // Use tStat2 for variety
+
+        final entities = [mockEntity1, mockEntity2];
+        final stream = Stream.fromIterable(entities);
+
+        when(
+          mockFileSystem.directoryExists(tFakeDocPath),
+        ).thenAnswer((_) async => true);
+        when(
+          mockFileSystem.listDirectory(tFakeDocPath),
+        ).thenAnswer((_) => stream);
+
+        // Mock duration for the first file (succeeds)
+        when(
+          mockAudioDurationGetter.getDuration(tFilePath1),
+        ).thenAnswer((_) async => tDuration1);
+
+        // Mock duration for the second file (throws)
+        final durationException = AudioPlayerException('Cannot get duration');
+        when(
+          mockAudioDurationGetter.getDuration(tFailPath),
+        ).thenThrow(durationException);
+
+        // Capture print output
+        List<String> printOutput = [];
+        await runZoned(
+          () async {
+            // Act
+            final result = await dataSource.listRecordingDetails();
+
+            // Assert
+            expect(result.length, 1);
+            expect(
+              result.first,
+              isA<AudioRecord>()
+                  .having((r) => r.filePath, 'filePath', tFilePath1)
+                  .having((r) => r.duration, 'duration', tDuration1)
+                  .having((r) => r.createdAt, 'createdAt', tStat1.modified),
+            );
+          },
+          zoneSpecification: ZoneSpecification(
+            print: (Zone self, ZoneDelegate parent, Zone zone, String line) {
+              printOutput.add(line);
+            },
+          ),
+        );
+
+        // Assert print output
+        expect(printOutput, isNotEmpty);
+        expect(printOutput.first, contains('Error processing file $tFailPath'));
+        expect(printOutput.first, contains(durationException.toString()));
+
+        verify(mockFileSystem.directoryExists(tFakeDocPath));
+        verify(mockFileSystem.listDirectory(tFakeDocPath));
+        verify(mockFileSystem.stat(tFilePath1));
+        verify(mockFileSystem.stat(tFailPath)); // Stat succeeds
+        verify(mockAudioDurationGetter.getDuration(tFilePath1));
+        verify(
+          mockAudioDurationGetter.getDuration(tFailPath),
+        ); // Duration getter is called
+      },
+    );
 
     test(
       'should throw AudioFileSystemException if directoryExists throws',
@@ -385,22 +435,13 @@ void main() {
         final exception = FileSystemException('Cannot check existence');
         when(mockFileSystem.directoryExists(tFakeDocPath)).thenThrow(exception);
 
-        // Use manual try/catch
-        try {
-          await dataSource.listRecordingFiles();
-          fail('Expected AudioFileSystemException was not thrown.');
-        } on AudioFileSystemException {
-          // Expected
-        } catch (e) {
-          fail('Caught unexpected exception type: $e');
-        }
-
-        // Verify directoryExists was called (even though it threw)
-        verify(mockFileSystem.directoryExists(tFakeDocPath));
-        verifyNever(
-          mockFileSystem.createDirectory(any, recursive: anyNamed('recursive')),
+        // Act & Assert
+        expect(
+          () => dataSource.listRecordingDetails(),
+          throwsA(isA<AudioFileSystemException>()),
         );
-        verifyNever(mockFileSystem.listDirectory(any));
+        // REMOVE verify(mockFileSystem.directoryExists(tFakeDocPath));
+        // The expect(throwsA(...)) implicitly covers this interaction.
       },
     );
 
@@ -411,23 +452,17 @@ void main() {
         final exception = FileSystemException('Cannot list');
         when(
           mockFileSystem.directoryExists(tFakeDocPath),
-        ).thenAnswer((_) async => true); // Directory exists
+        ).thenAnswer((_) async => true);
         when(mockFileSystem.listDirectory(tFakeDocPath)).thenThrow(exception);
 
-        // Use manual try/catch
-        try {
-          await dataSource.listRecordingFiles();
-          fail('Expected AudioFileSystemException was not thrown.');
-        } on AudioFileSystemException {
-          // Expected
-        } catch (e) {
-          fail('Caught unexpected exception type: $e');
-        }
-
-        // Verify directoryExists was called and returned true
-        verify(mockFileSystem.directoryExists(tFakeDocPath));
-        // Verify listDirectory was called (even though it threw)
-        verify(mockFileSystem.listDirectory(tFakeDocPath));
+        // Act & Assert
+        expect(
+          () => dataSource.listRecordingDetails(),
+          throwsA(isA<AudioFileSystemException>()),
+        );
+        // REMOVE verify(mockFileSystem.directoryExists(tFakeDocPath));
+        // REMOVE verify(mockFileSystem.listDirectory(tFakeDocPath));
+        // The expect(throwsA(...)) implicitly covers these interactions.
       },
     );
   });

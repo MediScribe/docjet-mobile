@@ -1,4 +1,4 @@
-import 'dart:io'; // Import dart:io for File operations
+// import 'dart:io'; // Import dart:io for File operations - NO LONGER NEEDED
 
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
@@ -74,19 +74,10 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
   }
 
   @override
-  Future<Either<Failure, AudioRecord>> stopRecording() async {
-    return _tryCatch<AudioRecord>(() async {
-      final filePath = await localDataSource.stopRecording();
-      // If stopRecording succeeded, attempt to get duration and file stats
-      final duration = await localDataSource.getAudioDuration(filePath);
-      // Get file stats to find the modification time
-      final fileStat = await localDataSource.getFileStat(filePath);
-      return AudioRecord(
-        filePath: filePath,
-        duration: duration,
-        createdAt: fileStat.modified, // Use actual file modification time
-      );
-    });
+  Future<Either<Failure, String>> stopRecording() async {
+    // Just call the data source method and return the path.
+    // Details like duration/creation are now handled by loadRecordings.
+    return _tryCatch(() => localDataSource.stopRecording());
   }
 
   @override
@@ -109,37 +100,10 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
 
   @override
   Future<Either<Failure, List<AudioRecord>>> loadRecordings() async {
-    final filePathsEither = await _tryCatch(localDataSource.listRecordingFiles);
-
-    return filePathsEither.fold((failure) => Left(failure), (filePaths) async {
-      final List<AudioRecord> records = [];
-      for (final path in filePaths) {
-        try {
-          // Get duration and file stats individually
-          final duration = await localDataSource.getAudioDuration(path);
-          // Use the new DataSource method
-          final fileStat = await localDataSource.getFileStat(path);
-          records.add(
-            AudioRecord(
-              filePath: path,
-              duration: duration,
-              createdAt: fileStat.modified, // Use actual file modification time
-            ),
-          );
-        } on AudioPlayerException /* catch (e) */ {
-          // Log or handle skipped file due to player error
-        } on RecordingFileNotFoundException /* catch (e) */ {
-          // Log or handle skipped file due to not found error
-        } on FileSystemException /* catch (e) */ {
-          // Log or handle skipped file due to stat() error
-        } catch (_) {
-          // Use catch (_) since 'e' is unused
-          // Log or handle skipped file due to unexpected error
-        }
-      }
-      // Optionally sort records by date?
-      return Right(records);
-    });
+    // Simply call the new DataSource method which returns the full list
+    // The _tryCatch helper handles potential exceptions from the DataSource
+    // (like AudioFileSystemException if the directory fails)
+    return _tryCatch(() => localDataSource.listRecordingDetails());
   }
 
   @override

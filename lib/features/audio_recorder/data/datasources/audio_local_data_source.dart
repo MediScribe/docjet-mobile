@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 
 /// Abstract contract for low-level audio operations (permissions, file system, recording package).
 ///
@@ -30,13 +30,6 @@ abstract class AudioLocalDataSource {
   /// Deletes the audio file at the given path.
   Future<void> deleteRecording(String filePath);
 
-  /// Gets the duration of an audio file.
-  Future<Duration> getAudioDuration(String filePath);
-
-  /// Retrieves file system stats for the given path.
-  /// Throws [AudioFileSystemException] if the file doesn't exist or stats cannot be read.
-  Future<FileStat> getFileStat(String filePath);
-
   /// Concatenates multiple audio recording files into a single new file.
   ///
   /// Takes a list of [inputFilePaths] to concatenate in the specified order.
@@ -46,7 +39,14 @@ abstract class AudioLocalDataSource {
   /// Throws [ArgumentError] if [inputFilePaths] is empty or contains invalid paths.
   Future<String> concatenateRecordings(List<String> inputFilePaths);
 
-  /// Lists all relevant audio files from the storage directory.
-  /// Returns a list of file paths.
-  Future<List<String>> listRecordingFiles();
+  /// Retrieves details (path, duration, created date) for all relevant audio files.
+  /// Returns a list of [AudioRecord] objects.
+  /// Errors encountered while processing individual files should be handled
+  /// internally (e.g., logged), and the method should return details for files
+  /// that were processed successfully. If the directory cannot be accessed,
+  /// it might throw an [AudioFileSystemException].
+  Future<List<AudioRecord>> listRecordingDetails();
+
+  // @visibleForTesting
+  // void testingSetCurrentRecordingPath(String? path);
 }

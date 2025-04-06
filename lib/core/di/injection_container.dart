@@ -16,6 +16,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_rec
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart';
 // TODO: Add imports for Append UseCases?
 import '../../features/audio_recorder/presentation/cubit/audio_recorder_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
@@ -29,6 +30,7 @@ Future<void> init() async {
   sl.registerFactory(
     () => AudioRecorderCubit(
       checkPermissionUseCase: sl(),
+      requestPermissionUseCase: sl(),
       startRecordingUseCase: sl(),
       stopRecordingUseCase: sl(),
       pauseRecordingUseCase: sl(),
@@ -41,6 +43,7 @@ Future<void> init() async {
 
   // Use Cases (Depend on Repository)
   sl.registerLazySingleton(() => CheckPermission(sl()));
+  sl.registerLazySingleton(() => RequestPermission(sl()));
   sl.registerLazySingleton(() => StartRecording(sl()));
   sl.registerLazySingleton(() => StopRecording(sl()));
   sl.registerLazySingleton(() => PauseRecording(sl()));
