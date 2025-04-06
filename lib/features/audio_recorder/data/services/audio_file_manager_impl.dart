@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io'; // Keep dart:io for FileSystemEntity type
 
-// import 'package:flutter/foundation.dart'; // For debugPrint
-
 // ADD THIS IMPORT
 import 'package:docjet_mobile/core/utils/logger.dart';
 

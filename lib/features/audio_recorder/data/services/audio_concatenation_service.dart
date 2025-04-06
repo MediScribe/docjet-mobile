@@ -130,9 +130,9 @@ class FFmpegAudioConcatenator implements AudioConcatenationService {
         if (await listFile.exists()) {
           await listFile.delete();
         }
-      } catch (_) {
-        // Log cleanup failure? For now, ignore.
-        // debugPrint('Failed to delete temporary ffmpeg list file: $listFilePath');
+      } catch (e) {
+        _logger.e('Failed to delete temporary ffmpeg list file: $listFilePath', error: e);
+        // Consider re-throwing or handling the error based on application needs
       }
     }
   }

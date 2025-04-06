@@ -367,7 +367,6 @@ void main() {
         verifyNever(
           mockAudioDurationRetriever.getDuration(pathBadStat),
         ); // Duration not called
-        // TODO: Verify debugPrint was called (requires more complex setup or test framework feature)
       },
     );
 
@@ -416,7 +415,6 @@ void main() {
         verify(
           mockAudioDurationRetriever.getDuration(pathBadDuration),
         ); // Duration attempted
-        // TODO: Verify debugPrint was called
       },
     );
 

@@ -58,10 +58,8 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 8.  **~~MEDIUM: UI - Clunky Navigation & State Transitions:~~**
     *   **Status:** **FIXED.** Navigation logic simplified in both pages. `AudioRecorderPage` uses simple `Navigator.pop(true)`. `AudioRecorderListPage` uses standard `Navigator.push` and handles the result correctly. `PopScope` and other hacks removed.
 
-9.  **LOW: UI - Debug Prints:**
-    *   **Problem:** Excessive `debugPrint` statements remain throughout the feature.
-    *   **Impact:** Noisy console logs, unprofessional.
-    *   **Action:** Replace `debugPrint` with a proper logging solution (e.g., `logger` package). **(Low Priority)**
+9.  **~~LOW: UI - Debug Prints:~~**
+    *   **Status:** **RESOLVED.** Replaced all `debugPrint` calls with the `logger` package. Removed commented-out `debugPrint` calls and related imports/TODOs.
 
 ## Other Sloppy Shit We Noticed (Consolidated):
 
@@ -88,9 +86,9 @@ DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) i
 7.  **~~Evaluate & potentially remove the Use Case layer (#5).~~** **DONE (Removed/Bypassed).**
 8.  **~~Refactor UI State Management (#7 - PROPER FIX).~~** **DONE.**
 9.  **~~Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).~~** **DONE.** File listing/deletion logic extracted to `AudioFileManagerImpl`.
-10. **Address Low Priority UI Issues (#9).** Proper logging. (Low Priority)
+10. **~~Address Low Priority UI Issues (#9).~~** **DONE.** Proper logging implemented.
 11. **~~Implement Widget Tests (#11).~~** **DONE.**
     *   **Update:** Fixed the first widget test (`tapping delete action calls deleteRecording`) which was failing due to an async leak. The root cause was using `FakeAsync` with `showModalBottomSheet` – the artificial time fucked with the sheet's real async operations. **Ripped out `FakeAsync` and used `await tester.pumpAndSettle()` instead, which fixed the leak.** Lesson: Don't try to fake time with complex UI animations; let `pumpAndSettle` handle reality. **Continue implementing remaining widget tests.** **UPDATE 2:** All widget tests for List and Recorder pages implemented and passing.
 12. **Implement Concatenation/Append (#1).** **(DEFERRED - Blocked. Requires native implementation due to lack of supported packages. DO NOT use retired FFmpegKit.)**
 
-**Next steps are either tackling the N+1 Performance Bomb (#3) now located in `AudioFileManagerImpl` or cleaning up the low-priority logging (#10).** Execute.
+**Next steps are tackling the N+1 Performance Bomb (#3) now located in `AudioFileManagerImpl`.** Execute.
