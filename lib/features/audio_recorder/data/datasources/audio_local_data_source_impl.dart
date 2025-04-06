@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:io'; // Keep dart:io for FileSystemEntity type
 
+import 'package:flutter/foundation.dart' show debugPrint; // Import debugPrint
+// import 'package:path/path.dart' as p; // REMOVED Unused import
+
 // Remove direct package imports
 // import 'package:path_provider/path_provider.dart';
 // import 'package:permission_handler/permission_handler.dart';
@@ -257,9 +260,9 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
             // IMPORTANT: Log this error with a proper logger!
             // For now, print to console.
             // Decide if specific error types need different handling.
-            print(
-              'Error processing file ${entity.path}: ${e.toString()}', // TODO: Use logger
-            );
+            debugPrint(
+              'Error processing file ${entity.path}: ${e.toString()}',
+            ); // Replaced print
             // Continue to the next file
           }
         }

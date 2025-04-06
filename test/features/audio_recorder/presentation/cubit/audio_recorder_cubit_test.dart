@@ -289,25 +289,13 @@ void main() {
 
     group('stopRecording', () {
       const tFilePath = 'stopped/path.m4a';
-      final tRecordings = [
-        AudioRecord(
-          filePath: tFilePath,
-          duration: const Duration(seconds: 5),
-          createdAt: DateTime.now(),
-        ),
-      ]; // Sample list returned by loadRecordings
-
-      // ADD: Map domain entities to state entities for assertion
-      final tRecordingStates =
-          tRecordings
-              .map(
-                (r) => AudioRecordState(
-                  filePath: r.filePath,
-                  duration: r.duration,
-                  createdAt: r.createdAt,
-                ),
-              )
-              .toList();
+      // final tRecordings = [ // REMOVED Unused variable
+      //   AudioRecord(
+      //     filePath: tFilePath,
+      //     duration: const Duration(seconds: 5),
+      //     createdAt: DateTime.now(),
+      //   ),
+      // ]; // Sample list returned by loadRecordings
 
       // REFACTORING to use blocTest for better lifecycle management
       blocTest<AudioRecorderCubit, AudioRecorderState>(
@@ -539,8 +527,8 @@ void main() {
 
     group('checkPermission', () {
       final tNoParams = NoParams();
-      final List<AudioRecord> tEmptyRecordings = [];
-      final List<AudioRecordState> tEmptyStates = [];
+      // final List<AudioRecord> tEmptyRecordings = []; // REMOVED
+      // final List<AudioRecorderState> tEmptyStates = []; // REMOVED
 
       blocTest<AudioRecorderCubit, AudioRecorderState>(
         'emits [Loading, Ready] when checkPermission returns true',
@@ -589,8 +577,8 @@ void main() {
     group('requestPermission', () {
       final tNoParams = NoParams();
       final tRequestFailure = PermissionFailure('Request failed');
-      final List<AudioRecord> tEmptyRecordings = [];
-      final List<AudioRecordState> tEmptyStates = [];
+      // final List<AudioRecord> tEmptyRecordings = []; // REMOVED
+      // final List<AudioRecorderState> tEmptyStates = []; // REMOVED
 
       blocTest<AudioRecorderCubit, AudioRecorderState>(
         'emits [Loading, Ready] when requestPermission succeeds',

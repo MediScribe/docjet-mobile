@@ -1,51 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/di/injection_container.dart';
+// import '../../../../core/di/injection_container.dart'; // REMOVED Unused import
 import '../cubit/audio_recorder_cubit.dart';
 import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
 
-// Convert to StatefulWidget
-class AudioRecorderListPage extends StatefulWidget {
+// Convert to StatefulWidget (REMOVED local state management)
+class AudioRecorderListPage extends StatelessWidget {
+  // Changed to StatelessWidget
   const AudioRecorderListPage({super.key});
 
   @override
-  State<AudioRecorderListPage> createState() => _AudioRecorderListPageState();
-}
-
-class _AudioRecorderListPageState extends State<AudioRecorderListPage> {
-  late final AudioRecorderCubit _audioRecorderCubit;
-
-  @override
-  void initState() {
-    super.initState();
-    debugPrint("[_AudioRecorderListPageState] initState: Creating Cubit.");
-    _audioRecorderCubit = sl<AudioRecorderCubit>();
-    debugPrint(
-      "[_AudioRecorderListPageState] initState: Calling checkPermission.",
-    );
-    _audioRecorderCubit.checkPermission();
-  }
-
-  @override
-  void dispose() {
-    debugPrint("[_AudioRecorderListPageState] dispose: Closing Cubit.");
-    _audioRecorderCubit.close(); // Close the cubit when the state is disposed
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Use BlocProvider.value to provide the existing cubit instance
+    // No longer need BlocProvider.value here, it's provided above.
     debugPrint(
-      "[_AudioRecorderListPageState] build: Providing existing Cubit.",
+      "[AudioRecorderListPage] build: Using Cubit provided from above.",
     );
-    return BlocProvider.value(
-      value: _audioRecorderCubit,
-      child: const AudioRecorderListView(), // Child remains the same
-    );
+    // Initial action moved to BlocProvider create in main.dart
+    // context.read<AudioRecorderCubit>().checkPermission(); NO - done in main.dart
+    return const AudioRecorderListView(); // Child remains the same
   }
 }
 
@@ -72,45 +47,23 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
   }
 
   void _showRecordingOptions(BuildContext context, AudioRecordState recording) {
-    final cubit = context.read<AudioRecorderCubit>();
-
     showModalBottomSheet(
       context: context,
       builder: (bottomSheetContext) {
+        // Use the cubit from the context, not a local field
+        final cubit = context.read<AudioRecorderCubit>();
         return BlocProvider.value(
-          value: cubit,
+          value: cubit, // Pass the cubit found in the context
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ListTile(
-                //   leading: const Icon(Icons.add),
-                //   title: const Text('Append Recording'),
-                //   onTap: () async {
-                //     Navigator.pop(bottomSheetContext); // Close bottom sheet
-                //     final result = await Navigator.push(
-                //       context,
-                //       MaterialPageRoute(
-                //         builder:
-                //             (context) => BlocProvider.value(
-                //               value: cubit,
-                //               child: AudioRecorderPage(appendTo: recording),
-                //             ),
-                //       ),
-                //     );
-                //     if (result == true && context.mounted) {
-                //       cubit.loadRecordings();
-                //       if (context.mounted) {
-                //         setState(() {}); // Force rebuild
-                //       }
-                //     }
-                //   },
-                // ),
                 ListTile(
                   leading: const Icon(Icons.delete),
                   title: const Text('Delete Recording'),
                   onTap: () {
                     Navigator.pop(bottomSheetContext); // Close bottom sheet
+                    // Use context.read here
                     cubit.deleteRecording(recording.filePath);
                   },
                 ),
@@ -150,7 +103,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             debugPrint(
               "[AudioRecorderListView] Listener received Ready state. Triggering loadRecordings.",
             );
-            context.read<AudioRecorderCubit>().loadRecordings();
+            context
+                .read<AudioRecorderCubit>()
+                .loadRecordings(); // Use context.read
           }
         },
         builder: (context, state) {
@@ -168,12 +123,14 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed:
+                        // Use context.read here
                         () => context.read<AudioRecorderCubit>().openSettings(),
                     child: const Text('Open Settings'),
                   ),
                   ElevatedButton(
                     // Add button to retry permission check/request
                     onPressed:
+                        // Use context.read here
                         () =>
                             context
                                 .read<AudioRecorderCubit>()
@@ -193,6 +150,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                   ElevatedButton(
                     // Add retry button for errors
                     onPressed:
+                        // Use context.read here
                         () =>
                             context.read<AudioRecorderCubit>().loadRecordings(),
                     child: const Text('Retry Loading'),
@@ -272,27 +230,34 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'list_fab',
-        onPressed: () {
-          final cubit = context.read<AudioRecorderCubit>();
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            enableDrag: true,
-            isDismissible: true,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
-            builder: (sheetContext) {
-              return const AudioRecorderPage();
-            },
-          ).then((result) {
-            if (result == true && context.mounted) {
-              cubit.loadRecordings();
-            }
-          });
-        },
+        onPressed: () => _showAudioRecorderPage(context),
+        tooltip: 'New Recording',
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  // Updated function to use Navigator.push
+  void _showAudioRecorderPage(BuildContext context) {
+    // Get the cubit instance from context BEFORE the async gap
+    final cubit = context.read<AudioRecorderCubit>();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => BlocProvider.value(
+              // Provide the existing cubit instance to the new route
+              value: cubit,
+              child:
+                  const AudioRecorderPage(), // Pass appendTo: null explicitly if needed, but default is fine
+            ),
+      ),
+    ).then((result) {
+      // Refresh list if recording was successful (result == true)
+      if (result == true) {
+        cubit.loadRecordings(); // Use the cubit instance obtained earlier
+      }
+    });
   }
 }

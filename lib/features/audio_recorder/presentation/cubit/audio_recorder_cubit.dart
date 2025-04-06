@@ -48,19 +48,32 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
 
   /// Checks permission and moves to Ready or PermissionDenied state.
   Future<void> checkPermission() async {
-    debugPrint("[CUBIT] checkPermission() called.");
+    debugPrint(
+      '[CUBIT] checkPermission() called. Current state: ${state.runtimeType}',
+    );
     emit(AudioRecorderLoading());
     final result = await checkPermissionUseCase(NoParams());
     result.fold(
-      (failure) => emit(
-        AudioRecorderError('Permission check failed: ${failure.toString()}'),
-      ),
-      (hasPermission) async {
-        if (hasPermission) {
-          debugPrint("[CUBIT] Permission granted. Emitting Ready state.");
+      (failure) {
+        debugPrint(
+          '[CUBIT] checkPermission failed: ${failure.toString()}. Emitting Error state.',
+        );
+        emit(
+          AudioRecorderError('Permission check failed: ${failure.toString()}'),
+        );
+      },
+      (granted) {
+        if (granted) {
+          debugPrint('[CUBIT] Permission granted. Emitting Ready state.');
           emit(AudioRecorderReady());
         } else {
-          debugPrint("[CUBIT] Permission denied.");
+          // If not granted, we might need to request it or show denied state.
+          // For now, let's assume checkPermission only confirms existing status
+          // and `requestPermission` handles the denial flow.
+          // Re-evaluating this: If check says no, it likely means denied.
+          debugPrint(
+            '[CUBIT] Permission check returned false. Emitting PermissionDenied state.',
+          );
           emit(AudioRecorderPermissionDenied());
         }
       },
