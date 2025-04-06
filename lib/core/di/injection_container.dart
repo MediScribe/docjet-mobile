@@ -12,6 +12,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
 
 final sl = GetIt.instance;
 
@@ -24,18 +26,17 @@ Future<void> init() async {
 
   // Repository (Depends on Data Source)
   sl.registerLazySingleton<AudioRecorderRepository>(
-    () => AudioRecorderRepositoryImpl(localDataSource: sl()),
+    () => AudioRecorderRepositoryImpl(localDataSource: sl(), fileManager: sl()),
   );
 
   // Data Source (Depends on external libs and core platform interfaces)
   sl.registerLazySingleton<AudioLocalDataSource>(
     () => AudioLocalDataSourceImpl(
       recorder: sl(),
-      fileSystem: sl(),
       pathProvider: sl(),
       permissionHandler: sl(),
-      audioDurationGetter: sl(),
       audioConcatenationService: sl(),
+      fileSystem: sl(),
     ),
   );
 
@@ -61,5 +62,14 @@ Future<void> init() async {
 
   sl.registerLazySingleton<AudioConcatenationService>(
     () => DummyAudioConcatenator(),
+  );
+
+  // Register AudioFileManager
+  sl.registerLazySingleton<AudioFileManager>(
+    () => AudioFileManagerImpl(
+      fileSystem: sl(),
+      pathProvider: sl(),
+      audioDurationGetter: sl(),
+    ),
   );
 }

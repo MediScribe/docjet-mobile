@@ -3,14 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:dartz/dartz.dart';
+import 'package:record/record.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
+import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/platform/permission_handler.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager.dart';
 
-// Import the generated mock file (will be created by build_runner)
+// Import the generated mock file
 import 'audio_recorder_repository_impl_test.mocks.dart';
 
 // --- Helper Fake Class ---
@@ -37,16 +43,32 @@ class FakeFileStat implements FileStat {
 }
 // --- End Helper Fake Class ---
 
-// Annotation to generate mock for AudioLocalDataSource
-@GenerateMocks([AudioLocalDataSource])
+// Define mocks for ALL dependencies needed by the repository AND its dependencies
+// This ensures the .mocks.dart file is self-contained for this test suite.
+@GenerateNiceMocks([
+  MockSpec<AudioLocalDataSource>(),
+  MockSpec<AudioFileManager>(),
+  // Include mocks potentially needed by the above mocks or test setup
+  MockSpec<AudioRecorder>(),
+  MockSpec<FileSystem>(),
+  MockSpec<PathProvider>(),
+  MockSpec<PermissionHandler>(),
+  MockSpec<AudioConcatenationService>(),
+  MockSpec<Directory>(),
+  MockSpec<FileStat>(),
+  MockSpec<FileSystemEntity>(),
+])
 void main() {
   late AudioRecorderRepositoryImpl repository;
   late MockAudioLocalDataSource mockAudioLocalDataSource;
+  late MockAudioFileManager mockFileManager;
 
   setUp(() {
     mockAudioLocalDataSource = MockAudioLocalDataSource();
+    mockFileManager = MockAudioFileManager();
     repository = AudioRecorderRepositoryImpl(
       localDataSource: mockAudioLocalDataSource,
+      fileManager: mockFileManager,
     );
   });
 
@@ -485,59 +507,58 @@ void main() {
     const tFilePath = '/path/to/delete.m4a';
 
     test(
-      'should return Right(null) when local data source deletes successfully',
+      'should call fileManager.deleteRecording and return Right(null)',
       () async {
         // Arrange
         when(
-          mockAudioLocalDataSource.deleteRecording(any),
+          mockFileManager.deleteRecording(any),
         ).thenAnswer((_) async => Future.value());
         // Act
         final result = await repository.deleteRecording(tFilePath);
         // Assert
         expect(result, equals(const Right(null)));
-        verify(mockAudioLocalDataSource.deleteRecording(tFilePath));
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        verify(mockFileManager.deleteRecording(tFilePath));
+        verifyNoMoreInteractions(mockFileManager);
+        verifyZeroInteractions(mockAudioLocalDataSource);
       },
     );
 
     test(
-      'should return FileSystemFailure when local data source throws RecordingFileNotFoundException',
+      'should return FileSystemFailure when fileManager throws RecordingFileNotFoundException',
       () async {
         // Arrange
         const exception = RecordingFileNotFoundException('File not found');
-        when(
-          mockAudioLocalDataSource.deleteRecording(any),
-        ).thenThrow(exception);
+        when(mockFileManager.deleteRecording(any)).thenThrow(exception);
         // Act
         final result = await repository.deleteRecording(tFilePath);
         // Assert
         expect(result, equals(Left(FileSystemFailure(exception.message))));
-        verify(mockAudioLocalDataSource.deleteRecording(tFilePath));
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        verify(mockFileManager.deleteRecording(tFilePath));
+        verifyNoMoreInteractions(mockFileManager);
+        verifyZeroInteractions(mockAudioLocalDataSource);
       },
     );
 
     test(
-      'should return FileSystemFailure when local data source throws AudioFileSystemException',
+      'should return FileSystemFailure when fileManager throws AudioFileSystemException',
       () async {
         // Arrange
         const exception = AudioFileSystemException('Cannot delete file');
-        when(
-          mockAudioLocalDataSource.deleteRecording(any),
-        ).thenThrow(exception);
+        when(mockFileManager.deleteRecording(any)).thenThrow(exception);
         // Act
         final result = await repository.deleteRecording(tFilePath);
         // Assert
         expect(result, equals(Left(FileSystemFailure(exception.message))));
-        verify(mockAudioLocalDataSource.deleteRecording(tFilePath));
-        verifyNoMoreInteractions(mockAudioLocalDataSource);
+        verify(mockFileManager.deleteRecording(tFilePath));
+        verifyNoMoreInteractions(mockFileManager);
+        verifyZeroInteractions(mockAudioLocalDataSource);
       },
     );
 
     test('should return PlatformFailure for unexpected exceptions', () async {
       // Arrange
       final exception = Exception('Unexpected error');
-      when(mockAudioLocalDataSource.deleteRecording(any)).thenThrow(exception);
+      when(mockFileManager.deleteRecording(any)).thenThrow(exception);
       // Act
       final result = await repository.deleteRecording(tFilePath);
       // Assert
@@ -554,8 +575,9 @@ void main() {
         ),
         (_) => fail('Expected Left, got Right'),
       );
-      verify(mockAudioLocalDataSource.deleteRecording(tFilePath));
-      verifyNoMoreInteractions(mockAudioLocalDataSource);
+      verify(mockFileManager.deleteRecording(tFilePath));
+      verifyNoMoreInteractions(mockFileManager);
+      verifyZeroInteractions(mockAudioLocalDataSource);
     });
   });
 
@@ -574,18 +596,18 @@ void main() {
     final tAudioRecordList = [tAudioRecord1, tAudioRecord2];
 
     test(
-      'should return list of AudioRecords from local data source on success',
+      'should call fileManager.listRecordingDetails and return Right(List<AudioRecord>)',
       () async {
         // Arrange
         when(
-          mockAudioLocalDataSource.listRecordingDetails(),
+          mockFileManager.listRecordingDetails(),
         ).thenAnswer((_) async => tAudioRecordList);
 
         // Act
         final result = await repository.loadRecordings();
 
         // Assert
-        verify(mockAudioLocalDataSource.listRecordingDetails());
+        verify(mockFileManager.listRecordingDetails());
         expect(result, equals(Right(tAudioRecordList)));
       },
     );
@@ -595,37 +617,60 @@ void main() {
       () async {
         // Arrange
         when(
-          mockAudioLocalDataSource.listRecordingDetails(),
+          mockFileManager.listRecordingDetails(),
         ).thenAnswer((_) async => []); // Return empty list
 
         // Act
         final result = await repository.loadRecordings();
 
         // Assert
-        verify(mockAudioLocalDataSource.listRecordingDetails());
+        verify(mockFileManager.listRecordingDetails());
         expect(result.isRight(), isTrue);
         expect(result.getOrElse(() => throw 'Should be Right!'), isEmpty);
       },
     );
 
-    test('should return FileSystemFailure when data source throws', () async {
-      // Arrange
-      const tException = AudioFileSystemException('Cannot list');
-      when(
-        mockAudioLocalDataSource.listRecordingDetails(),
-      ).thenThrow(tException);
+    test(
+      'should return Left(FileSystemFailure) on AudioFileSystemException',
+      () async {
+        // Arrange
+        final exception = AudioFileSystemException(
+          'Cannot list dir',
+          Exception(),
+        );
+        when(mockFileManager.listRecordingDetails()).thenThrow(exception);
+        // Act
+        final result = await repository.loadRecordings();
+        // Assert
+        expect(result, equals(Left(FileSystemFailure(exception.message))));
+        verify(mockFileManager.listRecordingDetails());
+        verifyNoMoreInteractions(mockFileManager);
+        verifyZeroInteractions(mockAudioLocalDataSource);
+      },
+    );
 
-      // Act
-      final result = await repository.loadRecordings();
-
-      // Assert
-      verify(mockAudioLocalDataSource.listRecordingDetails());
-      expect(result.isLeft(), isTrue);
-      result.fold((failure) {
-        // JUST check the type, ignore the message comparison
-        expect(failure, isA<FileSystemFailure>());
-      }, (_) => fail('Expected Left, got Right'));
-    });
+    test(
+      'should return Left(PlatformFailure) on unexpected Exception',
+      () async {
+        // Arrange
+        final exception = Exception('Unexpected error');
+        when(mockFileManager.listRecordingDetails()).thenThrow(exception);
+        // Act
+        final result = await repository.loadRecordings();
+        // Assert
+        expect(
+          result.fold((l) => l, (r) => r),
+          isA<PlatformFailure>().having(
+            (f) => f.message,
+            'message',
+            contains('An unexpected error occurred'),
+          ),
+        );
+        verify(mockFileManager.listRecordingDetails());
+        verifyNoMoreInteractions(mockFileManager);
+        verifyZeroInteractions(mockAudioLocalDataSource);
+      },
+    );
   });
 
   group('appendToRecording', () {

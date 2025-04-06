@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io'; // Keep dart:io for FileSystemEntity type
+// import 'dart:io'; // Keep dart:io for FileSystemEntity type
 
-import 'package:flutter/foundation.dart'; // For debugPrint
+// import 'package:flutter/foundation.dart'; // For debugPrint
 // import 'package:path/path.dart' as p; // REMOVED Unused import
 
 // Remove direct package imports
@@ -11,37 +11,38 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 // Import interfaces
-import 'package:docjet_mobile/core/platform/file_system.dart';
-import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/platform/path_provider.dart'; // Kept for startRecording
 import 'package:docjet_mobile/core/platform/permission_handler.dart'; // Correct import
-import '../services/audio_duration_getter.dart';
 import '../services/audio_concatenation_service.dart'; // Import the new service
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Import AudioRecord
+// import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Import AudioRecord
 
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
+
+// Import FileSystem for createDirectory check in startRecording
+import 'package:docjet_mobile/core/platform/file_system.dart';
 
 // Remove ffmpeg imports, they are now in the service
 // import 'package:ffmpeg_kit_flutter_audio/ffmpeg_kit.dart';
 // import 'package:ffmpeg_kit_flutter_audio/return_code.dart';
 
 /// Default implementation of [AudioLocalDataSource].
-/// Interacts with the [AudioRecorder] and [FileSystem] to manage recordings.
+/// Interacts with the [AudioRecorder] and manages permissions and recording lifecycle.
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
-  final FileSystem fileSystem;
   final PathProvider pathProvider;
   final PermissionHandler permissionHandler; // Use the type directly
-  final AudioDurationGetter audioDurationGetter;
   final AudioConcatenationService audioConcatenationService;
+
+  // Added FileSystem dependency back for startRecording directory check
+  final FileSystem fileSystem;
 
   AudioLocalDataSourceImpl({
     required this.recorder,
-    required this.fileSystem,
     required this.pathProvider,
     required this.permissionHandler,
-    required this.audioDurationGetter,
     required this.audioConcatenationService,
+    required this.fileSystem, // Added back
   });
 
   @override
@@ -102,7 +103,10 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       final path = '${appDir.path}/rec_$timestamp.m4a';
 
       // Use injected fileSystem to ensure directory exists
-      await fileSystem.createDirectory(appDir.path, recursive: true);
+      // Ensure directory exists before starting recording
+      if (!await fileSystem.directoryExists(appDir.path)) {
+        await fileSystem.createDirectory(appDir.path, recursive: true);
+      }
 
       await recorder.start(
         const RecordConfig(
@@ -169,99 +173,6 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
         'Failed to resume recording for path: $recordingPath',
         e,
       );
-    }
-  }
-
-  @override
-  Future<void> deleteRecording(String filePath) async {
-    try {
-      // Use injected fileSystem
-      if (await fileSystem.fileExists(filePath)) {
-        await fileSystem.deleteFile(filePath);
-      } else {
-        throw RecordingFileNotFoundException(
-          'File $filePath not found for deletion.',
-        );
-      }
-    } catch (e) {
-      if (e is RecordingFileNotFoundException) {
-        rethrow;
-      }
-      throw AudioFileSystemException('Failed to delete recording $filePath', e);
-    }
-  }
-
-  @override
-  Future<List<AudioRecord>> listRecordingDetails() async {
-    try {
-      final appDir = await pathProvider.getApplicationDocumentsDirectory();
-      final dirPath = appDir.path;
-
-      if (!await fileSystem.directoryExists(dirPath)) {
-        await fileSystem.createDirectory(dirPath, recursive: true);
-        return []; // No directory, no files.
-      }
-
-      final List<Future<AudioRecord?>> recordFutures = [];
-      final stream = fileSystem.listDirectory(dirPath);
-
-      await for (final entity in stream) {
-        if (entity.path.endsWith('.m4a')) {
-          // Directly add the future returned by the error-handling helper
-          recordFutures.add(_getRecordDetails(entity.path));
-        }
-      }
-
-      if (recordFutures.isEmpty) {
-        return []; // No potential files found.
-      }
-
-      // Wait for all stat/duration fetches to complete concurrently
-      final results = await Future.wait(recordFutures);
-
-      // Filter out nulls (failed fetches or non-files) and sort
-      final List<AudioRecord> records =
-          results.whereType<AudioRecord>().toList();
-      records.sort(
-        (a, b) => b.createdAt.compareTo(a.createdAt),
-      ); // Sort descending
-
-      return records;
-    } catch (e) {
-      // Catch broader errors (directory listing, initial check/create)
-      debugPrint(
-        'Failed to list recording details due to a broader error: $e',
-      ); // Log outer error
-      throw AudioFileSystemException('Failed to list recording details', e);
-    }
-  }
-
-  /// Helper to get stat and duration for a single path.
-  /// Returns null if not a file or if an error occurs during stat/duration retrieval.
-  Future<AudioRecord?> _getRecordDetails(String path) async {
-    try {
-      final stat = await fileSystem.stat(path);
-
-      // Skip if not a file BEFORE getting duration
-      if (stat.type != FileSystemEntityType.file) {
-        // Return null for non-files (e.g., a directory named .m4a). This is not an error.
-        return null;
-      }
-
-      // If it's a file, get duration. This might throw.
-      final duration = await audioDurationGetter.getDuration(path);
-
-      // If stat and duration succeed, return the record.
-      return AudioRecord(
-        filePath: path,
-        duration: duration,
-        createdAt: stat.modified,
-      );
-    } catch (e, s) {
-      // Log the specific error and path if stat or getDuration fails
-      debugPrint('Failed to get details for $path: $e\\nStackTrace: $s');
-      // Return null on failure so Future.wait doesn't break
-      return null;
     }
   }
 

@@ -11,11 +11,9 @@ import 'package:docjet_mobile/core/platform/file_system.dart' as _i7;
 import 'package:docjet_mobile/core/platform/path_provider.dart' as _i8;
 import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i9;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
-    as _i12;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart'
     as _i11;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i13;
+import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:permission_handler/permission_handler.dart' as _i10;
 import 'package:record/src/record.dart' as _i4;
 import 'package:record_platform_interface/record_platform_interface.dart'
@@ -50,24 +48,19 @@ class _FakeDirectory_2 extends _i1.SmartFake implements _i3.Directory {
     : super(parent, parentInvocation);
 }
 
-class _FakeDuration_3 extends _i1.SmartFake implements Duration {
-  _FakeDuration_3(Object parent, Invocation parentInvocation)
+class _FakeUri_3 extends _i1.SmartFake implements Uri {
+  _FakeUri_3(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeUri_4 extends _i1.SmartFake implements Uri {
-  _FakeUri_4(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-class _FakeFileSystemEntity_5 extends _i1.SmartFake
+class _FakeFileSystemEntity_4 extends _i1.SmartFake
     implements _i3.FileSystemEntity {
-  _FakeFileSystemEntity_5(Object parent, Invocation parentInvocation)
+  _FakeFileSystemEntity_4(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeDateTime_6 extends _i1.SmartFake implements DateTime {
-  _FakeDateTime_6(Object parent, Invocation parentInvocation)
+class _FakeDateTime_5 extends _i1.SmartFake implements DateTime {
+  _FakeDateTime_5(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -380,48 +373,23 @@ class MockPermissionHandler extends _i1.Mock implements _i9.PermissionHandler {
           as _i5.Future<bool>);
 }
 
-/// A class which mocks [AudioDurationGetter].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationGetter extends _i1.Mock
-    implements _i11.AudioDurationGetter {
-  @override
-  _i5.Future<Duration> getDuration(String? filePath) =>
-      (super.noSuchMethod(
-            Invocation.method(#getDuration, [filePath]),
-            returnValue: _i5.Future<Duration>.value(
-              _FakeDuration_3(
-                this,
-                Invocation.method(#getDuration, [filePath]),
-              ),
-            ),
-            returnValueForMissingStub: _i5.Future<Duration>.value(
-              _FakeDuration_3(
-                this,
-                Invocation.method(#getDuration, [filePath]),
-              ),
-            ),
-          )
-          as _i5.Future<Duration>);
-}
-
 /// A class which mocks [AudioConcatenationService].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioConcatenationService extends _i1.Mock
-    implements _i12.AudioConcatenationService {
+    implements _i11.AudioConcatenationService {
   @override
   _i5.Future<String> concatenate(List<String>? inputFilePaths) =>
       (super.noSuchMethod(
             Invocation.method(#concatenate, [inputFilePaths]),
             returnValue: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#concatenate, [inputFilePaths]),
               ),
             ),
             returnValueForMissingStub: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#concatenate, [inputFilePaths]),
               ),
@@ -438,11 +406,11 @@ class MockDirectory extends _i1.Mock implements _i3.Directory {
   String get path =>
       (super.noSuchMethod(
             Invocation.getter(#path),
-            returnValue: _i13.dummyValue<String>(
+            returnValue: _i12.dummyValue<String>(
               this,
               Invocation.getter(#path),
             ),
-            returnValueForMissingStub: _i13.dummyValue<String>(
+            returnValueForMissingStub: _i12.dummyValue<String>(
               this,
               Invocation.getter(#path),
             ),
@@ -453,8 +421,8 @@ class MockDirectory extends _i1.Mock implements _i3.Directory {
   Uri get uri =>
       (super.noSuchMethod(
             Invocation.getter(#uri),
-            returnValue: _FakeUri_4(this, Invocation.getter(#uri)),
-            returnValueForMissingStub: _FakeUri_4(
+            returnValue: _FakeUri_3(this, Invocation.getter(#uri)),
+            returnValueForMissingStub: _FakeUri_3(
               this,
               Invocation.getter(#uri),
             ),
@@ -552,13 +520,13 @@ class MockDirectory extends _i1.Mock implements _i3.Directory {
       (super.noSuchMethod(
             Invocation.method(#resolveSymbolicLinks, []),
             returnValue: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#resolveSymbolicLinks, []),
               ),
             ),
             returnValueForMissingStub: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#resolveSymbolicLinks, []),
               ),
@@ -570,11 +538,11 @@ class MockDirectory extends _i1.Mock implements _i3.Directory {
   String resolveSymbolicLinksSync() =>
       (super.noSuchMethod(
             Invocation.method(#resolveSymbolicLinksSync, []),
-            returnValue: _i13.dummyValue<String>(
+            returnValue: _i12.dummyValue<String>(
               this,
               Invocation.method(#resolveSymbolicLinksSync, []),
             ),
-            returnValueForMissingStub: _i13.dummyValue<String>(
+            returnValueForMissingStub: _i12.dummyValue<String>(
               this,
               Invocation.method(#resolveSymbolicLinksSync, []),
             ),
@@ -614,13 +582,13 @@ class MockDirectory extends _i1.Mock implements _i3.Directory {
       (super.noSuchMethod(
             Invocation.method(#delete, [], {#recursive: recursive}),
             returnValue: _i5.Future<_i3.FileSystemEntity>.value(
-              _FakeFileSystemEntity_5(
+              _FakeFileSystemEntity_4(
                 this,
                 Invocation.method(#delete, [], {#recursive: recursive}),
               ),
             ),
             returnValueForMissingStub: _i5.Future<_i3.FileSystemEntity>.value(
-              _FakeFileSystemEntity_5(
+              _FakeFileSystemEntity_4(
                 this,
                 Invocation.method(#delete, [], {#recursive: recursive}),
               ),
@@ -734,8 +702,8 @@ class MockFileStat extends _i1.Mock implements _i3.FileStat {
   DateTime get changed =>
       (super.noSuchMethod(
             Invocation.getter(#changed),
-            returnValue: _FakeDateTime_6(this, Invocation.getter(#changed)),
-            returnValueForMissingStub: _FakeDateTime_6(
+            returnValue: _FakeDateTime_5(this, Invocation.getter(#changed)),
+            returnValueForMissingStub: _FakeDateTime_5(
               this,
               Invocation.getter(#changed),
             ),
@@ -746,8 +714,8 @@ class MockFileStat extends _i1.Mock implements _i3.FileStat {
   DateTime get modified =>
       (super.noSuchMethod(
             Invocation.getter(#modified),
-            returnValue: _FakeDateTime_6(this, Invocation.getter(#modified)),
-            returnValueForMissingStub: _FakeDateTime_6(
+            returnValue: _FakeDateTime_5(this, Invocation.getter(#modified)),
+            returnValueForMissingStub: _FakeDateTime_5(
               this,
               Invocation.getter(#modified),
             ),
@@ -758,8 +726,8 @@ class MockFileStat extends _i1.Mock implements _i3.FileStat {
   DateTime get accessed =>
       (super.noSuchMethod(
             Invocation.getter(#accessed),
-            returnValue: _FakeDateTime_6(this, Invocation.getter(#accessed)),
-            returnValueForMissingStub: _FakeDateTime_6(
+            returnValue: _FakeDateTime_5(this, Invocation.getter(#accessed)),
+            returnValueForMissingStub: _FakeDateTime_5(
               this,
               Invocation.getter(#accessed),
             ),
@@ -770,11 +738,11 @@ class MockFileStat extends _i1.Mock implements _i3.FileStat {
   _i3.FileSystemEntityType get type =>
       (super.noSuchMethod(
             Invocation.getter(#type),
-            returnValue: _i13.dummyValue<_i3.FileSystemEntityType>(
+            returnValue: _i12.dummyValue<_i3.FileSystemEntityType>(
               this,
               Invocation.getter(#type),
             ),
-            returnValueForMissingStub: _i13
+            returnValueForMissingStub: _i12
                 .dummyValue<_i3.FileSystemEntityType>(
                   this,
                   Invocation.getter(#type),
@@ -804,11 +772,11 @@ class MockFileStat extends _i1.Mock implements _i3.FileStat {
   String modeString() =>
       (super.noSuchMethod(
             Invocation.method(#modeString, []),
-            returnValue: _i13.dummyValue<String>(
+            returnValue: _i12.dummyValue<String>(
               this,
               Invocation.method(#modeString, []),
             ),
-            returnValueForMissingStub: _i13.dummyValue<String>(
+            returnValueForMissingStub: _i12.dummyValue<String>(
               this,
               Invocation.method(#modeString, []),
             ),
@@ -824,11 +792,11 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
   String get path =>
       (super.noSuchMethod(
             Invocation.getter(#path),
-            returnValue: _i13.dummyValue<String>(
+            returnValue: _i12.dummyValue<String>(
               this,
               Invocation.getter(#path),
             ),
-            returnValueForMissingStub: _i13.dummyValue<String>(
+            returnValueForMissingStub: _i12.dummyValue<String>(
               this,
               Invocation.getter(#path),
             ),
@@ -839,8 +807,8 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
   Uri get uri =>
       (super.noSuchMethod(
             Invocation.getter(#uri),
-            returnValue: _FakeUri_4(this, Invocation.getter(#uri)),
-            returnValueForMissingStub: _FakeUri_4(
+            returnValue: _FakeUri_3(this, Invocation.getter(#uri)),
+            returnValueForMissingStub: _FakeUri_3(
               this,
               Invocation.getter(#uri),
             ),
@@ -860,11 +828,11 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
   _i3.FileSystemEntity get absolute =>
       (super.noSuchMethod(
             Invocation.getter(#absolute),
-            returnValue: _FakeFileSystemEntity_5(
+            returnValue: _FakeFileSystemEntity_4(
               this,
               Invocation.getter(#absolute),
             ),
-            returnValueForMissingStub: _FakeFileSystemEntity_5(
+            returnValueForMissingStub: _FakeFileSystemEntity_4(
               this,
               Invocation.getter(#absolute),
             ),
@@ -906,13 +874,13 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
       (super.noSuchMethod(
             Invocation.method(#rename, [newPath]),
             returnValue: _i5.Future<_i3.FileSystemEntity>.value(
-              _FakeFileSystemEntity_5(
+              _FakeFileSystemEntity_4(
                 this,
                 Invocation.method(#rename, [newPath]),
               ),
             ),
             returnValueForMissingStub: _i5.Future<_i3.FileSystemEntity>.value(
-              _FakeFileSystemEntity_5(
+              _FakeFileSystemEntity_4(
                 this,
                 Invocation.method(#rename, [newPath]),
               ),
@@ -924,11 +892,11 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
   _i3.FileSystemEntity renameSync(String? newPath) =>
       (super.noSuchMethod(
             Invocation.method(#renameSync, [newPath]),
-            returnValue: _FakeFileSystemEntity_5(
+            returnValue: _FakeFileSystemEntity_4(
               this,
               Invocation.method(#renameSync, [newPath]),
             ),
-            returnValueForMissingStub: _FakeFileSystemEntity_5(
+            returnValueForMissingStub: _FakeFileSystemEntity_4(
               this,
               Invocation.method(#renameSync, [newPath]),
             ),
@@ -940,13 +908,13 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
       (super.noSuchMethod(
             Invocation.method(#resolveSymbolicLinks, []),
             returnValue: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#resolveSymbolicLinks, []),
               ),
             ),
             returnValueForMissingStub: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#resolveSymbolicLinks, []),
               ),
@@ -958,11 +926,11 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
   String resolveSymbolicLinksSync() =>
       (super.noSuchMethod(
             Invocation.method(#resolveSymbolicLinksSync, []),
-            returnValue: _i13.dummyValue<String>(
+            returnValue: _i12.dummyValue<String>(
               this,
               Invocation.method(#resolveSymbolicLinksSync, []),
             ),
-            returnValueForMissingStub: _i13.dummyValue<String>(
+            returnValueForMissingStub: _i12.dummyValue<String>(
               this,
               Invocation.method(#resolveSymbolicLinksSync, []),
             ),
@@ -1002,13 +970,13 @@ class MockFileSystemEntity extends _i1.Mock implements _i3.FileSystemEntity {
       (super.noSuchMethod(
             Invocation.method(#delete, [], {#recursive: recursive}),
             returnValue: _i5.Future<_i3.FileSystemEntity>.value(
-              _FakeFileSystemEntity_5(
+              _FakeFileSystemEntity_4(
                 this,
                 Invocation.method(#delete, [], {#recursive: recursive}),
               ),
             ),
             returnValueForMissingStub: _i5.Future<_i3.FileSystemEntity>.value(
-              _FakeFileSystemEntity_5(
+              _FakeFileSystemEntity_4(
                 this,
                 Invocation.method(#delete, [], {#recursive: recursive}),
               ),

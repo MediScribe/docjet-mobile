@@ -10,6 +10,7 @@ import 'package:docjet_mobile/core/error/failures.dart';
 // Data Layer
 import '../datasources/audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
+import '../services/audio_file_manager.dart';
 
 // Domain Layer
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
@@ -17,12 +18,16 @@ import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_
 
 class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
   final AudioLocalDataSource localDataSource;
+  final AudioFileManager fileManager;
 
   // --- State Management --- //
   String?
   _currentRecordingPath; // Manages the path of the active recording session
 
-  AudioRecorderRepositoryImpl({required this.localDataSource});
+  AudioRecorderRepositoryImpl({
+    required this.localDataSource,
+    required this.fileManager,
+  });
 
   /// Helper function to execute data source calls and handle exceptions
   Future<Either<Failure, T>> _tryCatch<T>(Future<T> Function() action) async {
@@ -152,14 +157,13 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
 
   @override
   Future<Either<Failure, void>> deleteRecording(String filePath) {
-    return _tryCatch<void>(() => localDataSource.deleteRecording(filePath));
+    return _tryCatch<void>(() => fileManager.deleteRecording(filePath));
   }
 
   @override
   Future<Either<Failure, List<AudioRecord>>> loadRecordings() {
-    // This now directly calls the data source method which handles listing
     return _tryCatch<List<AudioRecord>>(
-      () => localDataSource.listRecordingDetails(),
+      () => fileManager.listRecordingDetails(),
     );
   }
 

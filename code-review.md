@@ -41,10 +41,10 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 3.  **~~MEDIUM: DataSource Testing Hack (`testingSetCurrentRecordingPath`):~~**
     *   **Status:** **OBSOLETE / FIXED.** Previous refactoring removed the internal state (`_currentRecordingPath`) and the need for this hack.
 
-4.  **MEDIUM: DataSource Bloat (SRP Violation):**
+4.  **~~MEDIUM: DataSource Bloat (SRP Violation):~~**
     *   **Problem:** `AudioLocalDataSourceImpl` is *still* juggling multiple responsibilities: permissions, recording lifecycle, file ops, duration fetching, *and the inefficient `listRecordingDetails` logic*. Concatenation was extracted, but the N+1 issue remains here.
     *   **Impact:** Hard to read, hard to test thoroughly, hard to maintain. Fixing the N+1 might make `listRecordingDetails` even more complex, increasing the need for further extraction.
-    *   **Action:** **PARTIALLY ADDRESSED.** Concatenation logic successfully extracted. **Fix** the `listRecordingDetails` efficiency (#2C). **Then, re-evaluate** extracting file listing/details logic if it remains complex.
+    *   **Action:** **RESOLVED.** Concatenation logic was previously extracted. File listing/deletion logic (`listRecordingDetails`, `deleteRecording`) and related dependencies (`FileSystem`, `PathProvider` for listing, `AudioDurationGetter`) now extracted into `AudioFileManagerImpl`. `AudioLocalDataSourceImpl` now focuses on recording lifecycle (`record` package interaction) and permissions.
 
 5.  **~~LOW: Questionable Use Case Layer:~~**
     *   **Status:** **RESOLVED.** Use Cases were confirmed unnecessary and removed/bypassed. Cubits now correctly call the Repository directly, simplifying the architecture.
@@ -75,6 +75,8 @@ DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) i
 
 **The major remaining risk is the N+1 performance issue (#2C) lurking in the DataSource.** DataSource bloat (#4) is also still a thing, potentially exacerbated by fixing the N+1 issue.
 
+**UPDATE:** The DataSource bloat (#4) has been **RESOLVED** by extracting file management logic into `AudioFileManagerImpl`.
+
 **Mandatory Path Forward (NO DEVIATION - Updated & Re-prioritized):**
 
 1.  **~~Fix UI Cubit Lifecycle (Initial Problem) (#7).~~** **DONE.**
@@ -85,10 +87,10 @@ DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) i
 6.  **~~Patch UI State Interference (Shared Cubit Workaround) (#7).~~** **OBSOLETE (Proper fix implemented).**
 7.  **~~Evaluate & potentially remove the Use Case layer (#5).~~** **DONE (Removed/Bypassed).**
 8.  **~~Refactor UI State Management (#7 - PROPER FIX).~~** **DONE.**
-9.  **Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).** Consider further extractions *after* fixing #2C. (Medium Priority)
+9.  **~~Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).~~** **DONE.** File listing/deletion logic extracted to `AudioFileManagerImpl`.
 10. **Address Low Priority UI Issues (#9).** Proper logging. (Low Priority)
 11. **~~Implement Widget Tests (#11).~~** **DONE.**
     *   **Update:** Fixed the first widget test (`tapping delete action calls deleteRecording`) which was failing due to an async leak. The root cause was using `FakeAsync` with `showModalBottomSheet` – the artificial time fucked with the sheet's real async operations. **Ripped out `FakeAsync` and used `await tester.pumpAndSettle()` instead, which fixed the leak.** Lesson: Don't try to fake time with complex UI animations; let `pumpAndSettle` handle reality. **Continue implementing remaining widget tests.** **UPDATE 2:** All widget tests for List and Recorder pages implemented and passing.
 12. **Implement Concatenation/Append (#1).** **(DEFERRED - Blocked. Requires native implementation due to lack of supported packages. DO NOT use retired FFmpegKit.)**
 
-**Next step is Re-evaluate `AudioLocalDataSourceImpl` Bloat (#9).** After that, we circle back to the DataSource N+1 issue (#3) if/when resources allow for a fundamental fix. Execute.
+**Next steps are either tackling the N+1 Performance Bomb (#3) now located in `AudioFileManagerImpl` or cleaning up the low-priority logging (#10).** Execute.

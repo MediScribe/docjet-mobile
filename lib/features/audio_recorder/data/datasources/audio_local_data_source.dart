@@ -1,5 +1,3 @@
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
-
 /// Abstract contract for low-level audio operations (permissions, file system, recording package).
 ///
 /// Methods in the implementation should throw specific exceptions on failure,
@@ -41,13 +39,6 @@ abstract class AudioLocalDataSource {
   /// Throws [AudioRecordingException] if resuming fails.
   Future<void> resumeRecording({required String recordingPath});
 
-  /// Deletes a recording file.
-  ///
-  /// [filePath]: The path of the recording file to delete.
-  /// Throws [RecordingFileNotFoundException] if the file is missing.
-  /// Throws [AudioFileSystemException] for underlying file system errors.
-  Future<void> deleteRecording(String filePath);
-
   /// Concatenates multiple audio recording files into a single new file.
   ///
   /// Takes a list of [inputFilePaths] to concatenate in the specified order.
@@ -63,7 +54,7 @@ abstract class AudioLocalDataSource {
   /// internally (e.g., logged), and the method should return details for files
   /// that were processed successfully. If the directory cannot be accessed,
   /// it might throw an [AudioFileSystemException].
-  Future<List<AudioRecord>> listRecordingDetails();
+  // Future<List<AudioRecord>> listRecordingDetails();
 
   // @visibleForTesting
   // void testingSetCurrentRecordingPath(String? path);

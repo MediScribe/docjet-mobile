@@ -7,16 +7,14 @@ import 'dart:async' as _i5;
 import 'dart:io' as _i3;
 import 'dart:typed_data' as _i6;
 
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i9;
-import 'package:docjet_mobile/core/platform/path_provider.dart' as _i10;
-import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i7;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i7;
+import 'package:docjet_mobile/core/platform/path_provider.dart' as _i8;
+import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i9;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
-    as _i12;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart'
     as _i11;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i13;
-import 'package:permission_handler/permission_handler.dart' as _i8;
+import 'package:mockito/src/dummies.dart' as _i12;
+import 'package:permission_handler/permission_handler.dart' as _i10;
 import 'package:record/src/record.dart' as _i4;
 import 'package:record_platform_interface/record_platform_interface.dart'
     as _i2;
@@ -47,11 +45,6 @@ class _FakeFileStat_1 extends _i1.SmartFake implements _i3.FileStat {
 
 class _FakeDirectory_2 extends _i1.SmartFake implements _i3.Directory {
   _FakeDirectory_2(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-class _FakeDuration_3 extends _i1.SmartFake implements Duration {
-  _FakeDuration_3(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -220,54 +213,10 @@ class MockAudioRecorder extends _i1.Mock implements _i4.AudioRecorder {
           as List<int>);
 }
 
-/// A class which mocks [PermissionHandler].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockPermissionHandler extends _i1.Mock implements _i7.PermissionHandler {
-  @override
-  _i5.Future<Map<_i8.Permission, _i8.PermissionStatus>> request(
-    List<_i8.Permission>? permissions,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#request, [permissions]),
-            returnValue:
-                _i5.Future<Map<_i8.Permission, _i8.PermissionStatus>>.value(
-                  <_i8.Permission, _i8.PermissionStatus>{},
-                ),
-            returnValueForMissingStub:
-                _i5.Future<Map<_i8.Permission, _i8.PermissionStatus>>.value(
-                  <_i8.Permission, _i8.PermissionStatus>{},
-                ),
-          )
-          as _i5.Future<Map<_i8.Permission, _i8.PermissionStatus>>);
-
-  @override
-  _i5.Future<_i8.PermissionStatus> status(_i8.Permission? permission) =>
-      (super.noSuchMethod(
-            Invocation.method(#status, [permission]),
-            returnValue: _i5.Future<_i8.PermissionStatus>.value(
-              _i8.PermissionStatus.denied,
-            ),
-            returnValueForMissingStub: _i5.Future<_i8.PermissionStatus>.value(
-              _i8.PermissionStatus.denied,
-            ),
-          )
-          as _i5.Future<_i8.PermissionStatus>);
-
-  @override
-  _i5.Future<bool> openAppSettings() =>
-      (super.noSuchMethod(
-            Invocation.method(#openAppSettings, []),
-            returnValue: _i5.Future<bool>.value(false),
-            returnValueForMissingStub: _i5.Future<bool>.value(false),
-          )
-          as _i5.Future<bool>);
-}
-
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i7.FileSystem {
   @override
   _i5.Future<_i3.FileStat> stat(String? path) =>
       (super.noSuchMethod(
@@ -343,7 +292,7 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
 /// A class which mocks [PathProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPathProvider extends _i1.Mock implements _i10.PathProvider {
+class MockPathProvider extends _i1.Mock implements _i8.PathProvider {
   @override
   _i5.Future<_i3.Directory> getApplicationDocumentsDirectory() =>
       (super.noSuchMethod(
@@ -364,48 +313,67 @@ class MockPathProvider extends _i1.Mock implements _i10.PathProvider {
           as _i5.Future<_i3.Directory>);
 }
 
-/// A class which mocks [AudioDurationGetter].
+/// A class which mocks [PermissionHandler].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationGetter extends _i1.Mock
-    implements _i11.AudioDurationGetter {
+class MockPermissionHandler extends _i1.Mock implements _i9.PermissionHandler {
   @override
-  _i5.Future<Duration> getDuration(String? filePath) =>
+  _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>> request(
+    List<_i10.Permission>? permissions,
+  ) =>
       (super.noSuchMethod(
-            Invocation.method(#getDuration, [filePath]),
-            returnValue: _i5.Future<Duration>.value(
-              _FakeDuration_3(
-                this,
-                Invocation.method(#getDuration, [filePath]),
-              ),
+            Invocation.method(#request, [permissions]),
+            returnValue:
+                _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>>.value(
+                  <_i10.Permission, _i10.PermissionStatus>{},
+                ),
+            returnValueForMissingStub:
+                _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>>.value(
+                  <_i10.Permission, _i10.PermissionStatus>{},
+                ),
+          )
+          as _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>>);
+
+  @override
+  _i5.Future<_i10.PermissionStatus> status(_i10.Permission? permission) =>
+      (super.noSuchMethod(
+            Invocation.method(#status, [permission]),
+            returnValue: _i5.Future<_i10.PermissionStatus>.value(
+              _i10.PermissionStatus.denied,
             ),
-            returnValueForMissingStub: _i5.Future<Duration>.value(
-              _FakeDuration_3(
-                this,
-                Invocation.method(#getDuration, [filePath]),
-              ),
+            returnValueForMissingStub: _i5.Future<_i10.PermissionStatus>.value(
+              _i10.PermissionStatus.denied,
             ),
           )
-          as _i5.Future<Duration>);
+          as _i5.Future<_i10.PermissionStatus>);
+
+  @override
+  _i5.Future<bool> openAppSettings() =>
+      (super.noSuchMethod(
+            Invocation.method(#openAppSettings, []),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
 }
 
 /// A class which mocks [AudioConcatenationService].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioConcatenationService extends _i1.Mock
-    implements _i12.AudioConcatenationService {
+    implements _i11.AudioConcatenationService {
   @override
   _i5.Future<String> concatenate(List<String>? inputFilePaths) =>
       (super.noSuchMethod(
             Invocation.method(#concatenate, [inputFilePaths]),
             returnValue: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#concatenate, [inputFilePaths]),
               ),
             ),
             returnValueForMissingStub: _i5.Future<String>.value(
-              _i13.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#concatenate, [inputFilePaths]),
               ),
