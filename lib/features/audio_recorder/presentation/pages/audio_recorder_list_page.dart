@@ -57,10 +57,12 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
   void _showRecordingOptions(BuildContext context, AudioRecord recording) {
     // Get the AudioListCubit instance from the context
     final listCubit = context.read<AudioListCubit>();
+    debugPrint(
+      "[ListView] _showRecordingOptions called for ${recording.filePath}",
+    );
     showModalBottomSheet(
       context: context,
       builder: (bottomSheetContext) {
-        // No need to provide the cubit again if just calling methods on it
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -69,9 +71,17 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                 leading: const Icon(Icons.delete),
                 title: const Text('Delete Recording'),
                 onTap: () {
+                  debugPrint(
+                    "[BottomSheet] Delete tapped for ${recording.filePath}",
+                  );
                   Navigator.pop(bottomSheetContext); // Close bottom sheet
-                  // Call delete on the correct cubit instance
+                  debugPrint(
+                    "[BottomSheet] Calling listCubit.deleteRecording(${recording.filePath})",
+                  );
                   listCubit.deleteRecording(recording.filePath);
+                  debugPrint(
+                    "[BottomSheet] listCubit.deleteRecording(${recording.filePath}) call finished.",
+                  );
                 },
               ),
               // Add other options like Rename, Share later if needed
@@ -79,7 +89,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           ),
         );
       },
-    );
+    ).whenComplete(() {
+      debugPrint("[ListView] Bottom sheet closed for ${recording.filePath}");
+    });
   }
 
   // Navigation logic updated
@@ -245,8 +257,12 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.more_vert),
-                          onPressed:
-                              () => _showRecordingOptions(context, recording),
+                          onPressed: () {
+                            debugPrint(
+                              "[ListView] More icon tapped for ${recording.filePath}",
+                            );
+                            _showRecordingOptions(context, recording);
+                          },
                         ),
                         // Optional: Add onTap for the whole tile if needed
                         // onTap: () { /* Playback or details? */ },
@@ -289,8 +305,11 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       ),
       floatingActionButton: FloatingActionButton(
         // Update onPressed to call the new navigation method
-        onPressed: () => _showAudioRecorderPage(context),
-        tooltip: 'New Recording',
+        onPressed: () {
+          debugPrint("[ListView] FAB tapped.");
+          _showAudioRecorderPage(context);
+        },
+        tooltip: 'Start New Recording',
         child: const Icon(Icons.add),
       ),
     );

@@ -37,7 +37,13 @@ class AudioListCubit extends Cubit<AudioListState> {
     debugPrint("[LIST_CUBIT] deleteRecording() called for path: $filePath");
     // Consider adding a loading state specific to deletion if needed
     // emit(AudioListDeleting()); // Example state
+    debugPrint(
+      "[LIST_CUBIT] Calling repository.deleteRecording('$filePath')...",
+    );
     final result = await repository.deleteRecording(filePath);
+    debugPrint(
+      "[LIST_CUBIT] repository.deleteRecording('$filePath') completed.",
+    );
 
     result.fold(
       (failure) {
@@ -57,8 +63,10 @@ class AudioListCubit extends Cubit<AudioListState> {
         debugPrint("[LIST_CUBIT] deleteRecording successful. Reloading list.");
         // Deletion successful, reload the list to reflect the change.
         await loadRecordings();
+        debugPrint("[LIST_CUBIT] Finished reloading list after deletion.");
       },
     );
+    debugPrint("[LIST_CUBIT] deleteRecording('$filePath') method finished.");
   }
 
   // Other list-specific methods if needed (sorting, filtering?)

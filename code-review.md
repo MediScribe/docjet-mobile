@@ -88,6 +88,7 @@ DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) i
 9.  **Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).** Consider further extractions *after* fixing #2C. (Medium Priority)
 10. **Address Low Priority UI Issues (#9).** Proper logging. (Low Priority)
 11. **Implement Widget Tests:** Verify UI behavior based on Cubit states. (NEXT UP)
+    *   **Update:** Fixed the first widget test (`tapping delete action calls deleteRecording`) which was failing due to an async leak. The root cause was using `FakeAsync` with `showModalBottomSheet` – the artificial time fucked with the sheet's real async operations. **Ripped out `FakeAsync` and used `await tester.pumpAndSettle()` instead, which fixed the leak.** Lesson: Don't try to fake time with complex UI animations; let `pumpAndSettle` handle reality. **Continue implementing remaining widget tests.**
 12. *(Concatenation/Append (#1) remains DEFERRED)*
 
 **Next step is implementing Widget Tests (#11).** After that, we circle back to the DataSource N+1 issue (#3). Execute.
