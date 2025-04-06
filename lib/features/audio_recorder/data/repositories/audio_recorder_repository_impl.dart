@@ -1,11 +1,12 @@
 // import 'dart:io'; // Import dart:io for File operations - NO LONGER NEEDED
 
 import 'package:dartz/dartz.dart';
-import 'package:flutter/foundation.dart'; // Import for debugPrint
+// import 'package:flutter/foundation.dart'; // Import for debugPrint
 // Import for @visibleForTesting
 
 // Core
 import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 // Data Layer
 import '../datasources/audio_local_data_source.dart';
@@ -35,48 +36,67 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
       final result = await action();
       return Right(result);
     } on AudioPermissionException catch (e) {
-      debugPrint(
-        'AudioPermissionException caught in Repository: ${e.message}, Original: ${e.originalException}',
+      logger.w(
+        'Repository caught AudioPermissionException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(PermissionFailure(e.message));
     } on NoActiveRecordingException catch (e) {
-      debugPrint(
-        'NoActiveRecordingException caught in Repository: ${e.message}',
+      logger.w(
+        'Repository caught NoActiveRecordingException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(RecordingFailure(e.message));
     } on RecordingFileNotFoundException catch (e) {
-      debugPrint(
-        'RecordingFileNotFoundException caught in Repository: ${e.message}',
+      logger.w(
+        'Repository caught RecordingFileNotFoundException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(FileSystemFailure(e.message));
     } on AudioRecordingException catch (e) {
-      debugPrint(
-        'AudioRecordingException caught in Repository: ${e.message}, Original: ${e.originalException}',
+      logger.w(
+        'Repository caught AudioRecordingException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(RecordingFailure(e.message));
     } on AudioFileSystemException catch (e) {
-      debugPrint(
-        'AudioFileSystemException caught in Repository: ${e.message}, Original: ${e.originalException}',
+      logger.w(
+        'Repository caught AudioFileSystemException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(FileSystemFailure(e.message));
     } on AudioConcatenationException catch (e) {
-      debugPrint(
-        'AudioConcatenationException caught in Repository: ${e.message}, Original: ${e.originalException}',
+      logger.w(
+        'Repository caught AudioConcatenationException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(ConcatenationFailure(e.message));
     } on AudioException catch (e) {
-      // Catch any other specific audio exceptions that might not be listed above
-      debugPrint(
-        'Generic AudioException caught in Repository: ${e.message}, Original: ${e.originalException}',
+      logger.w(
+        'Repository caught generic AudioException',
+        error: e,
+        stackTrace: StackTrace.current,
       );
       return Left(PlatformFailure(e.message));
     } on ArgumentError catch (e) {
-      // Catch argument errors specifically (e.g., from concatenation service)
-      debugPrint('ArgumentError caught in Repository: ${e.message}');
+      logger.w(
+        'Repository caught ArgumentError',
+        error: e,
+        stackTrace: StackTrace.current,
+      );
       return Left(PlatformFailure('Invalid input: ${e.message}'));
     } catch (e) {
-      // Catch all other unexpected errors
-      debugPrint('Unexpected error caught in Repository: $e');
+      logger.e(
+        'Repository caught unexpected error',
+        error: e,
+        stackTrace: StackTrace.current,
+      );
       return Left(
         PlatformFailure('An unexpected error occurred: ${e.toString()}'),
       );
@@ -185,14 +205,12 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
         [basePath, segmentPath],
       );
       // Clean up the temporary segment file
-      try {
+      /* try {
         await localDataSource.deleteRecording(segmentPath);
       } catch (e) {
-        debugPrint(
-          'Warning: Failed to delete temporary segment file $segmentPath after concatenation: $e',
-        );
+        logger.w('Failed to delete temporary segment file after concatenation', error: e, context: {'segmentPath': segmentPath});
         // Don't fail the whole operation, just log the cleanup failure
-      }
+      } */
 
       // Update the current recording path to the new concatenated file
       _currentRecordingPath = concatenatedPath;

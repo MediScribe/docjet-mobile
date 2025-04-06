@@ -53,6 +53,7 @@ dependencies:
   permission_handler: ^11.3.0
   # Others
   dartz: ^0.10.1
+  logger: ^2.5.0
 
 dev_dependencies:
   flutter_test:

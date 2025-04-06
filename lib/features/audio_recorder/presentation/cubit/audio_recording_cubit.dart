@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart' // Import PermissionStatus
     as ph; // Alias for openAppSettings
+
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 import 'audio_recording_state.dart';
 
@@ -13,33 +14,33 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
 
   Timer? _durationTimer;
   DateTime? _recordingStartTime;
-  String? _currentRecordingPath; // Still needed for duration calculation
 
   AudioRecordingCubit({required this.repository})
     : super(AudioRecordingInitial());
 
   /// Checks permission and moves to Ready or PermissionDenied state.
   Future<void> checkPermission() async {
-    debugPrint(
+    logger.i(
       '[REC_CUBIT] checkPermission() called. Current state: ${state.runtimeType}',
     );
     emit(AudioRecordingLoading());
     final result = await repository.checkPermission();
     result.fold(
       (failure) {
-        debugPrint(
-          '[REC_CUBIT] checkPermission failed: ${failure.toString()}. Emitting Error state.',
-        ); // Use toString()
+        logger.e(
+          '[REC_CUBIT] checkPermission failed. Emitting Error state.',
+          error: failure,
+        );
         emit(
           AudioRecordingError('Permission check failed: ${failure.toString()}'),
         ); // Use toString()
       },
       (granted) {
         if (granted) {
-          debugPrint('[REC_CUBIT] Permission granted. Emitting Ready state.');
+          logger.i('[REC_CUBIT] Permission granted. Emitting Ready state.');
           emit(const AudioRecordingReady());
         } else {
-          debugPrint(
+          logger.w(
             '[REC_CUBIT] Permission check returned false. Emitting PermissionDenied state.',
           );
           emit(AudioRecordingPermissionDenied());
@@ -50,21 +51,26 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
 
   /// Requests permission and moves to Ready or PermissionDenied state.
   Future<void> requestPermission() async {
-    debugPrint("[REC_CUBIT] requestPermission() called.");
+    logger.i("[REC_CUBIT] requestPermission() called.");
     emit(AudioRecordingLoading());
     final result = await repository.requestPermission();
     result.fold(
-      (failure) => emit(
-        AudioRecordingError('Permission request failed: ${failure.toString()}'),
-      ), // Use toString()
+      (failure) {
+        logger.e("[REC_CUBIT] Permission request failed", error: failure);
+        emit(
+          AudioRecordingError(
+            'Permission request failed: ${failure.toString()}',
+          ),
+        ); // Use toString()
+      },
       (granted) async {
         if (granted) {
-          debugPrint(
+          logger.i(
             "[REC_CUBIT] Permission granted via request. Emitting Ready state.",
           );
           emit(const AudioRecordingReady());
         } else {
-          debugPrint("[REC_CUBIT] Permission request denied.");
+          logger.w("[REC_CUBIT] Permission request denied.");
           // TODO(HardBob): Implement getPermissionStatus in Repository and uncomment this check
           /*
           // Check if permanently denied to guide user
@@ -72,18 +78,14 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
               await repository.getPermissionStatus(); // Need repo method
           statusResult.fold(
             (statusFailure) {
-              debugPrint(
-                "[REC_CUBIT] Failed to get permission status after denial: ${statusFailure.toString()}",
-              );
+              logger.e("[REC_CUBIT] Failed to get permission status after denial", error: statusFailure);
               // Fallback to simple denied state if status check fails
               emit(AudioRecordingPermissionDenied());
             },
             (status) {
               // Use ph.PermissionStatus directly
               if (status.isPermanentlyDenied || status.isRestricted) {
-                debugPrint(
-                  "[REC_CUBIT] Permission permanently denied/restricted.",
-                );
+                logger.w("[REC_CUBIT] Permission permanently denied/restricted.");
                 // Optionally emit a specific state or just Denied
                 emit(
                   AudioRecordingPermissionDenied(),
@@ -104,7 +106,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
 
   /// Opens the application settings page for the user to manually change permissions.
   Future<void> openAppSettings() async {
-    debugPrint("[REC_CUBIT] openAppSettings() called.");
+    logger.i("[REC_CUBIT] openAppSettings() called.");
     await ph.openAppSettings();
     // After returning from settings, re-check the permission
     // Debatable: Should the cubit automatically recheck, or wait for UI interaction?
@@ -115,17 +117,17 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   /// Starts a new recording.
   void startRecording() async {
     // Removed appendTo parameter
-    debugPrint('[REC_CUBIT] startRecording called.');
+    logger.i('[REC_CUBIT] startRecording called.');
 
     // Removed append logic - keep it simple
 
     final loadingState = AudioRecordingLoading();
-    debugPrint('[REC_CUBIT] Emitting state: $loadingState');
+    logger.d('[REC_CUBIT] Emitting state: $loadingState');
     emit(loadingState);
 
-    debugPrint('[REC_CUBIT] Calling repository.startRecording()...');
+    logger.d('[REC_CUBIT] Calling repository.startRecording()...');
     final result = await repository.startRecording();
-    debugPrint('[REC_CUBIT] repository.startRecording() result: $result');
+    logger.d('[REC_CUBIT] repository.startRecording() result: $result');
 
     result.fold(
       (failure) {
@@ -133,19 +135,19 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
         final errorState = AudioRecordingError(
           'Failed to start recording: ${failure.toString()}',
         ); // Use toString()
-        debugPrint('[REC_CUBIT] Emitting state: $errorState');
+        logger.e('[REC_CUBIT] startRecording failed', error: failure);
+        logger.d('[REC_CUBIT] Emitting state: $errorState');
         emit(errorState);
       },
       (filePath) {
         _recordingStartTime = DateTime.now();
-        _currentRecordingPath = filePath;
         final recordingState = AudioRecordingInProgress(
           filePath: filePath,
           duration: Duration.zero,
         );
-        debugPrint('[REC_CUBIT] Emitting state: $recordingState');
+        logger.d('[REC_CUBIT] Emitting state: $recordingState');
         emit(recordingState);
-        debugPrint('[REC_CUBIT] Starting duration timer...');
+        logger.d('[REC_CUBIT] Starting duration timer...');
         _startDurationTimer();
       },
     );
@@ -153,7 +155,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
 
   /// Stops the current recording. Returns the file path on success.
   Future<String?> stopRecording() async {
-    debugPrint("[REC_CUBIT] stopRecording() called.");
+    logger.i("[REC_CUBIT] stopRecording() called.");
     if (state is AudioRecordingInProgress || state is AudioRecordingPaused) {
       emit(AudioRecordingLoading());
       _cleanupTimer();
@@ -162,9 +164,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
 
       return resultEither.fold(
         (failure) {
-          debugPrint(
-            "[REC_CUBIT] stopRecording failed: ${failure.toString()}",
-          ); // Use toString()
+          logger.e("[REC_CUBIT] stopRecording failed", error: failure);
           emit(
             AudioRecordingError(
               'Failed to stop recording: ${failure.toString()}',
@@ -173,7 +173,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
           return null; // Indicate failure
         },
         (filePath) {
-          debugPrint(
+          logger.i(
             "[REC_CUBIT] stopRecording successful. Path: $filePath. Emitting Stopped state.",
           );
           emit(AudioRecordingStopped(filePath)); // Emit stopped with path
@@ -181,7 +181,7 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
         },
       );
     } else {
-      debugPrint(
+      logger.w(
         "[REC_CUBIT] stopRecording called but not in Recording/Paused state. No action taken.",
       );
       return null; // Indicate no action taken/failure
@@ -238,7 +238,6 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
       (_) {
         // Recalculate start time based on paused duration
         _recordingStartTime = DateTime.now().subtract(pausedState.duration);
-        _currentRecordingPath = pausedState.filePath; // Ensure path is set
         emit(
           AudioRecordingInProgress(
             filePath: pausedState.filePath,
@@ -253,12 +252,12 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   /// Prepares the cubit state specifically for the recorder page.
   /// Checks permission and emits Ready or PermissionDenied.
   Future<void> prepareRecorder() async {
-    debugPrint(
+    logger.i(
       '[REC_CUBIT] prepareRecorder() called. Current state: ${state.runtimeType}',
     );
     // No need to emit loading here, checkPermission handles it.
     await checkPermission();
-    debugPrint(
+    logger.i(
       '[REC_CUBIT] prepareRecorder() finished. State should now be Ready or Denied/Error.',
     );
   }
@@ -266,47 +265,47 @@ class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   // --- Timer Logic ---
 
   void _startDurationTimer() {
-    _cleanupTimer(); // Ensure no existing timer is running
-    if (_recordingStartTime != null && _currentRecordingPath != null) {
-      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _cleanupTimer(); // Ensure no existing timer
+    logger.d('[_startDurationTimer] Starting timer...');
+    _durationTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if ((state is AudioRecordingInProgress ||
+              state is AudioRecordingPaused) &&
+          _recordingStartTime != null) {
+        final duration = DateTime.now().difference(_recordingStartTime!);
+
         if (state is AudioRecordingInProgress) {
-          final now = DateTime.now();
-          final duration = now.difference(
-            _recordingStartTime!,
-          ); // Ensure non-null
-          // Important: Create a NEW state instance
+          final currentState = state as AudioRecordingInProgress;
           emit(
             AudioRecordingInProgress(
-              filePath: _currentRecordingPath!,
+              filePath: currentState.filePath,
               duration: duration,
             ),
-          ); // Ensure non-null
-        } else {
-          // If state changed somehow (e.g., paused externally), stop the timer
-          _cleanupTimer();
+          );
+        } else if (state is AudioRecordingPaused) {
+          // Although timer is usually cancelled on pause, handle this defensively
+          // This check prevents emitting while paused if timer isn't cancelled properly
         }
-      });
-    } else {
-      debugPrint(
-        "[REC_CUBIT] Error: Tried to start timer without start time or path.",
-      );
-      // Maybe emit an error state here?
-    }
+      } else {
+        // State changed or start time is null, timer is no longer valid
+        logger.w(
+          '[_startDurationTimer] Timer tick invalid state: ${state.runtimeType}, startTime: $_recordingStartTime',
+        );
+        _cleanupTimer();
+      }
+    });
   }
 
   void _cleanupTimer() {
     if (_durationTimer != null) {
-      debugPrint("[REC_CUBIT] Cleaning up duration timer.");
-      _durationTimer?.cancel();
+      logger.d('[_cleanupTimer] Cancelling timer.');
+      _durationTimer!.cancel();
       _durationTimer = null;
     }
-    // Reset time/path only when stopping or erroring, maybe not here?
-    // _recordingStartTime = null;
-    // _currentRecordingPath = null;
   }
 
   @override
   Future<void> close() {
+    logger.d("[REC_CUBIT] close() called, cleaning up duration timer.");
     _cleanupTimer();
     return super.close();
   }

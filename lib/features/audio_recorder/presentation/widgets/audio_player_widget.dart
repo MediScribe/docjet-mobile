@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 class AudioPlayerWidget extends StatefulWidget {
   final String filePath;
@@ -82,7 +83,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         _hasError = true;
         _isLoading = false;
       });
-      debugPrint('Error setting up audio player: $e');
+      logger.e('Error setting up audio player', error: e);
     }
   }
 

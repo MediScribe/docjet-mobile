@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
-import 'package:flutter/foundation.dart'; // Keep for debugPrint temporarily
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 import 'audio_list_state.dart';
 
@@ -11,20 +11,20 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Loads the list of existing recordings.
   Future<void> loadRecordings() async {
-    debugPrint("[LIST_CUBIT] loadRecordings() called.");
+    logger.i("[LIST_CUBIT] loadRecordings() called.");
     emit(AudioListLoading());
     // Call repository directly
     final result = await repository.loadRecordings();
 
     result.fold(
       (failure) {
-        debugPrint("[LIST_CUBIT] loadRecordings failed: ${failure.toString()}");
+        logger.e("[LIST_CUBIT] loadRecordings failed", error: failure);
         emit(
           AudioListError('Failed to load recordings: ${failure.toString()}'),
         );
       },
       (recordings) {
-        debugPrint(
+        logger.i(
           "[LIST_CUBIT] loadRecordings successful. Count: ${recordings.length}",
         );
         emit(AudioListLoaded(recordings));
@@ -34,21 +34,18 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Deletes a specific recording.
   Future<void> deleteRecording(String filePath) async {
-    debugPrint("[LIST_CUBIT] deleteRecording() called for path: $filePath");
+    logger.i("[LIST_CUBIT] deleteRecording() called for path: $filePath");
     // Consider adding a loading state specific to deletion if needed
     // emit(AudioListDeleting()); // Example state
-    debugPrint(
-      "[LIST_CUBIT] Calling repository.deleteRecording('$filePath')...",
-    );
+    logger.d("[LIST_CUBIT] Calling repository.deleteRecording('$filePath')...");
     final result = await repository.deleteRecording(filePath);
-    debugPrint(
-      "[LIST_CUBIT] repository.deleteRecording('$filePath') completed.",
-    );
+    logger.d("[LIST_CUBIT] repository.deleteRecording('$filePath') completed.");
 
     result.fold(
       (failure) {
-        debugPrint(
-          "[LIST_CUBIT] deleteRecording failed: ${failure.toString()}",
+        logger.e(
+          "[LIST_CUBIT] deleteRecording failed for path: $filePath",
+          error: failure,
         );
         // Emit an error state, but maybe keep the current list loaded?
         // Or emit a specific error state that the UI can show as a snackbar?
@@ -60,13 +57,17 @@ class AudioListCubit extends Cubit<AudioListState> {
         // await loadRecordings();
       },
       (_) async {
-        debugPrint("[LIST_CUBIT] deleteRecording successful. Reloading list.");
+        logger.i(
+          "[LIST_CUBIT] deleteRecording successful for path: $filePath. Reloading list.",
+        );
         // Deletion successful, reload the list to reflect the change.
         await loadRecordings();
-        debugPrint("[LIST_CUBIT] Finished reloading list after deletion.");
+        logger.d("[LIST_CUBIT] Finished reloading list after deletion.");
       },
     );
-    debugPrint("[LIST_CUBIT] deleteRecording('$filePath') method finished.");
+    logger.i(
+      "[LIST_CUBIT] deleteRecording method finished for path: $filePath",
+    );
   }
 
   // Other list-specific methods if needed (sorting, filtering?)

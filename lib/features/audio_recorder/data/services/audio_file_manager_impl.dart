@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:io'; // Keep dart:io for FileSystemEntity type
 
-import 'package:flutter/foundation.dart'; // For debugPrint
+// import 'package:flutter/foundation.dart'; // For debugPrint
+
+// ADD THIS IMPORT
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 // Import interfaces and entities
 import 'package:docjet_mobile/core/platform/file_system.dart';
@@ -82,9 +85,10 @@ class AudioFileManagerImpl implements AudioFileManager {
       return records;
     } catch (e) {
       // Catch broader errors (directory listing, initial check/create)
-      debugPrint(
-        'Failed to list recording details due to a broader error: $e',
-      ); // Log outer error
+      logger.e(
+        'Failed to list recording details due to a broader error',
+        error: e,
+      );
       throw AudioFileSystemException('Failed to list recording details', e);
     }
   }
@@ -113,7 +117,7 @@ class AudioFileManagerImpl implements AudioFileManager {
       );
     } catch (e) {
       // Log specific file error, then return null to allow Future.wait to continue
-      debugPrint('Failed to get details for file $path: $e');
+      logger.e('Failed to get details for file $path', error: e);
       return null;
     }
   }

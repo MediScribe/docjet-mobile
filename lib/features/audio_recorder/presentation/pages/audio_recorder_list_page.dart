@@ -7,6 +7,10 @@ import 'package:docjet_mobile/core/di/injection_container.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
+
+// ADD THIS IMPORT
+import 'package:docjet_mobile/core/utils/logger.dart';
+
 // Remove old imports
 // import '../cubit/audio_recorder_cubit.dart';
 // import '../cubit/audio_recorder_state.dart';
@@ -21,7 +25,7 @@ class AudioRecorderListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The BlocProvider<AudioListCubit> is now handled in main.dart
-    debugPrint(
+    logger.d(
       "[AudioRecorderListPage] build: Using AudioListCubit provided from above.",
     );
     return const AudioRecorderListView(); // Child remains the same
@@ -57,7 +61,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
   void _showRecordingOptions(BuildContext context, AudioRecord recording) {
     // Get the AudioListCubit instance from the context
     final listCubit = context.read<AudioListCubit>();
-    debugPrint(
+    logger.d(
       "[ListView] _showRecordingOptions called for ${recording.filePath}",
     );
     showModalBottomSheet(
@@ -71,15 +75,15 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                 leading: const Icon(Icons.delete),
                 title: const Text('Delete Recording'),
                 onTap: () {
-                  debugPrint(
+                  logger.d(
                     "[BottomSheet] Delete tapped for ${recording.filePath}",
                   );
                   Navigator.pop(bottomSheetContext); // Close bottom sheet
-                  debugPrint(
+                  logger.d(
                     "[BottomSheet] Calling listCubit.deleteRecording(${recording.filePath})",
                   );
                   listCubit.deleteRecording(recording.filePath);
-                  debugPrint(
+                  logger.d(
                     "[BottomSheet] listCubit.deleteRecording(${recording.filePath}) call finished.",
                   );
                 },
@@ -90,13 +94,13 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
         );
       },
     ).whenComplete(() {
-      debugPrint("[ListView] Bottom sheet closed for ${recording.filePath}");
+      logger.d("[ListView] Bottom sheet closed for ${recording.filePath}");
     });
   }
 
   // Navigation logic updated
   Future<void> _showAudioRecorderPage(BuildContext context) async {
-    debugPrint("[AudioRecorderListView] _showAudioRecorderPage called.");
+    logger.i("[AudioRecorderListView] _showAudioRecorderPage called.");
     // <<--- Get the Cubit instance BEFORE the await --- >>
     final listCubit = context.read<AudioListCubit>();
 
@@ -113,28 +117,28 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       ),
     );
 
-    debugPrint(
+    logger.d(
       "[AudioRecorderListView] Returned from AudioRecorderPage. shouldRefresh: $shouldRefresh",
     );
 
     // If the recorder page popped with 'true', refresh the list
     // Use the cubit instance captured before the await, AFTER checking mounted
     if (shouldRefresh == true && mounted) {
-      debugPrint("[AudioRecorderListView] Refreshing recordings list.");
+      logger.i("[AudioRecorderListView] Refreshing recordings list.");
       listCubit.loadRecordings(); // Use the captured instance
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("[AudioRecorderListView] build() called.");
+    logger.d("[AudioRecorderListView] build() called.");
 
     return Scaffold(
       appBar: AppBar(title: const Text('Recordings')),
       // Use the correct Cubit and State types
       body: BlocConsumer<AudioListCubit, AudioListState>(
         listener: (context, state) {
-          debugPrint(
+          logger.d(
             "[AudioRecorderListView] Listener received state: ${state.runtimeType}",
           );
           // Only handle errors relevant to the list loading process
@@ -149,13 +153,13 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           // as they belong to the recording cubit, not the list cubit.
         },
         builder: (context, state) {
-          debugPrint(
+          logger.d(
             "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
           );
 
           // Handle Loading state
           if (state is AudioListLoading) {
-            debugPrint(
+            logger.d(
               "[AudioRecorderListView] Builder: State IS AudioListLoading.",
             );
             return const Center(child: CircularProgressIndicator());
@@ -166,7 +170,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           */
           // Handle Error state
           else if (state is AudioListError) {
-            debugPrint(
+            logger.d(
               "[AudioRecorderListView] Builder: State IS AudioListError.",
             );
             return Center(
@@ -187,18 +191,16 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Loaded state
           else if (state is AudioListLoaded) {
-            debugPrint(
+            logger.d(
               "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
             );
             if (state.recordings.isEmpty) {
-              debugPrint(
-                "[AudioRecorderListView] Builder: ListLoaded is empty.",
-              );
+              logger.i("[AudioRecorderListView] Builder: ListLoaded is empty.");
               return const Center(
                 child: Text('No recordings yet. Tap + to start recording.'),
               );
             }
-            debugPrint(
+            logger.d(
               "[AudioRecorderListView] Builder: ListLoaded has ${state.recordings.length} items.",
             );
             // Sort recordings by creation date, newest first
@@ -258,7 +260,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         trailing: IconButton(
                           icon: const Icon(Icons.more_vert),
                           onPressed: () {
-                            debugPrint(
+                            logger.d(
                               "[ListView] More icon tapped for ${recording.filePath}",
                             );
                             _showRecordingOptions(context, recording);
@@ -294,7 +296,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Initial state or other unexpected states
           else {
-            debugPrint(
+            logger.d(
               "[AudioRecorderListView] Builder: State is unexpected (${state.runtimeType}). Showing initial/empty view.",
             );
             // Show a default view, maybe loading or empty text
@@ -306,7 +308,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       floatingActionButton: FloatingActionButton(
         // Update onPressed to call the new navigation method
         onPressed: () {
-          debugPrint("[ListView] FAB tapped.");
+          logger.i("[ListView] FAB tapped, showing recorder page.");
           _showAudioRecorderPage(context);
         },
         tooltip: 'Start New Recording',
