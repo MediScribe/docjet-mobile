@@ -6,7 +6,7 @@ import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/just_audio_duration_retriever_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
@@ -57,7 +57,7 @@ Future<void> init() async {
 
   // Audio Services
   sl.registerLazySingleton<AudioDurationRetriever>(
-    () => JustAudioDurationRetrieverImpl(),
+    () => AudioDurationRetrieverImpl(),
   );
 
   sl.registerLazySingleton<AudioConcatenationService>(

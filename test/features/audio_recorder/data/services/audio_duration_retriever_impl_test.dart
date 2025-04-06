@@ -1,23 +1,22 @@
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/just_audio_duration_retriever_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever_impl.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-
-import 'just_audio_duration_retriever_impl_test.mocks.dart';
+import 'audio_duration_retriever_impl_test.mocks.dart';
 
 @GenerateNiceMocks([MockSpec<AudioPlayer>()])
 void main() {
   late MockAudioPlayer mockAudioPlayer;
-  late JustAudioDurationRetrieverImpl durationRetriever;
+  late AudioDurationRetrieverImpl durationRetriever;
 
   // Factory function to provide the mock player
   AudioPlayer playerFactory() => mockAudioPlayer;
 
   setUp(() {
     mockAudioPlayer = MockAudioPlayer();
-    durationRetriever = JustAudioDurationRetrieverImpl(
+    durationRetriever = AudioDurationRetrieverImpl(
       playerFactory: playerFactory,
     );
 

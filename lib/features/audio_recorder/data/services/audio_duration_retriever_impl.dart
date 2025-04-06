@@ -5,14 +5,14 @@ import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exce
 import 'audio_duration_retriever.dart';
 
 /// Implementation of [AudioDurationRetriever] using the `just_audio` package.
-class JustAudioDurationRetrieverImpl implements AudioDurationRetriever {
+class AudioDurationRetrieverImpl implements AudioDurationRetriever {
   // No longer needs FileSystem, the caller (AudioFileManager) guarantees existence.
 
   // Allow injecting AudioPlayer for testing, default to a new instance.
   // Using a factory function type for easier mocking/provision.
   final AudioPlayer Function() _playerFactory;
 
-  JustAudioDurationRetrieverImpl({
+  AudioDurationRetrieverImpl({
     AudioPlayer Function()? playerFactory, // Optional factory for testing
   }) : _playerFactory = playerFactory ?? (() => AudioPlayer());
 
