@@ -1,27 +1,25 @@
 import 'package:just_audio/just_audio.dart';
 
-import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 
-import 'audio_duration_getter.dart';
+import 'audio_duration_retriever.dart';
 
-/// Implementation of [AudioDurationGetter] using the `just_audio` package.
-class JustAudioDurationGetterImpl implements AudioDurationGetter {
-  final FileSystem fileSystem; // Inject FileSystem to check existence
+/// Implementation of [AudioDurationRetriever] using the `just_audio` package.
+class JustAudioDurationRetrieverImpl implements AudioDurationRetriever {
+  // No longer needs FileSystem, the caller (AudioFileManager) guarantees existence.
 
-  JustAudioDurationGetterImpl({required this.fileSystem});
+  // Allow injecting AudioPlayer for testing, default to a new instance.
+  // Using a factory function type for easier mocking/provision.
+  final AudioPlayer Function() _playerFactory;
+
+  JustAudioDurationRetrieverImpl({
+    AudioPlayer Function()? playerFactory, // Optional factory for testing
+  }) : _playerFactory = playerFactory ?? (() => AudioPlayer());
 
   @override
   Future<Duration> getDuration(String filePath) async {
-    final player = AudioPlayer(); // Create player instance locally
+    final player = _playerFactory(); // Get player from factory
     try {
-      // Check file existence first using injected FileSystem
-      if (!await fileSystem.fileExists(filePath)) {
-        throw RecordingFileNotFoundException(
-          'Audio file not found at $filePath for getting duration.',
-        );
-      }
-
       // Try setting the file path and getting duration
       final duration = await player.setFilePath(filePath);
       if (duration == null) {
@@ -38,7 +36,8 @@ class JustAudioDurationGetterImpl implements AudioDurationGetter {
       );
     } catch (e) {
       // Rethrow known exceptions or wrap unknown ones
-      if (e is RecordingFileNotFoundException || e is AudioPlayerException) {
+      if (e is AudioPlayerException) {
+        // RecordingFileNotFoundException is no longer thrown here
         rethrow;
       }
       throw AudioPlayerException(

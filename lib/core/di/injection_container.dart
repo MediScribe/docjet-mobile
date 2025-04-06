@@ -5,8 +5,8 @@ import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/just_audio_duration_getter_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/just_audio_duration_retriever_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
@@ -56,8 +56,8 @@ Future<void> init() async {
   // Register dependencies for other features
 
   // Audio Services
-  sl.registerLazySingleton<AudioDurationGetter>(
-    () => JustAudioDurationGetterImpl(fileSystem: sl()),
+  sl.registerLazySingleton<AudioDurationRetriever>(
+    () => JustAudioDurationRetrieverImpl(),
   );
 
   sl.registerLazySingleton<AudioConcatenationService>(
@@ -69,7 +69,7 @@ Future<void> init() async {
     () => AudioFileManagerImpl(
       fileSystem: sl(),
       pathProvider: sl(),
-      audioDurationGetter: sl(),
+      audioDurationRetriever: sl(),
     ),
   );
 }

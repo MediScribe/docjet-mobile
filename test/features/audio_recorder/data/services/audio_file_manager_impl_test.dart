@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,7 +46,7 @@ class FakeFileStat implements FileStat {
 @GenerateNiceMocks([
   MockSpec<FileSystem>(),
   MockSpec<PathProvider>(),
-  MockSpec<AudioDurationGetter>(),
+  MockSpec<AudioDurationRetriever>(),
   MockSpec<Directory>(),
   MockSpec<FileSystemEntity>(),
   MockSpec<FileStat>(),
@@ -55,7 +55,7 @@ void main() {
   late AudioFileManagerImpl fileManager;
   late MockFileSystem mockFileSystem;
   late MockPathProvider mockPathProvider;
-  late MockAudioDurationGetter mockAudioDurationGetter;
+  late MockAudioDurationRetriever mockAudioDurationRetriever;
   late MockDirectory mockDirectory;
 
   const tFakeDocPath = '/fake/documents';
@@ -64,13 +64,13 @@ void main() {
   setUp(() {
     mockFileSystem = MockFileSystem();
     mockPathProvider = MockPathProvider();
-    mockAudioDurationGetter = MockAudioDurationGetter();
+    mockAudioDurationRetriever = MockAudioDurationRetriever();
     mockDirectory = MockDirectory();
 
     fileManager = AudioFileManagerImpl(
       fileSystem: mockFileSystem,
       pathProvider: mockPathProvider,
-      audioDurationGetter: mockAudioDurationGetter,
+      audioDurationRetriever: mockAudioDurationRetriever,
     );
 
     // Common mock setup for pathProvider
@@ -214,7 +214,7 @@ void main() {
         verify(mockFileSystem.createDirectory(tFakeDocPath, recursive: true));
         verifyNever(mockFileSystem.listDirectory(any));
         verifyNever(mockFileSystem.stat(any));
-        verifyNever(mockAudioDurationGetter.getDuration(any));
+        verifyNever(mockAudioDurationRetriever.getDuration(any));
       },
     );
 
@@ -237,7 +237,7 @@ void main() {
         expect(result, isEmpty);
         verify(mockFileSystem.listDirectory(tFakeDocPath));
         verifyNever(mockFileSystem.stat(any));
-        verifyNever(mockAudioDurationGetter.getDuration(any));
+        verifyNever(mockAudioDurationRetriever.getDuration(any));
       },
     );
 
@@ -273,10 +273,10 @@ void main() {
         when(mockFileSystem.stat(pathNewer)).thenAnswer((_) async => statNewer);
 
         when(
-          mockAudioDurationGetter.getDuration(pathOlder),
+          mockAudioDurationRetriever.getDuration(pathOlder),
         ).thenAnswer((_) async => durationOlder);
         when(
-          mockAudioDurationGetter.getDuration(pathNewer),
+          mockAudioDurationRetriever.getDuration(pathNewer),
         ).thenAnswer((_) async => durationNewer);
 
         // Act
@@ -295,9 +295,9 @@ void main() {
         verify(mockFileSystem.stat(pathOlder));
         verify(mockFileSystem.stat(pathNewer));
         verifyNever(mockFileSystem.stat(pathOther));
-        verify(mockAudioDurationGetter.getDuration(pathOlder));
-        verify(mockAudioDurationGetter.getDuration(pathNewer));
-        verifyNever(mockAudioDurationGetter.getDuration(pathOther));
+        verify(mockAudioDurationRetriever.getDuration(pathOlder));
+        verify(mockAudioDurationRetriever.getDuration(pathNewer));
+        verifyNever(mockAudioDurationRetriever.getDuration(pathOther));
       },
     );
 
@@ -326,7 +326,7 @@ void main() {
         expect(result, isEmpty);
         verify(mockFileSystem.stat(pathDirM4a));
         verifyNever(
-          mockAudioDurationGetter.getDuration(pathDirM4a),
+          mockAudioDurationRetriever.getDuration(pathDirM4a),
         ); // Duration not called for non-files
       },
     );
@@ -352,7 +352,7 @@ void main() {
         when(mockFileSystem.stat(pathGood)).thenAnswer((_) async => statGood);
         when(mockFileSystem.stat(pathBadStat)).thenThrow(statException);
         when(
-          mockAudioDurationGetter.getDuration(pathGood),
+          mockAudioDurationRetriever.getDuration(pathGood),
         ).thenAnswer((_) async => durationGood);
 
         // Act
@@ -363,9 +363,9 @@ void main() {
         expect(result[0].filePath, pathGood);
         verify(mockFileSystem.stat(pathGood));
         verify(mockFileSystem.stat(pathBadStat)); // Stat attempted
-        verify(mockAudioDurationGetter.getDuration(pathGood));
+        verify(mockAudioDurationRetriever.getDuration(pathGood));
         verifyNever(
-          mockAudioDurationGetter.getDuration(pathBadStat),
+          mockAudioDurationRetriever.getDuration(pathBadStat),
         ); // Duration not called
         // TODO: Verify debugPrint was called (requires more complex setup or test framework feature)
       },
@@ -398,10 +398,10 @@ void main() {
           mockFileSystem.stat(pathBadDuration),
         ).thenAnswer((_) async => statBadDuration);
         when(
-          mockAudioDurationGetter.getDuration(pathGood),
+          mockAudioDurationRetriever.getDuration(pathGood),
         ).thenAnswer((_) async => durationGood);
         when(
-          mockAudioDurationGetter.getDuration(pathBadDuration),
+          mockAudioDurationRetriever.getDuration(pathBadDuration),
         ).thenThrow(durationException);
 
         // Act
@@ -412,9 +412,9 @@ void main() {
         expect(result[0].filePath, pathGood);
         verify(mockFileSystem.stat(pathGood));
         verify(mockFileSystem.stat(pathBadDuration));
-        verify(mockAudioDurationGetter.getDuration(pathGood));
+        verify(mockAudioDurationRetriever.getDuration(pathGood));
         verify(
-          mockAudioDurationGetter.getDuration(pathBadDuration),
+          mockAudioDurationRetriever.getDuration(pathBadDuration),
         ); // Duration attempted
         // TODO: Verify debugPrint was called
       },

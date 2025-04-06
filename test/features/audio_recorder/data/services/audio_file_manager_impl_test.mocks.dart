@@ -8,7 +8,7 @@ import 'dart:io' as _i2;
 
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i3;
 import 'package:docjet_mobile/core/platform/path_provider.dart' as _i5;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_getter.dart'
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
     as _i6;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i7;
@@ -158,11 +158,11 @@ class MockPathProvider extends _i1.Mock implements _i5.PathProvider {
           as _i4.Future<_i2.Directory>);
 }
 
-/// A class which mocks [AudioDurationGetter].
+/// A class which mocks [AudioDurationRetriever].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationGetter extends _i1.Mock
-    implements _i6.AudioDurationGetter {
+class MockAudioDurationRetriever extends _i1.Mock
+    implements _i6.AudioDurationRetriever {
   @override
   _i4.Future<Duration> getDuration(String? filePath) =>
       (super.noSuchMethod(

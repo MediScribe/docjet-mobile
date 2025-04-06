@@ -3,7 +3,7 @@
 Alright, let's cut the crap. The DataSource refactor is mostly done, tests are passing there. **Big fucking deal.** The UI state management was a goddamn tire fire built on that foundation. We finally unfucked it.
 
 **What's Not Completely Fucked:**
-*   **Core Abstractions (`FileSystem`, `PathProvider`, `PermissionHandler`, `AudioDurationGetter`):** These interfaces and their implementations seem clean. They successfully decouple the DataSource from platform bullshit. **GOOD.**
+*   **Core Abstractions (`FileSystem`, `PathProvider`, `PermissionHandler`, `AudioDurationRetriever`):** These interfaces and their implementations seem clean. They successfully decouple the DataSource from platform bullshit. **GOOD.**
 *   **Layering (Presentation -> Domain -> Data):** The separation is conceptually sound. Cubit -> Repository -> DataSource flow is respected. **Use Cases REMOVED.**
 *   **Dependency Injection:** It's being used correctly at all layers. New Cubits registered properly. This is non-negotiable and you didn't fuck it up.
 *   **Refactoring Step (Concatenation Service):** Extracted concatenation logic from DataSource into a dedicated `FFmpegAudioConcatenator` service. DI and relevant tests updated and **PASSING**. Good first step in cleaning up the DataSource SRP violation. **GOOD.**
@@ -44,7 +44,7 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 4.  **~~MEDIUM: DataSource Bloat (SRP Violation):~~**
     *   **Problem:** `AudioLocalDataSourceImpl` is *still* juggling multiple responsibilities: permissions, recording lifecycle, file ops, duration fetching, *and the inefficient `listRecordingDetails` logic*. Concatenation was extracted, but the N+1 issue remains here.
     *   **Impact:** Hard to read, hard to test thoroughly, hard to maintain. Fixing the N+1 might make `listRecordingDetails` even more complex, increasing the need for further extraction.
-    *   **Action:** **RESOLVED.** Concatenation logic was previously extracted. File listing/deletion logic (`listRecordingDetails`, `deleteRecording`) and related dependencies (`FileSystem`, `PathProvider` for listing, `AudioDurationGetter`) now extracted into `AudioFileManagerImpl`. `AudioLocalDataSourceImpl` now focuses on recording lifecycle (`record` package interaction) and permissions.
+    *   **Action:** **RESOLVED.** Concatenation logic was previously extracted. File listing/deletion logic (`listRecordingDetails`, `deleteRecording`) and related dependencies (`FileSystem`, `PathProvider` for listing, `AudioDurationRetriever`) now extracted into `AudioFileManagerImpl`. `AudioLocalDataSourceImpl` now focuses on recording lifecycle (`record` package interaction) and permissions.
 
 5.  **~~LOW: Questionable Use Case Layer:~~**
     *   **Status:** **RESOLVED.** Use Cases were confirmed unnecessary and removed/bypassed. Cubits now correctly call the Repository directly, simplifying the architecture.
