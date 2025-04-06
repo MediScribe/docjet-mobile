@@ -207,20 +207,8 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
       await for (final entity in stream) {
         if (entity.path.endsWith('.m4a')) {
-          // Wrap the call in an async function that handles errors
-          recordFutures.add(() async {
-            try {
-              // Await the original helper function
-              return await _getRecordDetails(entity.path);
-            } catch (e, s) {
-              // Log the specific error and path
-              debugPrint(
-                'Failed to get details for ${entity.path}: $e\nStackTrace: $s',
-              );
-              // Return null on failure so Future.wait doesn't break
-              return null;
-            }
-          }()); // Immediately invoke the async closure
+          // Directly add the future returned by the error-handling helper
+          recordFutures.add(_getRecordDetails(entity.path));
         }
       }
 
@@ -249,27 +237,32 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   }
 
   /// Helper to get stat and duration for a single path.
-  /// Throws exceptions if stat or duration retrieval fails, or if not a file.
+  /// Returns null if not a file or if an error occurs during stat/duration retrieval.
   Future<AudioRecord?> _getRecordDetails(String path) async {
-    // No try/catch here. Let exceptions propagate up to Future.wait.
-    final stat = await fileSystem.stat(path);
+    try {
+      final stat = await fileSystem.stat(path);
 
-    // Skip if not a file BEFORE getting duration
-    if (stat.type != FileSystemEntityType.file) {
-      // Return null for non-files (e.g., a directory named .m4a). This is not an error.
+      // Skip if not a file BEFORE getting duration
+      if (stat.type != FileSystemEntityType.file) {
+        // Return null for non-files (e.g., a directory named .m4a). This is not an error.
+        return null;
+      }
+
+      // If it's a file, get duration. This might throw.
+      final duration = await audioDurationGetter.getDuration(path);
+
+      // If stat and duration succeed, return the record.
+      return AudioRecord(
+        filePath: path,
+        duration: duration,
+        createdAt: stat.modified,
+      );
+    } catch (e, s) {
+      // Log the specific error and path if stat or getDuration fails
+      debugPrint('Failed to get details for $path: $e\\nStackTrace: $s');
+      // Return null on failure so Future.wait doesn't break
       return null;
     }
-
-    // If it's a file, get duration. This might throw.
-    final duration = await audioDurationGetter.getDuration(path);
-
-    // If stat and duration succeed, return the record.
-    return AudioRecord(
-      filePath: path,
-      duration: duration,
-      createdAt: stat.modified,
-    );
-    // No catch block. Errors from stat() or getDuration() will cause the Future to complete with an error.
   }
 
   @override

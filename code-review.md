@@ -24,18 +24,18 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 1.  **CRITICAL: Concatenation / Append Implementation BLOCKED:**
     *   **Problem:** `AudioRecorderRepositoryImpl.appendToRecording` correctly throws `UnimplementedError`. The underlying concatenation **cannot be implemented** currently due to lack of a supported package/native implementation. The `AudioConcatenationService` uses a `DummyAudioConcatenator`.
     *   **Impact:** Core functionality (appending recordings via concatenation) is blocked. Pause/Resume works independently.
-    *   **Action:** **DEFERRED.** Keep the clean `AudioConcatenationService` infrastructure and `DummyAudioConcatenator`. Document this limitation clearly. Focus on other critical issues. Revisit when native implementation is feasible.
+    *   **Action:** **DEFERRED.** Keep the clean `AudioConcatenationService` infrastructure and `DummyAudioConcatenator`. Document this limitation clearly. **DO NOT USE the retired `ffmpeg_kit_flutter_audio` package due to support risks.** A native implementation (AVFoundation/MediaMuxer) is the likely path forward but requires dedicated effort. Focus on other critical issues.
 
 2.  **HIGH: N+1 Performance Bomb MOVED, NOT FIXED (Previously Repository `loadRecordings` Issues):**
     *   **Problem A (Duplication - DRY Violation):** ~~The two methods are nearly identical. Lazy copy-paste bullshit.~~ **FIXED.** Repository now has a single `loadRecordings`.
     *   **Problem B (Leaky Abstraction & `dart:io`):** ~~Uses `File(path).stat()` directly...~~ **FIXED.** Repository uses `localDataSource`.
-    *   **Problem C (Performance - N+1):** **NOT FIXED, JUST MOVED.** The Repository *calls* `localDataSource.listRecordingDetails()` cleanly. **BUT**, `listRecordingDetails` now contains the N+1 loop, calling `stat` and `getDuration` for *each file* individually. Inefficient as hell. Will crawl with many recordings.
-    *   **Problem D (Silent Failures):** ~~**PARTIALLY FIXED, BUT STILL PRESENT.** The Repository's `_tryCatch` is better, but the `listRecordingDetails` method in the DataSource *still* has an internal `try/catch` loop that **SWALLOWS ERRORS** for individual files...~~ **FIXED & TESTED.** `listRecordingDetails` now uses `Future.wait` with individual error handling per file (try-catch returning null). Logs specific file errors via `debugPrint` and returns partial list successfully.
+    *   **Problem C (Performance - N+1):** **NOT FIXED, JUST MOVED.** The Repository *calls* `localDataSource.listRecordingDetails()` cleanly. **BUT**, `listRecordingDetails` now contains the N+1 loop, calling `stat` and `getDuration` for *each file* individually using `Future.wait`. **While structurally refactored for clarity (error handling moved to helper), the core N+1 I/O pattern remains.** Inefficient as hell. Will crawl with many recordings.
+    *   **Problem D (Silent Failures):** ~~**PARTIALLY FIXED, BUT STILL PRESENT.** The Repository\'s `_tryCatch` is better, but the `listRecordingDetails` method in the DataSource *still* has an internal `try/catch` loop that **SWALLOWS ERRORS** for individual files...~~ **FIXED & TESTED.** `listRecordingDetails` now uses `Future.wait` with individual error handling per file (helper `_getRecordDetails` returns null on error). Logs specific file errors via `debugPrint` and returns partial list successfully.
     *   **Impact:** Performance bottleneck, architectural inconsistency (problem moved, not solved).
     *   **Action:**
         *   ~~Refactor into one method (e.g., `loadRecordings`).~~ **DONE (in Repository).**
         *   ~~Fix `dart:io` usage.~~ **DONE (in Repository).**
-        *   **FIX THE N+1 QUERY IN `AudioLocalDataSourceImpl.listRecordingDetails`.** Get all required info efficiently (e.g., parallel fetch, better API). **(Acknowledged/Deferred - Current concurrent fetch is best effort without better APIs)**
+        *   **FIX THE N+1 QUERY IN `AudioLocalDataSourceImpl.listRecordingDetails`.** Get all required info efficiently (e.g., batch API or native call). **(Acknowledged/Deferred - Current concurrent fetch via `Future.wait` is best effort without better APIs/native code. Structural refactor completed, but performance issue persists.)**
         *   **~~FIX ERROR HANDLING IN `AudioLocalDataSourceImpl.listRecordingDetails`.~~** **DONE & Tested.**
 
 3.  **~~MEDIUM: DataSource Testing Hack (`testingSetCurrentRecordingPath`):~~**
@@ -79,7 +79,7 @@ DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) i
 
 1.  **~~Fix UI Cubit Lifecycle (Initial Problem) (#7).~~** **DONE.**
 2.  **~~Fix `AudioLocalDataSourceImpl.listRecordingDetails` Error Handling (#2D).~~** **DONE & Tested.**
-3.  **Fix `AudioLocalDataSourceImpl.listRecordingDetails` N+1 Performance (#2C).** **(Acknowledged/Deferred - Needs Attention)**
+3.  **Fix `AudioLocalDataSourceImpl.listRecordingDetails` N+1 Performance (#2C).** **(Acknowledged/Deferred - Core performance issue remains. Needs fundamental fix via better abstractions or native code. Structural refactor of existing concurrent logic is complete.)**
 4.  **~~Fix UI Navigation & State Transitions (#8).~~** **DONE.**
 5.  **~~Eliminate `testingSetCurrentRecordingPath` (#3).~~** **DONE.**
 6.  **~~Patch UI State Interference (Shared Cubit Workaround) (#7).~~** **OBSOLETE (Proper fix implemented).**
@@ -87,8 +87,8 @@ DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) i
 8.  **~~Refactor UI State Management (#7 - PROPER FIX).~~** **DONE.**
 9.  **Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).** Consider further extractions *after* fixing #2C. (Medium Priority)
 10. **Address Low Priority UI Issues (#9).** Proper logging. (Low Priority)
-11. **Implement Widget Tests:** Verify UI behavior based on Cubit states. (NEXT UP)
-    *   **Update:** Fixed the first widget test (`tapping delete action calls deleteRecording`) which was failing due to an async leak. The root cause was using `FakeAsync` with `showModalBottomSheet` – the artificial time fucked with the sheet's real async operations. **Ripped out `FakeAsync` and used `await tester.pumpAndSettle()` instead, which fixed the leak.** Lesson: Don't try to fake time with complex UI animations; let `pumpAndSettle` handle reality. **Continue implementing remaining widget tests.**
-12. *(Concatenation/Append (#1) remains DEFERRED)*
+11. **~~Implement Widget Tests (#11).~~** **DONE.**
+    *   **Update:** Fixed the first widget test (`tapping delete action calls deleteRecording`) which was failing due to an async leak. The root cause was using `FakeAsync` with `showModalBottomSheet` – the artificial time fucked with the sheet's real async operations. **Ripped out `FakeAsync` and used `await tester.pumpAndSettle()` instead, which fixed the leak.** Lesson: Don't try to fake time with complex UI animations; let `pumpAndSettle` handle reality. **Continue implementing remaining widget tests.** **UPDATE 2:** All widget tests for List and Recorder pages implemented and passing.
+12. **Implement Concatenation/Append (#1).** **(DEFERRED - Blocked. Requires native implementation due to lack of supported packages. DO NOT use retired FFmpegKit.)**
 
-**Next step is implementing Widget Tests (#11).** After that, we circle back to the DataSource N+1 issue (#3). Execute.
+**Next step is Re-evaluate `AudioLocalDataSourceImpl` Bloat (#9).** After that, we circle back to the DataSource N+1 issue (#3) if/when resources allow for a fundamental fix. Execute.
