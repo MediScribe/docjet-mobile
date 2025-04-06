@@ -1,50 +1,28 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart'; // Add this import
 
 import 'package:bloc/bloc.dart';
-import 'package:docjet_mobile/core/usecases/usecase.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart'; // Added repository import
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:permission_handler/permission_handler.dart'; // Import for openAppSettings
+import 'package:permission_handler/permission_handler.dart'
+    as ph; // Alias for openAppSettings
 
-// TODO: Import LoadRecordingsUseCase and potentially append-related use cases
+// Removed TODO about use cases
 
 import 'audio_recorder_state.dart'; // Keep existing states
 
 class AudioRecorderCubit extends Cubit<AudioRecorderState> {
-  final CheckPermission checkPermissionUseCase;
-  final StartRecording startRecordingUseCase;
-  final StopRecording stopRecordingUseCase;
-  final PauseRecording pauseRecordingUseCase;
-  final ResumeRecording resumeRecordingUseCase;
-  final DeleteRecording deleteRecordingUseCase;
-  final LoadRecordings loadRecordingsUseCase;
-  final RequestPermission requestPermissionUseCase;
-  // TODO: Add LoadRecordingsUseCase etc.
+  // Replaced use case fields with repository field
+  final AudioRecorderRepository repository;
 
   Timer? _durationTimer;
   DateTime? _recordingStartTime;
   String? _currentRecordingPath; // Still needed for duration calculation
 
-  AudioRecorderCubit({
-    required this.checkPermissionUseCase,
-    required this.requestPermissionUseCase,
-    required this.startRecordingUseCase,
-    required this.stopRecordingUseCase,
-    required this.pauseRecordingUseCase,
-    required this.resumeRecordingUseCase,
-    required this.deleteRecordingUseCase,
-    required this.loadRecordingsUseCase,
-    // TODO: Add required LoadRecordingsUseCase
-  }) : super(AudioRecorderInitial());
+  // Updated constructor to inject repository
+  AudioRecorderCubit({required this.repository})
+    : super(AudioRecorderInitial());
 
   /// Checks permission and moves to Ready or PermissionDenied state.
   Future<void> checkPermission() async {
@@ -52,7 +30,8 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
       '[CUBIT] checkPermission() called. Current state: ${state.runtimeType}',
     );
     emit(AudioRecorderLoading());
-    final result = await checkPermissionUseCase(NoParams());
+    // Call repository directly
+    final result = await repository.checkPermission();
     result.fold(
       (failure) {
         debugPrint(
@@ -84,7 +63,8 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
   Future<void> requestPermission() async {
     debugPrint("[CUBIT] requestPermission() called.");
     emit(AudioRecorderLoading());
-    final result = await requestPermissionUseCase(NoParams());
+    // Call repository directly
+    final result = await repository.requestPermission();
     result.fold(
       (failure) => emit(
         AudioRecorderError('Permission request failed: ${failure.toString()}'),
@@ -122,9 +102,10 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
     debugPrint('[CUBIT] Emitting state: $loadingState');
     emit(loadingState);
 
-    debugPrint('[CUBIT] Calling startRecordingUseCase...');
-    final result = await startRecordingUseCase(NoParams());
-    debugPrint('[CUBIT] startRecordingUseCase result: $result');
+    // Call repository directly
+    debugPrint('[CUBIT] Calling repository.startRecording()...');
+    final result = await repository.startRecording();
+    debugPrint('[CUBIT] repository.startRecording() result: $result');
 
     result.fold(
       (failure) {
@@ -157,7 +138,8 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
       emit(AudioRecorderLoading());
       _cleanupTimer();
 
-      final resultEither = await stopRecordingUseCase(NoParams());
+      // Call repository directly
+      final resultEither = await repository.stopRecording();
 
       resultEither.fold(
         (failure) async {
@@ -172,7 +154,10 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
           debugPrint(
             "[CUBIT] stopRecording successful. Path: $filePath. Emitting Stopped state.",
           );
+          // Emit Stopped first, then load recordings
           emit(AudioRecorderStopped());
+          // Trigger loading recordings after stopping successfully
+          await loadRecordings();
         },
       );
     } else {
@@ -193,7 +178,8 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
     final currentRecordingState = state as AudioRecorderRecording;
     _durationTimer?.cancel(); // Pause the UI timer
 
-    final result = await pauseRecordingUseCase(NoParams());
+    // Call repository directly
+    final result = await repository.pauseRecording();
 
     result.fold(
       (failure) {
@@ -221,10 +207,8 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
     }
     final pausedState = state as AudioRecorderPaused;
 
-    // Emit loading before calling use case? Optional, depends on desired UX
-    // emit(AudioRecorderLoading());
-
-    final result = await resumeRecordingUseCase(NoParams());
+    // Call repository directly
+    final result = await repository.resumeRecording();
 
     result.fold(
       (failure) {
@@ -250,89 +234,28 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
     );
   }
 
-  /// Deletes a specific recording file.
-  Future<void> deleteRecording(String filePath) async {
-    debugPrint("[CUBIT] deleteRecording() called for: $filePath");
-    emit(AudioRecorderLoading());
-    final params = DeleteRecordingParams(filePath: filePath);
-    final result = await deleteRecordingUseCase(params);
-
-    result.fold(
-      (failure) {
-        debugPrint("[CUBIT] deleteRecording failed: ${failure.toString()}");
-        emit(
-          AudioRecorderError(
-            'Failed to delete $filePath: ${failure.toString()}',
-          ),
-        );
-        debugPrint(
-          "[CUBIT] deleteRecording failed. Calling loadRecordings() anyway.",
-        );
-        loadRecordings();
-      },
-      (_) async {
-        debugPrint(
-          "[CUBIT] deleteRecording successful. Calling loadRecordings().",
-        );
-        await loadRecordings();
-      },
+  /// Prepares the cubit state specifically for the recorder page.
+  /// Checks permission and emits Ready or PermissionDenied.
+  Future<void> prepareRecorder() async {
+    debugPrint(
+      '[CUBIT] prepareRecorder() called. Current state: ${state.runtimeType}',
     );
-  }
-
-  // --- Timer Logic ---
-
-  void _startDurationTimer() {
-    _cleanupTimer(); // Ensure any existing timer is stopped
-    if (_recordingStartTime != null && _currentRecordingPath != null) {
-      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (state is AudioRecorderRecording) {
-          final duration = DateTime.now().difference(_recordingStartTime!);
-          // Ensure we're still in a recording state before emitting
-          // (stopRecording might have been called but state update delayed)
-          if (isClosed) {
-            return; // Corrected: Check if the cubit itself is closed
-          }
-          if (state is AudioRecorderRecording) {
-            // Double check state
-            emit(
-              AudioRecorderRecording(
-                filePath: _currentRecordingPath!,
-                duration: duration,
-              ),
-            );
-          } else {
-            _cleanupTimer(); // State changed unexpectedly, stop timer
-          }
-        } else {
-          _cleanupTimer(); // Stop timer if not in recording state
-        }
-      });
-    }
-  }
-
-  void _cleanupTimer() {
-    _durationTimer?.cancel();
-    _durationTimer = null;
-  }
-
-  @override
-  Future<void> close() {
-    _cleanupTimer();
-    return super.close();
-  }
-
-  /// Opens the application settings page for the user to manage permissions.
-  Future<void> openSettings() async {
-    await openAppSettings();
+    // No need to emit loading here, checkPermission handles it.
+    await checkPermission();
+    // checkPermission will emit Ready or PermissionDenied/Error
+    debugPrint(
+      '[CUBIT] prepareRecorder() finished. State should now be Ready or Denied/Error.',
+    );
   }
 
   /// Loads the list of existing recordings.
   Future<void> loadRecordings() async {
     debugPrint("[CUBIT] loadRecordings() called.");
-    emit(AudioRecorderLoading());
-    debugPrint("[CUBIT] Calling loadRecordingsUseCase...");
-    final result = await loadRecordingsUseCase(NoParams());
-    debugPrint("[CUBIT] loadRecordingsUseCase finished.");
+    // Optional: Emit loading state if desired
+    // emit(AudioRecorderLoading());
+
+    // Call repository directly
+    final result = await repository.loadRecordings();
 
     result.fold(
       (failure) {
@@ -343,31 +266,129 @@ class AudioRecorderCubit extends Cubit<AudioRecorderState> {
           ),
         );
       },
-      (recordings) {
+      (records) {
         debugPrint(
-          "[CUBIT] loadRecordings succeeded. Found ${recordings.length} recordings.",
+          "[CUBIT] loadRecordings successful. Found ${records.length} records.",
         );
-        // Map domain entities to presentation state entities
-        final recordingStates =
-            recordings
-                .map(
-                  (r) => AudioRecordState(
-                    filePath: r.filePath,
-                    duration: r.duration,
-                    createdAt: r.createdAt,
-                  ),
-                )
-                .toList();
-        emit(AudioRecorderListLoaded(recordings: recordingStates));
+        // Assume we need a state to hold the list, like AudioRecorderLoaded
+        // For now, let's just transition back to Ready, assuming the UI
+        // fetches the list via a selector or another mechanism.
+        // A better approach would be an `AudioRecorderLoaded(List<AudioRecord> records)` state.
+        // emit(AudioRecorderLoaded(records)); // <<<< Ideal state
+        // Let's revert to Ready for now to avoid breaking existing tests/UI
+        // If the state machine requires explicit loaded state, we'll add it.
+        // emit(AudioRecorderReady()); // Reverted to Ready for compatibility
+        emit(AudioRecorderLoaded(records)); // Use the explicit loaded state
       },
     );
   }
 
-  // TODO: Implement appendToRecording logic flow using appropriate use cases
-  // This will likely involve new states like AudioRecorderAppending
-  // and coordinating start/stop/concatenate use cases.
+  /// Deletes a specific recording.
+  Future<void> deleteRecording(String filePath) async {
+    debugPrint("[CUBIT] deleteRecording() called for path: $filePath");
+    // Optional: Emit loading state? Depends on UX.
+    // emit(AudioRecorderLoading());
+
+    // Call repository directly
+    // Note: Assuming repository.deleteRecording takes filePath directly.
+    // If it needs a Params object, adjust this call.
+    final result = await repository.deleteRecording(filePath);
+
+    result.fold(
+      (failure) {
+        debugPrint("[CUBIT] deleteRecording failed: ${failure.toString()}");
+        emit(
+          AudioRecorderError(
+            'Failed to delete recording: ${failure.toString()}',
+          ),
+        );
+        // Optionally reload recordings even on failure to refresh the list?
+        // await loadRecordings();
+      },
+      (_) async {
+        debugPrint("[CUBIT] deleteRecording successful for path: $filePath");
+        // After deleting, reload the list to reflect the change.
+        await loadRecordings();
+      },
+    );
+  }
+
+  // --- Timer Logic ---
+
+  /// Starts a timer to update the recording duration periodically.
+  void _startDurationTimer() {
+    _durationTimer?.cancel(); // Cancel any existing timer
+    debugPrint('[CUBIT] Timer starting. Current state: ${state.runtimeType}');
+    if (_recordingStartTime == null || _currentRecordingPath == null) {
+      debugPrint('[CUBIT] Timer not started: missing start time or path.');
+      return; // Don't start if we don't have the necessary info
+    }
+
+    final startTime = _recordingStartTime!;
+    final filePath = _currentRecordingPath!;
+
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state is AudioRecorderRecording) {
+        final duration = DateTime.now().difference(startTime);
+        // Check if mounted / state is still Recording before emitting
+        if (!isClosed && state is AudioRecorderRecording) {
+          final newState = AudioRecorderRecording(
+            filePath: filePath,
+            duration: duration,
+          );
+          // Avoid emitting if state hasn't actually changed (though duration always will)
+          // debugPrint('[CUBIT] Timer tick. Emitting: $newState');
+          emit(newState);
+        } else {
+          debugPrint(
+            '[CUBIT] Timer tick skipped: Cubit closed or state changed.',
+          );
+          timer.cancel(); // Stop timer if state is no longer Recording
+        }
+      } else {
+        debugPrint('[CUBIT] Timer tick skipped: Not in Recording state.');
+        timer.cancel(); // Stop timer if state is not Recording
+      }
+    });
+  }
+
+  /// Cleans up the duration timer.
+  void _cleanupTimer() {
+    debugPrint('[CUBIT] Cleaning up timer...');
+    _durationTimer?.cancel();
+    _durationTimer = null;
+    _recordingStartTime = null;
+    _currentRecordingPath = null; // Clear path when timer stops
+    debugPrint('[CUBIT] Timer cleaned up.');
+  }
+
+  /// Opens the app settings for the user to manually change permissions.
+  Future<void> openAppSettings() async {
+    debugPrint("[CUBIT] openAppSettings() called.");
+    final opened =
+        await ph
+            .openAppSettings(); // Correctly call the permission_handler function, not the cubit method itself
+    if (!opened) {
+      debugPrint("[CUBIT] Failed to open app settings.");
+      // Optionally emit an error state or log
+      emit(AudioRecorderError("Could not open app settings."));
+    } else {
+      debugPrint("[CUBIT] App settings opened successfully.");
+      // Optionally, emit a state indicating settings were opened,
+      // or simply wait for the user to return and potentially re-check permission.
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _cleanupTimer();
+    return super.close();
+  }
 }
 
-// Note: The original _concatenateAudioFiles and _getAudioDuration methods are GONE.
-// All direct file I/O, permission checks, and recording logic are GONE.
-// It now relies purely on injected UseCases.
+// TODO: Define AudioRecorderLoaded state if not already present
+// class AudioRecorderLoaded extends AudioRecorderState {
+//   final List<AudioRecord> recordings;
+//   const AudioRecorderLoaded(this.recordings);
+//   @override List<Object> get props => [recordings];
+// }

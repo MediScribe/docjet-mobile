@@ -1,3 +1,4 @@
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 import 'package:equatable/equatable.dart';
 
 // Base class for all states - make it Equatable
@@ -45,7 +46,22 @@ class AudioRecorderError extends AudioRecorderState {
 class AudioRecorderPermissionDenied extends AudioRecorderState {}
 
 // Ready State (Permission granted, idle)
-class AudioRecorderReady extends AudioRecorderState {}
+class AudioRecorderReady extends AudioRecorderState {
+  const AudioRecorderReady();
+}
+
+// Add the missing AudioRecorderLoaded state
+class AudioRecorderLoaded extends AudioRecorderState {
+  final List<AudioRecord> recordings;
+
+  const AudioRecorderLoaded(this.recordings);
+
+  @override
+  List<Object> get props => [recordings];
+
+  @override
+  String toString() => 'AudioRecorderLoaded { count: ${recordings.length} }';
+}
 
 // Recording State
 class AudioRecorderRecording extends AudioRecorderState {

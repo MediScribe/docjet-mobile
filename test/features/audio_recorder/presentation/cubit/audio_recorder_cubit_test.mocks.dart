@@ -3,31 +3,14 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
+import 'dart:async' as _i4;
 
-import 'package:dartz/dartz.dart' as _i3;
-import 'package:docjet_mobile/core/error/failures.dart' as _i6;
-import 'package:docjet_mobile/core/usecases/usecase.dart' as _i7;
+import 'package:dartz/dartz.dart' as _i2;
+import 'package:docjet_mobile/core/error/failures.dart' as _i5;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'
-    as _i15;
+    as _i6;
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart'
-    as _i2;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart'
-    as _i4;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart'
-    as _i13;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart'
-    as _i14;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart'
-    as _i11;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart'
-    as _i8;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart'
-    as _i12;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart'
-    as _i9;
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart'
-    as _i10;
+    as _i3;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -44,283 +27,138 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeAudioRecorderRepository_0 extends _i1.SmartFake
-    implements _i2.AudioRecorderRepository {
-  _FakeAudioRecorderRepository_0(Object parent, Invocation parentInvocation)
+class _FakeEither_0<L, R> extends _i1.SmartFake implements _i2.Either<L, R> {
+  _FakeEither_0(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeEither_1<L, R> extends _i1.SmartFake implements _i3.Either<L, R> {
-  _FakeEither_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-/// A class which mocks [CheckPermission].
+/// A class which mocks [AudioRecorderRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockCheckPermission extends _i1.Mock implements _i4.CheckPermission {
-  MockCheckPermission() {
+class MockAudioRecorderRepository extends _i1.Mock
+    implements _i3.AudioRecorderRepository {
+  MockAudioRecorderRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, bool>> checkPermission() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, bool>> call(_i7.NoParams? params) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, bool>>.value(
-              _FakeEither_1<_i6.Failure, bool>(
+            Invocation.method(#checkPermission, []),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
+              _FakeEither_0<_i5.Failure, bool>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#checkPermission, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, bool>>);
-}
-
-/// A class which mocks [RequestPermission].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockRequestPermission extends _i1.Mock implements _i8.RequestPermission {
-  MockRequestPermission() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, bool>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, bool>> requestPermission() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, bool>> call(_i7.NoParams? params) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, bool>>.value(
-              _FakeEither_1<_i6.Failure, bool>(
+            Invocation.method(#requestPermission, []),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
+              _FakeEither_0<_i5.Failure, bool>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#requestPermission, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, bool>>);
-}
-
-/// A class which mocks [StartRecording].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockStartRecording extends _i1.Mock implements _i9.StartRecording {
-  MockStartRecording() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, bool>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, String>> startRecording() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, String>> call(_i7.NoParams? params) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, String>>.value(
-              _FakeEither_1<_i6.Failure, String>(
+            Invocation.method(#startRecording, []),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
+              _FakeEither_0<_i5.Failure, String>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#startRecording, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, String>>);
-}
-
-/// A class which mocks [StopRecording].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockStopRecording extends _i1.Mock implements _i10.StopRecording {
-  MockStopRecording() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, String>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, String>> stopRecording() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, String>> call(_i7.NoParams? params) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, String>>.value(
-              _FakeEither_1<_i6.Failure, String>(
+            Invocation.method(#stopRecording, []),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
+              _FakeEither_0<_i5.Failure, String>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#stopRecording, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, String>>);
-}
-
-/// A class which mocks [PauseRecording].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockPauseRecording extends _i1.Mock implements _i11.PauseRecording {
-  MockPauseRecording() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, String>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, void>> pauseRecording() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, void>> call(_i7.NoParams? params) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, void>>.value(
-              _FakeEither_1<_i6.Failure, void>(
+            Invocation.method(#pauseRecording, []),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
+              _FakeEither_0<_i5.Failure, void>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#pauseRecording, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, void>>);
-}
-
-/// A class which mocks [ResumeRecording].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockResumeRecording extends _i1.Mock implements _i12.ResumeRecording {
-  MockResumeRecording() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, void>> resumeRecording() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, void>> call(_i7.NoParams? params) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, void>>.value(
-              _FakeEither_1<_i6.Failure, void>(
+            Invocation.method(#resumeRecording, []),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
+              _FakeEither_0<_i5.Failure, void>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#resumeRecording, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, void>>);
-}
-
-/// A class which mocks [DeleteRecording].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockDeleteRecording extends _i1.Mock implements _i13.DeleteRecording {
-  MockDeleteRecording() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, void>> deleteRecording(String? filePath) =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
+            Invocation.method(#deleteRecording, [filePath]),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
+              _FakeEither_0<_i5.Failure, void>(
+                this,
+                Invocation.method(#deleteRecording, [filePath]),
+              ),
             ),
           )
-          as _i2.AudioRecorderRepository);
+          as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
-  _i5.Future<_i3.Either<_i6.Failure, void>> call(
-    _i13.DeleteRecordingParams? params,
+  _i4.Future<_i2.Either<_i5.Failure, String>> appendToRecording(
+    String? segmentPath,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<_i3.Either<_i6.Failure, void>>.value(
-              _FakeEither_1<_i6.Failure, void>(
+            Invocation.method(#appendToRecording, [segmentPath]),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
+              _FakeEither_0<_i5.Failure, String>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#appendToRecording, [segmentPath]),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, void>>);
-}
-
-/// A class which mocks [LoadRecordings].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockLoadRecordings extends _i1.Mock implements _i14.LoadRecordings {
-  MockLoadRecordings() {
-    _i1.throwOnMissingStub(this);
-  }
+          as _i4.Future<_i2.Either<_i5.Failure, String>>);
 
   @override
-  _i2.AudioRecorderRepository get repository =>
+  _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>> loadRecordings() =>
       (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeAudioRecorderRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.AudioRecorderRepository);
-
-  @override
-  _i5.Future<_i3.Either<_i6.Failure, List<_i15.AudioRecord>>> call(
-    _i7.NoParams? params,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i5.Future<
-              _i3.Either<_i6.Failure, List<_i15.AudioRecord>>
+            Invocation.method(#loadRecordings, []),
+            returnValue: _i4.Future<
+              _i2.Either<_i5.Failure, List<_i6.AudioRecord>>
             >.value(
-              _FakeEither_1<_i6.Failure, List<_i15.AudioRecord>>(
+              _FakeEither_0<_i5.Failure, List<_i6.AudioRecord>>(
                 this,
-                Invocation.method(#call, [params]),
+                Invocation.method(#loadRecordings, []),
               ),
             ),
           )
-          as _i5.Future<_i3.Either<_i6.Failure, List<_i15.AudioRecord>>>);
+          as _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>>);
 }

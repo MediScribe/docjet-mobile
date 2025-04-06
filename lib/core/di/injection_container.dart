@@ -9,15 +9,6 @@ import 'package:docjet_mobile/features/audio_recorder/data/services/audio_durati
 import 'package:docjet_mobile/features/audio_recorder/data/services/just_audio_duration_getter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/check_permission.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/delete_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/pause_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/resume_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/start_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/stop_recording.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/load_recordings.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/usecases/request_permission.dart';
-// TODO: Add imports for Append UseCases?
 import '../../features/audio_recorder/presentation/cubit/audio_recorder_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 
@@ -26,31 +17,10 @@ final sl = GetIt.instance;
 Future<void> init() async {
   // --- Feature: Audio Recorder ---
 
-  // Cubit (Depends on Use Cases)
+  // Cubit (Now depends directly on Repository)
   sl.registerFactory(
-    () => AudioRecorderCubit(
-      checkPermissionUseCase: sl(),
-      requestPermissionUseCase: sl(),
-      startRecordingUseCase: sl(),
-      stopRecordingUseCase: sl(),
-      pauseRecordingUseCase: sl(),
-      resumeRecordingUseCase: sl(),
-      deleteRecordingUseCase: sl(),
-      loadRecordingsUseCase: sl(),
-      // TODO: Inject Append UseCases etc. when added
-    ),
+    () => AudioRecorderCubit(repository: sl()), // Inject repository
   );
-
-  // Use Cases (Depend on Repository)
-  sl.registerLazySingleton(() => CheckPermission(sl()));
-  sl.registerLazySingleton(() => RequestPermission(sl()));
-  sl.registerLazySingleton(() => StartRecording(sl()));
-  sl.registerLazySingleton(() => StopRecording(sl()));
-  sl.registerLazySingleton(() => PauseRecording(sl()));
-  sl.registerLazySingleton(() => ResumeRecording(sl()));
-  sl.registerLazySingleton(() => DeleteRecording(sl()));
-  sl.registerLazySingleton(() => LoadRecordings(sl()));
-  // TODO: Register Append UseCases etc.
 
   // Repository (Depends on Data Source)
   sl.registerLazySingleton<AudioRecorderRepository>(

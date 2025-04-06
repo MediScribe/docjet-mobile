@@ -13,6 +13,10 @@ class AudioRecorderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ADDED Debug Print
+    debugPrint(
+      '[AudioRecorderPage ${identityHashCode(this)}] build() called. appendTo: ${appendTo?.createdAt.toIso8601String()}',
+    );
     return AudioRecorderView(appendTo: appendTo);
   }
 }
@@ -33,22 +37,42 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
   @override
   void initState() {
     super.initState();
-    // Ensure permission is checked when this page loads, even with shared Cubit
-    // Use addPostFrameCallback to avoid calling context.read during build
+    // ADDED Debug Print
+    debugPrint(
+      '[AudioRecorderView ${identityHashCode(this)}] initState() called. appendTo: ${widget.appendTo?.createdAt.toIso8601String()}',
+    );
+    // ADDED: Call prepareRecorder on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        debugPrint(
+          '[AudioRecorderView ${identityHashCode(this)}] initState: Calling prepareRecorder().',
+        );
+        context.read<AudioRecorderCubit>().prepareRecorder();
+      }
+    });
+
+    // REMOVED the redundant checkPermission call. Permission should be handled
+    // by the list page before navigating here.
+    /*
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final initialState = context.read<AudioRecorderCubit>().state;
         debugPrint(
           '[AudioRecorderPage] initState: Initial state received: ${initialState.runtimeType}',
         );
-        context.read<AudioRecorderCubit>().checkPermission();
-        debugPrint('[AudioRecorderPage] initState: checkPermission() called.');
+        // context.read<AudioRecorderCubit>().checkPermission(); // REMOVED
+        debugPrint('[AudioRecorderPage] initState: checkPermission() called.'); // REMOVED
       }
     });
+    */
   }
 
   // Method to show the permission request bottom sheet
   void _showPermissionSheet(BuildContext context) {
+    // ADDED Debug Print
+    debugPrint(
+      '[AudioRecorderView ${identityHashCode(this)}] _showPermissionSheet() called.',
+    );
     showModalBottomSheet(
       context: context,
       builder:
@@ -73,7 +97,7 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                     Navigator.of(sheetContext).pop(); // Close the sheet
                     context
                         .read<AudioRecorderCubit>()
-                        .openSettings(); // Use context.read
+                        .openAppSettings(); // Use context.read
                   },
                 ),
                 TextButton(
@@ -96,6 +120,8 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
   @override
   Widget build(BuildContext context) {
     // REMOVED PopScope wrapper
+    // ADDED Debug Print
+    debugPrint('[AudioRecorderView ${identityHashCode(this)}] build() called.');
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -110,7 +136,7 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
       body: BlocConsumer<AudioRecorderCubit, AudioRecorderState>(
         listener: (context, state) {
           debugPrint(
-            '[AudioRecorderPage] Listener received state: ${state.runtimeType}',
+            '[AudioRecorderView ${identityHashCode(this)}] Listener received state: ${state.runtimeType} (State Hash: ${identityHashCode(state)})', // Enhanced log
           );
           if (state is AudioRecorderError) {
             ScaffoldMessenger.of(
@@ -119,12 +145,15 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
           } else if (state is AudioRecorderPermissionDenied) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
+                debugPrint(
+                  '[AudioRecorderView ${identityHashCode(this)}] Listener: Scheduling _showPermissionSheet for PermissionDenied state.',
+                ); // Enhanced log
                 _showPermissionSheet(context);
               }
             });
           } else if (state is AudioRecorderStopped) {
             debugPrint(
-              '[AudioRecorderPage] Received AudioRecorderStopped. Navigating back.',
+              '[AudioRecorderView ${identityHashCode(this)}] Listener: Received AudioRecorderStopped. Navigating back.', // Enhanced log
             );
             // Directly pop with result when recording stops successfully
             // No need for _isNavigating flag or addPostFrameCallback here
@@ -137,47 +166,57 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
         builder: (context, state) {
           // More detailed logging for ALL states
           debugPrint(
-            '[AudioRecorderPage] Builder received state: ${state.runtimeType}',
+            '[AudioRecorderView ${identityHashCode(this)}] Builder received state: ${state.runtimeType} (State Hash: ${identityHashCode(state)})', // Enhanced log
           );
 
           Widget mainContent;
           if (state is AudioRecorderInitial) {
-            debugPrint('[AudioRecorderPage] Builder: State is Initial.');
+            debugPrint(
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is Initial. Building Loading UI.',
+            ); // Enhanced log
             mainContent = _buildLoadingUI(); // Show loading for initial too
           } else if (state is AudioRecorderLoading) {
-            debugPrint('[AudioRecorderPage] Builder: State is Loading.');
-            mainContent = _buildLoadingUI();
-          } else if (state is AudioRecorderReady ||
-              state is AudioRecorderListLoaded) {
             debugPrint(
-              '[AudioRecorderPage] Builder: State is Ready or ListLoaded.',
-            );
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is Loading. Building Loading UI.',
+            ); // Enhanced log
+            mainContent = _buildLoadingUI();
+          } else if (state is AudioRecorderReady) {
+            debugPrint(
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is Ready. Building Ready UI.',
+            ); // Enhanced log
             mainContent = _buildReadyUI(context);
           } else if (state is AudioRecorderRecording ||
               state is AudioRecorderPaused) {
             debugPrint(
-              '[AudioRecorderPage] Builder: State is Recording/Paused.',
-            );
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is ${state.runtimeType}. Building Recording/Paused UI.',
+            ); // Enhanced log
             mainContent = _buildRecordingPausedUI(context, state);
           } else if (state is AudioRecorderStopped) {
-            debugPrint('[AudioRecorderPage] Builder: State is Stopped.');
+            debugPrint(
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is Stopped. Building Loading UI.',
+            ); // Enhanced log
             mainContent = _buildLoadingUI();
           } else if (state is AudioRecorderPermissionDenied) {
             debugPrint(
-              '[AudioRecorderPage] Builder: State is PermissionDenied.',
-            );
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is PermissionDenied. Building minimal text (sheet shown by listener).',
+            ); // Enhanced log
             // Listener handles showing the sheet, builder can show minimal info or loading
             mainContent = const Center(child: Text('Permission Required'));
           } else if (state is AudioRecorderError) {
-            debugPrint('[AudioRecorderPage] Builder: State is Error.');
+            debugPrint(
+              '[AudioRecorderView ${identityHashCode(this)}] Builder: State is Error. Building error text.',
+            ); // Enhanced log
             // Listener shows snackbar, builder shows simple message
             mainContent = Center(child: Text('Error: ${state.message}'));
           } else {
             // Catch-all for unexpected states
             debugPrint(
-              '[AudioRecorderPage] Builder received UNHANDLED state: ${state.runtimeType}. Showing empty box.',
+              '[AudioRecorderView ${identityHashCode(this)}] Builder received UNHANDLED state: ${state.runtimeType}. Showing empty box.',
             );
-            mainContent = const SizedBox.shrink();
+            // ADDED: Include state name in fallback text for easier debugging
+            mainContent = Center(
+              child: Text('Unhandled State: ${state.runtimeType}'),
+            );
           }
 
           return Center(
@@ -188,7 +227,7 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
-                      'Appending to recording from ${widget.appendTo!.createdAt.toString()}',
+                      'Appending to recording from ${widget.appendTo!.createdAt.toIso8601String()}',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
@@ -208,6 +247,10 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
   // --- START: New UI Builder Methods ---
 
   Widget _buildLoadingUI() {
+    // ADDED Debug Print
+    debugPrint(
+      '[AudioRecorderView ${identityHashCode(this)}] _buildLoadingUI() called.',
+    );
     return const Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -219,6 +262,10 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
   }
 
   Widget _buildReadyUI(BuildContext context) {
+    // ADDED Debug Print
+    debugPrint(
+      '[AudioRecorderView ${identityHashCode(this)}] _buildReadyUI() called.',
+    );
     // Use context.read here
     return Center(
       child: ElevatedButton.icon(
@@ -251,6 +298,10 @@ class _AudioRecorderViewState extends State<AudioRecorderView> {
     BuildContext context,
     AudioRecorderState state,
   ) {
+    // ADDED Debug Print
+    debugPrint(
+      '[AudioRecorderView ${identityHashCode(this)}] _buildRecordingPausedUI() called with state: ${state.runtimeType}.',
+    );
     // final recordState = state as AudioRecordState; // REMOVED INCORRECT CAST
     final isRecording = state is AudioRecorderRecording;
 

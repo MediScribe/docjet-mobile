@@ -57,10 +57,19 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
     *   **Problem:** Dual check (`recorder.hasPermission()` / `permission_handler` originally noted).
     *   **Status:** **RESOLVED.** The original dual check logic was actually **CRITICAL**. Removing the `recorder.hasPermission()` check broke everything. Reinstating it (and fixing the import) solved the permission failure. Related unit tests now pass after significant debugging and mock adjustments. Mark this specific concern as addressed, but the investigation revealed the sensitivity.
 
-7.  **CRITICAL: UI - Flawed Cubit Lifecycle Management & State Sharing:**
-    *   **Problem:** Both `AudioRecorderPage` and `AudioRecorderListPage` incorrectly created their own `AudioRecorderCubit` instances in `initState` using `sl`. This resulted in **two independent states**, preventing communication and state synchronization between the list and recording views.
-    *   **Impact:** Feature was fundamentally broken. Stopping a recording wouldn't update the list; navigating between screens led to state loss and unpredictable behavior. It was completely fucked.
-    *   **Action:** ~~Refactor to use a **SINGLE SHARED `AudioRecorderCubit` instance**. Provide this instance higher up the widget tree (e.g., via `BlocProvider` in the routing setup for this feature). Both pages must consume this shared instance using `context.read/watch` or `BlocProvider.of`, **NOT** create their own.~~ **FIXED.** Cubit is now created once via `BlocProvider` in `main.dart` and provided down the tree. Both pages use `context.read` to access the shared instance. Local `initState`/`dispose` logic related to Cubit creation was removed from the pages. We hit some turbulence with state updates between the pages during the fix (listener in list page interfering with recorder page state), but resolved it by ensuring the recorder page builder correctly handles the `AudioRecorderListLoaded` state. **(Status: DONE)**
+7.  **CRITICAL: UI - Flawed Cubit Lifecycle & State Sharing (NOW PATCHED, NEEDS REFACTOR):**
+    *   **Initial Problem:** Both `AudioRecorderPage` and `AudioRecorderListPage` incorrectly created their own `AudioRecorderCubit` instances in `initState` using `sl`. This was **FIXED** by providing a single shared instance via `BlocProvider` in `main.dart` and having pages use `context.read`.
+    *   **NEW Problem (State Interference):** The shared Cubit introduced a new, subtle fuckup. State changes triggered by one page (e.g., Recorder Page calling `prepareRecorder` -> `Ready` state) were seen by the *other* page (List Page listener reacting to `Ready` -> calling `loadRecordings` again). This interference caused the Recorder Page UI to flicker or revert to an invalid state (`AudioRecorderLoaded`), making it unusable. **Fucking nightmare.**
+    *   **Current Status (PATCHED, NOT FIXED):** We implemented a **WORKAROUND** by modifying the shared Cubit interaction:
+        *   The List Page's `BlocConsumer` **listener** was modified to **IGNORE** the `AudioRecorderReady` state, preventing it from calling `loadRecordings` when the Recorder Page initializes.
+        *   The List Page's `initState` now calls `loadRecordings()` directly.
+        *   The List Page's `BlocConsumer` **builder** was fixed to correctly handle `AudioRecorderReady` (showing a loading indicator).
+        *   This *stops* the interference but **DOES NOT FIX** the underlying architectural flaw of using one Cubit for two distinct responsibilities. It's tape on a leaky pipe.
+    *   **Action (PROPER FIX REQUIRED):** The current shared Cubit approach is fundamentally flawed. **Refactor** to use **SEPARATE, SCOPED CUBITS:**
+        *   Create `AudioListCubit` (handling `ListLoading`, `ListLoaded`, `ListError`).
+        *   Rename `AudioRecorderCubit` -> `AudioRecordingCubit` (handling `RecordingReady`, `Recording`, `Paused`, `Stopped`, `RecordingPermissionDenied`, `RecordingError`).
+        *   Provide each Cubit *independently* to its respective page route (`BlocProvider.create`).
+        *   Use navigation results (`Navigator.pop(true)`) for communication (Recorder -> List refresh). This is the **ONLY** robust way to manage this. **(Defer this refactor until after Use Case evaluation - see Path Forward)**
 
 8.  **MEDIUM: UI - Clunky Navigation & State Transitions:**
     *   **Problem A (`AudioRecorderPage`):** Overly complex navigation logic (`_isNavigating`, `PopScope`). Unnecessary loading UI shown in builder for `AudioRecorderStopped` state when the listener should handle immediate navigation.
@@ -68,7 +77,7 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
     *   **Impact:** Confusing code, potentially jarring user experience.
     *   **Action:** ~~Simplify navigation calls in `AudioRecorderPage`. Remove the builder's handling of the `Stopped` state. Re-evaluate the modal sheet navigation in `AudioRecorderListPage` - consider `Navigator.push` and ensure the shared Cubit is correctly provided regardless of the method.~~ **FIXED.**
         *   `AudioRecorderPage`: Removed `PopScope`, `_isNavigating` flag, and `_handleNavigation` method. `Navigator.pop` is called directly from the `AppBar` back button and the `BlocConsumer` listener for `AudioRecorderStopped`. The builder no longer shows specific UI for `Stopped`, just `Loading` while the listener pops.
-        *   `AudioRecorderListPage`: Replaced `showModalBottomSheet` with standard `Navigator.push` in `_showAudioRecorderPage`. `BlocProvider.value` is still used within the `MaterialPageRoute` builder to pass the shared cubit instance correctly. **(Status: DONE)**
+        *   `AudioRecorderListPage`: Replaced `showModalBottomSheet` with standard `Navigator.push` in `_showAudioRecorderPage`. `BlocProvider.value` is still used within the `MaterialPageRoute` builder to pass the *currently shared* cubit instance correctly (This will change during the proper Cubit refactor). **(Status: DONE)**
 
 9.  **LOW: UI - Direct `sl` Usage & Debug Prints:**
     *   **Problem:** Widgets directly called the service locator (`sl`) making them harder to test. Excessive `debugPrint` statements remained.
@@ -81,20 +90,24 @@ Alright, let's cut the crap. The DataSource refactor is mostly done, tests are p
 
 ## The Verdict (Hard Bob Style - Updated Again):
 
-Alright, the UI state management (#7) and navigation (#8) are no longer a complete fucking disaster. We ripped out the duplicate Cubits, injected one from the top like civilized engineers, and unfucked the navigation logic. Good. Took a couple of tries and fixing regressions caused by the fixes (classic Mafee moves), but it seems solid now, and the tests pass. **Code inspection confirms these critical UI issues are resolved.**
+Alright, the UI navigation (#8) is unfucked. Good. The immediate UI state management (#7) disaster is **PATCHED** - the app *works* now without state interference, but it's held together with spit and prayers (specifically, the listener modification). This shared Cubit is an architectural liability waiting to cause more pain. **Code inspection confirms the workaround is in place, but the underlying flaw remains.**
 
-**BUT**, the backend performance bomb (#2) is still ticking in the DataSource. The N+1 query in `listRecordingDetails` and its shitty error handling are waiting to bite us in the ass. The `testingSetCurrentRecordingPath` hack (#3) also remains, mocking our DI. And the Use Case layer (#5) might still be useless fat. -> **UPDATED VERDICT:** UI fixes (#7, #8) are solid. DataSource error handling (#2D) is now **FIXED and TESTED**. The testing hack (#3) was already **RESOLVED** by prior refactors. The N+1 performance issue (#2C) remains acknowledged but deferred. Focus shifts to simplifying the architecture.
+DataSource error handling (#2D) is **FIXED and TESTED**. The testing hack (#3) is confirmed **GONE**. The N+1 performance issue (#2C) remains acknowledged but deferred.
+
+**The core remaining risks are the shared Cubit (#7) and the potential dead weight of the Use Case layer (#5).**
 
 **Mandatory Path Forward (NO DEVIATION - Updated & Re-prioritized):**
 
-1.  **~~Fix UI Cubit Lifecycle & State Sharing (#7).~~** **DONE.**
+1.  **~~Fix UI Cubit Lifecycle (Initial Problem) (#7).~~** **DONE (Shared instance provided).**
 2.  **~~Fix `AudioLocalDataSourceImpl.listRecordingDetails` Error Handling (#2D).~~** **DONE & Tested.**
 3.  **Fix `AudioLocalDataSourceImpl.listRecordingDetails` N+1 Performance (#2C).** **(Acknowledged/Deferred)**
 4.  **~~Fix UI Navigation & State Transitions (#8).~~** **DONE.**
 5.  **~~Eliminate `testingSetCurrentRecordingPath` (#3).~~** **DONE (Implicitly).**
-6.  **Evaluate & potentially remove the Use Case layer (#5).** Simplify if possible. **(NEXT UP)**
-7.  **Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).** Consider further extractions *after* fixing #2 & #3. (Lower priority)
-8.  **Address Low Priority UI Issues (#9).** Proper logging. (Low Priority)
-9.  *(Concatenation/Append (#1) remains DEFERRED)*
+6.  **~~Patch UI State Interference (Shared Cubit Workaround) (#7).~~** **DONE (Listener modified).**
+7.  **Evaluate & potentially remove the Use Case layer (#5).** Simplify if possible. **(NEXT UP)**
+8.  **Refactor UI State Management (#7 - PROPER FIX).** Implement separate `AudioListCubit` and `AudioRecordingCubit`, scoped providers, navigation results for communication. **(HIGH PRIORITY - After #5)**
+9.  **Re-evaluate `AudioLocalDataSourceImpl` Bloat (#4).** Consider further extractions *after* fixing #2 & #7. (Lower priority)
+10. **Address Low Priority UI Issues (#9).** Proper logging. (Low Priority)
+11. *(Concatenation/Append (#1) remains DEFERRED)*
 
-Focus is now squarely on the backend. **Tackle the DataSource performance and error handling (#2C, #2D) next.** Execute. -> **UPDATED PATH:** With DataSource error handling fixed and tested, and the testing hack confirmed gone, **next step is evaluating the Use Case layer (#5).** Execute.
+**Next step is evaluating the Use Case layer (#5).** If that gets removed, the **next immediate step** is the **proper Cubit refactor (#8 in this list, relates to #7).** Execute.
