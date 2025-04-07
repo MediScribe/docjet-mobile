@@ -28,8 +28,13 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: subtype_of_sealed_class
 
 class _FakeEither_0<L, R> extends _i1.SmartFake implements _i2.Either<L, R> {
-  _FakeEither_0(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeEither_0(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 /// A class which mocks [AudioRecorderRepository].
@@ -44,121 +49,155 @@ class MockAudioRecorderRepository extends _i1.Mock
   @override
   _i4.Future<_i2.Either<_i5.Failure, bool>> checkPermission() =>
       (super.noSuchMethod(
-            Invocation.method(#checkPermission, []),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
-              _FakeEither_0<_i5.Failure, bool>(
-                this,
-                Invocation.method(#checkPermission, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, bool>>);
+        Invocation.method(
+          #checkPermission,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
+            _FakeEither_0<_i5.Failure, bool>(
+          this,
+          Invocation.method(
+            #checkPermission,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, bool>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, bool>> requestPermission() =>
       (super.noSuchMethod(
-            Invocation.method(#requestPermission, []),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
-              _FakeEither_0<_i5.Failure, bool>(
-                this,
-                Invocation.method(#requestPermission, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, bool>>);
+        Invocation.method(
+          #requestPermission,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
+            _FakeEither_0<_i5.Failure, bool>(
+          this,
+          Invocation.method(
+            #requestPermission,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, bool>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, String>> startRecording() =>
       (super.noSuchMethod(
-            Invocation.method(#startRecording, []),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
-              _FakeEither_0<_i5.Failure, String>(
-                this,
-                Invocation.method(#startRecording, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, String>>);
+        Invocation.method(
+          #startRecording,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
+            _FakeEither_0<_i5.Failure, String>(
+          this,
+          Invocation.method(
+            #startRecording,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, String>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, String>> stopRecording() =>
       (super.noSuchMethod(
-            Invocation.method(#stopRecording, []),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
-              _FakeEither_0<_i5.Failure, String>(
-                this,
-                Invocation.method(#stopRecording, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, String>>);
+        Invocation.method(
+          #stopRecording,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
+            _FakeEither_0<_i5.Failure, String>(
+          this,
+          Invocation.method(
+            #stopRecording,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, String>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, void>> pauseRecording() =>
       (super.noSuchMethod(
-            Invocation.method(#pauseRecording, []),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
-              _FakeEither_0<_i5.Failure, void>(
-                this,
-                Invocation.method(#pauseRecording, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, void>>);
+        Invocation.method(
+          #pauseRecording,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
+            _FakeEither_0<_i5.Failure, void>(
+          this,
+          Invocation.method(
+            #pauseRecording,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, void>> resumeRecording() =>
       (super.noSuchMethod(
-            Invocation.method(#resumeRecording, []),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
-              _FakeEither_0<_i5.Failure, void>(
-                this,
-                Invocation.method(#resumeRecording, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, void>>);
+        Invocation.method(
+          #resumeRecording,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
+            _FakeEither_0<_i5.Failure, void>(
+          this,
+          Invocation.method(
+            #resumeRecording,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, void>> deleteRecording(String? filePath) =>
       (super.noSuchMethod(
-            Invocation.method(#deleteRecording, [filePath]),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
-              _FakeEither_0<_i5.Failure, void>(
-                this,
-                Invocation.method(#deleteRecording, [filePath]),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, void>>);
+        Invocation.method(
+          #deleteRecording,
+          [filePath],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, void>>.value(
+            _FakeEither_0<_i5.Failure, void>(
+          this,
+          Invocation.method(
+            #deleteRecording,
+            [filePath],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, String>> appendToRecording(
-    String? segmentPath,
-  ) =>
+          String? segmentPath) =>
       (super.noSuchMethod(
-            Invocation.method(#appendToRecording, [segmentPath]),
-            returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
-              _FakeEither_0<_i5.Failure, String>(
-                this,
-                Invocation.method(#appendToRecording, [segmentPath]),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, String>>);
+        Invocation.method(
+          #appendToRecording,
+          [segmentPath],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, String>>.value(
+            _FakeEither_0<_i5.Failure, String>(
+          this,
+          Invocation.method(
+            #appendToRecording,
+            [segmentPath],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, String>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>> loadRecordings() =>
       (super.noSuchMethod(
-            Invocation.method(#loadRecordings, []),
-            returnValue: _i4.Future<
-              _i2.Either<_i5.Failure, List<_i6.AudioRecord>>
-            >.value(
-              _FakeEither_0<_i5.Failure, List<_i6.AudioRecord>>(
-                this,
-                Invocation.method(#loadRecordings, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>>);
+        Invocation.method(
+          #loadRecordings,
+          [],
+        ),
+        returnValue:
+            _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>>.value(
+                _FakeEither_0<_i5.Failure, List<_i6.AudioRecord>>(
+          this,
+          Invocation.method(
+            #loadRecordings,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>>);
 }

@@ -1,5 +1,5 @@
 import 'package:dartz/dartz.dart'; // TODO: Add dartz dependency
-import 'package:docjet_mobile/core/error/failures.dart'; // TODO: Define Failure hierarchy/ApiError
+// TODO: Define Failure hierarchy/ApiError
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 
 /// Interface for interacting with the backend transcription API.

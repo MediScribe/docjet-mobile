@@ -15,9 +15,21 @@ import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concat
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
 
+// Import Hive and related components
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/datasources/local_job_store_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
+  // --- Core Initialization ---
+  // Initialize Hive FIRST
+  await Hive.initFlutter();
+  // Open boxes needed at startup (currently just LocalJob)
+  final localJobBox = await HiveLocalJobStoreImpl.openBox();
+
   // --- Feature: Audio Recorder ---
 
   // Cubits (Now depend directly on Repository)
@@ -26,10 +38,14 @@ Future<void> init() async {
 
   // Repository (Depends on Data Source)
   sl.registerLazySingleton<AudioRecorderRepository>(
-    () => AudioRecorderRepositoryImpl(localDataSource: sl(), fileManager: sl()),
+    () => AudioRecorderRepositoryImpl(
+      localDataSource: sl(),
+      fileManager: sl(),
+      // TODO: Inject TranscriptionRemoteDataSource and LocalJobStore later
+    ),
   );
 
-  // Data Source (Depends on external libs and core platform interfaces)
+  // Data Sources (Local)
   sl.registerLazySingleton<AudioLocalDataSource>(
     () => AudioLocalDataSourceImpl(
       recorder: sl(),
@@ -37,8 +53,18 @@ Future<void> init() async {
       permissionHandler: sl(),
       audioConcatenationService: sl(),
       fileSystem: sl(),
+      // TODO: Inject LocalJobStore later
     ),
   );
+
+  // Local Job Storage (Hive)
+  sl.registerLazySingleton<Box<LocalJob>>(() => localJobBox);
+  sl.registerLazySingleton(
+    () => HiveLocalJobStoreImpl(sl()),
+  ); // Depends on Box<LocalJob>
+  sl.registerLazySingleton<LocalJobStore>(
+    () => sl<HiveLocalJobStoreImpl>(),
+  ); // Register interface
 
   // --- External Dependencies ---
   sl.registerLazySingleton(() => AudioRecorder()); // From 'record' package
