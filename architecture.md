@@ -62,7 +62,7 @@ graph LR
     subgraph Data Layer
         C --> E(AudioFileManager);
         C --> F(AudioLocalDataSource);
-        C --> N(TranscriptionRemoteDataSource);
+        C --> N_Interface(TranscriptionRemoteDataSource Interface);
         C --> Q(LocalDurationStore);
         E --> G[FileSystem];
         E --> H[PathProvider];
@@ -71,14 +71,22 @@ graph LR
         F --> I(AudioDurationRetriever);
         F --> Q;
         I --> J[just_audio];
-        N --> O[HTTP Client Dio/HTTP];
-        O --> P((Backend REST API));
+
+        subgraph "Remote Data Source Implementations (DI Selects One)"'
+            N_Interface -.-> N_Real[TranscriptionRestDataSourceImpl];
+            N_Interface -.-> N_Fake[FakeTranscriptionDataSourceImpl];
+            N_Real --> O[HTTP Client Dio/HTTP];
+            O --> P((Backend REST API));
+            N_Fake --> S([Fake Storage In-Memory/JSON]);
+        end
+
         Q --> R[shared_preferences / Hive];
     end
 
     style M fill:#ccf,stroke:#333,stroke-width:2px
+    style N_Interface fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
 ```
-*(Note: `AudioDurationRetriever (I)` and `just_audio (J)` are KEPT but used differently. New `LocalDurationStore (Q)` added.)*
+*(Note: `AudioDurationRetriever (I)` / `just_audio (J)` kept. `LocalDurationStore (Q)` added. `TranscriptionRemoteDataSource` shown as Interface (`N_Interface`) with Real (`N_Real`) and Fake (`N_Fake`) implementations selected via DI.)*
 
 **Key Changes & Flow (Listing):**
 
@@ -91,11 +99,11 @@ graph LR
     *   `AudioFileManager` interface changes: `listRecordingDetails()` becomes `listRecordingPaths()` -> `Future<List<String>>`.
     *   `AudioFileManagerImpl` implementation simply lists `.m4a` file paths from the directory. No `stat`, no duration fetching during list load. **N+1 problem eliminated for list view.**
 3.  **Backend Integration:**
-    *   **New `TranscriptionRemoteDataSource`:** Handles all communication with the backend transcription API (e.g., using `Dio` or `http`).
-        *   `uploadForTranscription(String filePath)`: Uploads the audio file.
-        *   `getTranscriptionStatus(String identifier)`: Gets status for one item.
-        *   `getAllTranscriptionStatuses()`: Gets statuses for all known transcriptions associated with the user.
-        *   `getTranscriptionResult(String identifier)`: Gets the final transcript.
+    *   **New `TranscriptionRemoteDataSource` Interface:** Defines the contract for communication with the backend transcription API (methods like `getAllTranscriptionStatuses`, `uploadForTranscription`, etc.).
+    *   **Implementation Strategy:**
+        *   **`TranscriptionRestDataSourceImpl`:** Implements the interface using an HTTP client (`Dio`/`http`) to talk to the actual REST API. **Used in production.**
+        *   **`FakeTranscriptionDataSourceImpl`:** Implements the interface using in-memory data, local storage (e.g., JSON file), or simulated delays. **Used for development and testing** until the real API is fully available or when testing offline/error states.
+        *   Dependency injection (e.g., `get_it`) will be used to provide the appropriate implementation based on the build environment.
     *   **Updated `Transcription` Entity (Domain):** Represents the state and result of a transcription job (e.g., `id`, `fileName`, `status: 'pending_upload' | 'uploading' | 'processing' | 'complete' | 'failed'`, `createdAt` (backend time), `Duration? duration`, `transcriptSnippet`, etc.). `duration` can come from local store or backend.
 4.  **Orchestration (`AudioRecorderRepositoryImpl`):**
     *   Now depends on `AudioFileManager`, `TranscriptionRemoteDataSource`, and `LocalDurationStore`.
@@ -125,3 +133,6 @@ graph LR
 
 1.  **Refactor `AudioFileManager` Interface & Implementation:** Change `listRecordingDetails` to `listRecordingPaths` (remains the same goal: simplify listing).
 2.  **Define `LocalDurationStore` Interface & Implementation:** Create abstraction for storing/retrieving `Map<String, int>` (e.g., using `shared_preferences`
+3.  **Define `TranscriptionRemoteDataSource` Interface:** Specify the API methods.
+4.  **Implement `TranscriptionRemoteDataSourceImpl`:** Add HTTP client logic (initially, potentially implement the `Fake` version first for development).
+5.  **Refactor `AudioRecorderRepository` Interface & Implementation:** Update dependencies (add `LocalDurationStore`), implement `loadTranscriptions` with the new merging logic.
