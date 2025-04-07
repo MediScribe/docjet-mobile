@@ -127,14 +127,11 @@ graph LR
         *   `DateTime? backendCreatedAt`: Timestamp from backend.
         *   `DateTime? backendUpdatedAt`: Timestamp of last backend update.
         *   `int? localDurationMillis`: Duration stored locally post-recording (via `LocalJobStore`).
-        *   `int? backendDurationMillis`: Duration provided by the backend (if available).
         *   `String? displayTitle`: Title snippet from backend.
         *   `String? displayText`: Text preview snippet from backend.
         *   `String? errorCode`: Backend error code if `status` is `failed`.
         *   `String? errorMessage`: Backend error message if `status` is `failed`.
-        *   **Duration Logic:** The Repository/Cubit should prioritize `backendDurationMillis` if available (e.g., status >= `transcribed`), otherwise use `localDurationMillis`.
         *   **Explicit Clarification:** This `Transcription` entity is the **client-side, unified representation** of a recording job's state. It merges data persisted locally (via `LocalJobStore`, especially for `created` status jobs using `localFilePath` as the key) with data fetched from the backend API (identified by the `id` field once available). Its fields (like `status`, `displayTitle`) directly map to what the UI needs to show in the "Transkripte" list, aligning with the `spec.md`. It is *distinct* from the backend `Job` entity but represents its state on the mobile client.
-        *   **Duration Logic:** When mapping data to the `Transcription` entity, the Repository/Cubit *must* prioritize `backendDurationMillis` if it's available and non-null (indicating the backend processed it). Otherwise, it *must* fall back to using `localDurationMillis` from the `LocalJobStore`.
         *   **ID Handling Emphasis:** `String? id`: Backend Job ID (UUID format). **Nullable.** This is the primary identifier *once the job exists on the backend*. Before that (status `created`), `localFilePath` is the key identifier for local management.
 4.  **Orchestration (`AudioRecorderRepositoryImpl`):**
     *   Depends on `AudioFileManager`, `TranscriptionRemoteDataSource`, and `LocalJobStore`.
@@ -146,7 +143,6 @@ graph LR
             *   Maps backend statuses to `Transcription` objects, using `id` as the key.
             *   Maps local jobs (from `LocalJobStore`) to `Transcription` objects, using `localFilePath` as the key, setting `id = null`, status = `created`, etc.
             *   Combines the lists, potentially resolving conflicts (e.g., a job exists locally and remotely).
-            *   Applies duration priority logic.
         *   Returns `List<Transcription>` (or `Result<List<Transcription>, Error>`).
     *   `uploadRecording(String localFilePath)` method:
         *   Retrieves job details from `LocalJobStore`.
