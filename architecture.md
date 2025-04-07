@@ -2,6 +2,8 @@
 
 This document outlines the current and proposed architecture for the audio recording and transcription feature, reflecting the understanding that local audio files serve primarily as payloads for a backend transcription service.
 
+***Note (April 7th, 2024): The current codebase primarily reflects the "Current Architecture" described in Section 1. The implementation has *not yet* been fully updated to match the "Proposed Architecture" in Section 2. This document serves as the target state and plan.***
+
 ## 1. Current Architecture (Pre-Transcription API Focus)
 
 This architecture focused heavily on managing audio files locally, treating local metadata (duration, creation date via file stat) as the primary source of truth for the UI list.
@@ -63,13 +65,13 @@ graph LR
         C --> E(AudioFileManager);
         C --> F(AudioLocalDataSource);
         C --> N_Interface(TranscriptionRemoteDataSource Interface);
-        C --> Q(LocalDurationStore);
+        C --> Q_Interface(LocalJobStore Interface);
         E --> G[FileSystem];
         E --> H[PathProvider];
         F --> K[record package];
         F --> L[PermissionHandler];
         F --> I(AudioDurationRetriever);
-        F --> Q;
+        F --> Q_Interface;
         I --> J[just_audio];
 
         subgraph "Remote Data Source Implementations (DI Selects One)"'
@@ -80,59 +82,152 @@ graph LR
             N_Fake --> S([Fake Storage In-Memory/JSON]);
         end
 
-        Q --> R[shared_preferences / Hive];
+        subgraph "Local Job Store Implementation (DI Selects One)"'
+             Q_Interface -.-> Q_Hive[HiveLocalJobStoreImpl];
+             Q_Hive --> T[hive];
+        end
+
     end
 
     style M fill:#ccf,stroke:#333,stroke-width:2px
     style N_Interface fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style Q_Interface fill:#eee,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
 ```
-*(Note: `AudioDurationRetriever (I)` / `just_audio (J)` kept. `LocalDurationStore (Q)` added. `TranscriptionRemoteDataSource` shown as Interface (`N_Interface`) with Real (`N_Real`) and Fake (`N_Fake`) implementations selected via DI.)*
+*(Note: `AudioDurationRetriever (I)` used *only* by `AudioLocalDataSource (F)` after recording. `LocalJobStore (Q_Interface)` replaces `LocalDurationStore`, implemented with Hive. `TranscriptionRemoteDataSource (N_Interface)` shown with `Real` and `Fake` implementations.)*
 
 **Key Changes & Flow (Listing):**
 
-1.  **Duration Capture & Storage (NEW):**
-    *   `AudioDurationRetriever` is **KEPT**, but **NOT** called during list loading.
-    *   When `AudioLocalDataSource.stopRecording()` completes:
-        *   It calls `AudioDurationRetriever.getDuration()` for the finished `filePath`.
-        *   It saves this duration (e.g., `Map<String, int> {filePath: durationMillis}`) using a new abstraction: `LocalDurationStore` (backed by `shared_preferences`, `Hive`, or similar).
+1.  **Local Job Capture & Persistence (NEW):**
+    *   `AudioDurationRetriever` is **KEPT**, but called **ONLY** by `AudioLocalDataSource.stopRecording()` *after* recording finishes successfully *or* when saving an offline job.
+    *   When a recording is finished (or determined to be offline initially):
+        *   `AudioLocalDataSource` (or potentially a new coordinating service) gathers `localFilePath`, `durationMillis`, sets `status` to `created`.
+        *   It saves this information using the **`LocalJobStore` Interface**.
+    *   **`LocalJobStore` Interface (Domain):** Defines the contract for local job persistence (replacing `LocalDurationStore`).
+        *   `Future<void> saveJob(LocalJob job);` // Where LocalJob is a simple entity/DTO
+        *   `Future<LocalJob?> getJob(String localFilePath);`
+        *   `Future<List<LocalJob>> getOfflineJobs();` // Get jobs needing upload (status == 'created')
+        *   `Future<List<LocalJob>> getAllLocalJobs();` // Get all locally tracked jobs for merging
+        *   `Future<void> updateJobStatus(String localFilePath, TranscriptionStatus status, {String? backendId});` // To update on successful upload
+        *   `Future<void> deleteJob(String localFilePath);` // Needed for cleanup when backend job is confirmed or deleted
+    *   **Implementation (`HiveLocalJobStoreImpl`):** Uses `Hive` to efficiently store and query `LocalJob` objects (containing path, duration, status, potentially creation time for FIFO). Replaces the `shared_preferences` approach.
 2.  **Simplified Local File Listing:**
-    *   `AudioFileManager` interface changes: `listRecordingDetails()` becomes `listRecordingPaths()` -> `Future<List<String>>`.
-    *   `AudioFileManagerImpl` implementation simply lists `.m4a` file paths from the directory. No `stat`, no duration fetching during list load. **N+1 problem eliminated for list view.**
+    *   `AudioFileManager` interface: `listRecordingDetails()` becomes `listRecordingPaths()` -> `Future<List<String>>`.
+    *   `AudioFileManagerImpl`: Simply lists `.m4a` file paths. No `stat`, no duration fetching during list load. **N+1 problem eliminated.**
 3.  **Backend Integration:**
-    *   **New `TranscriptionRemoteDataSource` Interface:** Defines the contract for communication with the backend transcription API (methods like `getAllTranscriptionStatuses`, `uploadForTranscription`, etc.).
+    *   **`TranscriptionRemoteDataSource` Interface (Domain):** Defines contract for backend communication (e.g., `getAllTranscriptionStatuses`, `uploadForTranscription`, `getTranscriptionJob`).
     *   **Implementation Strategy:**
-        *   **`TranscriptionRestDataSourceImpl`:** Implements the interface using an HTTP client (`Dio`/`http`) to talk to the actual REST API. **Used in production.**
-        *   **`FakeTranscriptionDataSourceImpl`:** Implements the interface using in-memory data, local storage (e.g., JSON file), or simulated delays. **Used for development and testing** until the real API is fully available or when testing offline/error states.
-        *   Dependency injection (e.g., `get_it`) will be used to provide the appropriate implementation based on the build environment.
-    *   **Updated `Transcription` Entity (Domain):** Represents the state and result of a transcription job (e.g., `id`, `fileName`, `status: 'pending_upload' | 'uploading' | 'processing' | 'complete' | 'failed'`, `createdAt` (backend time), `Duration? duration`, `transcriptSnippet`, etc.). `duration` can come from local store or backend.
+        *   `TranscriptionRestDataSourceImpl`: Uses HTTP client for the real API (Production).
+        *   **`FakeTranscriptionDataSourceImpl` (CRUCIAL):** Implements the interface using in-memory/JSON data. **Essential for development/testing** to simulate states, delays, and errors without hitting the real backend.
+        *   Dependency Injection (`get_it`) selects the implementation.
+    *   **`Transcription` Entity (Domain - Revised):** Represents the merged state of a recording/job.
+        *   `String? id`: **Backend Job ID (UUID format). Nullable.** This is only populated *after* the job is successfully submitted to the backend API.
+        *   `String localFilePath`: The path on the device. **Primary key for local-only jobs.** Crucial for mapping and managing the actual file.
+        *   `TranscriptionStatus status`: Enum (`created`, `submitted`, `uploading`, `processing`, `transcribed`, `generating`, `completed`, `failed`). Adjusted statuses.
+        *   `DateTime? localCreatedAt`: Timestamp when the recording was saved locally. Useful for FIFO if needed.
+        *   `DateTime? backendCreatedAt`: Timestamp from backend.
+        *   `DateTime? backendUpdatedAt`: Timestamp of last backend update.
+        *   `int? localDurationMillis`: Duration stored locally post-recording (via `LocalJobStore`).
+        *   `int? backendDurationMillis`: Duration provided by the backend (if available).
+        *   `String? displayTitle`: Title snippet from backend.
+        *   `String? displayText`: Text preview snippet from backend.
+        *   `String? errorCode`: Backend error code if `status` is `failed`.
+        *   `String? errorMessage`: Backend error message if `status` is `failed`.
+        *   **Duration Logic:** The Repository/Cubit should prioritize `backendDurationMillis` if available (e.g., status >= `transcribed`), otherwise use `localDurationMillis`.
+        *   **Explicit Clarification:** This `Transcription` entity is the **client-side, unified representation** of a recording job's state. It merges data persisted locally (via `LocalJobStore`, especially for `created` status jobs using `localFilePath` as the key) with data fetched from the backend API (identified by the `id` field once available). Its fields (like `status`, `displayTitle`) directly map to what the UI needs to show in the "Transkripte" list, aligning with the `spec.md`. It is *distinct* from the backend `Job` entity but represents its state on the mobile client.
+        *   **Duration Logic:** When mapping data to the `Transcription` entity, the Repository/Cubit *must* prioritize `backendDurationMillis` if it's available and non-null (indicating the backend processed it). Otherwise, it *must* fall back to using `localDurationMillis` from the `LocalJobStore`.
+        *   **ID Handling Emphasis:** `String? id`: Backend Job ID (UUID format). **Nullable.** This is the primary identifier *once the job exists on the backend*. Before that (status `created`), `localFilePath` is the key identifier for local management.
 4.  **Orchestration (`AudioRecorderRepositoryImpl`):**
-    *   Now depends on `AudioFileManager`, `TranscriptionRemoteDataSource`, and `LocalDurationStore`.
-    *   `loadTranscriptions()` method (replaces/evolves `loadRecordings`):
-        *   Calls `TranscriptionRemoteDataSource.getAllTranscriptionStatuses()` to get backend state.
-        *   Calls `AudioFileManager.listRecordingPaths()` to find all local file paths.
-        *   Calls `LocalDurationStore.getAllDurations()` (or similar) to get the map of locally stored durations.
-        *   **Merges information:**
-            *   Maps backend statuses to `Transcription` entities (using backend duration if available).
-            *   Identifies local-only files (paths present locally but not in backend results).
-            *   Creates `Transcription` entities for these local-only files with status `'pending_upload'` and uses the **locally stored duration** from the map.
-        *   Returns `List<Transcription>` to the Cubit.
+    *   Depends on `AudioFileManager`, `TranscriptionRemoteDataSource`, and `LocalJobStore`.
+    *   `loadTranscriptions()` method:
+        *   Calls `TranscriptionRemoteDataSource.getAllTranscriptionStatuses()`. Handles API errors.
+        *   Calls `LocalJobStore.getAllLocalJobs()`.
+        *   Calls `AudioFileManager.listRecordingPaths()` (potentially redundant if paths are reliably in `LocalJobStore`, but useful for sanity checks/cleanup).
+        *   **Merges information** into `List<Transcription>`:
+            *   Maps backend statuses to `Transcription` objects, using `id` as the key.
+            *   Maps local jobs (from `LocalJobStore`) to `Transcription` objects, using `localFilePath` as the key, setting `id = null`, status = `created`, etc.
+            *   Combines the lists, potentially resolving conflicts (e.g., a job exists locally and remotely).
+            *   Applies duration priority logic.
+        *   Returns `List<Transcription>` (or `Result<List<Transcription>, Error>`).
+    *   `uploadRecording(String localFilePath)` method:
+        *   Retrieves job details from `LocalJobStore`.
+        *   Calls `TranscriptionRemoteDataSource.uploadForTranscription(localFilePath, ...)`.
+        *   On success: calls `LocalJobStore.updateJobStatus`.
+        *   Handles failures/retries.
+    *   Background sync logic (potentially triggered elsewhere) would use `LocalJobStore.getOfflineJobs()` and call `uploadRecording`.
+    *   **Merge Logic - Key Scenarios to Handle:** The merge process *must* correctly handle:
+        *   **Local-Only Jobs:** Files present locally (`LocalJobStore` entry with status `created`, no backend `id`), not yet known to the backend.
+        *   **Backend-Only Jobs:** Info received from the API, but no corresponding `LocalJob` entry (e.g., created via web, or local entry lost). File might or might not be locally present.
+        *   **Synced Jobs:** Present in both `LocalJobStore` (with a `backendId` and status potentially >= `submitted`) and the API response. Use the API data as the primary source of truth for status/metadata, but retain `localFilePath` and `localDurationMillis`.
+        *   **Conflict Resolution:** Define precedence if statuses differ unexpectedly (e.g., API says `transcribing`, local store says `created`). Generally, API status wins for jobs with a backend `id`.
+        *   **Backend ID Mapping:** Correctly associate local jobs with backend responses once an upload succeeds and a backend `id` is available (updating the `LocalJobStore` record).
+        *   **Orphaned Local Files/Jobs:** Files listed by `AudioFileManager` but *not* in `LocalJobStore` or the API response (potential cleanup needed?). Jobs in `LocalJobStore` but *not* in the API response *or* locally present files (stale data?).
 5.  **Presentation (`AudioListCubit`):**
-    *   Manages the state `List<Transcription>`.
-    *   Handles UI logic based on `Transcription.status` and displays `Transcription.duration`.
-    *   Initiates uploads via the repository.
-    *   Potentially implements polling or listens to push notifications/sockets.
+    *   Manages `AudioListState` containing `List<Transcription>`.
+    *   Displays data based on `Transcription` fields (status, title, text, appropriate duration).
+    *   Initiates uploads/retries via the repository.
 
 **Benefits:**
 
-*   **Aligns with Reality & Requirement:** Architecture reflects the API-centric process AND includes the required local duration.
-*   **Performance:** Eliminates the N+1 bottleneck for list display by getting duration only once post-recording.
-*   **Clean Data Flow:** Clear separation: `AudioFileManager` (paths), `AudioLocalDataSource` (recording + duration capture), `LocalDurationStore` (persisted durations), `TranscriptionRemoteDataSource` (backend API).
-*   **Single Source of Truth:** Backend dictates status/metadata for processed jobs; local store provides duration for pending jobs.
+*   **Aligns with Reality & Requirement:** Reflects API-centric process AND includes local duration.
+*   **Performance:** Eliminates N+1 list load bottleneck. Duration fetched once.
+*   **Clean Data Flow:** Clear separation of concerns.
+*   **Single Source of Truth (Defined):** Backend dictates status/metadata for processed jobs; `LocalJobStore` (Hive) manages state for local-only/pending jobs.
+*   **Testability:** `FakeDataSource` allows isolated UI/domain logic testing. `LocalJobStore` can also be faked.
+*   **Offline Support:** Robust handling of offline job creation and persistence via Hive.
 
-## 3. Next Steps (Revised)
+## 3. Battle Plan: Implementing the Proposed Architecture
 
-1.  **Refactor `AudioFileManager` Interface & Implementation:** Change `listRecordingDetails` to `listRecordingPaths` (remains the same goal: simplify listing).
-2.  **Define `LocalDurationStore` Interface & Implementation:** Create abstraction for storing/retrieving `Map<String, int>` (e.g., using `shared_preferences`
-3.  **Define `TranscriptionRemoteDataSource` Interface:** Specify the API methods.
-4.  **Implement `TranscriptionRemoteDataSourceImpl`:** Add HTTP client logic (initially, potentially implement the `Fake` version first for development).
-5.  **Refactor `AudioRecorderRepository` Interface & Implementation:** Update dependencies (add `LocalDurationStore`), implement `loadTranscriptions` with the new merging logic.
+This roadmap outlines the steps to refactor the codebase from the "Current Architecture" to the "Proposed Architecture". Focus on completing each step before moving to the next to ensure a solid foundation.
+
+1.  **Update `architecture.md`:** *(Done)* Ensure this document accurately reflects the target state and plan.
+2.  **Define Domain/Data Interfaces & Entities:**
+    *   Create `TranscriptionStatus` enum (`domain/entities/transcription_status.dart`) mirroring backend job statuses: `created` (local-only initial state), `submitted`, `transcribing`, `transcribed`, `generating`, `generated`, `completed`, `error`. **Crucial:** Ensure these values align *exactly* with the backend API's possible status strings defined in `spec.md` for reliable mapping.
+    *   Create `Transcription` entity class (`domain/entities/transcription.dart`) with **nullable `id`** and other fields defined above. **See Section 2, point 3 for explicit clarification on this entity's role.**
+    *   **`LocalJob` Entity (for Persistence):** A simple DTO/entity stored locally (e.g., in Hive) containing essential offline information:
+        *   `String localFilePath` (Primary Key for local identification)
+        *   `int durationMillis` (Captured once post-recording)
+        *   `TranscriptionStatus status` (e.g., `created`, `submitted`, `error` if upload failed before API confirmation)
+        *   `DateTime localCreatedAt` (Timestamp for FIFO processing/display)
+        *   `String? backendId` (Nullable UUID, populated after successful API submission confirmation)
+    *   Define `LocalJobStore` interface (`domain/repositories/local_job_store.dart`).
+    *   Define `TranscriptionRemoteDataSource` interface (`domain/repositories/transcription_remote_data_source.dart`).
+3.  **Implement Local Job Persistence (Hive):**
+    *   Add `hive`, `hive_flutter`, `hive_generator`, `build_runner` dependencies to `pubspec.yaml`.
+    *   Define the `LocalJob` class with `@HiveType` annotations.
+    *   Generate the `TypeAdapter` using `build_runner`.
+    *   Implement `HiveLocalJobStoreImpl` (`data/datasources/local_job_store_impl.dart`) conforming to the interface. Initialize Hive correctly.
+    *   Inject `LocalJobStore` into `AudioLocalDataSourceImpl` (or a new coordinator service).
+    *   Modify `AudioLocalDataSourceImpl` (or coordinator):
+        *   On `stopRecording`: Call `AudioDurationRetriever.getDuration`. Create `LocalJob` (status `created`). Call `localJobStore.saveJob`. Trigger upload attempt.
+        *   On successful upload (via API call elsewhere): Call `localJobStore.updateJobStatus`.
+    *   Modify recording deletion logic to call `localJobStore.deleteJob`.
+4.  **Implement Fake Backend Data Source:**
+    *   Create `FakeTranscriptionDataSourceImpl` (`data/datasources/fake_transcription_data_source_impl.dart`).
+    *   Implement methods to return hardcoded or configurable lists of `Transcription` data, simulating different statuses, delays, and errors. Store fake data in memory initially.
+5.  **Refactor Repository (`AudioRecorderRepositoryImpl`):**
+    *   Update dependencies: Inject `LocalJobStore`, `TranscriptionRemoteDataSource`. Adjust `AudioFileManager` usage.
+    *   Rewrite `loadTranscriptions`: Implement the merge logic using `LocalJobStore` for local state and `TranscriptionRemoteDataSource` for backend state. Handle nullable `id` correctly.
+    *   Implement `uploadRecording(String localFilePath)`: Interact with `TranscriptionRemoteDataSource` and update `LocalJobStore` on success/failure.
+6.  **Refactor Presentation Layer (`AudioList*`):**
+    *   Update `AudioListState` (`presentation/cubit/`) to manage `List<Transcription>`, loading, and error states.
+    *   Update `AudioListCubit` to use the refactored `AudioRecorderRepository` method (`loadTranscriptions`) and emit the new states.
+    *   Update `AudioRecorderListPage` (`presentation/pages/`):
+        *   Change `BlocConsumer` to use `AudioListCubit`/`AudioListState<List<Transcription>>`.
+        *   Modify the `builder` logic to handle the new state.
+        *   Update `ListView.builder` and its `itemBuilder` (e.g., `ListTile`) to display data from the `Transcription` entity (status badge, title/text preview, formatted timestamp, correct duration based on priority logic).
+        *   Change `AppBar` title to "Transkripte".
+7.  **Implement Background Sync:**
+    *   Choose a mechanism (e.g., `connectivity_plus` listener + manual trigger, `workmanager`).
+    *   Implement logic to: Detect connectivity -> Get offline jobs from `LocalJobStore` -> Attempt upload via `AudioRecorderRepository` -> Update `LocalJobStore`.
+8.  **Update Dependency Injection (`get_it`):**
+    *   In `core/di/injection_container.dart`, register `LocalJobStore` and its Hive implementation. Register `TranscriptionRemoteDataSource` (Fake for now). Initialize Hive.
+9.  **Test Core Logic & UI:**
+    *   Write unit tests for `AudioRecorderRepositoryImpl` merge logic (offline, online, mixed scenarios).
+    *   Test `HiveLocalJobStoreImpl`.
+    *   Test background sync logic (might require integration tests).
+    *   Write widget tests for `AudioRecorderListPage` handling both local (`created`) and backend states.
+10. **(Later) Implement Real Backend Data Source:**
+    *   Add HTTP client (`dio` or `http`) dependency.
+    *   Implement `TranscriptionRestDataSourceImpl`.
+    *   Update DI container to provide the real implementation for production builds.
+11. **(Later) Refine UI/UX:** Once the data flow is correct, focus on improving the visual presentation and user experience of the list and recorder pages, including clear indication of offline status.
