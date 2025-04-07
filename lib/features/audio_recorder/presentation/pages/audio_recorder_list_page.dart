@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 // Import the DI container for sl
-import 'package:docjet_mobile/core/di/injection_container.dart';
 // Import the specific Cubits and States needed
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
+// import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
 
 // ADD THIS IMPORT
 import 'package:docjet_mobile/core/utils/logger.dart';
@@ -16,7 +14,6 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 // import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 
 // This outer widget can remain StatelessWidget, it just provides the context
 class AudioRecorderListPage extends StatelessWidget {
@@ -58,62 +55,30 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
     return '$minutes:$seconds';
   }
 
-  void _showRecordingOptions(BuildContext context, AudioRecord recording) {
-    // Get the AudioListCubit instance from the context
-    final listCubit = context.read<AudioListCubit>();
-    logger.d(
-      "[ListView] _showRecordingOptions called for ${recording.filePath}",
-    );
-    showModalBottomSheet(
-      context: context,
-      builder: (bottomSheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Delete Recording'),
-                onTap: () {
-                  logger.d(
-                    "[BottomSheet] Delete tapped for ${recording.filePath}",
-                  );
-                  Navigator.pop(bottomSheetContext); // Close bottom sheet
-                  logger.d(
-                    "[BottomSheet] Calling listCubit.deleteRecording(${recording.filePath})",
-                  );
-                  listCubit.deleteRecording(recording.filePath);
-                  logger.d(
-                    "[BottomSheet] listCubit.deleteRecording(${recording.filePath}) call finished.",
-                  );
-                },
-              ),
-              // Add other options like Rename, Share later if needed
-            ],
-          ),
-        );
-      },
-    ).whenComplete(() {
-      logger.d("[ListView] Bottom sheet closed for ${recording.filePath}");
-    });
-  }
-
   // Navigation logic updated
   Future<void> _showAudioRecorderPage(BuildContext context) async {
     logger.i("[AudioRecorderListView] _showAudioRecorderPage called.");
-    // <<--- Get the Cubit instance BEFORE the await --- >>
+    // Get the List Cubit instance BEFORE the await for refresh logic
     final listCubit = context.read<AudioListCubit>();
 
     // Use Navigator.push and await the result
     final bool? shouldRefresh = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => BlocProvider<AudioRecordingCubit>.value(
-              // Create a NEW, SCOPED instance of AudioRecordingCubit for this page
-              value: sl<AudioRecordingCubit>()..prepareRecorder(),
-              child: const AudioRecorderPage(),
-            ),
+        // No need to read/provide the cubit here anymore.
+        // AudioRecorderPage will access the globally provided instance.
+        builder: (_) => const AudioRecorderPage(),
+        /* // REMOVE this section
+        builder: (_) {
+          // Get the EXISTING cubit instance from the current context
+          final audioRecordingCubit = context.read<AudioRecordingCubit>();
+          // Provide THIS instance to the new page
+          return BlocProvider<AudioRecordingCubit>.value(
+            value: audioRecordingCubit, // Use the instance from context
+            child: const AudioRecorderPage(),
+          );
+        },
+        */
       ),
     );
 
@@ -125,7 +90,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
     // Use the cubit instance captured before the await, AFTER checking mounted
     if (shouldRefresh == true && mounted) {
       logger.i("[AudioRecorderListView] Refreshing recordings list.");
-      listCubit.loadRecordings(); // Use the captured instance
+      listCubit.loadAudioRecordings(); // Use the captured instance
     }
   }
 
@@ -182,7 +147,10 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                   ElevatedButton(
                     // Use the correct cubit to retry loading
                     onPressed:
-                        () => context.read<AudioListCubit>().loadRecordings(),
+                        () =>
+                            context
+                                .read<AudioListCubit>()
+                                .loadAudioRecordings(),
                     child: const Text('Retry Loading'),
                   ),
                 ],
@@ -203,21 +171,26 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             logger.d(
               "[AudioRecorderListView] Builder: ListLoaded has ${state.recordings.length} items.",
             );
-            // Sort recordings by creation date, newest first
-            final sortedRecordings = List<AudioRecord>.from(state.recordings)
-              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            // state.recordings is already sorted by the Cubit
+            final sortedTranscriptions = state.recordings;
 
             return ListView.builder(
               // Use sorted list
-              itemCount: sortedRecordings.length,
+              itemCount: sortedTranscriptions.length,
               itemBuilder: (context, index) {
-                // Use sorted list
-                final recording = sortedRecordings[index];
-                // Calculate end time based on duration (assuming domain entity has duration)
-                final startTime = recording.createdAt;
-                final endTime = startTime.add(
-                  recording.duration,
-                ); // Requires duration in AudioRecord
+                // Use Transcription type
+                final transcription = sortedTranscriptions[index];
+                // Use Transcription properties
+                final startTime = transcription.localCreatedAt;
+                final duration =
+                    transcription.localDurationMillis != null
+                        ? Duration(
+                          milliseconds: transcription.localDurationMillis!,
+                        )
+                        : Duration.zero;
+                final endTime = startTime?.add(duration);
+                final title =
+                    transcription.displayTitle ?? 'Recording ${index + 1}';
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -228,9 +201,8 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ListTile(
-                        // Display index + 1 for user-friendly numbering
                         title: Text(
-                          'Recording ${index + 1}',
+                          title, // Use transcription title
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         subtitle: Column(
@@ -238,22 +210,30 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                           children: [
                             const SizedBox(height: 4),
                             Text(
-                              'Path: ${recording.filePath.split('/').last}', // Show only filename
+                              'Path: ${transcription.localFilePath.split('/').last}', // Use transcription path
                               style: Theme.of(context).textTheme.bodySmall,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (startTime != null)
+                              Text(
+                                'Start: ${_formatDateTime(startTime)}', // Use transcription start time
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            if (endTime != null)
+                              Text(
+                                'End: ${_formatDateTime(endTime)}', // Use calculated end time
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
                             Text(
-                              'Start: ${_formatDateTime(startTime)}',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            Text(
-                              'End: ${_formatDateTime(endTime)}',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ), // Requires endTime calculation
-                            Text(
-                              'Duration: ${_formatDuration(recording.duration)}', // Requires duration
+                              'Duration: ${_formatDuration(duration)}', // Use transcription duration
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            // Optionally display status
+                            Text(
+                              'Status: ${transcription.status.name}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(fontStyle: FontStyle.italic),
                             ),
                           ],
                         ),
@@ -261,13 +241,18 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                           icon: const Icon(Icons.more_vert),
                           onPressed: () {
                             logger.d(
-                              "[ListView] More icon tapped for ${recording.filePath}",
+                              "[ListView] More icon tapped for ${transcription.localFilePath}",
                             );
-                            _showRecordingOptions(context, recording);
+                            // TODO: Update _showRecordingOptions to accept Transcription or path
+                            // For now, casting to AudioRecord will fail, need to adjust options logic
+                            // _showRecordingOptions(context, transcription); // This will fail
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Options not implemented yet.'),
+                              ),
+                            );
                           },
                         ),
-                        // Optional: Add onTap for the whole tile if needed
-                        // onTap: () { /* Playback or details? */ },
                       ),
                       // Integrate the AudioPlayerWidget for playback controls
                       Padding(
@@ -276,14 +261,14 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                           right: 16.0,
                           bottom: 8.0,
                         ),
-                        // Ensure AudioPlayerWidget exists and takes filePath
                         child: AudioPlayerWidget(
-                          filePath: recording.filePath,
-                          // Add the required onDelete callback
+                          filePath:
+                              transcription
+                                  .localFilePath, // Use transcription path
+                          // Update onDelete to use transcription path
                           onDelete: () {
-                            // Use the cubit from context to delete
                             context.read<AudioListCubit>().deleteRecording(
-                              recording.filePath,
+                              transcription.localFilePath,
                             );
                           },
                         ),

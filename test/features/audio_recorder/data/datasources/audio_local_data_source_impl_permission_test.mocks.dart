@@ -12,6 +12,14 @@ import 'package:docjet_mobile/core/platform/path_provider.dart' as _i8;
 import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i9;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
     as _i11;
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
+    as _i13;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
+    as _i15;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
+    as _i16;
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart'
+    as _i14;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:permission_handler/permission_handler.dart' as _i10;
@@ -55,6 +63,16 @@ class _FakeFileStat_1 extends _i1.SmartFake implements _i3.FileStat {
 
 class _FakeDirectory_2 extends _i1.SmartFake implements _i3.Directory {
   _FakeDirectory_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeDuration_3 extends _i1.SmartFake implements Duration {
+  _FakeDuration_3(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -456,4 +474,109 @@ class MockAudioConcatenationService extends _i1.Mock
           ),
         )),
       ) as _i5.Future<String>);
+}
+
+/// A class which mocks [AudioDurationRetriever].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAudioDurationRetriever extends _i1.Mock
+    implements _i13.AudioDurationRetriever {
+  @override
+  _i5.Future<Duration> getDuration(String? filePath) => (super.noSuchMethod(
+        Invocation.method(
+          #getDuration,
+          [filePath],
+        ),
+        returnValue: _i5.Future<Duration>.value(_FakeDuration_3(
+          this,
+          Invocation.method(
+            #getDuration,
+            [filePath],
+          ),
+        )),
+        returnValueForMissingStub: _i5.Future<Duration>.value(_FakeDuration_3(
+          this,
+          Invocation.method(
+            #getDuration,
+            [filePath],
+          ),
+        )),
+      ) as _i5.Future<Duration>);
+}
+
+/// A class which mocks [LocalJobStore].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockLocalJobStore extends _i1.Mock implements _i14.LocalJobStore {
+  @override
+  _i5.Future<void> saveJob(_i15.LocalJob? job) => (super.noSuchMethod(
+        Invocation.method(
+          #saveJob,
+          [job],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<_i15.LocalJob?> getJob(String? localFilePath) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJob,
+          [localFilePath],
+        ),
+        returnValue: _i5.Future<_i15.LocalJob?>.value(),
+        returnValueForMissingStub: _i5.Future<_i15.LocalJob?>.value(),
+      ) as _i5.Future<_i15.LocalJob?>);
+
+  @override
+  _i5.Future<List<_i15.LocalJob>> getOfflineJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #getOfflineJobs,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
+      ) as _i5.Future<List<_i15.LocalJob>>);
+
+  @override
+  _i5.Future<List<_i15.LocalJob>> getAllLocalJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #getAllLocalJobs,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
+      ) as _i5.Future<List<_i15.LocalJob>>);
+
+  @override
+  _i5.Future<void> updateJobStatus(
+    String? localFilePath,
+    _i16.TranscriptionStatus? status, {
+    String? backendId,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateJobStatus,
+          [
+            localFilePath,
+            status,
+          ],
+          {#backendId: backendId},
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> deleteJob(String? localFilePath) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJob,
+          [localFilePath],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 }

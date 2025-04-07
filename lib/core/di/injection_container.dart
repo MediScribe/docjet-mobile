@@ -18,11 +18,14 @@ import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_m
 // Import Hive and related components
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/local_job_store_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 // Import Fake Data Source
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/fake_transcription_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/transcription_remote_data_source.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/transcription_merge_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/services/transcription_merge_service.dart';
 
 final sl = GetIt.instance;
 
@@ -30,6 +33,11 @@ Future<void> init() async {
   // --- Core Initialization ---
   // Initialize Hive FIRST
   await Hive.initFlutter();
+
+  // Register Hive Adapters BEFORE opening boxes
+  Hive.registerAdapter(LocalJobAdapter());
+  Hive.registerAdapter(TranscriptionStatusAdapter());
+
   // Open boxes needed at startup (currently just LocalJob)
   final localJobBox = await HiveLocalJobStoreImpl.openBox();
 
@@ -39,12 +47,14 @@ Future<void> init() async {
   sl.registerFactory(() => AudioListCubit(repository: sl()));
   sl.registerFactory(() => AudioRecordingCubit(repository: sl()));
 
-  // Repository (Depends on Data Sources)
+  // Repository (Depends on Data Sources AND Merge Service)
   sl.registerLazySingleton<AudioRecorderRepository>(
     () => AudioRecorderRepositoryImpl(
       localDataSource: sl(),
       fileManager: sl(),
-      // TODO: Inject TranscriptionRemoteDataSource and LocalJobStore in Step 5
+      localJobStore: sl(),
+      remoteDataSource: sl(),
+      transcriptionMergeService: sl(),
     ),
   );
 
@@ -56,8 +66,8 @@ Future<void> init() async {
       permissionHandler: sl(),
       audioConcatenationService: sl(),
       fileSystem: sl(),
-      // TODO: Inject LocalJobStore later when needed by the implementation
-      // localJobStore: sl(),
+      localJobStore: sl(),
+      audioDurationRetriever: sl(),
     ),
   );
 
@@ -102,5 +112,10 @@ Future<void> init() async {
       pathProvider: sl(),
       audioDurationRetriever: sl(),
     ),
+  );
+
+  // + Register TranscriptionMergeService
+  sl.registerLazySingleton<TranscriptionMergeService>(
+    () => TranscriptionMergeServiceImpl(),
   );
 }

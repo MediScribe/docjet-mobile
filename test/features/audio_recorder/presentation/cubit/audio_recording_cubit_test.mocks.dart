@@ -7,7 +7,7 @@ import 'dart:async' as _i4;
 
 import 'package:dartz/dartz.dart' as _i2;
 import 'package:docjet_mobile/core/error/failures.dart' as _i5;
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart'
     as _i6;
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart'
     as _i3;
@@ -166,6 +166,59 @@ class MockAudioRecorderRepository extends _i1.Mock
       ) as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
+  _i4.Future<_i2.Either<_i5.Failure, List<_i6.Transcription>>>
+      loadTranscriptions() => (super.noSuchMethod(
+            Invocation.method(
+              #loadTranscriptions,
+              [],
+            ),
+            returnValue: _i4
+                .Future<_i2.Either<_i5.Failure, List<_i6.Transcription>>>.value(
+                _FakeEither_0<_i5.Failure, List<_i6.Transcription>>(
+              this,
+              Invocation.method(
+                #loadTranscriptions,
+                [],
+              ),
+            )),
+          ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.Transcription>>>);
+
+  @override
+  _i4.Future<_i2.Either<_i5.Failure, _i6.Transcription>> uploadRecording({
+    required String? localFilePath,
+    required String? userId,
+    String? text,
+    String? additionalText,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #uploadRecording,
+          [],
+          {
+            #localFilePath: localFilePath,
+            #userId: userId,
+            #text: text,
+            #additionalText: additionalText,
+          },
+        ),
+        returnValue:
+            _i4.Future<_i2.Either<_i5.Failure, _i6.Transcription>>.value(
+                _FakeEither_0<_i5.Failure, _i6.Transcription>(
+          this,
+          Invocation.method(
+            #uploadRecording,
+            [],
+            {
+              #localFilePath: localFilePath,
+              #userId: userId,
+              #text: text,
+              #additionalText: additionalText,
+            },
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Transcription>>);
+
+  @override
   _i4.Future<_i2.Either<_i5.Failure, String>> appendToRecording(
           String? segmentPath) =>
       (super.noSuchMethod(
@@ -182,22 +235,4 @@ class MockAudioRecorderRepository extends _i1.Mock
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, String>>);
-
-  @override
-  _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>> loadRecordings() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #loadRecordings,
-          [],
-        ),
-        returnValue:
-            _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>>.value(
-                _FakeEither_0<_i5.Failure, List<_i6.AudioRecord>>(
-          this,
-          Invocation.method(
-            #loadRecordings,
-            [],
-          ),
-        )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.AudioRecord>>>);
 }

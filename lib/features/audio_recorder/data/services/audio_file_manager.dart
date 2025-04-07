@@ -4,18 +4,18 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_reco
 ///
 /// Responsibilities include listing existing recordings with details and deleting them.
 abstract class AudioFileManager {
-  /// Retrieves details (path, duration, created date) for all relevant audio files.
-  /// Returns a list of [AudioRecord] objects.
-  /// Errors encountered while processing individual files should be handled
-  /// internally (e.g., logged), and the method should return details for files
-  /// that were processed successfully. If the directory cannot be accessed,
-  /// it might throw an [AudioFileSystemException].
-  Future<List<AudioRecord>> listRecordingDetails();
-
-  /// Deletes a recording file.
+  /// Lists the file paths of all recordings (e.g., .m4a files) in the designated directory.
   ///
-  /// [filePath]: The path of the recording file to delete.
-  /// Throws [RecordingFileNotFoundException] if the file is missing.
-  /// Throws [AudioFileSystemException] for underlying file system errors.
+  /// Throws [AudioFileSystemException] if listing fails.
+  Future<List<String>> listRecordingPaths();
+
+  /// Deletes the specified recording file.
+  ///
+  /// Throws [RecordingFileNotFoundException] if the file doesn't exist.
+  /// Throws [AudioFileSystemException] for other deletion errors.
   Future<void> deleteRecording(String filePath);
+
+  /// Retrieves metadata details for a specific recording file.
+  /// Deprecated: Use direct file path listing and separate duration retrieval if needed.
+  Future<AudioRecord> getRecordingDetails(String filePath);
 }

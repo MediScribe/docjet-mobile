@@ -1,8 +1,11 @@
 import 'package:bloc/bloc.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:equatable/equatable.dart';
+import '../../../../core/utils/logger.dart';
 
-import 'audio_list_state.dart';
+part 'audio_list_state.dart';
 
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
@@ -10,24 +13,34 @@ class AudioListCubit extends Cubit<AudioListState> {
   AudioListCubit({required this.repository}) : super(AudioListInitial());
 
   /// Loads the list of existing recordings.
-  Future<void> loadRecordings() async {
-    logger.i("[LIST_CUBIT] loadRecordings() called.");
+  Future<void> loadAudioRecordings() async {
     emit(AudioListLoading());
-    // Call repository directly
-    final result = await repository.loadRecordings();
+    logger.d('[CUBIT] Loading audio recordings...');
+    final failureOrRecordings = await repository.loadTranscriptions();
 
-    result.fold(
+    failureOrRecordings.fold(
       (failure) {
-        logger.e("[LIST_CUBIT] loadRecordings failed", error: failure);
-        emit(
-          AudioListError('Failed to load recordings: ${failure.toString()}'),
-        );
+        logger.e('[CUBIT] Error loading recordings: $failure');
+        emit(AudioListError(message: _mapFailureToMessage(failure)));
       },
       (recordings) {
         logger.i(
-          "[LIST_CUBIT] loadRecordings successful. Count: ${recordings.length}",
+          '[CUBIT] Loaded ${recordings.length} recordings successfully.',
         );
-        emit(AudioListLoaded(recordings));
+        // Create a mutable copy before sorting
+        final mutableRecordings = List<Transcription>.from(recordings);
+        // Sort the mutable list by creation date, newest first (handle nulls)
+        mutableRecordings.sort((a, b) {
+          final dateA = a.localCreatedAt;
+          final dateB = b.localCreatedAt;
+          if (dateA == null && dateB == null) return 0;
+          if (dateA == null) return 1; // Nulls last
+          if (dateB == null) return -1;
+          return dateB.compareTo(dateA);
+        });
+        emit(
+          AudioListLoaded(recordings: mutableRecordings),
+        ); // Emit the sorted mutable list
       },
     );
   }
@@ -43,31 +56,49 @@ class AudioListCubit extends Cubit<AudioListState> {
 
     result.fold(
       (failure) {
-        logger.e(
-          "[LIST_CUBIT] deleteRecording failed for path: $filePath",
-          error: failure,
-        );
-        // Emit an error state, but maybe keep the current list loaded?
-        // Or emit a specific error state that the UI can show as a snackbar?
-        // For now, just log and emit a generic error. Consider UI feedback strategy.
+        logger.e('[CUBIT] Error deleting recording', error: failure);
+        // Use the named parameter for the message
         emit(
-          AudioListError('Failed to delete recording: ${failure.toString()}'),
+          AudioListError(
+            message:
+                'Failed to delete recording: ${_mapFailureToMessage(failure)}',
+          ),
         );
         // Optionally reload the list to ensure consistency after error
-        // await loadRecordings();
+        // await loadAudioRecordings();
       },
       (_) async {
         logger.i(
           "[LIST_CUBIT] deleteRecording successful for path: $filePath. Reloading list.",
         );
         // Deletion successful, reload the list to reflect the change.
-        await loadRecordings();
+        await loadAudioRecordings();
         logger.d("[LIST_CUBIT] Finished reloading list after deletion.");
       },
     );
     logger.i(
       "[LIST_CUBIT] deleteRecording method finished for path: $filePath",
     );
+  }
+
+  // Helper to map Failure types to user-friendly error messages
+  String _mapFailureToMessage(Failure failure) {
+    // Use toString() for a consistent message representation
+    return failure.toString();
+    /* // Keep specific formatting if needed later
+    switch (failure.runtimeType) {
+      case ServerFailure:
+      case CacheFailure:
+      case PermissionFailure:
+      case RecordingFailure:
+      case FileSystemFailure:
+      case ConcatenationFailure:
+      case PlatformFailure:
+      case ApiFailure:
+      default:
+        return failure.toString(); // Fallback to toString()
+    }
+    */
   }
 
   // Other list-specific methods if needed (sorting, filtering?)

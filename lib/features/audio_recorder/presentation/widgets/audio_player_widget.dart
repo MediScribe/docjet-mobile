@@ -58,9 +58,21 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         });
       });
 
+      // Determine the correct source based on the file path
+      Source source;
+      if (widget.filePath.startsWith('assets/')) {
+        // AssetSource expects the path RELATIVE to the assets folder
+        final relativePath = widget.filePath.substring('assets/'.length);
+        source = AssetSource(relativePath);
+        logger.d('Using AssetSource for relative path: $relativePath');
+      } else {
+        source = DeviceFileSource(widget.filePath);
+        logger.d('Using DeviceFileSource for: ${widget.filePath}');
+      }
+
       // Set a longer timeout for source initialization
       await _audioPlayer
-          .setSource(DeviceFileSource(widget.filePath))
+          .setSource(source)
           .timeout(
             const Duration(seconds: 60),
             onTimeout: () {
@@ -167,9 +179,24 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                       if (_isPlaying) {
                         await _audioPlayer.pause();
                       } else {
-                        await _audioPlayer.play(
-                          DeviceFileSource(widget.filePath),
-                        );
+                        // Determine the correct source for playback as well
+                        Source source;
+                        if (widget.filePath.startsWith('assets/')) {
+                          // AssetSource expects the path RELATIVE to the assets folder
+                          final relativePath = widget.filePath.substring(
+                            'assets/'.length,
+                          );
+                          source = AssetSource(relativePath);
+                          logger.d(
+                            'Playing AssetSource with relative path: $relativePath',
+                          );
+                        } else {
+                          source = DeviceFileSource(widget.filePath);
+                          logger.d(
+                            'Playing DeviceFileSource for: ${widget.filePath}',
+                          );
+                        }
+                        await _audioPlayer.play(source);
                       }
                     } catch (e) {
                       // Check capturedContext.mounted before using it

@@ -10,6 +10,10 @@ import '../services/audio_concatenation_service.dart';
 
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 
 class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioRecorder recorder;
@@ -17,6 +21,8 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final PermissionHandler permissionHandler;
   final AudioConcatenationService audioConcatenationService;
   final FileSystem fileSystem;
+  final LocalJobStore localJobStore;
+  final AudioDurationRetriever audioDurationRetriever;
 
   AudioLocalDataSourceImpl({
     required this.recorder,
@@ -24,6 +30,8 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     required this.permissionHandler,
     required this.audioConcatenationService,
     required this.fileSystem,
+    required this.localJobStore,
+    required this.audioDurationRetriever,
   });
 
   @override
@@ -95,19 +103,35 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
 
   @override
   Future<String> stopRecording({required String recordingPath}) async {
-    final path = recordingPath;
-
     try {
-      await recorder.stop();
+      final String? stoppedPath = await recorder.stop();
 
-      if (!await fileSystem.fileExists(path)) {
-        throw RecordingFileNotFoundException(
-          'Recording file not found at $path after stopping.',
+      if (stoppedPath == null) {
+        throw const NoActiveRecordingException(
+          'Failed to stop recording or recorder was not active.',
         );
       }
-      return path;
+
+      if (!await fileSystem.fileExists(stoppedPath)) {
+        throw RecordingFileNotFoundException(
+          'Recording file not found at $stoppedPath after stopping.',
+        );
+      }
+
+      final duration = await audioDurationRetriever.getDuration(stoppedPath);
+      final job = LocalJob(
+        localFilePath: stoppedPath,
+        durationMillis: duration.inMilliseconds,
+        status: TranscriptionStatus.created,
+        localCreatedAt: DateTime.now(),
+        backendId: null,
+      );
+      await localJobStore.saveJob(job);
+
+      return stoppedPath;
     } catch (e) {
-      if (e is RecordingFileNotFoundException) {
+      if (e is RecordingFileNotFoundException ||
+          e is NoActiveRecordingException) {
         rethrow;
       }
       throw AudioRecordingException('Failed to stop recording', e);

@@ -1,30 +1,43 @@
+import 'package:hive/hive.dart';
+
+part 'transcription_status.g.dart';
+
 /// Enum representing the possible states of a transcription job.
 ///
 /// These values MUST align *exactly* with the status strings expected
 /// and returned by the backend API (`spec.md`) for reliable mapping.
+@HiveType(typeId: 1)
 enum TranscriptionStatus {
   /// Initial state: Recording saved locally, not yet submitted to the backend.
+  @HiveField(0)
   created,
 
   /// Job successfully submitted to the backend API, awaiting processing.
+  @HiveField(1)
   submitted,
 
   /// Backend is actively uploading or transferring the audio file internally.
   // uploading, // NOTE: Based on spec.md, backend might go straight to processing
 
   /// Backend is actively processing the audio (transcription).
+  @HiveField(2)
   processing, // Renamed from 'transcribing' to match spec.md
   /// Transcription text is complete, but final output/formatting is pending.
+  @HiveField(3)
   transcribed,
 
   /// Backend is generating the final formatted output (e.g., structured text).
+  @HiveField(4)
   generating, // Renamed from 'generated' to match spec.md
   /// Job successfully completed, transcription and output are available.
+  @HiveField(5)
   completed, // Renamed from 'generated' to match spec.md
   /// An error occurred during the process.
+  @HiveField(6)
   failed, // Renamed from 'error' to match spec.md
   /// Represents an unknown or unexpected status received from the backend.
   /// Crucial for handling potential future API changes gracefully.
+  @HiveField(7)
   unknown,
 }
 

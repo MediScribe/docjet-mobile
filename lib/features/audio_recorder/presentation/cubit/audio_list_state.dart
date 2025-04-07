@@ -1,12 +1,15 @@
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Might need this if passing full entities
-import 'package:equatable/equatable.dart';
+part of 'audio_list_cubit.dart';
+
+// Removed imports from here - they belong in audio_list_cubit.dart
+// import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
+// import 'package:equatable/equatable.dart';
 
 // Base class
 abstract class AudioListState extends Equatable {
   const AudioListState();
 
   @override
-  List<Object?> get props => [];
+  List<Object> get props => [];
 }
 
 // Initial State
@@ -19,17 +22,17 @@ class AudioListLoading extends AudioListState {}
 class AudioListError extends AudioListState {
   final String message;
 
-  const AudioListError(this.message);
+  const AudioListError({required this.message});
 
   @override
-  List<Object?> get props => [message];
+  List<Object> get props => [message];
 }
 
 // Loaded State - Adjust if using a specific UI model later
 class AudioListLoaded extends AudioListState {
-  final List<AudioRecord> recordings; // Using domain entity for now
+  final List<Transcription> recordings; // Change to List<Transcription>
 
-  const AudioListLoaded(this.recordings);
+  const AudioListLoaded({required this.recordings}); // Update constructor
 
   @override
   List<Object> get props => [recordings];

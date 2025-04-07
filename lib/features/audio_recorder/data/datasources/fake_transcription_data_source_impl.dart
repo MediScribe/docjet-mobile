@@ -28,42 +28,15 @@ class FakeTranscriptionDataSourceImpl implements TranscriptionRemoteDataSource {
     _addFakeJob(
       Transcription(
         id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // Use the ID from the test
-        localFilePath: '/fake/path/recording1.m4a',
+        localFilePath:
+            'assets/audio/short-audio-test-file.m4a', // USE REAL ASSET PATH
         status: TranscriptionStatus.completed,
         localCreatedAt: DateTime.now().subtract(const Duration(days: 1)),
         backendCreatedAt: DateTime.now().subtract(const Duration(days: 1)),
         backendUpdatedAt: DateTime.now().subtract(const Duration(hours: 12)),
         localDurationMillis: 123456,
-        displayTitle: 'Completed Recording 1',
-        displayText: 'This is the transcript text...',
-      ),
-    );
-    _addFakeJob(
-      Transcription(
-        id: _uuid.v4(),
-        localFilePath: '/fake/path/processing_audio.m4a',
-        status: TranscriptionStatus.processing,
-        localCreatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        backendCreatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        backendUpdatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
-        localDurationMillis: 45000,
-        displayTitle: 'Processing Notes',
-        displayText: null,
-      ),
-    );
-    _addFakeJob(
-      Transcription(
-        id: _uuid.v4(),
-        localFilePath: '/fake/path/failed_audio.m4a',
-        status: TranscriptionStatus.failed,
-        localCreatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        backendCreatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        backendUpdatedAt: DateTime.now().subtract(const Duration(hours: 1)),
-        localDurationMillis: 15200,
-        displayTitle: 'Failed Upload Attempt',
-        displayText: null,
-        errorCode: 'UPLOAD_TIMEOUT',
-        errorMessage: 'The upload took too long to complete.',
+        displayTitle: 'Sample Recording',
+        displayText: 'This is the transcript text for the sample...',
       ),
     );
   }

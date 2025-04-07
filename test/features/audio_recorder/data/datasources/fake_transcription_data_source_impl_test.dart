@@ -24,10 +24,14 @@ void main() {
         jobs,
       ) {
         expect(jobs, isA<List<Transcription>>());
-        expect(jobs.length, greaterThan(0)); // Check it returns *something*
+        expect(jobs.length, 1); // Check it returns exactly 1 job now
         // Add more specific checks based on the initial fake data if needed
-        expect(jobs.first.id, isNotNull);
-        expect(jobs.first.localFilePath, isNotNull);
+        expect(jobs.first.id, 'f47ac10b-58cc-4372-a567-0e02b2c3d479');
+        expect(
+          jobs.first.localFilePath,
+          'assets/audio/short-audio-test-file.m4a',
+        );
+        expect(jobs.first.status, TranscriptionStatus.completed);
       });
     });
 
@@ -107,11 +111,8 @@ void main() {
       'should add the job to the internal list and return it with status submitted',
       () async {
         // Arrange
-        final initialJobsResult = await dataSource.getUserJobs();
-        final initialJobCount = initialJobsResult.fold(
-          (_) => 0,
-          (jobs) => jobs.length,
-        );
+        // We know the initial state should have exactly 1 job.
+        const int initialJobCount = 1;
 
         // Act
         final result = await dataSource.uploadForTranscription(
@@ -139,7 +140,9 @@ void main() {
           (_) => 0,
           (jobs) => jobs.length,
         );
+        // The count should now be the initial (1) + 1 = 2
         expect(finalJobCount, initialJobCount + 1);
+        expect(finalJobCount, 2); // Explicitly check for 2
 
         final addedJob = finalJobsResult.fold<Transcription?>(
           (_) => null,

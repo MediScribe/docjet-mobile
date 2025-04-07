@@ -10,9 +10,10 @@ import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
-// Import the new service interface
+// Import the new service interfaces needed for constructor
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
-// Import interfaces needed for the DataSource constructor, even if not directly mocked/used here
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 
 // Import generated mocks (will be generated for this file)
 import 'audio_local_data_source_impl_permission_test.mocks.dart';
@@ -24,6 +25,8 @@ import 'audio_local_data_source_impl_permission_test.mocks.dart';
   MockSpec<PathProvider>(),
   MockSpec<PermissionHandler>(), // Mock OUR interface
   MockSpec<AudioConcatenationService>(),
+  MockSpec<AudioDurationRetriever>(),
+  MockSpec<LocalJobStore>(),
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +37,8 @@ void main() {
   late MockPathProvider mockPathProvider;
   late MockPermissionHandler mockPermissionHandler; // Mock for our interface
   late MockAudioConcatenationService mockConcatenationService;
+  late MockAudioDurationRetriever mockAudioDurationRetriever;
+  late MockLocalJobStore mockLocalJobStore;
 
   // Use the aliased type from the package for constants
   const tPermission = ph.Permission.microphone;
@@ -44,13 +49,17 @@ void main() {
     mockPathProvider = MockPathProvider();
     mockPermissionHandler = MockPermissionHandler();
     mockConcatenationService = MockAudioConcatenationService();
+    mockAudioDurationRetriever = MockAudioDurationRetriever();
+    mockLocalJobStore = MockLocalJobStore();
 
     dataSource = AudioLocalDataSourceImpl(
       recorder: mockRecorder,
       fileSystem: mockFileSystem,
       pathProvider: mockPathProvider,
-      permissionHandler: mockPermissionHandler, // Provide our interface mock
+      permissionHandler: mockPermissionHandler,
       audioConcatenationService: mockConcatenationService,
+      audioDurationRetriever: mockAudioDurationRetriever,
+      localJobStore: mockLocalJobStore,
     );
   });
 

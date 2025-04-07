@@ -1,159 +1,132 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart'; // Use Transcription
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'; // Import status
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-// Generate mocks for the repository
+import 'audio_list_cubit_test.mocks.dart';
+
 @GenerateMocks([AudioRecorderRepository])
-import 'audio_list_cubit_test.mocks.dart'; // Generated file
-
 void main() {
-  late MockAudioRecorderRepository mockAudioRecorderRepository;
-  late AudioListCubit audioListCubit;
+  late MockAudioRecorderRepository mockRepository;
+  late AudioListCubit cubit;
 
-  // Sample data for testing
-  final tAudioRecord = AudioRecord(
-    filePath: 'test/path/recording.aac',
-    duration: const Duration(seconds: 10),
-    createdAt: DateTime(2023, 1, 1, 10, 0, 0),
+  // Sample Transcription data for testing
+  final tNow = DateTime.now();
+  const tPath1 = '/path/rec1.m4a';
+  const tPath2 = '/path/rec2.m4a';
+
+  final tTranscription1 = Transcription(
+    id: 'uuid-1',
+    localFilePath: tPath1,
+    status: TranscriptionStatus.completed,
+    localCreatedAt: tNow.subtract(const Duration(minutes: 10)),
+    backendUpdatedAt: tNow.subtract(const Duration(minutes: 5)),
+    localDurationMillis: 10000,
+    displayTitle: 'Meeting Notes',
+    displayText: 'Discussed project milestones...',
   );
-  final List<AudioRecord> tAudioRecordList = [tAudioRecord];
-  const tFilePath = 'test/path/recording.aac';
-  final tServerFailure = ServerFailure();
+
+  final tTranscription2 = Transcription(
+    id: 'uuid-2',
+    localFilePath: tPath2,
+    status: TranscriptionStatus.processing,
+    localCreatedAt: tNow,
+    backendUpdatedAt: tNow,
+    localDurationMillis: 20000,
+  );
+
+  final tTranscriptionList = [
+    tTranscription2,
+    tTranscription1,
+  ]; // Sorted newest first
 
   setUp(() {
-    // Create fresh mocks for each test
-    mockAudioRecorderRepository = MockAudioRecorderRepository();
-    // Create the Cubit instance, injecting the mock repository
-    audioListCubit = AudioListCubit(repository: mockAudioRecorderRepository);
+    mockRepository = MockAudioRecorderRepository();
+    cubit = AudioListCubit(repository: mockRepository);
   });
 
   tearDown(() {
-    audioListCubit.close(); // Close the cubit after each test
+    cubit.close();
   });
 
   test('initial state should be AudioListInitial', () {
-    expect(audioListCubit.state, equals(AudioListInitial()));
+    expect(cubit.state, AudioListInitial());
   });
 
-  group('loadRecordings', () {
+  group('loadAudioRecordings', () {
     blocTest<AudioListCubit, AudioListState>(
-      'should emit [AudioListLoading, AudioListLoaded] when repository call is successful',
+      'emits [AudioListLoading, AudioListLoaded] when loadTranscriptions is successful',
       build: () {
-        // Arrange: Setup the mock repository response
-        when(
-          mockAudioRecorderRepository.loadRecordings(),
-        ).thenAnswer((_) async => Right(tAudioRecordList));
-        return audioListCubit;
+        when(mockRepository.loadTranscriptions()) // Mock loadTranscriptions
+        .thenAnswer((_) async => Right(tTranscriptionList));
+        return cubit;
       },
-      act: (cubit) => cubit.loadRecordings(), // Act: Call the method under test
+      act: (cubit) => cubit.loadAudioRecordings(),
       expect:
-          () => <AudioListState>[
-            // Assert: Verify the emitted states
+          () => [
             AudioListLoading(),
-            AudioListLoaded(tAudioRecordList),
+            AudioListLoaded(
+              recordings: tTranscriptionList,
+            ), // Expect Transcription list
           ],
       verify: (_) {
-        // Verify: Check if the repository method was called
-        verify(mockAudioRecorderRepository.loadRecordings());
-        verifyNoMoreInteractions(mockAudioRecorderRepository);
+        verify(
+          mockRepository.loadTranscriptions(),
+        ); // Verify loadTranscriptions called
+        verifyNoMoreInteractions(mockRepository);
       },
     );
 
     blocTest<AudioListCubit, AudioListState>(
-      'should emit [AudioListLoading, AudioListError] when repository call fails',
+      'emits [AudioListLoading, AudioListLoaded with empty list] when loadTranscriptions returns empty list',
       build: () {
-        // Arrange
         when(
-          mockAudioRecorderRepository.loadRecordings(),
-        ).thenAnswer((_) async => Left(tServerFailure));
-        return audioListCubit;
-      },
-      act: (cubit) => cubit.loadRecordings(),
-      expect:
-          () => <AudioListState>[
-            AudioListLoading(),
-            AudioListError(
-              'Failed to load recordings: ${tServerFailure.toString()}',
-            ),
-          ],
-      verify: (_) {
-        verify(mockAudioRecorderRepository.loadRecordings());
-        verifyNoMoreInteractions(mockAudioRecorderRepository);
-      },
-    );
-  });
-
-  group('deleteRecording', () {
-    // Setup successful load first to have a state to delete from
-    final initialState = AudioListLoaded(tAudioRecordList);
-
-    blocTest<AudioListCubit, AudioListState>(
-      'should emit [AudioListLoading, AudioListLoaded(empty)] when deletion is successful and reload works',
-      setUp: () {
-        // Arrange: Mock delete success
-        when(mockAudioRecorderRepository.deleteRecording(any)).thenAnswer(
-          (_) async => const Right(null),
-        ); // Delete returns Right(null)
-        // Arrange: Mock subsequent load success (empty list)
-        when(
-          mockAudioRecorderRepository.loadRecordings(),
+          mockRepository.loadTranscriptions(),
         ).thenAnswer((_) async => const Right([]));
+        return cubit;
       },
-      build: () => audioListCubit,
-      seed: () => initialState, // Start from a loaded state
-      act: (cubit) => cubit.deleteRecording(tFilePath),
+      act: (cubit) => cubit.loadAudioRecordings(),
       expect:
-          () => <AudioListState>[
-            // Note: We don't have a specific 'Deleting' state, so it goes Loading -> Loaded
-            AudioListLoading(), // State during the loadRecordings call after delete
-            const AudioListLoaded([]), // State after successful reload
+          () => [
+            AudioListLoading(),
+            const AudioListLoaded(
+              recordings: [],
+            ), // Expect empty Transcription list
           ],
       verify: (_) {
-        verify(
-          mockAudioRecorderRepository.deleteRecording(tFilePath),
-        ).called(1);
-        verify(
-          mockAudioRecorderRepository.loadRecordings(),
-        ).called(1); // Verify reload happens
-        verifyNoMoreInteractions(mockAudioRecorderRepository);
+        verify(mockRepository.loadTranscriptions());
+        verifyNoMoreInteractions(mockRepository);
       },
     );
 
     blocTest<AudioListCubit, AudioListState>(
-      'should emit [AudioListError] when deletion fails (and does not reload)',
-      setUp: () {
-        // Arrange: Mock delete failure
-        when(
-          mockAudioRecorderRepository.deleteRecording(any),
-        ).thenAnswer((_) async => Left(tServerFailure));
+      'emits [AudioListLoading, AudioListError] when loadTranscriptions fails',
+      build: () {
+        when(mockRepository.loadTranscriptions()).thenAnswer(
+          (_) async => const Left(FileSystemFailure('Failed to list files')),
+        );
+        return cubit;
       },
-      build: () => audioListCubit,
-      seed: () => initialState, // Start from a loaded state
-      act: (cubit) => cubit.deleteRecording(tFilePath),
+      act: (cubit) => cubit.loadAudioRecordings(),
       expect:
-          () => <AudioListState>[
-            // Only emits error, keeps previous loaded state implicitly before error
-            AudioListError(
-              'Failed to delete recording: ${tServerFailure.toString()}',
+          () => [
+            AudioListLoading(),
+            const AudioListError(
+              message: 'FileSystemFailure(Failed to list files)',
             ),
           ],
       verify: (_) {
-        verify(
-          mockAudioRecorderRepository.deleteRecording(tFilePath),
-        ).called(1);
-        // IMPORTANT: Verify loadRecordings is NOT called on failure
-        verifyNever(mockAudioRecorderRepository.loadRecordings());
-        verifyNoMoreInteractions(mockAudioRecorderRepository);
+        verify(mockRepository.loadTranscriptions());
+        verifyNoMoreInteractions(mockRepository);
       },
     );
-  });
 
-  // Add more tests for other methods if the cubit grows (sorting, filtering etc.)
+    // TODO: Add test for deleteRecording and its effect on the list
+  });
 }

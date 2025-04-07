@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:io'; // Keep dart:io for FileSystemEntity type
+import 'dart:io' show FileSystemEntity, FileSystemEntityType, FileStat;
 
 // ADD THIS IMPORT
-import 'package:docjet_mobile/core/utils/logger.dart';
 
 // Import interfaces and entities
 import 'package:docjet_mobile/core/platform/file_system.dart';
@@ -11,6 +10,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_reco
 import '../exceptions/audio_exceptions.dart';
 import './audio_duration_retriever.dart';
 import './audio_file_manager.dart';
+import 'package:logger/logger.dart';
 
 /// Default implementation of [AudioFileManager].
 /// Interacts with the [FileSystem] and uses [PathProvider] and [AudioDurationRetriever]
@@ -19,6 +19,7 @@ class AudioFileManagerImpl implements AudioFileManager {
   final FileSystem fileSystem;
   final PathProvider pathProvider;
   final AudioDurationRetriever audioDurationRetriever;
+  final Logger log = Logger();
 
   AudioFileManagerImpl({
     required this.fileSystem,
@@ -28,79 +29,121 @@ class AudioFileManagerImpl implements AudioFileManager {
 
   @override
   Future<void> deleteRecording(String filePath) async {
+    log.d('Attempting to delete recording: $filePath');
     try {
-      // Use injected fileSystem
-      if (await fileSystem.fileExists(filePath)) {
-        await fileSystem.deleteFile(filePath);
-      } else {
-        throw RecordingFileNotFoundException(
-          'File $filePath not found for deletion.',
-        );
+      final exists = await fileSystem.fileExists(filePath);
+      if (!exists) {
+        log.w('Attempted to delete non-existent file: $filePath');
+        throw RecordingFileNotFoundException('File not found: $filePath');
       }
-    } catch (e) {
-      if (e is RecordingFileNotFoundException) {
-        rethrow;
-      }
-      throw AudioFileSystemException('Failed to delete recording $filePath', e);
+      await fileSystem.deleteFile(filePath);
+      log.i('Successfully deleted file: $filePath');
+    } on RecordingFileNotFoundException {
+      rethrow; // Allow specific exception to pass through
+    } catch (e, s) {
+      log.e('Failed to delete file: $filePath', error: e, stackTrace: s);
+      throw AudioFileSystemException('Failed to delete file: $filePath', e);
     }
   }
 
   @override
-  Future<List<AudioRecord>> listRecordingDetails() async {
+  Future<List<String>> listRecordingPaths() async {
+    log.d('Listing recording paths...');
     try {
-      final appDir = await pathProvider.getApplicationDocumentsDirectory();
-      final dirPath = appDir.path;
+      final directory = await pathProvider.getApplicationDocumentsDirectory();
+      log.d('Documents directory path: ${directory.path}');
 
-      if (!await fileSystem.directoryExists(dirPath)) {
-        await fileSystem.createDirectory(dirPath, recursive: true);
-        return []; // No directory, no files.
+      final dirExists = await fileSystem.directoryExists(directory.path);
+      if (!dirExists) {
+        log.w('Documents directory does not exist, creating...');
+        await fileSystem.createDirectory(directory.path, recursive: true);
+        log.i('Documents directory created.');
+        return []; // No files exist if directory was just created
       }
+      log.d('Directory exists, listing contents...');
 
-      final List<Future<AudioRecord?>> recordFutures = [];
-      final stream = fileSystem.listDirectory(dirPath);
-
-      await for (final entity in stream) {
-        if (entity.path.endsWith('.m4a')) {
-          // Directly add the future returned by the error-handling helper
-          recordFutures.add(_getRecordDetails(entity.path));
-        }
-      }
-
-      if (recordFutures.isEmpty) {
-        return []; // No potential files found.
-      }
-
-      // Wait for all stat/duration fetches to complete concurrently
-      final results = await Future.wait(recordFutures);
-
-      // Filter out nulls (failed fetches or non-files) and sort
-      final List<AudioRecord> records =
-          results.whereType<AudioRecord>().toList();
-      records.sort(
-        (a, b) => b.createdAt.compareTo(a.createdAt),
-      ); // Sort descending
-
-      return records;
-    } catch (e) {
-      // Catch broader errors (directory listing, initial check/create)
-      logger.e(
-        'Failed to list recording details due to a broader error',
-        error: e,
+      final List<String> recordingPaths = [];
+      final completer = Completer<List<String>>();
+      final Stream<FileSystemEntity> entitiesStream = fileSystem.listDirectory(
+        directory.path,
       );
-      throw AudioFileSystemException('Failed to list recording details', e);
+
+      entitiesStream.listen(
+        (entity) async {
+          try {
+            log.d('Processing entity: ${entity.path}');
+            final FileStat stat = await fileSystem.stat(entity.path);
+            log.d('Stat for ${entity.path}: type=${stat.type}');
+            if (stat.type == FileSystemEntityType.file &&
+                entity.path.endsWith('.m4a')) {
+              log.d('Adding valid recording path: ${entity.path}');
+              recordingPaths.add(entity.path);
+            }
+          } catch (e, s) {
+            log.e(
+              'Error processing entity: ${entity.path}',
+              error: e,
+              stackTrace: s,
+            );
+            // Skip problematic entity
+          }
+        },
+        onError: (error, stackTrace) {
+          log.e(
+            'Error listing directory contents',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          if (!completer.isCompleted) {
+            completer.completeError(
+              AudioFileSystemException(
+                'Failed to list recording paths due to stream error',
+                error,
+              ),
+              stackTrace,
+            );
+          }
+        },
+        onDone: () {
+          log.d(
+            'Finished listing directory. Found ${recordingPaths.length} recordings.',
+          );
+          if (!completer.isCompleted) {
+            completer.complete(recordingPaths);
+          }
+        },
+      );
+
+      return completer.future;
+    } catch (e, s) {
+      log.e('Failed to list recording paths', error: e, stackTrace: s);
+      throw AudioFileSystemException('Failed to list recording paths', e);
     }
   }
 
+  // --- Deprecated Method Implementation ---
+  @Deprecated('Use listRecordingPaths instead of fetching details directly')
+  @override
+  Future<AudioRecord> getRecordingDetails(String filePath) async {
+    log.w('Deprecated method getRecordingDetails called for $filePath');
+    // _getRecordDetails will now throw on error, so we just await it.
+    // The try-catch is removed from here.
+    final details = await _getRecordDetails(filePath);
+    // The null check and throw are removed as _getRecordDetails guarantees
+    // returning an AudioRecord or throwing an AudioFileSystemException.
+    return details;
+  }
+
   /// Helper to get stat and duration for a single path.
-  /// Returns null if not a file or if an error occurs during stat/duration retrieval.
-  Future<AudioRecord?> _getRecordDetails(String path) async {
+  /// Returns AudioRecord or throws AudioFileSystemException on error.
+  Future<AudioRecord> _getRecordDetails(String path) async {
     try {
       final stat = await fileSystem.stat(path);
 
-      // Skip if not a file BEFORE getting duration
+      // Throw if not a file BEFORE getting duration
       if (stat.type != FileSystemEntityType.file) {
-        // Return null for non-files (e.g., a directory named .m4a). This is not an error.
-        return null;
+        // Throw a specific exception for non-files.
+        throw AudioFileSystemException('Path is not a file: $path');
       }
 
       final duration = await audioDurationRetriever.getDuration(path);
@@ -114,9 +157,9 @@ class AudioFileManagerImpl implements AudioFileManager {
         createdAt: createdAt,
       );
     } catch (e) {
-      // Log specific file error, then return null to allow Future.wait to continue
-      logger.e('Failed to get details for file $path', error: e);
-      return null;
+      // Log specific file error, then rethrow wrapped in AudioFileSystemException
+      log.e('Failed to get details for file $path', error: e);
+      throw AudioFileSystemException('Failed to get details for file $path', e);
     }
   }
 }

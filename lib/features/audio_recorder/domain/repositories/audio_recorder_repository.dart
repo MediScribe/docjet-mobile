@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import 'package:docjet_mobile/core/error/failures.dart'; // Assuming Failure is defined here
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 
 /// Abstract contract for interacting with audio recording data.
 ///
@@ -34,6 +34,24 @@ abstract class AudioRecorderRepository {
   /// Returns [Right(void)] on success, or a [Failure] on the Left.
   Future<Either<Failure, void>> deleteRecording(String filePath);
 
+  /// Loads the list of transcriptions, merging local job state with remote state.
+  Future<Either<Failure, List<Transcription>>> loadTranscriptions();
+
+  /// Initiates the upload process for a previously recorded audio file.
+  ///
+  /// - `localFilePath`: Path to the local audio file to upload.
+  /// - `userId`: The ID of the user initiating the upload.
+  /// - `text`, `additionalText`: Optional text hints for the backend.
+  ///
+  /// Returns the `Transcription` object representing the initial state
+  /// created by the backend upon successful submission, or a `Failure`.
+  Future<Either<Failure, Transcription>> uploadRecording({
+    required String localFilePath,
+    required String userId,
+    String? text,
+    String? additionalText,
+  });
+
   /// Appends a new recording segment to the currently active recording.
   ///
   /// [segmentPath]: The path of the new audio segment to append.
@@ -41,10 +59,4 @@ abstract class AudioRecorderRepository {
   /// or a [Failure] on the Left.
   /// Note: The implementation should handle cleanup of the original files.
   Future<Either<Failure, String>> appendToRecording(String segmentPath);
-
-  /// Loads metadata for all existing recordings.
-  /// Returns [Right(List<AudioRecord>)] on success, or a [Failure] on the Left.
-  Future<Either<Failure, List<AudioRecord>>> loadRecordings();
-
-  /// Appends the currently stopped recording segment to an existing recording file.
 }

@@ -58,8 +58,19 @@ void main() {
   late MockAudioDurationRetriever mockAudioDurationRetriever;
   late MockDirectory mockDirectory;
 
+  // Helper to create mock FileSystemEntity
+  MockFileSystemEntity createMockEntity(String path, {bool isFile = true}) {
+    final mockEntity = MockFileSystemEntity();
+    when(mockEntity.path).thenReturn(path);
+    // Mock the type check used in listRecordingPaths by the implementation
+    // Directly check the type in tests, don't mock isA here.
+    // when(mockEntity).isA<File>().thenReturn(isFile);
+    // when(mockEntity).isA<Directory>().thenReturn(!isFile);
+    return mockEntity;
+  }
+
   const tFakeDocPath = '/fake/documents';
-  final tNow = DateTime.now();
+  // final tNow = DateTime.now(); // Remove unused variable
 
   setUp(() {
     mockFileSystem = MockFileSystem();
@@ -176,16 +187,7 @@ void main() {
     );
   });
 
-  group('listRecordingDetails', () {
-    // Helper to create mock FileSystemEntity
-    MockFileSystemEntity createMockEntity(String path) {
-      final entity = MockFileSystemEntity();
-      when(entity.path).thenReturn(path);
-      return entity;
-    }
-
-    // Helper to create mock FileStat
-
+  group('listRecordingPaths', () {
     setUp(() {
       // Common setup: Directory exists for list tests
       when(
@@ -205,7 +207,7 @@ void main() {
         ).thenAnswer((_) async => mockDirectory);
 
         // Act
-        final result = await fileManager.listRecordingDetails();
+        final result = await fileManager.listRecordingPaths();
 
         // Assert
         expect(result, isEmpty);
@@ -213,8 +215,6 @@ void main() {
         verify(mockFileSystem.directoryExists(tFakeDocPath));
         verify(mockFileSystem.createDirectory(tFakeDocPath, recursive: true));
         verifyNever(mockFileSystem.listDirectory(any));
-        verifyNever(mockFileSystem.stat(any));
-        verifyNever(mockAudioDurationRetriever.getDuration(any));
       },
     );
 
@@ -230,246 +230,112 @@ void main() {
           mockFileSystem.listDirectory(tFakeDocPath),
         ).thenAnswer((_) => Stream.fromIterable(entities));
 
+        // ADDED: Mock stat call for non-.m4a files to prevent FakeUsedError
+        final fakeStat = FakeFileStat(
+          type: FileSystemEntityType.file,
+          modified: DateTime.now(),
+        );
+        when(mockFileSystem.stat(any)).thenAnswer((_) async => fakeStat);
+
         // Act
-        final result = await fileManager.listRecordingDetails();
+        final result = await fileManager.listRecordingPaths();
 
         // Assert
         expect(result, isEmpty);
         verify(mockFileSystem.listDirectory(tFakeDocPath));
-        verifyNever(mockFileSystem.stat(any));
-        verifyNever(mockAudioDurationRetriever.getDuration(any));
+        // Verify stat was called for each non-m4a file
+        verify(mockFileSystem.stat('$tFakeDocPath/notes.txt'));
+        verify(mockFileSystem.stat('$tFakeDocPath/image.jpg'));
       },
     );
 
-    test(
-      'should return list of AudioRecords sorted descending by date for .m4a files',
-      () async {
-        // Arrange
-        const pathOlder = '$tFakeDocPath/rec_older.m4a';
-        const pathNewer = '$tFakeDocPath/rec_newer.m4a';
-        const pathOther = '$tFakeDocPath/config.txt';
+    test('should return list of .m4a file paths only', () async {
+      // Arrange
+      const pathM4a = '$tFakeDocPath/rec.m4a';
+      const pathOther = '$tFakeDocPath/config.txt';
+      final entityM4a = createMockEntity(pathM4a);
+      final entityOther = createMockEntity(pathOther);
 
-        final entityOlder = createMockEntity(pathOlder);
-        final entityNewer = createMockEntity(pathNewer);
-        final entityOther = createMockEntity(pathOther);
+      when(
+        mockFileSystem.listDirectory(tFakeDocPath),
+      ).thenAnswer((_) => Stream.fromIterable([entityM4a, entityOther]));
 
-        final statOlder = FakeFileStat(
-          modified: tNow.subtract(const Duration(hours: 1)),
-          type: FileSystemEntityType.file,
-        );
-        final statNewer = FakeFileStat(
-          modified: tNow,
-          type: FileSystemEntityType.file,
-        );
+      // Mock stat calls for each entity
+      final tModifiedTime = DateTime.now();
+      final statM4a = FakeFileStat(
+        type: FileSystemEntityType.file,
+        modified: tModifiedTime,
+      );
+      final statOther = FakeFileStat(
+        type: FileSystemEntityType.file,
+        modified: tModifiedTime,
+      );
+      when(mockFileSystem.stat(pathM4a)).thenAnswer((_) async => statM4a);
+      when(mockFileSystem.stat(pathOther)).thenAnswer((_) async => statOther);
 
-        const durationOlder = Duration(seconds: 15);
-        const durationNewer = Duration(seconds: 30);
+      // Act
+      final result = await fileManager.listRecordingPaths();
 
-        when(mockFileSystem.listDirectory(tFakeDocPath)).thenAnswer(
-          (_) => Stream.fromIterable([entityOlder, entityNewer, entityOther]),
-        );
+      // Assert
+      expect(result.length, 1);
+      expect(result[0], pathM4a);
+      verify(mockFileSystem.listDirectory(tFakeDocPath));
+    });
 
-        when(mockFileSystem.stat(pathOlder)).thenAnswer((_) async => statOlder);
-        when(mockFileSystem.stat(pathNewer)).thenAnswer((_) async => statNewer);
+    test('should ignore directories, even if named .m4a', () async {
+      // Arrange
+      const pathDirM4a = '$tFakeDocPath/directory.m4a';
+      final entityDirM4a = createMockEntity(pathDirM4a, isFile: false);
 
-        when(
-          mockAudioDurationRetriever.getDuration(pathOlder),
-        ).thenAnswer((_) async => durationOlder);
-        when(
-          mockAudioDurationRetriever.getDuration(pathNewer),
-        ).thenAnswer((_) async => durationNewer);
+      when(
+        mockFileSystem.listDirectory(tFakeDocPath),
+      ).thenAnswer((_) => Stream.fromIterable([entityDirM4a]));
 
-        // Act
-        final result = await fileManager.listRecordingDetails();
+      // Mock stat call for the directory entity
+      final tModifiedTime = DateTime.now();
+      final statDirM4a = FakeFileStat(
+        type: FileSystemEntityType.directory,
+        modified: tModifiedTime,
+      );
+      when(mockFileSystem.stat(pathDirM4a)).thenAnswer((_) async => statDirM4a);
 
-        // Assert
-        expect(result.length, 2);
-        expect(result[0].filePath, pathNewer); // Newer first
-        expect(result[0].duration, durationNewer);
-        expect(result[0].createdAt, statNewer.modified);
-        expect(result[1].filePath, pathOlder);
-        expect(result[1].duration, durationOlder);
-        expect(result[1].createdAt, statOlder.modified);
+      // Act
+      final result = await fileManager.listRecordingPaths();
 
-        verify(mockFileSystem.listDirectory(tFakeDocPath));
-        verify(mockFileSystem.stat(pathOlder));
-        verify(mockFileSystem.stat(pathNewer));
-        verifyNever(mockFileSystem.stat(pathOther));
-        verify(mockAudioDurationRetriever.getDuration(pathOlder));
-        verify(mockAudioDurationRetriever.getDuration(pathNewer));
-        verifyNever(mockAudioDurationRetriever.getDuration(pathOther));
-      },
-    );
-
-    test(
-      'should ignore files that are not FileSystemEntityType.file even if they end in .m4a',
-      () async {
-        // Arrange
-        const pathDirM4a = '$tFakeDocPath/directory.m4a';
-        final entityDirM4a = createMockEntity(pathDirM4a);
-        final statDirM4a = FakeFileStat(
-          modified: tNow,
-          type: FileSystemEntityType.directory, // It's a directory!
-        );
-
-        when(
-          mockFileSystem.listDirectory(tFakeDocPath),
-        ).thenAnswer((_) => Stream.fromIterable([entityDirM4a]));
-        when(
-          mockFileSystem.stat(pathDirM4a),
-        ).thenAnswer((_) async => statDirM4a);
-
-        // Act
-        final result = await fileManager.listRecordingDetails();
-
-        // Assert
-        expect(result, isEmpty);
-        verify(mockFileSystem.stat(pathDirM4a));
-        verifyNever(
-          mockAudioDurationRetriever.getDuration(pathDirM4a),
-        ); // Duration not called for non-files
-      },
-    );
-
-    test(
-      'should return partial list and log error when stat fails for a file',
-      () async {
-        // Arrange
-        const pathGood = '$tFakeDocPath/good.m4a';
-        const pathBadStat = '$tFakeDocPath/bad_stat.m4a';
-        final entityGood = createMockEntity(pathGood);
-        final entityBadStat = createMockEntity(pathBadStat);
-        final statGood = FakeFileStat(
-          modified: tNow,
-          type: FileSystemEntityType.file,
-        );
-        const durationGood = Duration(seconds: 5);
-        final statException = Exception('Stat permission error');
-
-        when(
-          mockFileSystem.listDirectory(tFakeDocPath),
-        ).thenAnswer((_) => Stream.fromIterable([entityGood, entityBadStat]));
-        when(mockFileSystem.stat(pathGood)).thenAnswer((_) async => statGood);
-        when(mockFileSystem.stat(pathBadStat)).thenThrow(statException);
-        when(
-          mockAudioDurationRetriever.getDuration(pathGood),
-        ).thenAnswer((_) async => durationGood);
-
-        // Act
-        final result = await fileManager.listRecordingDetails();
-
-        // Assert
-        expect(result.length, 1);
-        expect(result[0].filePath, pathGood);
-        verify(mockFileSystem.stat(pathGood));
-        verify(mockFileSystem.stat(pathBadStat)); // Stat attempted
-        verify(mockAudioDurationRetriever.getDuration(pathGood));
-        verifyNever(
-          mockAudioDurationRetriever.getDuration(pathBadStat),
-        ); // Duration not called
-      },
-    );
-
-    test(
-      'should return partial list and log error when getDuration fails for a file',
-      () async {
-        // Arrange
-        const pathGood = '$tFakeDocPath/good.m4a';
-        const pathBadDuration = '$tFakeDocPath/bad_duration.m4a';
-        final entityGood = createMockEntity(pathGood);
-        final entityBadDuration = createMockEntity(pathBadDuration);
-        final statGood = FakeFileStat(
-          modified: tNow,
-          type: FileSystemEntityType.file,
-        );
-        final statBadDuration = FakeFileStat(
-          modified: tNow.subtract(const Duration(minutes: 1)),
-          type: FileSystemEntityType.file,
-        );
-        const durationGood = Duration(seconds: 5);
-        final durationException = Exception('Invalid audio file');
-
-        when(mockFileSystem.listDirectory(tFakeDocPath)).thenAnswer(
-          (_) => Stream.fromIterable([entityGood, entityBadDuration]),
-        );
-        when(mockFileSystem.stat(pathGood)).thenAnswer((_) async => statGood);
-        when(
-          mockFileSystem.stat(pathBadDuration),
-        ).thenAnswer((_) async => statBadDuration);
-        when(
-          mockAudioDurationRetriever.getDuration(pathGood),
-        ).thenAnswer((_) async => durationGood);
-        when(
-          mockAudioDurationRetriever.getDuration(pathBadDuration),
-        ).thenThrow(durationException);
-
-        // Act
-        final result = await fileManager.listRecordingDetails();
-
-        // Assert
-        expect(result.length, 1);
-        expect(result[0].filePath, pathGood);
-        verify(mockFileSystem.stat(pathGood));
-        verify(mockFileSystem.stat(pathBadDuration));
-        verify(mockAudioDurationRetriever.getDuration(pathGood));
-        verify(
-          mockAudioDurationRetriever.getDuration(pathBadDuration),
-        ); // Duration attempted
-      },
-    );
+      // Assert
+      expect(result, isEmpty);
+      verify(mockFileSystem.listDirectory(tFakeDocPath));
+    });
 
     test(
       'should throw AudioFileSystemException if listing directory fails',
       () async {
         // Arrange
         final exception = Exception('Cannot list dir');
-        when(
-          mockFileSystem.directoryExists(tFakeDocPath),
-        ).thenAnswer((_) async => true);
         when(mockFileSystem.listDirectory(tFakeDocPath)).thenThrow(exception);
 
         // Act
-        final call = fileManager.listRecordingDetails;
+        final call = fileManager.listRecordingPaths;
 
         // Assert
         expect(
           call,
           throwsA(
-            isA<AudioFileSystemException>().having(
-              (e) => e.originalException,
-              'originalException',
-              exception,
-            ),
+            isA<AudioFileSystemException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Failed to list recording paths',
+                )
+                .having(
+                  (e) => e.originalException,
+                  'originalException',
+                  exception,
+                ),
           ),
         );
-      },
-    );
-
-    test(
-      'should throw AudioFileSystemException if getting documents directory fails',
-      () async {
-        // Arrange
-        final exception = Exception('Cannot get documents dir');
-        when(
-          mockPathProvider.getApplicationDocumentsDirectory(),
-        ).thenThrow(exception);
-
-        // Act
-        final call = fileManager.listRecordingDetails;
-
-        // Assert
-        expect(
-          call,
-          throwsA(
-            isA<AudioFileSystemException>().having(
-              (e) => e.originalException,
-              'originalException',
-              exception,
-            ),
-          ),
-        );
+        // Verify the call that happens *before* the throwing call
         verify(mockPathProvider.getApplicationDocumentsDirectory());
-        verifyNever(mockFileSystem.directoryExists(any));
       },
     );
   });

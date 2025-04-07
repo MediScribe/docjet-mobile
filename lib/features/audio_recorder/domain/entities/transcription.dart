@@ -92,6 +92,35 @@ class Transcription extends Equatable {
     errorMessage,
   ];
 
+  /// Creates a copy of this Transcription but with the given fields replaced with the new values.
+  Transcription copyWith({
+    String? id,
+    String? localFilePath,
+    TranscriptionStatus? status,
+    DateTime? localCreatedAt,
+    DateTime? backendCreatedAt,
+    DateTime? backendUpdatedAt,
+    int? localDurationMillis,
+    String? displayTitle,
+    String? displayText,
+    String? errorCode,
+    String? errorMessage,
+  }) {
+    return Transcription(
+      id: id ?? this.id,
+      localFilePath: localFilePath ?? this.localFilePath,
+      status: status ?? this.status,
+      localCreatedAt: localCreatedAt ?? this.localCreatedAt,
+      backendCreatedAt: backendCreatedAt ?? this.backendCreatedAt,
+      backendUpdatedAt: backendUpdatedAt ?? this.backendUpdatedAt,
+      localDurationMillis: localDurationMillis ?? this.localDurationMillis,
+      displayTitle: displayTitle ?? this.displayTitle,
+      displayText: displayText ?? this.displayText,
+      errorCode: errorCode ?? this.errorCode,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+
   @override
   bool? get stringify => true; // For easier debugging with Equatable
 }
