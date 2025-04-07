@@ -182,9 +182,11 @@ class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
   }
 
   @override
-  Future<Either<Failure, List<AudioRecord>>> loadRecordings() {
-    return _tryCatch<List<AudioRecord>>(
-      () => fileManager.listRecordingDetails(),
+  Future<Either<Failure, List<Transcription>>> loadRecordings() {
+    // This method is deprecated and will be replaced by loadTranscriptions.
+    // For now, it just throws to indicate it shouldn't be called.
+    throw UnimplementedError(
+      'loadRecordings is deprecated, use loadTranscriptions',
     );
   }
 

@@ -183,9 +183,9 @@ This roadmap outlines the steps to refactor the codebase from the "Current Archi
     *   Define `LocalJobStore` interface (`domain/repositories/local_job_store.dart`). *(Done)*
     *   Define `TranscriptionRemoteDataSource` interface (`domain/repositories/transcription_remote_data_source.dart`). *(Done)*
     * **The interface MUST define the following methods based on `spec.md`:**
-        *   `Future<Result<List<Transcription>, ApiError>> getUserJobs();` Corresponds to the required (though perhaps unspecified in `spec.md`) `GET /api/v1/jobs` endpoint. Fetches all job records for the authenticated user to populate the list view. *(Interface Defined)*
-        *   `Future<Result<Transcription, ApiError>> getTranscriptionJob(String backendId);` Corresponds to `GET /api/v1/jobs/{id}`. Fetches the latest status and metadata for a single job. *(Interface Defined)*
-        *   `Future<Result<Transcription, ApiError>> uploadForTranscription({required String localFilePath, String? userId, String? text, String? additionalText});` Corresponds to `POST /api/v1/jobs`. Uploads the recording and optional text. **Implementation MUST handle `multipart/form-data`.** The `userId` parameter is required by the API. Returns the initial job state created by the API. *(Interface Defined)*
+        *   `Future<Either<ApiFailure, List<Transcription>>> getUserJobs();` Corresponds to the required (though perhaps unspecified in `spec.md`) `GET /api/v1/jobs` endpoint. Fetches all job records for the authenticated user to populate the list view. *(Interface Defined)*
+        *   `Future<Either<ApiFailure, Transcription>> getTranscriptionJob(String backendId);` Corresponds to `GET /api/v1/jobs/{id}`. Fetches the latest status and metadata for a single job. *(Interface Defined)*
+        *   `Future<Either<ApiFailure, Transcription>> uploadForTranscription({required String localFilePath, required String userId, String? text, String? additionalText});` Corresponds to `POST /api/v1/jobs`. Uploads the recording and optional text. **Implementation MUST handle `multipart/form-data`.** The `userId` parameter is required by the API. Returns the initial job state created by the API. *(Interface Defined)*
         *   _(Note: A method corresponding to `PATCH /api/v1/jobs/{id}` is NOT included here as the mobile app primarily consumes status updates, it doesn't push transcript/display text changes based on the core `spec.md` workflow.)_
 3.  **Implement Local Job Persistence (Hive):** *(Done)*
     *   Add `hive`, `hive_flutter`, `hive_generator`, `build_runner` dependencies to `pubspec.yaml`. *(Done)*
@@ -197,10 +197,11 @@ This roadmap outlines the steps to refactor the codebase from the "Current Archi
         *   On `stopRecording`: Call `AudioDurationRetriever.getDuration`. Create `LocalJob` (status `created`). Call `localJobStore.saveJob`. Trigger upload attempt.
         *   On successful upload (via API call elsewhere): Call `localJobStore.updateJobStatus`.
     *   Modify recording deletion logic to call `localJobStore.deleteJob`. *(TODO)*
-4.  **Implement Fake Backend Data Source:** *(Next)*
+4.  **Implement Fake Backend Data Source:** *(Done)*
     *   Create `FakeTranscriptionDataSourceImpl` (`data/datasources/fake_transcription_data_source_impl.dart`).
     *   Implement methods to return hardcoded or configurable lists of `Transcription` data, simulating different statuses, delays, and errors. Store fake data in memory initially.
-5.  **Refactor Repository (`AudioRecorderRepositoryImpl`):**
+    *   Write unit tests for `FakeTranscriptionDataSourceImpl`. *(Done)*
+5.  **Refactor Repository (`AudioRecorderRepositoryImpl`):** *(Next)*
     *   Update dependencies: Inject `LocalJobStore`, `TranscriptionRemoteDataSource`. Adjust `AudioFileManager` usage.
     *   Rewrite `loadTranscriptions`: Implement the merge logic using `LocalJobStore` for local state and `TranscriptionRemoteDataSource` for backend state. Handle nullable `id` correctly.
     *   Implement `uploadRecording(String localFilePath)`: Interact with `TranscriptionRemoteDataSource` and update `LocalJobStore` on success/failure.
