@@ -89,3 +89,28 @@ class ValidationFailure extends Failure {
   @override
   List<Object> get props => [message];
 }
+
+/// Failure related to API interactions (e.g., network errors, server errors, unexpected responses).
+class ApiFailure extends Failure {
+  final String message;
+  final int? statusCode; // Optional HTTP status code
+  final String? errorCode; // Optional backend-specific error code
+
+  const ApiFailure({
+    this.message = 'API request failed',
+    this.statusCode,
+    this.errorCode,
+  });
+
+  @override
+  List<Object> get props => [
+    message,
+    if (statusCode != null) statusCode!,
+    if (errorCode != null) errorCode!,
+  ];
+
+  @override
+  String toString() {
+    return 'ApiFailure(message: $message, statusCode: $statusCode, errorCode: $errorCode)';
+  }
+}
