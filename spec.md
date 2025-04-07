@@ -235,8 +235,8 @@ This dual-token system ensures user identity and service-level trust.
 
 ```
 {
-  "email": "user@example.com",
-  "password": "••••••••"
+  "email": "user@example.com",
+  "password": "••••••••"
 }
 ```
 
@@ -244,9 +244,9 @@ This dual-token system ensures user identity and service-level trust.
 
 ```
 {
-  "access_token": "...",
-  "refresh_token": "...",
-  "user_id": "..."
+  "access_token": "...",
+  "refresh_token": "...",
+  "user_id": "..."
 }
 ```
 
@@ -260,7 +260,7 @@ This dual-token system ensures user identity and service-level trust.
 
 ```
 {
-  "refresh_token": "..."
+  "refresh_token": "..."
 }
 ```
 
@@ -268,14 +268,52 @@ This dual-token system ensures user identity and service-level trust.
 
 ```
 {
-  "access_token": "...",
-  "refresh_token": "..."
+  "access_token": "...",
+  "refresh_token": "..."
 }
 ```
 
 ---
 
 ### **📤 Jobs API**
+
+### **`GET /api/v1/jobs`**
+
+- **Description:** Fetch all job records for the authenticated user.
+- **Headers:**
+    - `Authorization: Bearer <JWT>`
+    - `X-API-Key: <API_KEY>`
+- **Query Parameters:** (Optional - for pagination/filtering, TBD)
+    - `limit`: number
+    - `offset`: number
+    - `status`: string (e.g., "completed")
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "...",
+      "user_id": "...",
+      "job_status": "completed",
+      "error_code": null,
+      "error_message": null,
+      "created_at": "...",
+      "updated_at": "...",
+      "text": "...",
+      "additional_text": "...",
+      "display_title": "...",
+      "display_text": "..."
+    },
+    // ... more job objects
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "total": 50
+  }
+}
+```
 
 ### **`POST /api/v1/jobs`**
 
@@ -286,22 +324,23 @@ This dual-token system ensures user identity and service-level trust.
     - `Content-Type: multipart/form-data`
 - **Form Data:**
     - `user_id`: string (required)
+    - `audio_file`: file (required)
     - `text`: string (optional)
     - `additional_text`: string (optional)
 - **Response:**
 
-```
+```json
 {
-  "data": {
-    "id": "...",
-    "user_id": "...",
-    "job_status": "submitted",
-    "created_at": "...",
-    "updated_at": "...",
-    "text": "...",
-    "additional_text": "...",
-    "display_title": null,
-    "display_text": null
+  "data": {
+    "id": "...",
+    "user_id": "...",
+    "job_status": "submitted",
+    "created_at": "...",
+    "updated_at": "...",
+    "text": "...",
+    "additional_text": "...",
+    "display_title": null,
+    "display_text": null
   }
 }
 ```
@@ -312,50 +351,58 @@ This dual-token system ensures user identity and service-level trust.
 - **Headers:**
     - `Authorization: Bearer <JWT>`
     - `X-API-Key: <API_KEY>`
+    - `Content-Type: application/json`
 - **Body:**
 
-```
+```json
 {
-  "text": "Updated transcript text",
-  "display_title": "Short summary",
-  "display_text": "Transcript snippet or preview"
+  "text": "Updated transcript text",
+  "display_title": "Short summary",
+  "display_text": "Transcript snippet or preview"
 }
 ```
 
 - **Response:**
 
-```
+```json
 {
-  "data": {
-    "id": "...",
-    "text": "Updated transcript text",
-    "display_title": "Short summary",
-    "display_text": "Transcript snippet or preview"
+  "data": {
+    "id": "...",
+    "user_id": "...",
+    "job_status": "transcribed",
+    "error_code": null,
+    "error_message": null,
+    "created_at": "...",
+    "updated_at": "...",
+    "text": "Updated transcript text",
+    "display_title": "Short summary",
+    "display_text": "Transcript snippet or preview"
   }
 }
 ```
 
 ### **`GET /api/v1/jobs/{id}`**
 
-- **Description:** Fetch job status and metadata
+- **Description:** Fetch a single job's status and metadata
 - **Headers:**
     - `Authorization: Bearer <JWT>`
     - `X-API-Key: <API_KEY>`
 - **Response:**
 
-```
+```json
 {
-  "data": {
-    "id": "...",
-    "job_status": "transcribing",
-    "error_code": null,
-    "error_message": null,
-    "created_at": "...",
-    "updated_at": "...",
-    "text": "...",
-    "additional_text": "...",
-    "display_title": "...",
-    "display_text": "..."
+  "data": {
+    "id": "...",
+    "user_id": "...",
+    "job_status": "transcribing",
+    "error_code": null,
+    "error_message": null,
+    "created_at": "...",
+    "updated_at": "...",
+    "text": "...",
+    "additional_text": "...",
+    "display_title": "...",
+    "display_text": "..."
   }
 }
 ```
@@ -374,14 +421,14 @@ This dual-token system ensures user identity and service-level trust.
 
 ```
 {
-  "documents": [
-    {
-      "id": "...",
-      "job_id": "...",
-      "title": "Document Title",
-      "url": "https://...",
-      "created_at": "..."
-    }
+  "documents": [
+    {
+      "id": "...",
+      "job_id": "...",
+      "title": "Document Title",
+      "url": "https://...",
+      "created_at": "..."
+    }
   ]
 }
 ```
