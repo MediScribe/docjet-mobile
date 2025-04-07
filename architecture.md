@@ -190,7 +190,12 @@ This roadmap outlines the steps to refactor the codebase from the "Current Archi
         *   `DateTime localCreatedAt` (Timestamp for FIFO processing/display)
         *   `String? backendId` (Nullable UUID, populated after successful API submission confirmation)
     *   Define `LocalJobStore` interface (`domain/repositories/local_job_store.dart`).
-    *   Define `TranscriptionRemoteDataSource` interface (`domain/repositories/transcription_remote_data_source.dart`).
+    *   Define `TranscriptionRemoteDataSource` interface (`domain/repositories/transcription_remote_data_source.dart`). 
+    * **The interface MUST define the following methods based on `spec.md`:**
+        *   `Future<Result<List<Transcription>, ApiError>> getUserJobs();` Corresponds to the required (though perhaps unspecified in `spec.md`) `GET /api/v1/jobs` endpoint. Fetches all job records for the authenticated user to populate the list view.
+        *   `Future<Result<Transcription, ApiError>> getTranscriptionJob(String backendId);` Corresponds to `GET /api/v1/jobs/{id}`. Fetches the latest status and metadata for a single job.
+        *   `Future<Result<Transcription, ApiError>> uploadForTranscription({required String localFilePath, String? userId, String? text, String? additionalText});` Corresponds to `POST /api/v1/jobs`. Uploads the recording and optional text. **Implementation MUST handle `multipart/form-data`.** The `userId` parameter is required by the API. Returns the initial job state created by the API.
+        *   _(Note: A method corresponding to `PATCH /api/v1/jobs/{id}` is NOT included here as the mobile app primarily consumes status updates, it doesn't push transcript/display text changes based on the core `spec.md` workflow.)_
 3.  **Implement Local Job Persistence (Hive):**
     *   Add `hive`, `hive_flutter`, `hive_generator`, `build_runner` dependencies to `pubspec.yaml`.
     *   Define the `LocalJob` class with `@HiveType` annotations.
