@@ -176,33 +176,28 @@ graph LR
 This roadmap outlines the steps to refactor the codebase from the "Current Architecture" to the "Proposed Architecture". Focus on completing each step before moving to the next to ensure a solid foundation.
 
 1.  **Update `architecture.md`:** *(Done)* Ensure this document accurately reflects the target state and plan.
-2.  **Define Domain/Data Interfaces & Entities:**
-    *   Create `TranscriptionStatus` enum (`domain/entities/transcription_status.dart`) mirroring backend job statuses: `created` (local-only initial state), `submitted`, `transcribing`, `transcribed`, `generating`, `generated`, `completed`, `error`. **Crucial:** Ensure these values align *exactly* with the backend API's possible status strings defined in `spec.md` for reliable mapping.
-    *   Create `Transcription` entity class (`domain/entities/transcription.dart`) with **nullable `id`** and other fields defined above. **See Section 2, point 3 for explicit clarification on this entity's role.**
-    *   **`LocalJob` Entity (for Persistence):** A simple DTO/entity stored locally (e.g., in Hive) containing essential offline information:
-        *   `String localFilePath` (Primary Key for local identification)
-        *   `int durationMillis` (Captured once post-recording)
-        *   `TranscriptionStatus status` (e.g., `created`, `submitted`, `error` if upload failed before API confirmation)
-        *   `DateTime localCreatedAt` (Timestamp for FIFO processing/display)
-        *   `String? backendId` (Nullable UUID, populated after successful API submission confirmation)
-    *   Define `LocalJobStore` interface (`domain/repositories/local_job_store.dart`).
-    *   Define `TranscriptionRemoteDataSource` interface (`domain/repositories/transcription_remote_data_source.dart`). 
+2.  **Define Domain/Data Interfaces & Entities:** *(Done)*
+    *   Create `TranscriptionStatus` enum (`domain/entities/transcription_status.dart`) mirroring backend job statuses: `created` (local-only initial state), `submitted`, `processing` (was `transcribing`), `transcribed`, `generating`, `completed` (was `generated`), `failed` (was `error`), `unknown`. **Crucial:** Ensure these values align *exactly* with the backend API's possible status strings defined in `spec.md` for reliable mapping. *(Done)*
+    *   Create `Transcription` entity class (`domain/entities/transcription.dart`) with **nullable `id`** and other fields defined above (excluding `backendDurationMillis`). **See Section 2, point 3 for explicit clarification on this entity's role.** *(Done)*
+    *   **`LocalJob` Entity (for Persistence):** A simple DTO/entity stored locally (e.g., in Hive) containing essential offline information: `localFilePath`, `durationMillis`, `status`, `localCreatedAt`, `backendId?`. *(Done)*
+    *   Define `LocalJobStore` interface (`domain/repositories/local_job_store.dart`). *(Done)*
+    *   Define `TranscriptionRemoteDataSource` interface (`domain/repositories/transcription_remote_data_source.dart`). *(Done)*
     * **The interface MUST define the following methods based on `spec.md`:**
-        *   `Future<Result<List<Transcription>, ApiError>> getUserJobs();` Corresponds to the required (though perhaps unspecified in `spec.md`) `GET /api/v1/jobs` endpoint. Fetches all job records for the authenticated user to populate the list view.
-        *   `Future<Result<Transcription, ApiError>> getTranscriptionJob(String backendId);` Corresponds to `GET /api/v1/jobs/{id}`. Fetches the latest status and metadata for a single job.
-        *   `Future<Result<Transcription, ApiError>> uploadForTranscription({required String localFilePath, String? userId, String? text, String? additionalText});` Corresponds to `POST /api/v1/jobs`. Uploads the recording and optional text. **Implementation MUST handle `multipart/form-data`.** The `userId` parameter is required by the API. Returns the initial job state created by the API.
+        *   `Future<Result<List<Transcription>, ApiError>> getUserJobs();` Corresponds to the required (though perhaps unspecified in `spec.md`) `GET /api/v1/jobs` endpoint. Fetches all job records for the authenticated user to populate the list view. *(Interface Defined)*
+        *   `Future<Result<Transcription, ApiError>> getTranscriptionJob(String backendId);` Corresponds to `GET /api/v1/jobs/{id}`. Fetches the latest status and metadata for a single job. *(Interface Defined)*
+        *   `Future<Result<Transcription, ApiError>> uploadForTranscription({required String localFilePath, String? userId, String? text, String? additionalText});` Corresponds to `POST /api/v1/jobs`. Uploads the recording and optional text. **Implementation MUST handle `multipart/form-data`.** The `userId` parameter is required by the API. Returns the initial job state created by the API. *(Interface Defined)*
         *   _(Note: A method corresponding to `PATCH /api/v1/jobs/{id}` is NOT included here as the mobile app primarily consumes status updates, it doesn't push transcript/display text changes based on the core `spec.md` workflow.)_
-3.  **Implement Local Job Persistence (Hive):**
-    *   Add `hive`, `hive_flutter`, `hive_generator`, `build_runner` dependencies to `pubspec.yaml`.
-    *   Define the `LocalJob` class with `@HiveType` annotations.
-    *   Generate the `TypeAdapter` using `build_runner`.
-    *   Implement `HiveLocalJobStoreImpl` (`data/datasources/local_job_store_impl.dart`) conforming to the interface. Initialize Hive correctly.
-    *   Inject `LocalJobStore` into `AudioLocalDataSourceImpl` (or a new coordinator service).
-    *   Modify `AudioLocalDataSourceImpl` (or coordinator):
+3.  **Implement Local Job Persistence (Hive):** *(Done)*
+    *   Add `hive`, `hive_flutter`, `hive_generator`, `build_runner` dependencies to `pubspec.yaml`. *(Done)*
+    *   Define the `LocalJob` class with `@HiveType` annotations. *(Done)*
+    *   Generate the `TypeAdapter` using `build_runner`. *(Done)*
+    *   Implement `HiveLocalJobStoreImpl` (`data/datasources/local_job_store_impl.dart`) conforming to the interface. Initialize Hive correctly. *(Done)*
+    *   Inject `LocalJobStore` into `AudioLocalDataSourceImpl` (or a new coordinator service). *(TODO - Injected placeholder in DI, actual use pending)*
+    *   Modify `AudioLocalDataSourceImpl` (or coordinator): *(TODO)*
         *   On `stopRecording`: Call `AudioDurationRetriever.getDuration`. Create `LocalJob` (status `created`). Call `localJobStore.saveJob`. Trigger upload attempt.
         *   On successful upload (via API call elsewhere): Call `localJobStore.updateJobStatus`.
-    *   Modify recording deletion logic to call `localJobStore.deleteJob`.
-4.  **Implement Fake Backend Data Source:**
+    *   Modify recording deletion logic to call `localJobStore.deleteJob`. *(TODO)*
+4.  **Implement Fake Backend Data Source:** *(Next)*
     *   Create `FakeTranscriptionDataSourceImpl` (`data/datasources/fake_transcription_data_source_impl.dart`).
     *   Implement methods to return hardcoded or configurable lists of `Transcription` data, simulating different statuses, delays, and errors. Store fake data in memory initially.
 5.  **Refactor Repository (`AudioRecorderRepositoryImpl`):**
