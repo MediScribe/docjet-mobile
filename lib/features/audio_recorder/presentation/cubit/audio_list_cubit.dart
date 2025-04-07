@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 import 'package:equatable/equatable.dart';
 import '../../../../core/utils/logger.dart';
 
@@ -10,7 +11,10 @@ part 'audio_list_state.dart';
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
 
-  AudioListCubit({required this.repository}) : super(AudioListInitial());
+  AudioListCubit({
+    required this.repository,
+    required AudioPlaybackService audioPlaybackService,
+  }) : super(AudioListInitial());
 
   /// Loads the list of existing recordings.
   Future<void> loadAudioRecordings() async {
@@ -23,12 +27,12 @@ class AudioListCubit extends Cubit<AudioListState> {
         logger.e('[CUBIT] Error loading recordings: $failure');
         emit(AudioListError(message: _mapFailureToMessage(failure)));
       },
-      (recordings) {
+      (transcriptions) {
         logger.i(
-          '[CUBIT] Loaded ${recordings.length} recordings successfully.',
+          '[CUBIT] Loaded ${transcriptions.length} recordings successfully.',
         );
         // Create a mutable copy before sorting
-        final mutableRecordings = List<Transcription>.from(recordings);
+        final mutableRecordings = List<Transcription>.from(transcriptions);
         // Sort the mutable list by creation date, newest first (handle nulls)
         mutableRecordings.sort((a, b) {
           final dateA = a.localCreatedAt;
@@ -39,7 +43,7 @@ class AudioListCubit extends Cubit<AudioListState> {
           return dateB.compareTo(dateA);
         });
         emit(
-          AudioListLoaded(recordings: mutableRecordings),
+          AudioListLoaded(transcriptions: mutableRecordings),
         ); // Emit the sorted mutable list
       },
     );

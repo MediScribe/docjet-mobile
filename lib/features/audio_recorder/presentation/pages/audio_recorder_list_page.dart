@@ -162,17 +162,17 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             logger.d(
               "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
             );
-            if (state.recordings.isEmpty) {
+            if (state.transcriptions.isEmpty) {
               logger.i("[AudioRecorderListView] Builder: ListLoaded is empty.");
               return const Center(
                 child: Text('No recordings yet. Tap + to start recording.'),
               );
             }
             logger.d(
-              "[AudioRecorderListView] Builder: ListLoaded has ${state.recordings.length} items.",
+              "[AudioRecorderListView] Builder: ListLoaded has ${state.transcriptions.length} items.",
             );
             // state.recordings is already sorted by the Cubit
-            final sortedTranscriptions = state.recordings;
+            final sortedTranscriptions = state.transcriptions;
 
             return ListView.builder(
               // Use sorted list

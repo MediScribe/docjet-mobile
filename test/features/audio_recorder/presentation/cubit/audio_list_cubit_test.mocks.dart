@@ -9,8 +9,12 @@ import 'package:dartz/dartz.dart' as _i2;
 import 'package:docjet_mobile/core/error/failures.dart' as _i5;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart'
     as _i6;
+import 'package:docjet_mobile/features/audio_recorder/domain/models/playback_state.dart'
+    as _i8;
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart'
     as _i3;
+import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart'
+    as _i7;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -235,4 +239,70 @@ class MockAudioRecorderRepository extends _i1.Mock
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, String>>);
+}
+
+/// A class which mocks [AudioPlaybackService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAudioPlaybackService extends _i1.Mock
+    implements _i7.AudioPlaybackService {
+  MockAudioPlaybackService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i4.Stream<_i8.PlaybackState> get playbackStateStream => (super.noSuchMethod(
+        Invocation.getter(#playbackStateStream),
+        returnValue: _i4.Stream<_i8.PlaybackState>.empty(),
+      ) as _i4.Stream<_i8.PlaybackState>);
+
+  @override
+  _i4.Future<void> play(String? filePath) => (super.noSuchMethod(
+        Invocation.method(
+          #play,
+          [filePath],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> pause() => (super.noSuchMethod(
+        Invocation.method(
+          #pause,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> seek(Duration? position) => (super.noSuchMethod(
+        Invocation.method(
+          #seek,
+          [position],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> stop() => (super.noSuchMethod(
+        Invocation.method(
+          #stop,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> dispose() => (super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
 }

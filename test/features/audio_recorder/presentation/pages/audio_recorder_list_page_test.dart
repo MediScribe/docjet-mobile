@@ -12,6 +12,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'dart:async'; // Add async import
+// Add this import
 
 // Import generated mocks
 import 'audio_recorder_list_page_test.mocks.dart';
@@ -42,9 +43,7 @@ void main() {
     localCreatedAt: tNow,
     displayTitle: 'Existing Title',
   );
-  final loadedState = AudioListLoaded(
-    recordings: [tTranscription1, tTranscription2],
-  );
+  final tTranscriptionList = [tTranscription1, tTranscription2];
 
   setUp(() {
     // Initialize dependency injection
@@ -57,25 +56,7 @@ void main() {
     recordingStateController =
         StreamController<AudioRecordingState>.broadcast();
 
-    // --- Corrected Stubs --- (Attempt 4)
-    // Stub getters using thenReturn (this IS correct for getters)
-    when(mockAudioListCubit.state).thenReturn(AudioListInitial());
-
-    // Stub streams using thenAnswer returning the stream directly
-    when(
-      mockAudioListCubit.stream,
-    ).thenAnswer((_) => const Stream<AudioListState>.empty());
-
-    // Stub async methods using thenAnswer returning a Future
-    when(
-      mockAudioListCubit.loadAudioRecordings(),
-    ).thenAnswer((_) async => Future<void>.value());
-    // --- End Corrected Stubs --- (Attempt 4)
-
-    // Register the mock AudioListCubit
-    sl.registerSingleton<AudioListCubit>(mockAudioListCubit);
-
-    // --- Setup for AudioRecordingCubit --- (Attempt 4)
+    // --- Setup for AudioRecordingCubit SECOND ---
     // Stub state getter
     when(mockAudioRecordingCubit.state).thenReturn(AudioRecordingInitial());
     // Stub stream
@@ -95,6 +76,23 @@ void main() {
 
     // Register the mock AudioRecordingCubit AFTER setting up its stubs
     sl.registerFactory<AudioRecordingCubit>(() => mockAudioRecordingCubit);
+    // --- End AudioRecordingCubit Setup ---
+
+    // --- Adjusted Setup for AudioListCubit ---
+    // Stub the initial state ONLY. Stream stubbing will happen per-test.
+    when(mockAudioListCubit.state).thenReturn(AudioListInitial());
+    // Provide a default stream. Tests needing specific streams will override this.
+    when(
+      mockAudioListCubit.stream,
+    ).thenAnswer((_) => Stream<AudioListState>.value(AudioListInitial()));
+    // Ensure loadAudioRecordings is stubbed (as before)
+    when(
+      mockAudioListCubit.loadAudioRecordings(),
+    ).thenAnswer((_) async => Future<void>.value());
+
+    // Register the mock AudioListCubit
+    sl.registerSingleton<AudioListCubit>(mockAudioListCubit);
+    // --- End Adjusted AudioListCubit Setup ---
   });
 
   tearDown(() {
@@ -147,11 +145,11 @@ void main() {
   ) async {
     // Arrange
     when(mockAudioListCubit.state).thenReturn(
-      AudioListLoaded(recordings: [tTranscription1, tTranscription2]),
+      AudioListLoaded(transcriptions: [tTranscription1, tTranscription2]),
     );
     when(mockAudioListCubit.stream).thenAnswer(
       (_) => Stream<AudioListState>.value(
-        AudioListLoaded(recordings: [tTranscription1, tTranscription2]),
+        AudioListLoaded(transcriptions: [tTranscription1, tTranscription2]),
       ),
     );
 
@@ -220,10 +218,11 @@ void main() {
       // Arrange
       when(
         mockAudioListCubit.state,
-      ).thenReturn(const AudioListLoaded(recordings: []));
+      ).thenReturn(const AudioListLoaded(transcriptions: []));
       when(mockAudioListCubit.stream).thenAnswer(
-        (_) =>
-            Stream<AudioListState>.value(const AudioListLoaded(recordings: [])),
+        (_) => Stream<AudioListState>.value(
+          const AudioListLoaded(transcriptions: []),
+        ),
       );
 
       // Act
@@ -289,10 +288,14 @@ void main() {
     'tapping FAB navigates to AudioRecorderPage and calls loadAudioRecordings on return',
     (tester) async {
       // Arrange
-      when(mockAudioListCubit.state).thenReturn(loadedState);
       when(
-        mockAudioListCubit.stream,
-      ).thenAnswer((_) => Stream<AudioListState>.value(loadedState));
+        mockAudioListCubit.state,
+      ).thenReturn(AudioListLoaded(transcriptions: tTranscriptionList));
+      when(mockAudioListCubit.stream).thenAnswer(
+        (_) => Stream<AudioListState>.value(
+          AudioListLoaded(transcriptions: tTranscriptionList),
+        ),
+      );
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());

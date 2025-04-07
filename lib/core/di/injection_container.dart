@@ -14,6 +14,9 @@ import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_r
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 
 // Import Hive and related components
 import 'package:hive_flutter/hive_flutter.dart';
@@ -44,7 +47,9 @@ Future<void> init() async {
   // --- Feature: Audio Recorder ---
 
   // Cubits (Now depend directly on Repository)
-  sl.registerFactory(() => AudioListCubit(repository: sl()));
+  sl.registerFactory(
+    () => AudioListCubit(repository: sl(), audioPlaybackService: sl()),
+  );
   sl.registerFactory(() => AudioRecordingCubit(repository: sl()));
 
   // Repository (Depends on Data Sources AND Merge Service)
@@ -112,6 +117,14 @@ Future<void> init() async {
       pathProvider: sl(),
       audioDurationRetriever: sl(),
     ),
+  );
+
+  // + Register Audio Player (audioplayers package)
+  sl.registerLazySingleton(() => AudioPlayer());
+
+  // + Register Audio Playback Service
+  sl.registerLazySingleton<AudioPlaybackService>(
+    () => AudioPlaybackServiceImpl(audioPlayer: sl()),
   );
 
   // + Register TranscriptionMergeService

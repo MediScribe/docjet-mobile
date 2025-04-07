@@ -4,6 +4,7 @@ import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart'; // Use Transcription
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'; // Import status
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart'; // Import service
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -11,9 +12,11 @@ import 'package:mockito/mockito.dart';
 
 import 'audio_list_cubit_test.mocks.dart';
 
-@GenerateMocks([AudioRecorderRepository])
+@GenerateMocks([AudioRecorderRepository, AudioPlaybackService])
 void main() {
   late MockAudioRecorderRepository mockRepository;
+  late MockAudioPlaybackService
+  mockAudioPlaybackService; // Declare mock service
   late AudioListCubit cubit;
 
   // Sample Transcription data for testing
@@ -48,7 +51,19 @@ void main() {
 
   setUp(() {
     mockRepository = MockAudioRecorderRepository();
-    cubit = AudioListCubit(repository: mockRepository);
+    mockAudioPlaybackService =
+        MockAudioPlaybackService(); // Instantiate mock service
+
+    // STUB the service stream BEFORE passing it to the cubit
+    // It needs a default stream, even if empty for some tests
+    when(
+      mockAudioPlaybackService.playbackStateStream,
+    ).thenAnswer((_) => const Stream.empty());
+
+    cubit = AudioListCubit(
+      repository: mockRepository,
+      audioPlaybackService: mockAudioPlaybackService, // Provide mock service
+    );
   });
 
   tearDown(() {
@@ -72,7 +87,7 @@ void main() {
           () => [
             AudioListLoading(),
             AudioListLoaded(
-              recordings: tTranscriptionList,
+              transcriptions: tTranscriptionList,
             ), // Expect Transcription list
           ],
       verify: (_) {
@@ -96,7 +111,7 @@ void main() {
           () => [
             AudioListLoading(),
             const AudioListLoaded(
-              recordings: [],
+              transcriptions: [],
             ), // Expect empty Transcription list
           ],
       verify: (_) {
