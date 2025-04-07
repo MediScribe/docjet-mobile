@@ -122,11 +122,56 @@ This plan outlines the steps to refactor the audio playback logic, moving state 
 
 **Phase 4: Verify the Damn Thing Works (Testing)**
 
-6.  **Test the Service:** Create `audio_playback_service_impl_test.dart`. Mock `AudioPlayer`. Verify service methods call player methods correctly and that player events are transformed into the `PlaybackState` stream correctly. Test error handling.
-7.  **Test the Cubit:** Update `audio_list_cubit_test.dart`. Mock `AudioPlaybackService`. Test that calling cubit methods (play, pause) calls the service. Mock the service's stream and verify that events emitted by the service cause the Cubit to emit updated `AudioListLoaded` states with correct `PlaybackInfo`.
-8.  **Test the Widget:** Create/Update `audio_player_widget_test.dart`. Make it a widget test. Provide a mock `AudioListCubit` using `BlocProvider`. Pump the widget with different input props (playing, paused, error, specific position/duration) and verify the UI renders correctly. Verify tapping buttons finds the mock Cubit in context and calls the correct methods.
-9.  **Test the Integration:** Update `audio_recorder_list_page_test.dart`. Provide real or mocked Cubit/Service. Test scenarios like:
+6.  Test the Service: Create `audio_playback_service_impl_test.dart`. Mock `AudioPlayer`. Verify service methods call player methods correctly and that player events are transformed into the `PlaybackState` stream correctly. Test error handling.
+7.  Test the Cubit: Update `audio_list_cubit_test.dart`. Mock `AudioPlaybackService`. Test that calling cubit methods (play, pause) calls the service. Mock the service's stream and verify that events emitted by the service cause the Cubit to emit updated `AudioListLoaded` states with correct `PlaybackInfo`.
+8.  Test the Widget: Create/Update `audio_player_widget_test.dart`. Make it a widget test. Provide a mock `AudioListCubit` using `BlocProvider`. Pump the widget with different input props (playing, paused, error, specific position/duration) and verify the UI renders correctly. Verify tapping buttons finds the mock Cubit in context and calls the correct methods.
+9.  Test the Integration: Update `audio_recorder_list_page_test.dart`. Provide real or mocked Cubit/Service. Test scenarios like:
     *   Load list, tap play on item 1 -> Item 1 UI updates to playing.
     *   Tap play on item 2 -> Item 1 UI updates to paused/stopped, Item 2 UI updates to playing.
     *   Test seek functionality.
-    *   Test error states if the service reports them and the widget displays them. 
+    *   Test error states if the service reports them and the widget displays them.
+
+**IMPORTANT TESTING NOTES (Extended Learnings from Debugging Hell):**
+*   **`testWidgets` HANGS with `AudioPlayer` Instantiation:** Initial hangs occurred when using `mockito` for `AudioPlayer` within `testWidgets`, seemingly due to complex interactions between the mocking framework, async setup/teardown (even when moved inside the test), and the `testWidgets` environment.
+*   **Removing Mocks Did NOT Fix Hang:** Contrary to initial assumptions, removing `mockito` entirely and instantiating the *real* `AudioPlayer` within `testWidgets` *still* resulted in hangs. The hang occurred specifically during `AudioPlayer()` instantiation, regardless of whether it was in the constructor or delayed until after the first `tester.pump()`.
+*   **Conclusion:** Instantiating the real `AudioPlayer` (which likely involves initializing native platform channels) is fundamentally incompatible with the `testWidgets` environment, causing deadlocks/hangs.
+*   **Plain `test()` Runs But Hits `MissingPluginException`:** Switching the problematic lifecycle tests from `testWidgets()` to plain `test()` resolved the hang. However, when using the *real* `AudioPlayer` in a plain `test()` environment, calls to native methods (like `create`, `stop`, `release`) fail with `MissingPluginException`. This is because the necessary native plugin implementations aren't available in a pure Dart VM test.
+*   **`TestWidgetsFlutterBinding.ensureInitialized()`:** Required at the start of `main()` in plain `test()` files that interact with Flutter plugins (like `audioplayers`) to set up the framework side of platform channels.
+*   **Stream Assertion Timing:** Plain `test()` timing differs from `testWidgets()`. Asserting stream states requires `expectLater` or careful use of `await Future.delayed(Duration.zero)` to allow async events to propagate (e.g., `expect(states.first, ...)` failed due to the list being empty).
+
+**Current Status & Revised Testing Strategy:**
+
+1.  **Status:** Service code refactored for lazy initialization. Lifecycle tests (`audio_playback_service_lifecycle_test.dart`) converted to plain `test()` to avoid hangs, but currently failing due to `MissingPluginException` when using the real player and stream timing issues.
+2.  **Revised Strategy:** Mock `AudioPlayer` within the plain `test()` environment for the service tests (`audio_playback_service_*.dart`). This avoids both the `testWidgets` hang *and* the `MissingPluginException` while allowing verification of the service's logic and its interactions with the (mocked) player.
+    *   Use `mockito` for `AudioPlayer`.
+    *   Run tests using `flutter test` (or `dart test` if no Flutter dependencies remain after mocking).
+    *   Use `expectLater` for stream assertions.
+    *   Verify calls to mocked player methods (`stop`, `release`, `dispose`, etc.).
+3.  **Next Steps:**
+    *   Reintroduce `mockito` to `audio_playback_service_lifecycle_test.dart`.
+    *   Add optional `AudioPlayer` parameter back to `AudioPlaybackServiceImpl` constructor for mock injection.
+    *   Run `build_runner`.
+    *   Fix the lifecycle tests using mocks and `expectLater`.
+    *   Restore and adapt other service test files (`play`, `pause_seek_stop`, `event_handling`) using the `test()` + mock pattern.
+    *   Consider separate `integration_test` if testing real audio playback on a device/emulator is required later.
+
+**Original Debugging Notes (Still potentially relevant for context):**
+*   **Initialization within `testWidgets` is FICKLE:** Initial attempts to instantiate `AudioPlaybackServiceImpl` or register its listeners (even mocked ones) in a global `setUp` or early in a `testWidgets` block before the first `tester.pump()` caused persistent hangs.
+*   **Avoid `setUp` for Service Instantiation:** Do **NOT** instantiate `AudioPlaybackServiceImpl` in a global `setUp` block when using `testWidgets`. Instantiate it *directly within each* `testWidgets` block.
+*   **Initialization Sequence:**
+    1.  Instantiate the service: `service = AudioPlaybackServiceImpl(...)`.
+    2.  Pump **immediately**: `await tester.pump();`.
+    3.  Attach listeners if needed: `final sub = service.playbackStateStream.listen(...)`.
+    4.  Initialize listeners: `service.initializeListeners();` (Prefer synchronous `void` if possible).
+    5.  Pump again: `await tester.pump();`.
+*   **Synchronous Initialization Preferred:** The hangs seemed related to `async` operations during initialization within the test environment. Make initialization steps like creating controllers or registering listeners synchronous (`void`) where feasible.
+*   **Global `setUp`/`tearDown` Interference:** There appears to be a cursed interaction where even *unused* mocks or controllers created in global `setUp` can interfere with `testWidgets` execution after the first pump. Be wary of complex global setup when debugging hangs.
+*   **Splitting Tests:** While splitting the large test file helped organization, it did not resolve the underlying initialization hang. The core issue was the timing and context of initialization relative to `tester.pump()`.
+
+**Current Status & Next Steps (as of debugging hangs):**
+
+1.  **Status:** Service code refactored for synchronous initialization. Tests confirmed to hang due to mocking infrastructure interference in `testWidgets`, not the service logic itself.
+2.  **Run `build_runner`:** Done.
+3.  **Run Lifecycle Test with Mocks:** Execute `audio_playback_service_lifecycle_test.dart` (now fully restored with mocks and sync init pattern).
+    *   **If PASSES:** Great! Restore other test files (`play`, `pause_seek_stop`, `event_handling`) using the confirmed pattern and uncomment their internal logic.
+    *   **If HANGS:** Mockito for `AudioPlayer` in `testWidgets` is likely untenable. **Investigate Alternatives:** Platform channel mocking, different mock library, or shift strategy away from mocking `AudioPlayer` directly in `testWidgets`. 
