@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart'; // Implementation (will be created)
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

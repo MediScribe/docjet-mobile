@@ -13,6 +13,7 @@ class FakeAudioPlayer implements AudioPlayer {
   // Internal state for setters
   PlayerState _state = PlayerState.stopped;
   AudioCache _audioCache = AudioCache(prefix: 'fake/');
+  PlayerState? _desiredState;
 
   @override
   Future<void> play(
@@ -59,16 +60,16 @@ class FakeAudioPlayer implements AudioPlayer {
   Future<void> setSource(Source source) async {}
 
   @override
-  Future<void> setSourceAsset(String path) async {}
+  Future<void> setSourceAsset(String path, {String? mimeType}) async {}
 
   @override
-  Future<void> setSourceBytes(Uint8List bytes) async {}
+  Future<void> setSourceBytes(Uint8List bytes, {String? mimeType}) async {}
 
   @override
-  Future<void> setSourceDeviceFile(String path) async {}
+  Future<void> setSourceDeviceFile(String path, {String? mimeType}) async {}
 
   @override
-  Future<void> setSourceUrl(String url) async {}
+  Future<void> setSourceUrl(String url, {String? mimeType}) async {}
 
   @override
   Future<Duration?> getDuration() async => Duration.zero;
@@ -149,6 +150,19 @@ class FakeAudioPlayer implements AudioPlayer {
   @override
   set audioCache(AudioCache cache) {
     _audioCache = cache;
+  }
+
+  @override
+  PlayerState get desiredState => _desiredState ?? state;
+
+  @override
+  set desiredState(PlayerState? state) {
+    _desiredState = state;
+  }
+
+  @override
+  set positionUpdater(PositionUpdater? updater) {
+    // _positionUpdater = updater; // Need to adjust internal storage if needed, or just make it a no-op
   }
 }
 

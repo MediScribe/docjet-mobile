@@ -29,7 +29,6 @@ void main() {
     test('should call play on AudioPlayer with correct source', () async {
       // Arrange
       const filePath = '/path/to/audio.mp3';
-      final expectedSource = DeviceFileSource(filePath);
 
       // Define the mock behavior: when play is called with any source, return success
       // We use 'any' here because DeviceFileSource doesn't implement == correctly for mockito matching
@@ -115,7 +114,6 @@ void main() {
       () async {
         // Arrange
         const url = 'http://example.com/audio.mp3';
-        final expectedSource = UrlSource(url);
         // Define mock behavior
         when(mockAudioPlayer.setSourceUrl(any)).thenAnswer((_) async {});
 

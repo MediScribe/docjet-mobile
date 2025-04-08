@@ -303,12 +303,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     );
   }
 
-  void _resetState() {
-    logger.d('[AudioSvc] Resetting state to initial.');
-    _currentState = const PlaybackState.initial();
-    _playbackStateController?.add(_currentState); // RESTORED
-  }
-
   @override
   Stream<PlaybackState> get playbackStateStream {
     // Lazy initialization of the StreamController
@@ -424,7 +418,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     }
   }
 
-  @override
   Future<void> resume() async {
     // Can only resume if paused (i.e., not playing, not completed, and has a file path)
     final bool canResume =

@@ -207,8 +207,6 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         : duration; // Duration shown on the widget
                 final itemError = isActiveItem ? playbackInfo.error : null;
                 // Slider should only be enabled if this IS the active item and duration is known
-                final canSeek =
-                    isActiveItem && playbackInfo.totalDuration > Duration.zero;
 
                 return Card(
                   margin: const EdgeInsets.symmetric(

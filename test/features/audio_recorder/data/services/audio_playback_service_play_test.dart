@@ -544,13 +544,3 @@ void main() {
     });
   });
 }
-
-// Helper function to check Source type and path
-bool _isDeviceFileSource(Source source, String path) {
-  return source is DeviceFileSource && source.path == path;
-}
-
-// Helper function to check Source type and path
-bool _isAssetSource(Source source, String path) {
-  return source is AssetSource && source.path == path;
-}
