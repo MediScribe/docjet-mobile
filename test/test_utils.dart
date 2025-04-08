@@ -16,7 +16,9 @@
 // Import needed libraries first
 import 'package:docjet_mobile/core/utils/test_logger.dart';
 
+export 'package:docjet_mobile/core/utils/logger.dart';
 export 'package:docjet_mobile/core/utils/test_logger.dart';
+export 'package:flutter/foundation.dart';
 // Then export them
 export 'package:flutter_test/flutter_test.dart';
 
