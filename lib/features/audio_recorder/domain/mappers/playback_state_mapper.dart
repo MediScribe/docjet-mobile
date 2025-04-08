@@ -22,6 +22,9 @@ abstract class PlaybackStateMapper {
     // Add error stream input if needed later
   });
 
+  /// Sets the current file path being played.
+  void setCurrentFilePath(String? filePath);
+
   /// Cleans up resources, like stream subscriptions.
   void dispose();
 }

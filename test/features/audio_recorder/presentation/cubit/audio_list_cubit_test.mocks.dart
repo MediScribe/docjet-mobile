@@ -7,10 +7,10 @@ import 'dart:async' as _i4;
 
 import 'package:dartz/dartz.dart' as _i2;
 import 'package:docjet_mobile/core/error/failures.dart' as _i5;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'
+    as _i8;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart'
     as _i6;
-import 'package:docjet_mobile/features/audio_recorder/domain/models/playback_state.dart'
-    as _i8;
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart'
     as _i3;
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart'
@@ -270,6 +270,16 @@ class MockAudioPlaybackService extends _i1.Mock
   _i4.Future<void> pause() => (super.noSuchMethod(
         Invocation.method(
           #pause,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> resume() => (super.noSuchMethod(
+        Invocation.method(
+          #resume,
           [],
         ),
         returnValue: _i4.Future<void>.value(),

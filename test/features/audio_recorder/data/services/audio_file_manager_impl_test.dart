@@ -11,6 +11,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_reco
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import '../../../../utils/test_logger.dart';
 
 import 'audio_file_manager_impl_test.mocks.dart';
 
@@ -52,6 +53,10 @@ class FakeFileStat implements FileStat {
   MockSpec<FileStat>(),
 ])
 void main() {
+  // Disable all logging for these tests
+  setUpAll(() => TestLogger.disableLogging());
+  tearDownAll(() => TestLogger.resetLogging());
+
   late AudioFileManagerImpl fileManager;
   late MockFileSystem mockFileSystem;
   late MockPathProvider mockPathProvider;
@@ -113,6 +118,9 @@ void main() {
     test(
       'should throw RecordingFileNotFoundException when file does not exist',
       () async {
+        // Enable logging only for this test if needed
+        // TestLogger.enableLoggingForTag('[AUDIO]');
+
         // Arrange
         when(mockFileSystem.fileExists(any)).thenAnswer((_) async => false);
 

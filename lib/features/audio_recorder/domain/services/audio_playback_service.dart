@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:docjet_mobile/features/audio_recorder/domain/models/playback_state.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 
 /// Abstract interface for a service that handles audio playback logic.
 abstract class AudioPlaybackService {
@@ -10,6 +10,9 @@ abstract class AudioPlaybackService {
 
   /// Pauses the currently playing audio.
   Future<void> pause();
+
+  /// Resumes playback from the current position.
+  Future<void> resume();
 
   /// Seeks to the specified [position] in the currently playing audio.
   Future<void> seek(Duration position);

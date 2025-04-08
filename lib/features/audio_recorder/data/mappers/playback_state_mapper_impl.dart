@@ -30,6 +30,7 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   Duration _currentDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
   String? _currentError;
+  String? _currentFilePath;
 
   // Subscriptions to input streams for cleanup
   final List<StreamSubscription<dynamic>> _subscriptions = [];
@@ -111,7 +112,7 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
       );
     }
 
-    // Map PlayerState to the appropriate PlaybackState subtype
+    // Map PlayerState to the appropriate PlaybackState
     switch (_currentPlayerState) {
       case PlayerState.playing:
         return PlaybackState.playing(
@@ -172,6 +173,12 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     // IMPORTANT: Emit error immediately through the error controller
     // This ensures tests don't hang waiting for the next event
     errorController.add(errorMsg);
+  }
+
+  // Sets the current file path for the mapper
+  @override
+  void setCurrentFilePath(String? filePath) {
+    _currentFilePath = filePath;
   }
 
   @override
