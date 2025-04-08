@@ -47,21 +47,21 @@
 *   [x] **23.** Create directory `lib/features/audio_recorder/domain/mappers`.
 *   [x] **24.** Define `PlaybackStateMapper` interface in `playback_state_mapper.dart` with mapping method signature.
 *   [x] **25.** Create directory `lib/features/audio_recorder/data/mappers`.
-*   [ ] **26.** Implement `PlaybackStateMapperImpl` in `playback_state_mapper_impl.dart`.
-*   [ ] **27.** Move stream listening logic (from old `_registerListeners`) into the mapper.
-*   [ ] **28.** Move state update logic (from old `_updateState`) into the mapper.
-*   [ ] **29.** Use stream transformations (e.g., `rxdart` if needed) to map raw streams to `Stream<PlaybackState>`.
-*   [ ] **30.** Handle stream errors within the mapper, incorporating them into `PlaybackState`.
+*   [x] **26.** Implement `PlaybackStateMapperImpl` in `playback_state_mapper_impl.dart`.
+*   [x] **27.** Move stream listening logic (from old `_registerListeners`) into the mapper.
+*   [x] **28.** Move state update logic (from old `_updateState`) into the mapper.
+*   [x] **29.** Use stream transformations (e.g., `rxdart` if needed) to map raw streams to `Stream<PlaybackState>`.
+*   [x] **30.** Handle stream errors within the mapper, incorporating them into `PlaybackState`.
 *   [x] **31.** Create directory `test/features/audio_recorder/data/mappers`.
 *   [x] **32.** Create `playback_state_mapper_impl_test.dart` test file.
-*   [ ] **33.** Write test using `StreamController` to verify mapping for `PlayerState.playing` event.
-*   [ ] **34.** Write test using `StreamController` to verify mapping for `onDurationChanged` event.
-*   [ ] **35.** Write test using `StreamController` to verify mapping for `onPositionChanged` event.
-*   [ ] **36.** Write test using `StreamController` to verify mapping for `PlayerState.paused` event.
-*   [ ] **37.** Write test using `StreamController` to verify mapping for `PlayerState.stopped` event.
-*   [ ] **38.** Write test using `StreamController` to verify mapping for `onPlayerComplete` event.
-*   [ ] **39.** Write test using `StreamController` to verify mapping for error events (`onLog` or `onError`).
-*   [ ] **40.** Write test verifying combined sequences of events map to correct states (e.g., play -> pause -> resume).
+*   [x] **33.** Write test using `StreamController` to verify mapping for `PlayerState.playing` event.
+*   [x] **34.** Write test using `StreamController` to verify mapping for `onDurationChanged` event.
+*   [x] **35.** Write test using `StreamController` to verify mapping for `onPositionChanged` event.
+*   [x] **36.** Write test using `StreamController` to verify mapping for `PlayerState.paused` event.
+*   [x] **37.** Write test using `StreamController` to verify mapping for `PlayerState.stopped` event.
+*   [x] **38.** Write test using `StreamController` to verify mapping for `onPlayerComplete` event.
+*   [x] **39.** Write test using `StreamController` to verify mapping for error events (`onLog` or `onError`).
+*   [x] **40.** Write test verifying combined sequences of events map to correct states (e.g., play -> pause -> resume).
 
 **Phase 3: Service Refactoring - Orchestration & DI**
 

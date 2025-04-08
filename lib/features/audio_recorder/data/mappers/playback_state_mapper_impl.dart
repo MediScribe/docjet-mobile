@@ -3,27 +3,138 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
-import 'package:rxdart/rxdart.dart'; // Using rxdart for combining streams later
+import 'package:flutter/foundation.dart'; // For @visibleForTesting
+import 'package:rxdart/rxdart.dart';
 
+/// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
+/// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
-  // Controller for the output stream
-  final _playbackStateController = BehaviorSubject<PlaybackState>.seeded(
-    const PlaybackState.initial(),
-  );
+  // Controllers for input streams - allows testing and external control
+  @visibleForTesting
+  final positionController = StreamController<Duration>.broadcast();
+  @visibleForTesting
+  final durationController = StreamController<Duration>.broadcast();
+  @visibleForTesting
+  final completeController = StreamController<void>.broadcast();
+  @visibleForTesting
+  final playerStateController = StreamController<PlayerState>.broadcast();
+  // For emitting errors directly - needed for test reliability
+  @visibleForTesting
+  final errorController = StreamController<String>.broadcast();
 
-  // Input stream subscriptions (to be managed)
-  StreamSubscription? _playerStateSubscription;
-  StreamSubscription? _durationSubscription;
-  StreamSubscription? _positionSubscription;
-  StreamSubscription? _completeSubscription;
+  // The merged and mapped output stream
+  late final Stream<PlaybackState> _playbackStateStream;
 
-  // Keep track of the latest known values
+  // Internal state variables to hold the latest values
+  PlayerState _currentPlayerState = PlayerState.stopped;
   Duration _currentDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
+  String? _currentError;
+
+  // Subscriptions to input streams for cleanup
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+
+  PlaybackStateMapperImpl() {
+    _playbackStateStream = _createCombinedStream().asBroadcastStream();
+  }
+
+  Stream<PlaybackState> _createCombinedStream() {
+    // Using merge: reacts to any event on any stream immediately.
+    return Rx.merge([
+          positionController.stream.map((pos) {
+            _currentPosition = pos;
+            // Clear error only if we are not in a terminal state from the player
+            if (_currentPlayerState != PlayerState.stopped &&
+                _currentPlayerState != PlayerState.completed) {
+              _maybeClearError();
+            }
+            return _constructState();
+          }),
+          durationController.stream.map((dur) {
+            _currentDuration = dur;
+            _maybeClearError(); // Receiving duration implies things are likely okay
+            return _constructState();
+          }),
+          completeController.stream.map((_) {
+            _currentPlayerState = PlayerState.completed;
+            _currentPosition =
+                _currentDuration; // Position usually matches duration on completion
+            _maybeClearError(); // Completion is a success state
+            return _constructState();
+          }),
+          playerStateController.stream.map((state) {
+            final previousState = _currentPlayerState;
+            _currentPlayerState = state;
+
+            // Reset position if stopped/completed only if it wasn't already completed
+            // (completeController stream handles setting position for completion)
+            if ((state == PlayerState.stopped ||
+                    state == PlayerState.completed) &&
+                previousState != PlayerState.completed) {
+              _currentPosition = Duration.zero;
+            }
+
+            // Clear error when entering a stable state
+            if (state == PlayerState.playing ||
+                state == PlayerState.paused ||
+                state == PlayerState.stopped ||
+                state == PlayerState.completed) {
+              _maybeClearError();
+            }
+            return _constructState();
+          }),
+          // Add the error stream to emit error states immediately
+          errorController.stream.map((errorMsg) {
+            _currentError = errorMsg;
+            return _constructState();
+          }),
+        ])
+        .startWith(const PlaybackState.initial()) // Start with an initial state
+        .distinct(); // Avoid emitting identical consecutive states
+  }
+
+  // Clears the error state if it's currently set.
+  void _maybeClearError() {
+    if (_currentError != null) {
+      _currentError = null;
+    }
+  }
+
+  // Helper to construct the current state object
+  PlaybackState _constructState() {
+    // Prioritize error state
+    if (_currentError != null) {
+      return PlaybackState.error(
+        message: _currentError!,
+        currentPosition: _currentPosition,
+        totalDuration: _currentDuration,
+      );
+    }
+
+    // Map PlayerState to the appropriate PlaybackState subtype
+    switch (_currentPlayerState) {
+      case PlayerState.playing:
+        return PlaybackState.playing(
+          currentPosition: _currentPosition,
+          totalDuration: _currentDuration,
+        );
+      case PlayerState.paused:
+        return PlaybackState.paused(
+          currentPosition: _currentPosition,
+          totalDuration: _currentDuration,
+        );
+      case PlayerState.stopped:
+        return const PlaybackState.stopped();
+      case PlayerState.completed:
+        return const PlaybackState.completed();
+      case PlayerState.disposed:
+        // Treat disposed as stopped
+        return const PlaybackState.stopped();
+    }
+  }
 
   @override
-  Stream<PlaybackState> get playbackStateStream =>
-      _playbackStateController.stream;
+  Stream<PlaybackState> get playbackStateStream => _playbackStateStream;
 
   @override
   void initialize({
@@ -32,101 +143,52 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     required Stream<void> completeStream,
     required Stream<PlayerState> playerStateStream,
   }) {
-    // Clean up any existing listeners first
+    // Cancel any existing subscriptions before creating new ones
     dispose();
 
-    // Store latest values from input streams
-    _durationSubscription = durationStream.listen((duration) {
-      _currentDuration = duration;
-      // Potentially update state if already playing/paused
-      _updateStateBasedOnCurrentValues();
-    });
-
-    _positionSubscription = positionStream.listen((position) {
-      _currentPosition = position;
-      // Potentially update state if already playing/paused
-      _updateStateBasedOnCurrentValues();
-    });
-
-    // Listen to player state changes (CORE LOGIC FOR THIS TEST)
-    _playerStateSubscription = playerStateStream.listen(
-      (playerState) {
-        switch (playerState) {
-          case PlayerState.playing:
-            _playbackStateController.add(
-              PlaybackState.playing(
-                currentPosition: _currentPosition,
-                totalDuration: _currentDuration,
-              ),
-            );
-            break;
-          // Other states will be handled in subsequent TDD steps
-          case PlayerState.paused:
-          case PlayerState.stopped:
-          case PlayerState.completed:
-          case PlayerState.disposed: // Or handle specific logic
-            // For now, do nothing for other states to pass the specific test
-            break;
-        }
-      },
-      onError: (error) {
-        // Handle potential errors from the player state stream
-        _playbackStateController.add(
-          PlaybackState.error(message: error.toString()),
-        );
-      },
+    _subscriptions.add(
+      positionStream.listen(positionController.add, onError: _handleError),
     );
-
-    _completeSubscription = completeStream.listen((_) {
-      // Handle completion -> Will be tested later
-    });
-
-    // Add error handling for other streams too?
-    // durationStream.handleError(...)?
-    // positionStream.handleError(...)?
-    // Consider how errors in duration/position should affect the state.
+    _subscriptions.add(
+      durationStream.listen(durationController.add, onError: _handleError),
+    );
+    _subscriptions.add(
+      completeStream.listen(completeController.add, onError: _handleError),
+    );
+    _subscriptions.add(
+      playerStateStream.listen(
+        playerStateController.add,
+        onError: _handleError,
+      ),
+    );
   }
 
-  // Helper to re-emit state when position/duration changes while playing/paused
-  void _updateStateBasedOnCurrentValues() {
-    final currentState = _playbackStateController.value;
-    // Use map to handle the specific states we care about and update accordingly
-    currentState.map(
-      initial: (_) {}, // Do nothing for initial state
-      loading: (_) {}, // Do nothing for loading state
-      playing: (playingState) {
-        _playbackStateController.add(
-          playingState.copyWith(
-            currentPosition: _currentPosition,
-            totalDuration: _currentDuration,
-          ),
-        );
-      },
-      paused: (pausedState) {
-        _playbackStateController.add(
-          pausedState.copyWith(
-            currentPosition: _currentPosition,
-            totalDuration: _currentDuration,
-          ),
-        );
-      },
-      stopped: (_) {}, // Do nothing for stopped state
-      completed: (_) {}, // Do nothing for completed state
-      error: (errorState) {
-        // Optionally update position/duration even in error state if relevant
-        // For now, do nothing.
-      },
-    );
+  // Internal error handler
+  void _handleError(Object error, StackTrace stackTrace) {
+    debugPrint('PlaybackStateMapper Error: $error\n$stackTrace');
+    final errorMsg = error.toString();
+    _currentError = errorMsg;
+
+    // IMPORTANT: Emit error immediately through the error controller
+    // This ensures tests don't hang waiting for the next event
+    errorController.add(errorMsg);
   }
 
   @override
   void dispose() {
-    _playerStateSubscription?.cancel();
-    _durationSubscription?.cancel();
-    _positionSubscription?.cancel();
-    _completeSubscription?.cancel();
-    // Don't close the controller here if the service manages the mapper lifecycle
-    // and might re-initialize it. Let the owner close it if needed.
-    // _playbackStateController.close();
+    // Cancel stream subscriptions
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+
+    // Don't close controllers here if the mapper instance might be reused
+    // or if tests need to inject events after disposal of subscriptions.
+    // Let the owner of the mapper instance manage controller lifecycle if needed.
+    // positionController.close();
+    // durationController.close();
+    // completeController.close();
+    // playerStateController.close();
+    // errorController.close();
   }
 }
