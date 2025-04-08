@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';
-import 'package:docjet_mobile/core/utils/test_logger.dart';
+import '../test_utils.d.dart';
 
 /// Example class that produces log output in production code
 class AudioProcessor {
