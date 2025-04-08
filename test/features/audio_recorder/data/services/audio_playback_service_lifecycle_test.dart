@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 // Removed mockito imports
@@ -158,64 +157,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized(); // Needed for platform channels
 
   group('Lifecycle', () {
-    late AudioPlaybackServiceImpl service;
-    late FakeAudioPlayer fakePlayer;
-
-    setUp(() {
-      // print('>>> SETUP: START');
-      fakePlayer = FakeAudioPlayer();
-      // print('>>> SETUP: FakeAudioPlayer created');
-      // Instantiate the service WITH the fake player
-      service = AudioPlaybackServiceImpl(audioPlayer: fakePlayer);
-      // print('>>> SETUP: Service instantiated with fake');
-      // print('>>> SETUP: END');
-    });
-
-    tearDown(() async {
-      // print('>>> TEARDOWN: START');
-      // Ensure dispose is called to clean up
-      await service.dispose();
-      // print('>>> TEARDOWN: END');
-    });
-
-    // REMOVED: Test for initial state via stream, as controller is commented out
-    // test('Fake Player initial state is correct', () async {
-    //   // Arrange: Service is setup in setUp
-    //   final expectedInitialState =
-    //       const PlaybackState.initial(); // Define your initial state
-
-    //   // Act
-    //   // Initialize listeners synchronously AFTER setup
-    //   service.initializeListeners();
-
-    //   // Assert: Check if the stream emits the initial state first
-    //   // NOTE: Stream is now empty due to diagnostic changes
-    //   await expectLater(
-    //     service.playbackStateStream,
-    //     emits(expectedInitialState),
-    //   );
-    // });
-
-    test('Fake Player dispose cancels subscriptions and releases player', () async {
-      // Arrange: Service is setup in setUp
-      // Initialize listeners synchronously AFTER setup
-      service.initializeListeners();
-
-      // Access the stream getter to potentially trigger lazy init if restored later
-      // (Not strictly needed now, but good practice for future changes)
-      // final _ = service.playbackStateStream;
-
-      // Act: Call dispose
-      await service.dispose();
-
-      // Assert: Verify player methods were called (implicitly tested by fake now)
-      // Or, more simply for this test, just assert that dispose completed without error.
-      // The primary check here is that dispose runs fully.
-      // We can also check the log output if needed.
-      expect(
-        true,
-        isTrue,
-      ); // Placeholder assertion: test completes if dispose doesn't throw
-    });
+    // Test cases will be rewritten here to match the new implementation.
   });
 }

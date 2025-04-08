@@ -31,6 +31,8 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.12.0
+  shared_preferences: ^2.2.3
+  path: ^1.9.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -59,12 +61,15 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   go_router: ^13.2.4
+  # Use latest stable freezed annotation
+  freezed_annotation: ^2.4.1 # Aligning with stable freezed
+  rxdart: ^0.27.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   mockito: ^5.4.5
-  build_runner: ^2.4.8
+  build_runner: ^2.4.15
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -76,6 +81,8 @@ dev_dependencies:
   mocktail: ^1.0.3
   fake_async: ^1.3.1
   hive_generator: ^2.0.1
+  # Use latest stable freezed generator
+  freezed: ^2.4.1 # Aligning with stable annotation
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

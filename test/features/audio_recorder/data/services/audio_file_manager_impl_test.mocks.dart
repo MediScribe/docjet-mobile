@@ -5,13 +5,14 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 import 'dart:io' as _i2;
+import 'dart:typed_data' as _i5;
 
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i3;
-import 'package:docjet_mobile/core/platform/path_provider.dart' as _i5;
+import 'package:docjet_mobile/core/platform/path_provider.dart' as _i6;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
-    as _i6;
+    as _i7;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i7;
+import 'package:mockito/src/dummies.dart' as _i8;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -181,12 +182,29 @@ class MockFileSystem extends _i1.Mock implements _i3.FileSystem {
         returnValue: <_i2.FileSystemEntity>[],
         returnValueForMissingStub: <_i2.FileSystemEntity>[],
       ) as List<_i2.FileSystemEntity>);
+
+  @override
+  _i4.Future<void> writeFile(
+    String? path,
+    _i5.Uint8List? bytes,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #writeFile,
+          [
+            path,
+            bytes,
+          ],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
 }
 
 /// A class which mocks [PathProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPathProvider extends _i1.Mock implements _i5.PathProvider {
+class MockPathProvider extends _i1.Mock implements _i6.PathProvider {
   @override
   _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
       (super.noSuchMethod(
@@ -216,7 +234,7 @@ class MockPathProvider extends _i1.Mock implements _i5.PathProvider {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioDurationRetriever extends _i1.Mock
-    implements _i6.AudioDurationRetriever {
+    implements _i7.AudioDurationRetriever {
   @override
   _i4.Future<Duration> getDuration(String? filePath) => (super.noSuchMethod(
         Invocation.method(
@@ -247,11 +265,11 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
   @override
   String get path => (super.noSuchMethod(
         Invocation.getter(#path),
-        returnValue: _i7.dummyValue<String>(
+        returnValue: _i8.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
-        returnValueForMissingStub: _i7.dummyValue<String>(
+        returnValueForMissingStub: _i8.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
@@ -391,7 +409,7 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           #resolveSymbolicLinks,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i7.dummyValue<String>(
+        returnValue: _i4.Future<String>.value(_i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -399,7 +417,7 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           ),
         )),
         returnValueForMissingStub:
-            _i4.Future<String>.value(_i7.dummyValue<String>(
+            _i4.Future<String>.value(_i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -414,14 +432,14 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           #resolveSymbolicLinksSync,
           [],
         ),
-        returnValue: _i7.dummyValue<String>(
+        returnValue: _i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
             [],
           ),
         ),
-        returnValueForMissingStub: _i7.dummyValue<String>(
+        returnValueForMissingStub: _i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
@@ -640,11 +658,11 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
   @override
   String get path => (super.noSuchMethod(
         Invocation.getter(#path),
-        returnValue: _i7.dummyValue<String>(
+        returnValue: _i8.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
-        returnValueForMissingStub: _i7.dummyValue<String>(
+        returnValueForMissingStub: _i8.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
@@ -769,7 +787,7 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
           #resolveSymbolicLinks,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i7.dummyValue<String>(
+        returnValue: _i4.Future<String>.value(_i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -777,7 +795,7 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
           ),
         )),
         returnValueForMissingStub:
-            _i4.Future<String>.value(_i7.dummyValue<String>(
+            _i4.Future<String>.value(_i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -792,14 +810,14 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
           #resolveSymbolicLinksSync,
           [],
         ),
-        returnValue: _i7.dummyValue<String>(
+        returnValue: _i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
             [],
           ),
         ),
-        returnValueForMissingStub: _i7.dummyValue<String>(
+        returnValueForMissingStub: _i8.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
@@ -956,11 +974,11 @@ class MockFileStat extends _i1.Mock implements _i2.FileStat {
   @override
   _i2.FileSystemEntityType get type => (super.noSuchMethod(
         Invocation.getter(#type),
-        returnValue: _i7.dummyValue<_i2.FileSystemEntityType>(
+        returnValue: _i8.dummyValue<_i2.FileSystemEntityType>(
           this,
           Invocation.getter(#type),
         ),
-        returnValueForMissingStub: _i7.dummyValue<_i2.FileSystemEntityType>(
+        returnValueForMissingStub: _i8.dummyValue<_i2.FileSystemEntityType>(
           this,
           Invocation.getter(#type),
         ),
@@ -986,14 +1004,14 @@ class MockFileStat extends _i1.Mock implements _i2.FileStat {
           #modeString,
           [],
         ),
-        returnValue: _i7.dummyValue<String>(
+        returnValue: _i8.dummyValue<String>(
           this,
           Invocation.method(
             #modeString,
             [],
           ),
         ),
-        returnValueForMissingStub: _i7.dummyValue<String>(
+        returnValueForMissingStub: _i8.dummyValue<String>(
           this,
           Invocation.method(
             #modeString,

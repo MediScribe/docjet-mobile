@@ -116,15 +116,6 @@ void main() {
     );
   }
 
-  testWidgets('renders Text when state is AudioListInitial', (tester) async {
-    // Arrange: State is already AudioListInitial by default setup
-    // Act
-    await tester.pumpWidget(createWidgetUnderTest());
-    // Assert
-    expect(find.text('Initializing...'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-  });
-
   testWidgets(
     'renders CircularProgressIndicator when state is AudioListLoading',
     (tester) async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/di/injection_container.dart' as di;
 import 'core/di/injection_container.dart';
+import 'core/services/app_seeder.dart';
 import 'features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
 import 'features/audio_recorder/presentation/pages/audio_recorder_list_page.dart';
@@ -9,6 +10,10 @@ import 'features/audio_recorder/presentation/pages/audio_recorder_list_page.dart
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await di.init();
+
+  final seeder = sl<AppSeeder>();
+  await seeder.seedInitialDataIfNeeded();
+
   runApp(
     MultiBlocProvider(
       providers: [

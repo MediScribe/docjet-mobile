@@ -29,6 +29,13 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   @visibleForTesting
   PlaybackState get currentState => _currentState;
 
+  @visibleForTesting // Setter ONLY for test setup convenience
+  set currentState(PlaybackState newState) {
+    _currentState = newState;
+    // Optionally emit here if tests need to react to setup changes via stream?
+    // _playbackStateController.add(_currentState); // Probably not needed for setup.
+  }
+
   /// Creates an instance of [AudioPlaybackServiceImpl].
   ///
   /// The AudioPlayer instance is created lazily during listener initialization,
@@ -90,47 +97,115 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   void _registerListeners() {
     logger.d('[AudioSvc] Registering player listeners...');
     logger.t('[AudioSvc] Subscribing to onPlayerStateChanged...');
-    _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((
-      state,
-    ) {
-      logger.t('[AudioSvc] Event: onPlayerStateChanged - $state');
-      _updateState(isPlaying: state == PlayerState.playing);
-      if (state == PlayerState.stopped) {
-        // Reset position on stop, but keep duration and file path
-        _updateState(position: Duration.zero, isPlaying: false);
-      }
-    }, onError: _handleError);
+    _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen(
+      (state) {
+        logger.t('[AudioSvc] Event: onPlayerStateChanged - $state');
+        // Determine state updates based on the player state
+        bool isNowPlaying = state == PlayerState.playing;
+        bool isNowLoading = _currentState.isLoading;
+        bool isNowCompleted = _currentState.isCompleted;
+
+        // Set loading to false when playback actually starts or stops/pauses/completes
+        if (state == PlayerState.playing ||
+            state == PlayerState.paused ||
+            state == PlayerState.stopped ||
+            state == PlayerState.completed) {
+          isNowLoading = false;
+          isNowCompleted = false;
+        }
+
+        _updateState(
+          isPlaying: isNowPlaying,
+          isLoading: isNowLoading,
+          isCompleted: isNowCompleted,
+        );
+
+        // Specific handling for stopped state (reset position)
+        if (state == PlayerState.stopped) {
+          logger.t(
+            '[AudioSvc] Player stopped, resetting state completely (except duration).',
+          );
+          // Reset state fully on stop, keeping only totalDuration
+          _updateState(
+            position: Duration.zero,
+            isPlaying: false,
+            isLoading: false,
+            isCompleted: false, // Explicitly ensure completed is false
+            // Rely on clearError: true to handle resetting error state
+            // hasError: false, // REMOVED - Redundant with clearError: true
+            // errorMessage: null, // REMOVED - Redundant with clearError: true
+            // totalDuration is kept implicitly by not passing it
+            clearCurrentFilePath: true, // MUST clear the path
+            clearError: true, // Ensure error flag/message are cleared too
+          );
+        }
+      },
+      onError: (error) {
+        logger.e('[AudioSvc] Error on PlayerState stream: $error');
+        _handleError(
+          'PlayerState Stream Error: $error',
+          filePath: _currentState.currentFilePath,
+        );
+      },
+    );
 
     logger.t('[AudioSvc] Subscribing to onDurationChanged...');
-    _durationSubscription = _audioPlayer.onDurationChanged.listen((duration) {
-      logger.t('[AudioSvc] Event: onDurationChanged - $duration');
-      _updateState(totalDuration: duration);
-    }, onError: _handleError);
+    _durationSubscription = _audioPlayer.onDurationChanged.listen(
+      (duration) {
+        logger.t('[AudioSvc] Event: onDurationChanged - $duration');
+        _updateState(totalDuration: duration);
+      },
+      onError: (error) {
+        logger.e('[AudioSvc] Error on Duration stream: $error');
+        _handleError(
+          'Duration Stream Error: $error',
+          filePath: _currentState.currentFilePath,
+        );
+      },
+    );
 
     logger.t('[AudioSvc] Subscribing to onPositionChanged...');
-    _positionSubscription = _audioPlayer.onPositionChanged.listen((position) {
-      // Only update position if the duration is known (avoid weird states at start)
-      if (_currentState.totalDuration > Duration.zero) {
-        logger.t('[AudioSvc] Event: onPositionChanged - $position');
-        _updateState(position: position);
-      }
-    }, onError: _handleError);
+    _positionSubscription = _audioPlayer.onPositionChanged.listen(
+      (position) {
+        // Only update position if the duration is known (avoid weird states at start)
+        if (_currentState.totalDuration > Duration.zero) {
+          logger.t('[AudioSvc] Event: onPositionChanged - $position');
+          _updateState(position: position);
+        }
+      },
+      onError: (error) {
+        logger.e('[AudioSvc] Error on Position stream: $error');
+        _handleError(
+          'Position Stream Error: $error',
+          filePath: _currentState.currentFilePath,
+        );
+      },
+    );
 
     logger.t('[AudioSvc] Subscribing to onPlayerComplete...');
-    _completionSubscription = _audioPlayer.onPlayerComplete.listen((_) {
-      // Go back to start, keep duration, mark as not playing but completed
-      logger.t('[AudioSvc] Event: onPlayerComplete');
-      _updateState(
-        position: Duration.zero,
-        isPlaying: false,
-        isCompleted: true,
-      );
-      // Optionally reset fully: _resetState();
-    }, onError: _handleError);
+    _completionSubscription = _audioPlayer.onPlayerComplete.listen(
+      (_) {
+        // Go back to start, keep duration, mark as not playing but completed
+        logger.t('[AudioSvc] Event: onPlayerComplete');
+        _updateState(
+          position: Duration.zero,
+          isPlaying: false,
+          isCompleted: true,
+        );
+        // Optionally reset fully: _resetState();
+      },
+      onError: (error) {
+        logger.e('[AudioSvc] Error on Complete stream: $error');
+        _handleError(
+          'Complete Stream Error: $error',
+          filePath: _currentState.currentFilePath,
+        );
+      },
+    );
 
     // Note: onLog is preferred over onError if using newer audioplayers versions
     logger.t('[AudioSvc] Subscribing to onLog...');
-    _audioPlayer.onLog.listen(
+    _errorSubscription = _audioPlayer.onLog.listen(
       (msg) {
         // Keep this less verbose unless debugging specific player issues
         // logger.t('[AudioSvc] Event: onLog - $msg');
@@ -138,13 +213,16 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
             msg.contains('error') ||
             msg.contains('Exception')) {
           logger.w('[AudioSvc] Player Error Log: $msg');
-          _handleError(msg);
+          _handleError(msg, filePath: _currentState.currentFilePath);
         }
       },
       onError: (e) {
         // This captures errors within the onLog stream handler itself
         logger.e('[AudioSvc] Error in onLog listener: $e');
-        _handleError('Listener error: $e');
+        _handleError(
+          'Listener error: $e',
+          filePath: _currentState.currentFilePath,
+        );
       },
     );
 
@@ -163,9 +241,9 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     bool clearError = false, // Flag to clear error state
     bool clearCurrentFilePath = false, // Flag to clear file path
   }) {
-    logger.t(
-      '[AudioSvc] Requesting state update: isPlaying=$isPlaying, isLoading=$isLoading, isCompleted=$isCompleted, hasError=$hasError, pos=$position, dur=$totalDuration, path=$currentFilePath',
-    );
+    final PlaybackState previousState =
+        _currentState; // Store the state *before* changes
+
     final newState = _currentState.copyWith(
       // Use flags to allow setting null explicitly
       currentFilePath:
@@ -182,34 +260,47 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
           clearError ? null : (errorMessage ?? _currentState.errorMessage),
       position: position ?? _currentState.position,
       totalDuration: totalDuration ?? _currentState.totalDuration,
+      // Pass the flags through to copyWith!
+      clearError: clearError,
+      clearCurrentFilePath: clearCurrentFilePath,
     );
 
-    // ONLY emit if state actually changed
-    if (newState != _currentState) {
-      logger.d('[AudioSvc] State changed: $newState');
-      _currentState = newState;
-      _playbackStateController?.add(_currentState); // RESTORED
+    // Update the internal state *after* creating the newState and storing the previous state
+    _currentState = newState;
+
+    // Emit the *new* state ONLY if it has actually changed from the previous state
+    logger.t(
+      '[AudioSvc] _updateState: Comparing newState: $newState with previous state: $previousState',
+    );
+    if (newState != previousState) {
+      logger.d('[AudioSvc] State changed: Emitting $newState');
+      _playbackStateController?.add(newState); // FIX: Emit the NEW state
     } else {
-      logger.t(
-        '[AudioSvc] State update requested, but no change detected from: $_currentState',
-      );
+      logger.t('[AudioSvc] State unchanged. Not emitting.');
     }
   }
 
-  void _handleError(Object error) {
-    logger.e('[AudioSvc] Handling error: $error');
+  // Centralized error handler
+  void _handleError(Object error, {String? filePath}) {
+    final pathForError = filePath ?? _currentState.currentFilePath;
+    logger.e(
+      '[AudioSvc] Handling error for ${pathForError ?? 'unknown path'}: $error',
+    );
     _updateState(
+      // Preserve or update filePath based on what was passed
+      currentFilePath: pathForError,
       isPlaying: false,
       isLoading: false,
       hasError: true,
-      errorMessage: error.toString(),
-      position: Duration.zero, // Reset position on error
+      // Construct a more informative message if possible
+      errorMessage:
+          error is String
+              ? error // Use string directly if it came from onLog
+              : 'Error processing ${pathForError ?? 'audio'}: ${error.toString()}',
+      clearCurrentFilePath:
+          false, // Ensure path isn't cleared by _updateState logic
+      clearError: false, // We are setting an error
     );
-    // Stop playback on error
-    _audioPlayer.stop().catchError((e) {
-      logger.e('[AudioSvc] Error stopping player after handling error: $e');
-      // Potentially update state again if stop fails, though unlikely
-    });
   }
 
   void _resetState() {
@@ -245,133 +336,162 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   @override
   Future<void> play(String filePath) async {
     logger.d('[AudioSvc] play() called for: $filePath');
-    try {
-      // Stop and reset previous state before playing new file
-      if (_currentState.isPlaying ||
-          _currentState.isLoading ||
-          _currentState.currentFilePath != null) {
-        logger.t(
-          '[AudioSvc] play(): Current state requires stop first. State: $_currentState',
-        );
-        await stop(); // Ensure full stop and state reset happens
-      }
 
-      // Update state immediately to loading and set the new file path
-      // Clear any previous error state when starting new playback
+    // NEW: Wrap in try/catch
+    try {
+      // NEW: Stop any existing playback first for robustness
+      logger.t('[AudioSvc] play(): Stopping potential existing playback...');
+      await _audioPlayer.stop();
+      logger.t('[AudioSvc] play(): Stop call completed.');
+
+      // Reset relevant state before starting new playback
       logger.t('[AudioSvc] play(): Updating state to loading for: $filePath');
       _updateState(
         currentFilePath: filePath,
         isLoading: true,
-        isPlaying: false,
-        isCompleted: false,
-        position: Duration.zero,
+        isPlaying: false, // Ensure isPlaying is false initially
+        isCompleted: false, // Reset completion
+        hasError: false, // Clear previous errors
+        errorMessage: null,
+        position: Duration.zero, // Reset position
+        // Keep existing duration if one was loaded? Or reset?
+        // Let's reset duration for now, assuming new file means unknown duration
         totalDuration: Duration.zero,
-        clearError: true,
+        clearError: true, // Explicitly clear error fields
+        clearCurrentFilePath: false, // We are setting a new one
       );
 
-      Source source;
-      // Heuristic: Check if it looks like a typical asset path structure.
-      // This isn't foolproof but covers common cases. Assume assets are defined in pubspec.yaml.
-      // A more robust solution might involve checking `rootBundle.load`.
-      final isAsset =
-          !filePath.startsWith('/') &&
-          !filePath.contains(':') &&
-          !kIsWeb; // Basic check for local file path or web URL
-      // TODO: Improve asset detection if needed
-
-      if (isAsset) {
-        // Note: audioplayers AssetSource expects path relative to pubspec assets definition
-        // E.g., if pubspec has 'assets/audio/', path should be 'audio/myfile.mp3'
-        // The plan says "remove assets/ prefix", implying paths might include it.
-        // Let's assume the passed filePath is CORRECT for AssetSource.
-        // If filePath is like "assets/audio/sound.mp3", AssetSource("audio/sound.mp3") might be needed.
-        // For now, trust the input path. Adjust if testing reveals issues.
-        source = AssetSource(filePath);
-        logger.t('[AudioSvc] play(): Using AssetSource for: $filePath');
-      } else {
-        source = DeviceFileSource(filePath);
+      // Determine source type
+      final Source source;
+      if (filePath.startsWith('/') || filePath.startsWith('file://')) {
+        // Assume device file if it looks like an absolute path
         logger.t('[AudioSvc] play(): Using DeviceFileSource for: $filePath');
+        source = DeviceFileSource(filePath);
+      } else {
+        // Assume asset file otherwise
+        logger.t('[AudioSvc] play(): Using AssetSource for: $filePath');
+        source = AssetSource(filePath);
       }
 
-      // Set the source *before* calling play
       logger.t('[AudioSvc] play(): Setting source...');
       await _audioPlayer.setSource(source);
-      // Calling play() after setSource() is often required.
-      // Some versions might auto-play on setSource, others need explicit play.
-      logger.t('[AudioSvc] play(): Calling resume...');
-      await _audioPlayer
-          .resume(); // Use resume as it handles both start and resume-after-pause
 
-      // Once playing starts, the 'onPlayerStateChanged' listener will update isPlaying=true
-      // and 'onDurationChanged' will update totalDuration. isLoading should become false.
-      // We *could* optimistically set isPlaying=true here, but relying on the event is safer.
-      // Let's mark loading as false once resume returns without error.
-      logger.t(
-        '[AudioSvc] play(): Resume finished, setting isLoading=false, isPlaying=true (optimistic)',
-      );
-      _updateState(
-        isLoading: false,
-        isPlaying: true,
-      ); // Optimistically update state
+      logger.t('[AudioSvc] play(): Calling resume...');
+      await _audioPlayer.resume();
+
+      // OLD OPTIMISTIC UPDATE - REMOVED per plan
+      // logger.t(
+      //   '[AudioSvc] play(): Resume finished, setting isLoading=false, isPlaying=true (optimistic)',
+      // );
+      // _updateState(isLoading: false, isPlaying: true);
+
       logger.d('[AudioSvc] play() completed for: $filePath');
     } catch (e) {
-      logger.e('[AudioSvc] play(): Error playing $filePath', error: e);
-      _handleError('Error playing $filePath: $e');
-      // Explicitly ensure loading is false on error during play initiation
-      _updateState(isLoading: false);
+      logger.e(
+        '[AudioSvc] play(): Error during playback initiation for $filePath',
+        error: e,
+        stackTrace: StackTrace.current,
+      );
+      _handleError(e, filePath: filePath);
+      // Rethrow? Or let the state stream handle error reporting?
+      // Let _handleError manage state and player stop.
     }
   }
 
   @override
   Future<void> pause() async {
-    logger.d('[AudioSvc] pause() called.');
-    try {
-      if (_currentState.isPlaying) {
-        logger.t('[AudioSvc] pause(): Player is playing, calling pause...');
+    // Check if playing before attempting to pause
+    if (_currentState.isPlaying) {
+      logger.d('[AudioSvc] pause() called. Attempting pause.');
+      try {
         await _audioPlayer.pause();
-        logger.t('[AudioSvc] pause(): Player pause call returned.');
-      } else {
-        logger.t('[AudioSvc] pause(): Player not playing, doing nothing.');
+        logger.i('[AudioSvc] AudioPlayer paused successfully.');
+        // State update will occur via onPlayerStateChanged listener
+      } catch (e) {
+        logger.e('[AudioSvc] Error pausing audio: $e');
+        _handleError(
+          'Error pausing audio: $e',
+          filePath: _currentState.currentFilePath,
+        );
+        // Optionally re-throw or handle more gracefully depending on requirements
+        // throw Exception('Failed to pause audio playback: $e');
       }
-      logger.d('[AudioSvc] pause() completed.');
-    } catch (e) {
-      logger.e('[AudioSvc] pause(): Error pausing', error: e);
-      _handleError('Error pausing: $e');
+    } else {
+      logger.w(
+        '[AudioSvc] pause() called but player is not currently playing. State: $_currentState',
+      );
+      // Do nothing if not playing
+    }
+  }
+
+  @override
+  Future<void> resume() async {
+    // Can only resume if paused (i.e., not playing, not completed, and has a file path)
+    final bool canResume =
+        !_currentState.isPlaying &&
+        !_currentState.isCompleted &&
+        _currentState.currentFilePath != null;
+
+    if (canResume) {
+      logger.d('[AudioSvc] resume() called. Attempting resume.');
+      try {
+        await _audioPlayer.resume();
+        logger.i('[AudioSvc] AudioPlayer resume initiated successfully.');
+        // State update (isPlaying=true) will occur via onPlayerStateChanged listener
+      } catch (e) {
+        logger.e('[AudioSvc] Error resuming audio: $e');
+        _handleError(
+          'Error resuming audio: $e',
+          filePath: _currentState.currentFilePath,
+        );
+        // throw Exception('Failed to resume audio playback: $e');
+      }
+    } else {
+      logger.w(
+        '[AudioSvc] resume() called but cannot resume in current state: $_currentState',
+      );
+      // Do nothing if playing, stopped, completed, or no file loaded
     }
   }
 
   @override
   Future<void> seek(Duration position) async {
     logger.d('[AudioSvc] seek() called for position: $position');
-    // Only seek if a file is loaded and duration is known
-    if (_currentState.currentFilePath != null &&
-        _currentState.totalDuration > Duration.zero) {
-      try {
-        // Ensure seek position is within bounds
-        final seekPosition =
-            position > _currentState.totalDuration
-                ? _currentState.totalDuration
-                : position;
-        logger.t(
-          '[AudioSvc] seek(): Clamped position: $seekPosition. Seeking...',
-        );
-        await _audioPlayer.seek(seekPosition);
-        // Update state immediately for responsiveness, listener will also fire
-        logger.t(
-          '[AudioSvc] seek(): Player seek call returned. Updating state...',
-        );
-        _updateState(
-          position: seekPosition,
-          isCompleted: false,
-        ); // Seeking resets completed flag
-        logger.d('[AudioSvc] seek() completed for position: $seekPosition');
-      } catch (e) {
-        logger.e('[AudioSvc] seek(): Error seeking', error: e);
-        _handleError('Error seeking: $e');
-      }
-    } else {
+    if (_currentState.currentFilePath == null ||
+        _currentState.totalDuration == Duration.zero) {
       logger.w(
-        '[AudioSvc] seek(): Cannot seek. No file loaded or duration unknown. State: $_currentState',
+        '[AudioSvc] seek(): Cannot seek, no file loaded or duration unknown. State: $_currentState',
+      );
+      return; // Cannot seek if nothing is playing or duration unknown
+    }
+    try {
+      // Clamp the seek position to be within the valid range [0, totalDuration]
+      final clampedPosition =
+          position.isNegative
+              ? Duration.zero
+              : (position > _currentState.totalDuration
+                  ? _currentState.totalDuration
+                  : position);
+
+      logger.d(
+        '[AudioSvc] seek(): Clamped position: $clampedPosition. Seeking...',
+      );
+      await _audioPlayer.seek(clampedPosition);
+      logger.d(
+        '[AudioSvc] seek(): Player seek call returned. State update relies on event stream.',
+      );
+      // REMOVED: Optimistic state update - rely on onPositionChanged stream
+
+      logger.d('[AudioSvc] seek() completed for position: $clampedPosition');
+    } catch (e) {
+      logger.e(
+        '[AudioSvc] seek(): Error seeking to $position',
+        error: e,
+        stackTrace: StackTrace.current,
+      );
+      _handleError(
+        'Error during seek to $position',
+        filePath: _currentState.currentFilePath,
       );
     }
   }
@@ -379,6 +499,17 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   @override
   Future<void> stop() async {
     logger.d('[AudioSvc] stop() called.');
+
+    // If nothing is loaded or we are already stopped/paused/initial, do nothing.
+    if (_currentState.currentFilePath == null ||
+        _currentState.currentFilePath!.isEmpty ||
+        (!_currentState.isPlaying && !_currentState.isLoading)) {
+      logger.d(
+        '[AudioSvc] stop(): Player already stopped or nothing loaded. Skipping call.',
+      );
+      return; // Don't proceed
+    }
+
     try {
       logger.t('[AudioSvc] stop(): Calling player stop...');
       await _audioPlayer.stop();
@@ -387,13 +518,33 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       logger.t(
         '[AudioSvc] stop(): Player stop call returned. Resetting state...',
       );
-      _resetState();
+
+      // REMOVED: Explicit state reset. Rely on the onPlayerStateChanged listener
+      // _updateState(
+      //   isPlaying: false,
+      //   isLoading: false,
+      //   isCompleted: false, // Explicitly reset completed flag
+      //   position: Duration.zero,
+      //   hasError: false, // Clear any previous error
+      //   errorMessage: null,
+      //   // totalDuration remains unchanged
+      //   clearCurrentFilePath:
+      //       true, // MUST set this flag to true to clear the path!
+      //   clearError: true, // Also ensure error fields are explicitly cleared
+      // );
+
       logger.d('[AudioSvc] stop() completed.');
     } catch (e) {
-      logger.e('[AudioSvc] stop(): Error stopping', error: e);
-      _handleError('Error stopping: $e');
-      // Ensure state reflects stop attempt even if player throws error
-      _resetState();
+      logger.e(
+        '[AudioSvc] stop(): Error stopping player',
+        error: e,
+        stackTrace: StackTrace.current,
+      );
+      // If stop fails, what state should we be in? Still try to reset.
+      _handleError(
+        'Error stopping: $e',
+        filePath: _currentState.currentFilePath,
+      );
     }
   }
 

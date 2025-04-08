@@ -128,6 +128,56 @@ class MockAudioListCubit extends _i1.Mock implements _i3.AudioListCubit {
       ) as _i5.Future<void>);
 
   @override
+  _i5.Future<void> playRecording(String? filePath) => (super.noSuchMethod(
+        Invocation.method(
+          #playRecording,
+          [filePath],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> pauseRecording() => (super.noSuchMethod(
+        Invocation.method(
+          #pauseRecording,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> seekRecording(Duration? position) => (super.noSuchMethod(
+        Invocation.method(
+          #seekRecording,
+          [position],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> stopPlayback() => (super.noSuchMethod(
+        Invocation.method(
+          #stopPlayback,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> close() => (super.noSuchMethod(
+        Invocation.method(
+          #close,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
   void emit(_i3.AudioListState? state) => super.noSuchMethod(
         Invocation.method(
           #emit,
@@ -176,16 +226,6 @@ class MockAudioListCubit extends _i1.Mock implements _i3.AudioListCubit {
         ),
         returnValueForMissingStub: null,
       );
-
-  @override
-  _i5.Future<void> close() => (super.noSuchMethod(
-        Invocation.method(
-          #close,
-          [],
-        ),
-        returnValue: _i5.Future<void>.value(),
-        returnValueForMissingStub: _i5.Future<void>.value(),
-      ) as _i5.Future<void>);
 }
 
 /// A class which mocks [AudioRecordingCubit].

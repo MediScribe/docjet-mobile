@@ -2,50 +2,32 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/failures.dart'; // Fixed import
-import 'package:uuid/uuid.dart'; // TODO: Add uuid dependency
-
+import 'package:docjet_mobile/core/utils/logger.dart'; // Import the logger
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/transcription_remote_data_source.dart';
+import 'package:uuid/uuid.dart'; // TODO: Add uuid dependency
 
 /// A fake implementation of [TranscriptionRemoteDataSource] for development and testing.
 ///
 /// Simulates API calls with predefined data and optional delays/errors.
 class FakeTranscriptionDataSourceImpl implements TranscriptionRemoteDataSource {
   final Uuid _uuid = const Uuid();
-
-  // In-memory storage for fake transcription jobs
+  final Duration? simulatedDelay;
   final Map<String, Transcription> _fakeJobs = {};
 
   /// If true, methods will return a [Left] with an [ApiFailure].
   bool simulateApiError = false;
 
-  /// Optional delay to simulate network latency.
-  final Duration? simulatedDelay;
-
   FakeTranscriptionDataSourceImpl({this.simulatedDelay}) {
-    // Initialize with some default fake data
-    _addFakeJob(
-      Transcription(
-        id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // Use the ID from the test
-        localFilePath:
-            'assets/audio/short-audio-test-file.m4a', // USE REAL ASSET PATH
-        status: TranscriptionStatus.completed,
-        localCreatedAt: DateTime.now().subtract(const Duration(days: 1)),
-        backendCreatedAt: DateTime.now().subtract(const Duration(days: 1)),
-        backendUpdatedAt: DateTime.now().subtract(const Duration(hours: 12)),
-        localDurationMillis: 123456,
-        displayTitle: 'Sample Recording',
-        displayText: 'This is the transcript text for the sample...',
-      ),
-    );
+    // Constructor body intentionally left empty - NO SAMPLE DATA ADDED HERE
+    logger.i('[FAKE DATASOURCE] Initialized (starts empty).'); // Use logger.i
   }
 
-  void _addFakeJob(Transcription job) {
-    if (job.id != null) {
-      _fakeJobs[job.id!] = job;
-    }
-  }
+  /// Helper to add a job (used internally, e.g., by upload)
+  // void _addFakeJob(TranscriptionModel job) {
+  //   _fakeJobs[job.id] = job;
+  // }
 
   @override
   Future<Either<ApiFailure, List<Transcription>>> getUserJobs() async {
@@ -115,7 +97,9 @@ class FakeTranscriptionDataSourceImpl implements TranscriptionRemoteDataSource {
       displayTitle: 'New Upload: ${localFilePath.split('/').last}',
     );
 
-    _addFakeJob(newJob);
+    // Uncomment the line below to actually add the job to the map
+    _fakeJobs[newJob.id!] = newJob;
+    // _addFakeJob(newJob); // Remove reference to the potentially non-existent helper
     return Right(newJob);
   }
 
@@ -125,7 +109,16 @@ class FakeTranscriptionDataSourceImpl implements TranscriptionRemoteDataSource {
   }
 
   void addJob(Transcription job) {
-    _addFakeJob(job);
+    if (job.id != null) {
+      _fakeJobs[job.id!] = job;
+      logger.d(
+        '[FAKE DATASOURCE] Manually added job: ${job.id}',
+      ); // Use logger.d
+    } else {
+      logger.w(
+        '[FAKE DATASOURCE] Attempted to add job with null ID. Skipping.',
+      ); // Use logger.w
+    }
   }
 
   Map<String, Transcription> get jobs => Map.unmodifiable(_fakeJobs);

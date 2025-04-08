@@ -30,6 +30,11 @@ import 'package:docjet_mobile/features/audio_recorder/domain/repositories/transc
 import 'package:docjet_mobile/features/audio_recorder/data/services/transcription_merge_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/transcription_merge_service.dart';
 
+// Import the AppSeeder
+import 'package:docjet_mobile/core/services/app_seeder.dart';
+// Import SharedPreferences
+import 'package:shared_preferences/shared_preferences.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -43,6 +48,13 @@ Future<void> init() async {
 
   // Open boxes needed at startup (currently just LocalJob)
   final localJobBox = await HiveLocalJobStoreImpl.openBox();
+
+  // + Register SharedPreferences (Async)
+  sl.registerSingletonAsync<SharedPreferences>(
+    () => SharedPreferences.getInstance(),
+  );
+  // Ensure SharedPreferences is ready before proceeding
+  await sl.isReady<SharedPreferences>();
 
   // --- Feature: Audio Recorder ---
 
@@ -130,5 +142,16 @@ Future<void> init() async {
   // + Register TranscriptionMergeService
   sl.registerLazySingleton<TranscriptionMergeService>(
     () => TranscriptionMergeServiceImpl(),
+  );
+
+  // + Register AppSeeder (Corrected Dependencies)
+  sl.registerLazySingleton<AppSeeder>(
+    () => AppSeeder(
+      localJobStore: sl(),
+      pathProvider: sl(),
+      fileSystem: sl(),
+      audioDurationRetriever: sl(),
+      sharedPreferences: sl(), // Use the registered instance
+    ),
   );
 }

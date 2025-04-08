@@ -173,6 +173,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             );
             // state.recordings is already sorted by the Cubit
             final sortedTranscriptions = state.transcriptions;
+            final playbackInfo = state.playbackInfo;
 
             return ListView.builder(
               // Use sorted list
@@ -191,6 +192,23 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                 final endTime = startTime?.add(duration);
                 final title =
                     transcription.displayTitle ?? 'Recording ${index + 1}';
+
+                final isActiveItem =
+                    playbackInfo.activeFilePath == transcription.localFilePath;
+                final itemIsPlaying = isActiveItem && playbackInfo.isPlaying;
+                final itemIsLoading = isActiveItem && playbackInfo.isLoading;
+                final itemPosition =
+                    isActiveItem ? playbackInfo.currentPosition : Duration.zero;
+                // Use playbackInfo.totalDuration ONLY if active, otherwise use file's duration
+                // but ensure canSeek only uses playbackInfo.totalDuration
+                final displayDuration =
+                    isActiveItem && playbackInfo.totalDuration > Duration.zero
+                        ? playbackInfo.totalDuration
+                        : duration; // Duration shown on the widget
+                final itemError = isActiveItem ? playbackInfo.error : null;
+                // Slider should only be enabled if this IS the active item and duration is known
+                final canSeek =
+                    isActiveItem && playbackInfo.totalDuration > Duration.zero;
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -225,7 +243,7 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             Text(
-                              'Duration: ${_formatDuration(duration)}', // Use transcription duration
+                              'Duration: ${_formatDuration(displayDuration)}', // Use displayDuration
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
@@ -262,15 +280,22 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                           bottom: 8.0,
                         ),
                         child: AudioPlayerWidget(
-                          filePath:
-                              transcription
-                                  .localFilePath, // Use transcription path
-                          // Update onDelete to use transcription path
+                          key: ValueKey(
+                            transcription.localFilePath,
+                          ), // Add key for state management
+                          filePath: transcription.localFilePath,
                           onDelete: () {
                             context.read<AudioListCubit>().deleteRecording(
                               transcription.localFilePath,
                             );
                           },
+                          isPlaying: itemIsPlaying,
+                          isLoading: itemIsLoading,
+                          currentPosition: itemPosition,
+                          totalDuration:
+                              displayDuration, // Pass displayDuration
+                          error: itemError,
+                          // Pass canSeek explicitly? No, widget calculates it internally based on props
                         ),
                       ),
                     ],
@@ -281,22 +306,19 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Initial state or other unexpected states
           else {
-            logger.d(
-              "[AudioRecorderListView] Builder: State is unexpected (${state.runtimeType}). Showing initial/empty view.",
+            logger.w(
+              "[AudioRecorderListView] Builder: Received unexpected state: ${state.runtimeType}",
             );
-            // Show a default view, maybe loading or empty text
-            // Could also be an error state if this shouldn't happen
-            return const Center(child: Text('Initializing...'));
+            // Show loading or an empty message as a fallback
+            return const Center(
+              child: Text('Initializing or unexpected state...'),
+            );
           }
         },
       ),
       floatingActionButton: FloatingActionButton(
-        // Update onPressed to call the new navigation method
-        onPressed: () {
-          logger.i("[ListView] FAB tapped, showing recorder page.");
-          _showAudioRecorderPage(context);
-        },
-        tooltip: 'Start New Recording',
+        onPressed: () => _showAudioRecorderPage(context),
+        tooltip: 'New Recording',
         child: const Icon(Icons.add),
       ),
     );

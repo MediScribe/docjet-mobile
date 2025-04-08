@@ -268,6 +268,7 @@ void main() {
 
       await pumpRecorderPage(tester);
       await tester.pump(); // Allow listener to process the state
+      await tester.pump(); // <<-- ADD THIS PUMP for post-frame callback
       await tester.pumpAndSettle(); // <<-- Wait for bottom sheet animation
 
       // Assert: Bottom sheet is shown
@@ -301,6 +302,7 @@ void main() {
 
     await pumpRecorderPage(tester);
     await tester.pump(); // Allow listener to process the state
+    await tester.pump(); // <<-- ADD THIS PUMP for post-frame callback
     await tester.pumpAndSettle(); // <<-- Wait for bottom sheet animation
 
     // Assert: Bottom sheet is shown

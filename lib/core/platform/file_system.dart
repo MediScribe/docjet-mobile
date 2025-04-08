@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 /// Abstract interface for file system operations to allow for mocking in tests.
 abstract class FileSystem {
@@ -24,6 +25,9 @@ abstract class FileSystem {
 
   /// Lists the contents of a directory synchronously.
   List<FileSystemEntity> listDirectorySync(String path);
+
+  /// Writes raw bytes to a file, overwriting if it exists.
+  Future<void> writeFile(String path, Uint8List bytes);
 }
 
 /// Concrete implementation of [FileSystem] using dart:io.
@@ -58,4 +62,10 @@ class IoFileSystem implements FileSystem {
   @override
   List<FileSystemEntity> listDirectorySync(String path) =>
       Directory(path).listSync(recursive: false); // Assuming non-recursive
+
+  @override
+  Future<void> writeFile(String path, Uint8List bytes) async {
+    // writeAsBytes automatically handles creating/overwriting
+    await File(path).writeAsBytes(bytes);
+  }
 }

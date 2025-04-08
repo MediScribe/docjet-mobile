@@ -1,103 +1,27 @@
-import 'dart:async';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';
 
-class AudioPlayerWidget extends StatefulWidget {
+class AudioPlayerWidget extends StatelessWidget {
   final String filePath;
   final VoidCallback onDelete;
+  final bool isPlaying;
+  final bool isLoading;
+  final Duration currentPosition;
+  final Duration totalDuration;
+  final String? error;
 
   const AudioPlayerWidget({
     super.key,
     required this.filePath,
     required this.onDelete,
+    required this.isPlaying,
+    required this.isLoading,
+    required this.currentPosition,
+    required this.totalDuration,
+    this.error,
   });
-
-  @override
-  State<AudioPlayerWidget> createState() => _AudioPlayerWidgetState();
-}
-
-class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isPlaying = false;
-  bool _isLoading = true;
-  bool _hasError = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-
-  // Subscriptions for listeners
-  StreamSubscription? _playerStateSubscription;
-  StreamSubscription? _durationSubscription;
-  StreamSubscription? _positionSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _setupAudioPlayer();
-  }
-
-  Future<void> _setupAudioPlayer() async {
-    try {
-      _playerStateSubscription = _audioPlayer.onPlayerStateChanged.listen((
-        state,
-      ) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-        });
-      });
-
-      _durationSubscription = _audioPlayer.onDurationChanged.listen((duration) {
-        setState(() {
-          _duration = duration;
-        });
-      });
-
-      _positionSubscription = _audioPlayer.onPositionChanged.listen((position) {
-        setState(() {
-          _position = position;
-        });
-      });
-
-      // Determine the correct source based on the file path
-      Source source;
-      if (widget.filePath.startsWith('assets/')) {
-        // AssetSource expects the path RELATIVE to the assets folder
-        final relativePath = widget.filePath.substring('assets/'.length);
-        source = AssetSource(relativePath);
-        logger.d('Using AssetSource for relative path: $relativePath');
-      } else {
-        source = DeviceFileSource(widget.filePath);
-        logger.d('Using DeviceFileSource for: ${widget.filePath}');
-      }
-
-      // Set a longer timeout for source initialization
-      await _audioPlayer
-          .setSource(source)
-          .timeout(
-            const Duration(seconds: 60),
-            onTimeout: () {
-              setState(() {
-                _hasError = true;
-                _isLoading = false;
-              });
-              throw TimeoutException(
-                'Failed to load audio file',
-                const Duration(seconds: 60),
-              );
-            },
-          );
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _hasError = true;
-        _isLoading = false;
-      });
-      logger.e('Error setting up audio player', error: e);
-    }
-  }
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -107,148 +31,149 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
 
   @override
-  void dispose() {
-    // Cancel subscriptions before disposing the player
-    _playerStateSubscription?.cancel();
-    _durationSubscription?.cancel();
-    _positionSubscription?.cancel();
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (isLoading) {
       return _buildLoadingIndicator();
     }
 
-    if (_hasError) {
-      return _buildErrorState();
+    if (error != null) {
+      return _buildErrorState(error!);
     }
 
     return _buildPlayerControls(context);
   }
 
-  // --- START: UI Builder Helper Methods ---
-
   Widget _buildLoadingIndicator() {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Center(child: CircularProgressIndicator()),
-      ),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Center(child: CircularProgressIndicator(strokeWidth: 2.0)),
     );
   }
 
-  Widget _buildErrorState() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Failed to load audio',
-              style: TextStyle(color: Colors.red),
+  Widget _buildErrorState(String errorMessage) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              'Error: $errorMessage',
+              style: const TextStyle(color: Colors.red),
+              overflow: TextOverflow.ellipsis,
             ),
-            IconButton(
-              onPressed: widget.onDelete, // Still allow delete on error
-              icon: const Icon(Icons.delete),
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete),
+            tooltip: 'Delete Recording',
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPlayerControls(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () async {
-                    // Capture context before the async operation
-                    final capturedContext = context;
-                    try {
-                      if (_isPlaying) {
-                        await _audioPlayer.pause();
+    final bool canPlayPause = !isLoading && error == null;
+    final bool canSeek =
+        !isLoading && error == null && totalDuration > Duration.zero;
+
+    final double sliderMax =
+        (totalDuration.inSeconds > 0
+            ? totalDuration.inSeconds.toDouble()
+            : 1.0);
+    final double sliderValue = currentPosition.inSeconds.toDouble().clamp(
+      0.0,
+      sliderMax,
+    );
+
+    final String positionText = _formatDuration(currentPosition);
+    final String durationText = _formatDuration(totalDuration);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+            ),
+            iconSize: 32,
+            tooltip: isPlaying ? 'Pause' : 'Play',
+            onPressed:
+                canPlayPause
+                    ? () {
+                      if (isPlaying) {
+                        logger.t('UI: Pause button pressed for $filePath');
+                        context.read<AudioListCubit>().pauseRecording();
                       } else {
-                        // Determine the correct source for playback as well
-                        Source source;
-                        if (widget.filePath.startsWith('assets/')) {
-                          // AssetSource expects the path RELATIVE to the assets folder
-                          final relativePath = widget.filePath.substring(
-                            'assets/'.length,
-                          );
-                          source = AssetSource(relativePath);
-                          logger.d(
-                            'Playing AssetSource with relative path: $relativePath',
-                          );
-                        } else {
-                          source = DeviceFileSource(widget.filePath);
-                          logger.d(
-                            'Playing DeviceFileSource for: ${widget.filePath}',
-                          );
-                        }
-                        await _audioPlayer.play(source);
+                        logger.t('UI: Play button pressed for $filePath');
+                        context.read<AudioListCubit>().playRecording(filePath);
                       }
-                    } catch (e) {
-                      // Check capturedContext.mounted before using it
-                      if (!capturedContext.mounted) return;
-                      ScaffoldMessenger.of(capturedContext).showSnackBar(
-                        SnackBar(content: Text('Error playing audio: $e')),
-                      );
                     }
-                  },
-                  icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-                  iconSize: 32,
-                ),
-                Expanded(
+                    : null,
+          ),
+          const SizedBox(width: 8),
+
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 2.0,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 6.0,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 12.0,
+                    ),
+                  ),
                   child: Slider(
-                    min: 0,
-                    max: _duration.inSeconds.toDouble().clamp(
-                      0,
-                      double.infinity,
-                    ),
-                    value: _position.inSeconds.toDouble().clamp(
-                      0,
-                      _duration.inSeconds.toDouble(),
-                    ),
-                    onChanged: (value) async {
-                      // Capture context before the async operation
-                      final capturedContext = context;
-                      try {
-                        await _audioPlayer.seek(
-                          Duration(seconds: value.toInt()),
-                        );
-                      } catch (e) {
-                        // Check capturedContext.mounted before using it
-                        if (!capturedContext.mounted) return;
-                        ScaffoldMessenger.of(capturedContext).showSnackBar(
-                          SnackBar(content: Text('Error seeking audio: $e')),
-                        );
-                      }
-                    },
+                    value: sliderValue,
+                    min: 0.0,
+                    max: sliderMax,
+                    onChanged:
+                        canSeek
+                            ? (value) {
+                              logger.t(
+                                'UI: Slider changed for $filePath to $value',
+                              );
+                              context.read<AudioListCubit>().seekRecording(
+                                Duration(seconds: value.toInt()),
+                              );
+                            }
+                            : null,
                   ),
                 ),
-                Text(_formatDuration(_position)),
-                IconButton(
-                  onPressed: widget.onDelete,
-                  icon: const Icon(Icons.delete),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        positionText,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        durationText,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete Recording',
+            onPressed: onDelete,
+          ),
+        ],
       ),
     );
   }
-
-  // --- END: UI Builder Helper Methods ---
 }

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/models/playback_state.dart';
 import 'package:equatable/equatable.dart';
 import '../../../../core/utils/logger.dart';
 
@@ -10,11 +13,73 @@ part 'audio_list_state.dart';
 
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
+  final AudioPlaybackService _audioPlaybackService;
+  StreamSubscription? _playbackSubscription;
 
   AudioListCubit({
     required this.repository,
     required AudioPlaybackService audioPlaybackService,
-  }) : super(AudioListInitial());
+  }) : _audioPlaybackService = audioPlaybackService,
+       super(AudioListInitial()) {
+    _listenToPlaybackService();
+  }
+
+  void _listenToPlaybackService() {
+    logger.d('[CUBIT] Subscribing to AudioPlaybackService stream...');
+    _playbackSubscription = _audioPlaybackService.playbackStateStream.listen(
+      _onPlaybackStateChanged,
+      onError: (error) {
+        logger.e('[CUBIT] Error in playback service stream: $error');
+        if (state is AudioListLoaded) {
+          final currentState = state as AudioListLoaded;
+          emit(
+            currentState.copyWith(
+              playbackInfo: currentState.playbackInfo.copyWith(
+                error: 'Playback service stream error: $error',
+                isPlaying: false,
+                isLoading: false,
+              ),
+            ),
+          );
+        }
+      },
+    );
+    logger.d('[CUBIT] Subscribed to AudioPlaybackService stream.');
+  }
+
+  void _onPlaybackStateChanged(PlaybackState playbackState) {
+    logger.d('[CUBIT] Received PlaybackState update: $playbackState');
+    if (state is AudioListLoaded) {
+      final currentState = state as AudioListLoaded;
+      logger.t(
+        '[CUBIT] Current state is AudioListLoaded, updating playbackInfo...',
+      );
+
+      final newPlaybackInfo = PlaybackInfo(
+        activeFilePath: playbackState.currentFilePath,
+        isPlaying: playbackState.isPlaying,
+        isLoading: playbackState.isLoading,
+        currentPosition: playbackState.position,
+        totalDuration: playbackState.totalDuration,
+        error: playbackState.hasError ? playbackState.errorMessage : null,
+      );
+
+      logger.t('[CUBIT] New PlaybackInfo created: $newPlaybackInfo');
+
+      if (currentState.playbackInfo != newPlaybackInfo) {
+        emit(currentState.copyWith(playbackInfo: newPlaybackInfo));
+        logger.d(
+          '[CUBIT] Emitted updated AudioListLoaded state with new playbackInfo.',
+        );
+      } else {
+        logger.t('[CUBIT] PlaybackInfo unchanged, state not emitted.');
+      }
+    } else {
+      logger.t(
+        '[CUBIT] Current state is not AudioListLoaded (${state.runtimeType}), ignoring playback update.',
+      );
+    }
+  }
 
   /// Loads the list of existing recordings.
   Future<void> loadAudioRecordings() async {
@@ -31,20 +96,16 @@ class AudioListCubit extends Cubit<AudioListState> {
         logger.i(
           '[CUBIT] Loaded ${transcriptions.length} recordings successfully.',
         );
-        // Create a mutable copy before sorting
         final mutableRecordings = List<Transcription>.from(transcriptions);
-        // Sort the mutable list by creation date, newest first (handle nulls)
         mutableRecordings.sort((a, b) {
           final dateA = a.localCreatedAt;
           final dateB = b.localCreatedAt;
           if (dateA == null && dateB == null) return 0;
-          if (dateA == null) return 1; // Nulls last
+          if (dateA == null) return 1;
           if (dateB == null) return -1;
           return dateB.compareTo(dateA);
         });
-        emit(
-          AudioListLoaded(transcriptions: mutableRecordings),
-        ); // Emit the sorted mutable list
+        emit(AudioListLoaded(transcriptions: mutableRecordings));
       },
     );
   }
@@ -52,8 +113,6 @@ class AudioListCubit extends Cubit<AudioListState> {
   /// Deletes a specific recording.
   Future<void> deleteRecording(String filePath) async {
     logger.i("[LIST_CUBIT] deleteRecording() called for path: $filePath");
-    // Consider adding a loading state specific to deletion if needed
-    // emit(AudioListDeleting()); // Example state
     logger.d("[LIST_CUBIT] Calling repository.deleteRecording('$filePath')...");
     final result = await repository.deleteRecording(filePath);
     logger.d("[LIST_CUBIT] repository.deleteRecording('$filePath') completed.");
@@ -61,21 +120,17 @@ class AudioListCubit extends Cubit<AudioListState> {
     result.fold(
       (failure) {
         logger.e('[CUBIT] Error deleting recording', error: failure);
-        // Use the named parameter for the message
         emit(
           AudioListError(
             message:
                 'Failed to delete recording: ${_mapFailureToMessage(failure)}',
           ),
         );
-        // Optionally reload the list to ensure consistency after error
-        // await loadAudioRecordings();
       },
       (_) async {
         logger.i(
           "[LIST_CUBIT] deleteRecording successful for path: $filePath. Reloading list.",
         );
-        // Deletion successful, reload the list to reflect the change.
         await loadAudioRecordings();
         logger.d("[LIST_CUBIT] Finished reloading list after deletion.");
       },
@@ -85,25 +140,104 @@ class AudioListCubit extends Cubit<AudioListState> {
     );
   }
 
-  // Helper to map Failure types to user-friendly error messages
-  String _mapFailureToMessage(Failure failure) {
-    // Use toString() for a consistent message representation
-    return failure.toString();
-    /* // Keep specific formatting if needed later
-    switch (failure.runtimeType) {
-      case ServerFailure:
-      case CacheFailure:
-      case PermissionFailure:
-      case RecordingFailure:
-      case FileSystemFailure:
-      case ConcatenationFailure:
-      case PlatformFailure:
-      case ApiFailure:
-      default:
-        return failure.toString(); // Fallback to toString()
+  /// Plays the specified recording.
+  Future<void> playRecording(String filePath) async {
+    logger.i('[CUBIT] playRecording called for: $filePath');
+    try {
+      await _audioPlaybackService.play(filePath);
+      logger.d('[CUBIT] Called _audioPlaybackService.play() for $filePath');
+    } catch (e) {
+      logger.e('[CUBIT] Error calling play on service: $e');
+      if (state is AudioListLoaded) {
+        final currentState = state as AudioListLoaded;
+        emit(
+          currentState.copyWith(
+            playbackInfo: currentState.playbackInfo.copyWith(
+              activeFilePath: filePath,
+              isLoading: false,
+              isPlaying: false,
+              error: 'Failed to start playback: $e',
+            ),
+          ),
+        );
+      }
     }
-    */
   }
 
-  // Other list-specific methods if needed (sorting, filtering?)
+  /// Pauses the current playback.
+  Future<void> pauseRecording() async {
+    logger.i('[CUBIT] pauseRecording called.');
+    try {
+      await _audioPlaybackService.pause();
+      logger.d('[CUBIT] Called _audioPlaybackService.pause()');
+    } catch (e) {
+      logger.e('[CUBIT] Error calling pause on service: $e');
+      if (state is AudioListLoaded) {
+        final currentState = state as AudioListLoaded;
+        emit(
+          currentState.copyWith(
+            playbackInfo: currentState.playbackInfo.copyWith(
+              error: 'Failed to pause playback: $e',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Seeks to a specific position in the current playback.
+  Future<void> seekRecording(Duration position) async {
+    logger.i('[CUBIT] seekRecording called for position: $position');
+    try {
+      await _audioPlaybackService.seek(position);
+      logger.d('[CUBIT] Called _audioPlaybackService.seek() to $position');
+    } catch (e) {
+      logger.e('[CUBIT] Error calling seek on service: $e');
+      if (state is AudioListLoaded) {
+        final currentState = state as AudioListLoaded;
+        emit(
+          currentState.copyWith(
+            playbackInfo: currentState.playbackInfo.copyWith(
+              error: 'Failed to seek playback: $e',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Stops the current playback completely.
+  Future<void> stopPlayback() async {
+    logger.i('[CUBIT] stopPlayback called.');
+    try {
+      await _audioPlaybackService.stop();
+      logger.d('[CUBIT] Called _audioPlaybackService.stop()');
+    } catch (e) {
+      logger.e('[CUBIT] Error calling stop on service: $e');
+      if (state is AudioListLoaded) {
+        final currentState = state as AudioListLoaded;
+        emit(
+          currentState.copyWith(
+            playbackInfo: currentState.playbackInfo.copyWith(
+              error: 'Failed to stop playback: $e',
+              isPlaying: false,
+              isLoading: false,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  String _mapFailureToMessage(Failure failure) {
+    return failure.toString();
+  }
+
+  @override
+  Future<void> close() {
+    logger.d('[CUBIT] close() called, cancelling playback subscription...');
+    _playbackSubscription?.cancel();
+    logger.d('[CUBIT] Playback subscription cancelled.');
+    return super.close();
+  }
 }

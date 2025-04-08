@@ -814,6 +814,23 @@ class MockFileSystem extends _i1.Mock implements _i19.FileSystem {
         returnValue: <_i5.FileSystemEntity>[],
         returnValueForMissingStub: <_i5.FileSystemEntity>[],
       ) as List<_i5.FileSystemEntity>);
+
+  @override
+  _i7.Future<void> writeFile(
+    String? path,
+    _i18.Uint8List? bytes,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #writeFile,
+          [
+            path,
+            bytes,
+          ],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 }
 
 /// A class which mocks [PathProvider].
