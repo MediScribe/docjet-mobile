@@ -65,21 +65,21 @@
 
 **Phase 3: Service Refactoring - Orchestration & DI**
 
-*   [ ] **41.** Refactor `AudioPlaybackServiceImpl` (`lib/.../data/services/audio_playback_service_impl.dart`).
-*   [ ] **42.** Add `AudioPlayerAdapter` and `PlaybackStateMapper` constructor injection.
-*   [ ] **43.** Remove direct `AudioPlayer` field and `_playerInjected` flag.
-*   [ ] **44.** Remove internal stream controllers (`_playbackStateController`) and subscriptions (`_durationSubscription`, etc.).
-*   [ ] **45.** Remove `initializeListeners` and `_registerListeners` methods.
-*   [ ] **46.** Remove `_updateState` and `_handleError` methods (logic moved to mapper).
-*   [ ] **47.** Implement `play()` method: Call adapter `setSource`, then `resume`. Handle potential errors briefly (or let mapper handle via stream).
-*   [ ] **48.** Implement `pause()` method: Call adapter `pause()`.
-*   [ ] **49.** Implement `resume()` method: Call adapter `resume()`.
-*   [ ] **50.** Implement `seek()` method: Call adapter `seek()`.
-*   [ ] **51.** Implement `stop()` method: Call adapter `stop()`.
-*   [ ] **52.** Implement `playbackStateStream` getter: Return stream from the injected mapper.
-*   [ ] **53.** Implement `dispose()` method: Call adapter `dispose()`.
-*   [ ] **54.** Adapt existing service tests or create new `audio_playback_service_orchestration_test.dart`.
-*   [ ] **55.** Add mocks for `AudioPlayerAdapter`
+*   [x] **41.** Refactor `AudioPlaybackServiceImpl` (`lib/.../data/services/audio_playback_service_impl.dart`).
+*   [x] **42.** Add `AudioPlayerAdapter` and `PlaybackStateMapper` constructor injection.
+*   [x] **43.** Remove direct `AudioPlayer` field and `_playerInjected` flag.
+*   [x] **44.** Remove internal stream controllers (`_playbackStateController`) and subscriptions (`_durationSubscription`, etc.).
+*   [x] **45.** Remove `initializeListeners` and `_registerListeners` methods.
+*   [x] **46.** Remove `_updateState` and `_handleError` methods (logic moved to mapper).
+*   [x] **47.** Implement `play()` method: Call adapter `setSource`, then `resume`. Handle potential errors briefly (or let mapper handle via stream).
+*   [x] **48.** Implement `pause()` method: Call adapter `pause()`.
+*   [x] **49.** Implement `resume()` method: Call adapter `resume()`.
+*   [x] **50.** Implement `seek()` method: Call adapter `seek()`.
+*   [x] **51.** Implement `stop()` method: Call adapter `stop()`.
+*   [x] **52.** Implement `playbackStateStream` getter: Return stream from the injected mapper.
+*   [x] **53.** Implement `dispose()` method: Call adapter `dispose()`.
+*   [x] **54.** Adapt existing service tests or create new `audio_playback_service_orchestration_test.dart`.
+*   [x] **55.** Add mocks for `AudioPlayerAdapter`
 
 **Note on Widget Testing:**
 
