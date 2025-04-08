@@ -37,24 +37,24 @@ Available log levels:
 
 ### Per-Test File Setup (Recommended)
 
-For controlling log levels in specific test files, use the convenience methods:
+For controlling log levels in specific test files, use the convenience methods from `test/test_utils.dart`:
 
 ```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:docjet_mobile/core/utils/test_logger.dart';
+// Assumes your test file is in a subdirectory like test/features/...
+import '../test_utils.dart'; 
 
 void main() {
-  // Setup logging for the entire test file
-  setUpAll(TestLogger.setupTestFile);  // Default: error level
-  // OR with custom level:
-  // setUpAll(() => TestLogger.setupTestFile(LogLevel.debug));
+  // Setup logging for the entire test file (default: error level)
+  setUpAll(setupTestLogging);
+  // OR with a custom level (e.g., debug):
+  // setUpAll(() => setupTestLogging(LogLevel.debug));
   
   // Clean up logging after all tests
-  tearDownAll(TestLogger.tearDownTestFile);
+  tearDownAll(teardownTestLogging);
   
   // Your tests...
   test('first test', () {
-    // Runs with the log level set above
+    // Runs with the log level set in setUpAll
   });
 }
 ```
