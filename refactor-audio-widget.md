@@ -6,6 +6,38 @@
 
 **New Strategy:** Refactor the service layer *first* by separating concerns before integrating with the `AudioListCubit`.
 
+**=========== CURRENT STATUS (2024-04-08) ===========**
+
+**Refactoring Progress:**
+- Core refactoring of architecture COMPLETE - implemented adapter pattern and mapper pattern
+- DI Container FIXED - updated service registration to use the new constructor params
+- Freezed PlaybackState entity IMPLEMENTED - domain now uses a freezed entity
+- AudioListCubit ADAPTED - to handle mapping from the freezed entity to the cubit's internal state
+- Test refactoring IN PROGRESS - one test file adapted but others still need updates
+
+**Key Challenges & Current Issues:**
+1. Multiple `PlaybackState` implementations:
+   - New freezed entity in `domain/entities/playback_state.dart` - uses sealed classes pattern with state variants
+   - Old model in `domain/models/playback_state.dart` - uses property-based approach
+   - Cubit now uses mapping code from entity to a simpler state (PlaybackInfo)
+
+2. Tests failing:
+   - Most test files still use the old service architecture with direct AudioPlayer
+   - Tests expect methods like `initializeListeners` and properties like `currentState` that no longer exist
+   - Function parameter types mismatch for stream callback functions
+
+**Next Steps:**
+1. Complete test adaptation:
+   - Use `audio_playback_service_event_handling_test.dart` as template
+   - Update remaining test files to match new architecture
+   - OR delete outdated tests and create new, focused tests
+   
+2. Verify PlaybackState mapping in cubit works with real data
+
+3. Clean up unused imports and fix remaining warnings
+
+**=====================================**
+
 **Current Status:** Service refactoring underway. Files deleted during mock generation issues, need recreation or restoration.
 
 **Existing Code Structure:**
@@ -81,8 +113,22 @@
 *   [x] **54.** Adapt existing service tests or create new `audio_playback_service_orchestration_test.dart`.
 *   [x] **55.** Add mocks for `AudioPlayerAdapter`
 
+**Phase 4: Cubit Integration**
+*   [x] **56.** Add PlaybackState entity support to AudioListCubit
+*   [x] **57.** Implement mapping in _onPlaybackStateChanged to convert from freezed entity to PlaybackInfo
+*   [ ] **58.** Test the Cubit with real data end-to-end
+
+**Phase 5: Test Adaptation**
+*   [x] **59.** Fix audio_playback_service_event_handling_test.dart to use the new architecture
+*   [ ] **60.** Update audio_playback_service_pause_seek_stop_test.dart for new architecture
+*   [ ] **61.** Update audio_playback_service_play_test.dart for new architecture
+*   [ ] **62.** Add any new tests needed to cover edge cases
+
+**Phase 6: Cleanup**
+*   [ ] **63.** Remove unused imports across files
+*   [ ] **64.** Fix any remaining linting issues
+*   [ ] **65.** Run all tests to ensure full functionality
+
 **Note on Widget Testing:**
 
 *   [x] **Widget Unit Tests Completed:** The `AudioPlayerWidget` (`lib/features/audio_recorder/presentation/widgets/audio_player_widget.dart`) has been thoroughly unit tested (`test/features/audio_recorder/presentation/widgets/audio_player_widget_test.dart`). These tests verify its rendering based on props (loading, error, playing states) and confirm that user interactions (play, pause, delete taps, slider seek) correctly trigger the expected callbacks/Cubit methods (verified via mocks).
-
-**Phase 4: Cubit Integration**
