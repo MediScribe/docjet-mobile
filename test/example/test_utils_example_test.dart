@@ -1,4 +1,4 @@
-import '../test_utils.dart';
+import '../test_utils.d.dart';
 
 /// Demonstrates how to use the test_utils.dart barrel file
 ///

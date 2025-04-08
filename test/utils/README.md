@@ -41,7 +41,7 @@ For controlling log levels in specific test files, use the convenience methods f
 
 ```dart
 // Assumes your test file is in a subdirectory like test/features/...
-import '../test_utils.dart'; 
+import '../test_utils.d.dart'; 
 
 void main() {
   // Setup logging for the entire test file (default: error level)
