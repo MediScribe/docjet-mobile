@@ -5,27 +5,39 @@ import 'package:flutter_test/flutter_test.dart';
 /// Global test configuration that runs before any test file.
 ///
 /// This file is automatically loaded by Flutter's test framework.
-/// Uncomment the desired logging configuration to apply it globally.
+/// By default, ALL logs are suppressed unless enabled via environment variables
+/// or explicit TestLogger method calls in individual test files.
+///
+/// Usage:
+/// ```
+/// # Run all tests with only error logs visible
+/// TEST_LOG_LEVEL=error flutter test
+///
+/// # Run all tests with logs for specific tags
+/// TEST_LOG_TAGS=AUDIO,NETWORK flutter test
+///
+/// # Run all tests with all logs enabled
+/// TEST_LOG_LEVEL=all flutter test
+///
+/// # Run all tests with no logs (default behavior)
+/// flutter test
+/// ```
+///
+/// In individual test files, you can override this behavior with:
+///
+/// ```dart
+/// setUpAll(() => TestLogger.setupTestFile(LogLevel.debug));
+/// tearDownAll(TestLogger.tearDownTestFile);
+/// ```
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // =================================================================
-  // LOGGING CONFIGURATION - Uncomment the desired option
-  // =================================================================
+  // First disable all logging to start with a clean state
+  TestLogger.disableLogging();
 
-  // OPTION 1: Default - Disable all logs for cleaner test output
-  // TestLogger.disableLogging();
-
-  // OPTION 2: Enable ALL logging (verbose, use for debugging)
-  // TestLogger.enableAllLogging();
-
-  // OPTION 3: Enable specific tags only (good for focused debugging)
-  // TestLogger.enableLoggingForTags(['[AUDIO]', '[NETWORK]']);
-
-  // OPTION 4: Enable a single tag
-  // TestLogger.enableLoggingForTag('[TAG]');
-
-  // =================================================================
+  // Then initialize logging from environment variables
+  // This handles TEST_LOG_LEVEL and TEST_LOG_TAGS
+  TestLogger.initFromEnvironment();
 
   // Run the tests
   await testMain();
