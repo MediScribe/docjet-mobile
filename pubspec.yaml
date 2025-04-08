@@ -38,16 +38,16 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   # State Management
-  bloc: ^8.1.3
-  flutter_bloc: ^8.1.4
+  bloc: ^9.0.0
+  flutter_bloc: ^9.1.0
   equatable: ^2.0.5
   # Network
   dio: ^5.4.1
   # Dependency Injection
-  get_it: ^7.6.7
+  get_it: ^8.0.3
   # Audio
-  record: ^5.0.4
-  audioplayers: ^5.2.1
+  record: ^6.0.0
+  audioplayers: ^6.4.0
   just_audio: ^0.9.36
   # Storage
   path_provider: ^2.1.2
@@ -60,10 +60,10 @@ dependencies:
   uuid: ^4.3.3
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  go_router: ^13.2.4
+  go_router: ^14.8.1
   # Use latest stable freezed annotation
-  freezed_annotation: ^2.4.1 # Aligning with stable freezed
-  rxdart: ^0.27.7
+  freezed_annotation: ^2.4.1 # Reverted due to hive_generator conflict
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:
@@ -76,21 +76,21 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.0
-  bloc_test: ^9.1.5
+  flutter_lints: ^5.0.0
+  bloc_test: ^10.0.0
   mocktail: ^1.0.3
-  fake_async: ^1.3.1
+  fake_async: ^1.3.1 # Keep this for now, might need ^1.3.3 later
   hive_generator: ^2.0.1
   # Use latest stable freezed generator
-  freezed: ^2.4.1 # Aligning with stable annotation
+  freezed: ^2.5.2 # Reverted due to hive_generator conflict
+  record_platform_interface: ^1.2.0 # Replacing 'any', using constraint from 'record'
+  audio_session: ^0.1.25 # Replacing 'any', using current resolved
+  collection: ^1.18.0 # Replacing 'any'
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
-  record_platform_interface: any
-  audio_session: any
-  collection: any
 flutter:
 
   # The following line ensures that the Material Icons font is
