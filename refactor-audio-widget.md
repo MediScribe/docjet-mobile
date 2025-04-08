@@ -80,3 +80,9 @@
 *   [ ] **53.** Implement `dispose()` method: Call adapter `dispose()`.
 *   [ ] **54.** Adapt existing service tests or create new `audio_playback_service_orchestration_test.dart`.
 *   [ ] **55.** Add mocks for `AudioPlayerAdapter`
+
+**Note on Widget Testing:**
+
+*   [x] **Widget Unit Tests Completed:** The `AudioPlayerWidget` (`lib/features/audio_recorder/presentation/widgets/audio_player_widget.dart`) has been thoroughly unit tested (`test/features/audio_recorder/presentation/widgets/audio_player_widget_test.dart`). These tests verify its rendering based on props (loading, error, playing states) and confirm that user interactions (play, pause, delete taps, slider seek) correctly trigger the expected callbacks/Cubit methods (verified via mocks).
+
+**Phase 4: Cubit Integration**
