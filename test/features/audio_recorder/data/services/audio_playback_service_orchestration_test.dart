@@ -3,24 +3,17 @@ import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playba
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-import '../../../../test_utils.dart';
-
 import 'audio_playback_service_orchestration_test.mocks.dart';
+
+export 'package:flutter/foundation.dart';
 
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 void main() {
   group('AudioPlaybackServiceImpl Orchestration', () {
-    // Sets up logging, defaulting to error level.
-    // Override default level with environment variable:
-    // TEST_LOG_LEVEL=debug flutter test ...
-    // Or, force a level for this file ONLY by changing below:
-    // setUpAll(() => setupTestLogging(LogLevel.debug));
-    setUpAll(setupTestLogging);
-    tearDownAll(teardownTestLogging);
-
     late MockAudioPlayerAdapter mockAdapter;
     late MockPlaybackStateMapper mockMapper;
     late AudioPlaybackServiceImpl service;
