@@ -2,8 +2,6 @@
 
 import 'dart:async';
 import 'package:dartz/dartz.dart';
-// import 'package:flutter/foundation.dart'; // Import for debugPrint
-// Import for @visibleForTesting
 
 // Core
 import 'package:docjet_mobile/core/error/failures.dart';
@@ -22,6 +20,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcript
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/transcription_merge_service.dart';
+
 // Using centralized logger with level OFF
 final logger = Logger(level: Level.off);
 

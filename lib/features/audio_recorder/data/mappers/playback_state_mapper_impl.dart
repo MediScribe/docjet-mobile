@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:flutter/foundation.dart'; // For @visibleForTesting
 import 'package:rxdart/rxdart.dart';
+
+// Using centralized logger with level OFF
+final logger = Logger(level: Level.off);
 
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
@@ -165,7 +169,7 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
 
   // Internal error handler
   void _handleError(Object error, StackTrace stackTrace) {
-    debugPrint('PlaybackStateMapper Error: $error\n$stackTrace');
+    logger.e('PlaybackStateMapper Error: $error\n$stackTrace');
     final errorMsg = error.toString();
     _currentError = errorMsg;
 
