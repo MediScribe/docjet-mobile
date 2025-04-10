@@ -11,13 +11,14 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_reco
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:logger/logger.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 import 'audio_file_manager_impl_test.mocks.dart';
 
 // Setup a null logger for tests to avoid output
 // final logger = Logger(level: Level.off);
-final logger = Logger();
+// Using centralized logger with level OFF
+final logger = Logger(level: Level.off);
 
 // Helper class for fake FileStat (consider moving to a shared test utility)
 class FakeFileStat implements FileStat {
@@ -106,7 +107,9 @@ void main() {
       when(mockFileSystem.fileExists(any)).thenAnswer((_) async => true);
       when(
         mockFileSystem.deleteFile(any),
-      ).thenAnswer((_) async {}); // Completes normally
+      ).thenAnswer((_) async {
+        return;
+      }); // Completes normally
 
       // Act
       await fileManager.deleteRecording(tFilePath);

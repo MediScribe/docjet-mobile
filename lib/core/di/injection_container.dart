@@ -34,6 +34,10 @@ import 'package:docjet_mobile/features/audio_recorder/domain/services/transcript
 import 'package:docjet_mobile/core/services/app_seeder.dart';
 // Import SharedPreferences
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 
 final sl = GetIt.instance;
 
@@ -134,9 +138,22 @@ Future<void> init() async {
   // + Register Audio Player (audioplayers package)
   sl.registerLazySingleton(() => AudioPlayer());
 
+  // Add adapter registration
+  sl.registerLazySingleton<AudioPlayerAdapter>(
+    () => AudioPlayerAdapterImpl(sl()),
+  );
+
+  // Add mapper registration
+  sl.registerLazySingleton<PlaybackStateMapper>(
+    () => PlaybackStateMapperImpl(),
+  );
+
   // + Register Audio Playback Service
   sl.registerLazySingleton<AudioPlaybackService>(
-    () => AudioPlaybackServiceImpl(audioPlayer: sl()),
+    () => AudioPlaybackServiceImpl(
+      audioPlayerAdapter: sl(),
+      playbackStateMapper: sl(),
+    ),
   );
 
   // + Register TranscriptionMergeService

@@ -1,78 +1,87 @@
 // Imports
 import 'dart:async';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 
-// Create mock classes for dependencies
-class MockAudioPlayerAdapter extends Mock implements AudioPlayerAdapter {}
+import 'audio_playback_service_event_handling_test.mocks.dart';
 
-class MockPlaybackStateMapper extends Mock implements PlaybackStateMapper {}
-
+// Generate mock classes
+@GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 void main() {
-  late MockAudioPlayerAdapter mockAdapter;
-  late MockPlaybackStateMapper mockMapper;
+  // Set logger level to off for tests
+  setLogLevel(Level.off);
+
+  late MockAudioPlayerAdapter mockAudioPlayerAdapter;
+  late MockPlaybackStateMapper mockPlaybackStateMapper;
   late AudioPlaybackServiceImpl service;
   late StreamController<PlaybackState> playbackStateController;
 
   setUp(() {
-    mockAdapter = MockAudioPlayerAdapter();
-    mockMapper = MockPlaybackStateMapper();
+    logger.d('EVENT_HANDLING_TEST_SETUP: Starting');
+    mockAudioPlayerAdapter = MockAudioPlayerAdapter();
+    mockPlaybackStateMapper = MockPlaybackStateMapper();
     playbackStateController = StreamController<PlaybackState>.broadcast();
 
-    // Stub the playbackStateStream
+    // Setup the streams needed by the mapper
     when(
-      mockMapper.playbackStateStream,
+      mockAudioPlayerAdapter.onPositionChanged,
+    ).thenAnswer((_) => Stream.empty());
+    when(
+      mockAudioPlayerAdapter.onDurationChanged,
+    ).thenAnswer((_) => Stream.empty());
+    when(
+      mockAudioPlayerAdapter.onPlayerComplete,
+    ).thenAnswer((_) => Stream.empty());
+    when(
+      mockAudioPlayerAdapter.onPlayerStateChanged,
+    ).thenAnswer((_) => Stream.empty());
+
+    // Setup the playback state stream
+    when(
+      mockPlaybackStateMapper.playbackStateStream,
     ).thenAnswer((_) => playbackStateController.stream);
 
-    // Stub basic adapter methods
-    when(
-      mockAdapter.setSourceUrl('test/audio/file.mp3'),
-    ).thenAnswer((_) async {});
-    when(mockAdapter.resume()).thenAnswer((_) async {});
-    when(mockAdapter.pause()).thenAnswer((_) async {});
-    when(mockAdapter.seek(Duration.zero)).thenAnswer((_) async {});
-    when(mockAdapter.stop()).thenAnswer((_) async {});
-    when(mockAdapter.dispose()).thenAnswer((_) async {});
-
-    // Instantiate service with mocked dependencies
     service = AudioPlaybackServiceImpl(
-      audioPlayerAdapter: mockAdapter,
-      playbackStateMapper: mockMapper,
+      audioPlayerAdapter: mockAudioPlayerAdapter,
+      playbackStateMapper: mockPlaybackStateMapper,
     );
+    logger.d('EVENT_HANDLING_TEST_SETUP: Complete');
   });
 
   tearDown(() async {
-    // Dispose the service first
+    logger.d('EVENT_HANDLING_TEST_TEARDOWN: Starting');
     await service.dispose();
-    // Close controllers
     await playbackStateController.close();
+    logger.d('EVENT_HANDLING_TEST_TEARDOWN: Complete');
   });
 
-  group('Event Handling', () {
-    test('play() sets source and calls resume on adapter', () async {
+  group('audioPlaybackService event handling -', () {
+    test('should delegate mapper events through playbackStateStream', () async {
+      logger.d('TEST [delegate events]: Starting');
       // Arrange
-      const testPath = 'test/audio/file.mp3';
+      final expectedState = PlaybackState.playing(
+        currentPosition: Duration(seconds: 10),
+        totalDuration: Duration(minutes: 2),
+      );
 
-      // Act
-      await service.play(testPath);
+      // Act & Assert
+      final expectation = expectLater(
+        service.playbackStateStream,
+        emits(expectedState),
+      );
 
-      // Assert
-      verify(mockMapper.setCurrentFilePath(testPath)).called(1);
-      verify(mockAdapter.setSourceUrl(testPath)).called(1);
-      verify(mockAdapter.resume()).called(1);
-    });
+      // Simulate the mapper emitting a state
+      playbackStateController.add(expectedState);
 
-    test('playbackStateStream returns stream from mapper', () {
-      // Act
-      final resultStream = service.playbackStateStream;
-
-      // Assert
-      expect(resultStream, equals(playbackStateController.stream));
-      verify(mockMapper.playbackStateStream).called(1);
+      // Wait for the expectation to complete
+      await expectation;
+      logger.d('TEST [delegate events]: Complete');
     });
   });
 }

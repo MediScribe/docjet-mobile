@@ -6,9 +6,9 @@ import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_r
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_state.dart';
 
 // ADD THIS IMPORT
-import 'package:logger/logger.dart';
-
-final logger = Logger();
+import 'package:docjet_mobile/core/utils/logger.dart';
+// Using centralized logger with level OFF
+final logger = Logger(level: Level.off);
 
 // Remove old imports
 // import '../cubit/audio_recorder_cubit.dart';

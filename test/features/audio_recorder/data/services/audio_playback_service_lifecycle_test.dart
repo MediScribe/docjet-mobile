@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logger/logger.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 // Removed mockito imports
 
 // Removed mock import

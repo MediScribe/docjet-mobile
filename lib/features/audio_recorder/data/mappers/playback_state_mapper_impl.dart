@@ -30,7 +30,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   Duration _currentDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
   String? _currentError;
-  String? _currentFilePath;
 
   // Subscriptions to input streams for cleanup
   final List<StreamSubscription<dynamic>> _subscriptions = [];
@@ -175,10 +174,11 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     errorController.add(errorMsg);
   }
 
-  // Sets the current file path for the mapper
+  // Sets the current file path for the mapper (required by interface, but not used internally)
   @override
   void setCurrentFilePath(String? filePath) {
-    _currentFilePath = filePath;
+    // Field _currentFilePath removed as it was unused.
+    // Method kept to satisfy the PlaybackStateMapper interface.
   }
 
   @override

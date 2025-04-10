@@ -6,15 +6,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 // import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
 
 // ADD THIS IMPORT
-import 'package:logger/logger.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 // Remove old imports
 // import '../cubit/audio_recorder_cubit.dart';
 // import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
-
-final logger = Logger();
+// Using centralized logger with level OFF
+final logger = Logger(level: Level.off);
 
 // This outer widget can remain StatelessWidget, it just provides the context
 class AudioRecorderListPage extends StatelessWidget {

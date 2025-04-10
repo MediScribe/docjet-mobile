@@ -6,12 +6,11 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_s
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
-import 'package:equatable/equatable.dart';
-import 'package:logger/logger.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 
 part 'audio_list_state.dart';
-
-final logger = Logger();
+// Using centralized logger with level OFF
+final logger = Logger(level: Level.off);
 
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
