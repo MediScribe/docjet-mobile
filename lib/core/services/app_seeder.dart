@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:logger/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
@@ -11,6 +11,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p; // For path joining
 import 'package:shared_preferences/shared_preferences.dart';
+
+final logger = Logger();
 
 /// Handles seeding initial data, like sample recordings, on first app launch.
 class AppSeeder {

@@ -2,8 +2,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 
 /// Factory for creating fully configured [AudioPlaybackService] instances.

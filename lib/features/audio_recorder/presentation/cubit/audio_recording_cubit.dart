@@ -2,12 +2,13 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
+import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart' // Import PermissionStatus
     as ph; // Alias for openAppSettings
 
-import 'package:docjet_mobile/core/utils/logger.dart';
-
 import 'audio_recording_state.dart';
+
+final logger = Logger();
 
 class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   final AudioRecorderRepository repository;

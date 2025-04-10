@@ -1,80 +1,78 @@
 // Imports
 import 'dart:async';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-// Use fake_async
 
-// Import the generated mocks
-import 'audio_playback_service_impl_test.mocks.dart';
+// Create mock classes for dependencies
+class MockAudioPlayerAdapter extends Mock implements AudioPlayerAdapter {}
 
-// Annotation to generate MockAudioPlayer
-@GenerateMocks([AudioPlayer])
+class MockPlaybackStateMapper extends Mock implements PlaybackStateMapper {}
+
 void main() {
-  late MockAudioPlayer mockAudioPlayer;
+  late MockAudioPlayerAdapter mockAdapter;
+  late MockPlaybackStateMapper mockMapper;
   late AudioPlaybackServiceImpl service;
-
-  // Declare controllers
-  late StreamController<PlayerState> playerStateController;
-  late StreamController<Duration> durationController;
-  late StreamController<Duration> positionController;
-  late StreamController<void> completionController;
-  late StreamController<String> logController;
+  late StreamController<PlaybackState> playbackStateController;
 
   setUp(() {
-    mockAudioPlayer = MockAudioPlayer();
+    mockAdapter = MockAudioPlayerAdapter();
+    mockMapper = MockPlaybackStateMapper();
+    playbackStateController = StreamController<PlaybackState>.broadcast();
 
-    // Initialize controllers (sync for fakeAsync)
-    playerStateController = StreamController<PlayerState>.broadcast(sync: true);
-    durationController = StreamController<Duration>.broadcast(sync: true);
-    positionController = StreamController<Duration>.broadcast(sync: true);
-    completionController = StreamController<void>.broadcast(sync: true);
-    logController = StreamController<String>.broadcast(sync: true);
+    // Stub the playbackStateStream
+    when(
+      mockMapper.playbackStateStream,
+    ).thenAnswer((_) => playbackStateController.stream);
 
-    // Stub streams
+    // Stub basic adapter methods
     when(
-      mockAudioPlayer.onPlayerStateChanged,
-    ).thenAnswer((_) => playerStateController.stream);
-    when(
-      mockAudioPlayer.onDurationChanged,
-    ).thenAnswer((_) => durationController.stream);
-    when(
-      mockAudioPlayer.onPositionChanged,
-    ).thenAnswer((_) => positionController.stream);
-    when(
-      mockAudioPlayer.onPlayerComplete,
-    ).thenAnswer((_) => completionController.stream);
-    when(mockAudioPlayer.onLog).thenAnswer((_) => logController.stream);
+      mockAdapter.setSourceUrl('test/audio/file.mp3'),
+    ).thenAnswer((_) async {});
+    when(mockAdapter.resume()).thenAnswer((_) async {});
+    when(mockAdapter.pause()).thenAnswer((_) async {});
+    when(mockAdapter.seek(Duration.zero)).thenAnswer((_) async {});
+    when(mockAdapter.stop()).thenAnswer((_) async {});
+    when(mockAdapter.dispose()).thenAnswer((_) async {});
 
-    // Stub methods (essential for setup/error handling)
-    when(mockAudioPlayer.stop()).thenAnswer((_) async {});
-    when(mockAudioPlayer.release()).thenAnswer((_) async {});
-    when(mockAudioPlayer.dispose()).thenAnswer((_) async {});
-    when(mockAudioPlayer.setSource(any)).thenAnswer((_) async {});
-    when(mockAudioPlayer.resume()).thenAnswer((_) async {});
-    when(mockAudioPlayer.pause()).thenAnswer((_) async {});
-    when(mockAudioPlayer.seek(any)).thenAnswer((_) async {});
-
-    // Instantiate service within setUp
-    service = AudioPlaybackServiceImpl(audioPlayer: mockAudioPlayer);
-    service.initializeListeners();
+    // Instantiate service with mocked dependencies
+    service = AudioPlaybackServiceImpl(
+      audioPlayerAdapter: mockAdapter,
+      playbackStateMapper: mockMapper,
+    );
   });
 
   tearDown(() async {
     // Dispose the service first
     await service.dispose();
-
-    // Close controllers AFTER service disposal
-    await playerStateController.close();
-    await durationController.close();
-    await positionController.close();
-    await completionController.close();
-    await logController.close();
+    // Close controllers
+    await playbackStateController.close();
   });
 
   group('Event Handling', () {
-    // Test cases will be rewritten here to match the new implementation.
+    test('play() sets source and calls resume on adapter', () async {
+      // Arrange
+      const testPath = 'test/audio/file.mp3';
+
+      // Act
+      await service.play(testPath);
+
+      // Assert
+      verify(mockMapper.setCurrentFilePath(testPath)).called(1);
+      verify(mockAdapter.setSourceUrl(testPath)).called(1);
+      verify(mockAdapter.resume()).called(1);
+    });
+
+    test('playbackStateStream returns stream from mapper', () {
+      // Act
+      final resultStream = service.playbackStateStream;
+
+      // Assert
+      expect(resultStream, equals(playbackStateController.stream));
+      verify(mockMapper.playbackStateStream).called(1);
+    });
   });
 }

@@ -7,7 +7,7 @@ import 'package:dartz/dartz.dart';
 
 // Core
 import 'package:docjet_mobile/core/error/failures.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:logger/logger.dart';
 
 // Data Layer
 import '../datasources/audio_local_data_source.dart';
@@ -22,6 +22,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcript
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/transcription_merge_service.dart';
+
+final logger = Logger();
 
 class AudioRecorderRepositoryImpl implements AudioRecorderRepository {
   final AudioLocalDataSource localDataSource;

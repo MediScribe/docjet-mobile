@@ -11,9 +11,13 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_reco
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import '../../../../utils/test_logger.dart';
+import 'package:logger/logger.dart';
 
 import 'audio_file_manager_impl_test.mocks.dart';
+
+// Setup a null logger for tests to avoid output
+// final logger = Logger(level: Level.off);
+final logger = Logger();
 
 // Helper class for fake FileStat (consider moving to a shared test utility)
 class FakeFileStat implements FileStat {
@@ -53,9 +57,7 @@ class FakeFileStat implements FileStat {
   MockSpec<FileStat>(),
 ])
 void main() {
-  // Disable all logging for these tests
-  setUpAll(() => TestLogger.disableLogging());
-  tearDownAll(() => TestLogger.resetLogging());
+  // No need to disable logging - our logger is already set to Level.nothing
 
   late AudioFileManagerImpl fileManager;
   late MockFileSystem mockFileSystem;

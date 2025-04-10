@@ -2,14 +2,16 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/models/playback_state.dart';
 import 'package:equatable/equatable.dart';
-import '../../../../core/utils/logger.dart';
+import 'package:logger/logger.dart';
 
 part 'audio_list_state.dart';
+
+final logger = Logger();
 
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
@@ -27,7 +29,7 @@ class AudioListCubit extends Cubit<AudioListState> {
   void _listenToPlaybackService() {
     logger.d('[CUBIT] Subscribing to AudioPlaybackService stream...');
     _playbackSubscription = _audioPlaybackService.playbackStateStream.listen(
-      _onPlaybackStateChanged,
+      (state) => _onPlaybackStateChanged(state),
       onError: (error) {
         logger.e('[CUBIT] Error in playback service stream: $error');
         if (state is AudioListLoaded) {
@@ -55,13 +57,51 @@ class AudioListCubit extends Cubit<AudioListState> {
         '[CUBIT] Current state is AudioListLoaded, updating playbackInfo...',
       );
 
+      // Map the freezed PlaybackState to PlaybackInfo properties
+      String? filePath;
+      bool isPlaying = false;
+      bool isLoading = false;
+      Duration position = Duration.zero;
+      Duration totalDuration = Duration.zero;
+      String? errorMessage;
+
+      // Handle the different state variants from freezed
+      playbackState.when(
+        initial: () {
+          // No changes needed, use defaults
+        },
+        loading: () {
+          isLoading = true;
+        },
+        playing: (currentPosition, duration) {
+          isPlaying = true;
+          position = currentPosition;
+          totalDuration = duration;
+        },
+        paused: (currentPosition, duration) {
+          position = currentPosition;
+          totalDuration = duration;
+        },
+        stopped: () {
+          // No changes needed
+        },
+        completed: () {
+          // Mark as completed
+        },
+        error: (message, currentPosition, duration) {
+          errorMessage = message;
+          if (currentPosition != null) position = currentPosition;
+          if (duration != null) totalDuration = duration;
+        },
+      );
+
       final newPlaybackInfo = PlaybackInfo(
-        activeFilePath: playbackState.currentFilePath,
-        isPlaying: playbackState.isPlaying,
-        isLoading: playbackState.isLoading,
-        currentPosition: playbackState.position,
-        totalDuration: playbackState.totalDuration,
-        error: playbackState.hasError ? playbackState.errorMessage : null,
+        activeFilePath: filePath,
+        isPlaying: isPlaying,
+        isLoading: isLoading,
+        currentPosition: position,
+        totalDuration: totalDuration,
+        error: errorMessage,
       );
 
       logger.t('[CUBIT] New PlaybackInfo created: $newPlaybackInfo');

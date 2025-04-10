@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/failures.dart'; // Fixed import
-import 'package:docjet_mobile/core/utils/logger.dart'; // Import the logger
+import 'package:logger/logger.dart';
+
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/transcription_remote_data_source.dart';
 import 'package:uuid/uuid.dart'; // TODO: Add uuid dependency
+
+final logger = Logger();
 
 /// A fake implementation of [TranscriptionRemoteDataSource] for development and testing.
 ///

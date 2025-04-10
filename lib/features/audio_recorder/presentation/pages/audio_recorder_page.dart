@@ -6,7 +6,9 @@ import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_r
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_state.dart';
 
 // ADD THIS IMPORT
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 // Remove old imports
 // import '../cubit/audio_recorder_cubit.dart';

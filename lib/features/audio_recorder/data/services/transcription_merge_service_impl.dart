@@ -1,7 +1,9 @@
-import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/transcription_merge_service.dart';
+import 'package:logger/logger.dart';
+
+final logger = Logger();
 
 /// Concrete implementation for merging local and remote transcription data.
 class TranscriptionMergeServiceImpl implements TranscriptionMergeService {
