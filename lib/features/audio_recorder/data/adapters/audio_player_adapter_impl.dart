@@ -1,5 +1,9 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
+
+// Using centralized logger with level OFF
+final logger = Logger(level: Level.off);
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `audioplayers` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {

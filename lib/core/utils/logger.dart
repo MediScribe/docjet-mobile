@@ -4,7 +4,7 @@ export 'package:logger/logger.dart'; // Export the Logger class
 
 // Create logger filter we can control
 class CustomLogFilter extends LogFilter {
-  Level _level = kReleaseMode ? Level.warning : Level.error;
+  Level _level = kReleaseMode ? Level.warning : Level.info;
 
   @override
   bool shouldLog(LogEvent event) {
