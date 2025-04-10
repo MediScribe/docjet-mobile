@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
@@ -9,6 +10,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_play
 import 'package:docjet_mobile/core/utils/logger.dart';
 
 part 'audio_list_state.dart';
+
 // Using centralized logger with level OFF
 final logger = Logger(level: Level.off);
 
