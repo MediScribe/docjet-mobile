@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/widgets/audio_player_widget.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:equatable/equatable.dart';
+import 'dart:async';
 
 // Mock the Cubit using mocktail
 class MockAudioListCubit extends MockBloc<AudioListEvent, AudioListState>
@@ -264,12 +265,10 @@ void main() {
         ),
       );
 
-      // Arrange: Stub the cubit stream using whenListen (from bloc_test)
-      // Set initial state directly, stream only emits the subsequent state.
+      // Arrange: Stub the cubit stream sequence
       whenListen(
         mockAudioListCubit,
-        Stream.fromIterable([playingState2]), // Only emit the second state
-        initialState: playingState1, // Start in the first playing state
+        Stream.fromIterable([initialLoadedState, playingState1, playingState2]),
       );
 
       // Act: Pump the widget with the initial state already set
@@ -317,6 +316,124 @@ void main() {
         reason: "Position should update to 10s in state 2",
       );
       expect(playerWidget2.totalDuration, const Duration(milliseconds: 30000));
+    },
+  );
+
+  testWidgets(
+    'AudioPlayerWidget receives correct state after Play -> Pause -> Play sequence',
+    (WidgetTester tester) async {
+      // Arrange: Stream controller for manual state emission
+      final controller = StreamController<AudioListState>.broadcast();
+
+      // Arrange: Define state sequence
+      final initialLoadedState = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: const PlaybackInfo.initial(),
+      );
+      final playingState = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: PlaybackInfo(
+          activeFilePath: tTranscription1.localFilePath,
+          isPlaying: true,
+          isLoading: false,
+          currentPosition: const Duration(seconds: 5),
+          totalDuration: const Duration(milliseconds: 30000),
+        ),
+      );
+      final pausedState = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: PlaybackInfo(
+          activeFilePath: tTranscription1.localFilePath,
+          isPlaying: false, // Paused
+          isLoading: false,
+          currentPosition: const Duration(seconds: 5), // Position retained
+          totalDuration: const Duration(milliseconds: 30000),
+        ),
+      );
+      // Assuming play restarts from beginning
+      final playingAgainState = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: PlaybackInfo(
+          activeFilePath: tTranscription1.localFilePath,
+          isPlaying: true, // Playing again
+          isLoading: false,
+          currentPosition: Duration.zero, // Position reset
+          totalDuration: const Duration(milliseconds: 30000),
+        ),
+      );
+
+      // Arrange: Stub the cubit stream to use the controller
+      // Provide the INITIAL state the cubit should have when the widget builds
+      when(() => mockAudioListCubit.state).thenReturn(initialLoadedState);
+      when(
+        () => mockAudioListCubit.stream,
+      ).thenAnswer((_) => controller.stream);
+
+      // Act: Pump initial widget
+      await tester.pumpWidget(createWidgetUnderTest());
+      // No pump needed here yet, initial build uses the stubbed state
+
+      // --- Verify INITIAL state ---
+      // print('TEST LOG: State before initial check: ${mockAudioListCubit.state}'); // <<< REMOVE LOG
+      final playerWidgetFinder = find.byKey(
+        ValueKey(tTranscription1.localFilePath),
+      );
+      expect(
+        playerWidgetFinder,
+        findsOneWidget,
+        reason: "Should find widget initially",
+      );
+      AudioPlayerWidget playerWidgetInitial = tester.widget(playerWidgetFinder);
+      expect(
+        playerWidgetInitial.isPlaying,
+        isFalse,
+        reason: "Should not be playing initially",
+      );
+      expect(playerWidgetInitial.currentPosition, Duration.zero);
+
+      // --- Verify PLAY state ---
+      // print('TEST LOG: State before play check: ${mockAudioListCubit.state}'); // <<< REMOVE LOG
+      controller.add(playingState); // Emit playing state
+      await tester.pump(); // Process the single frame
+      AudioPlayerWidget playerWidgetPlay = tester.widget(playerWidgetFinder);
+      expect(
+        playerWidgetPlay.isPlaying,
+        isTrue,
+        reason: "Should be playing (1st play)",
+      );
+      expect(playerWidgetPlay.currentPosition, const Duration(seconds: 5));
+
+      // --- Verify PAUSE state ---
+      controller.add(pausedState); // Emit paused state
+      await tester.pump(); // Process the single frame
+      await tester.pump(); // <<< ADD SECOND PUMP
+      AudioPlayerWidget playerWidgetPause = tester.widget(playerWidgetFinder);
+      expect(playerWidgetPause.isPlaying, isFalse, reason: "Should be paused");
+      expect(
+        playerWidgetPause.currentPosition,
+        const Duration(seconds: 5),
+      ); // Position retained
+
+      // --- Verify PLAY AGAIN state ---
+      controller.add(playingAgainState); // Emit playing again state
+      await tester.pump(); // Process the single frame
+      await tester.pump(); // <<< ADD SECOND PUMP HERE TOO
+      AudioPlayerWidget playerWidgetPlayAgain = tester.widget(
+        playerWidgetFinder,
+      );
+      expect(
+        playerWidgetPlayAgain.isPlaying,
+        isTrue,
+        reason: "Should be playing (2nd play)",
+      );
+      expect(
+        playerWidgetPlayAgain.currentPosition,
+        Duration.zero,
+        reason: "Position should reset",
+      );
+
+      // Clean up controller
+      await controller.close();
     },
   );
 }

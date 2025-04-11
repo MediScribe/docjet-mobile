@@ -1,9 +1,11 @@
 import 'dart:async';
+
+import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Concrete implementation of [AudioPlaybackService] using the adapter and mapper pattern.
 /// This service orchestrates the interactions between the [AudioPlayerAdapter] and
@@ -12,6 +14,13 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   final AudioPlayerAdapter _audioPlayerAdapter;
   final PlaybackStateMapper _playbackStateMapper;
 
+  final BehaviorSubject<PlaybackState> _playbackStateSubject;
+  late final StreamSubscription<PlaybackState> _mapperSubscription;
+
+  // Keep track of the currently loaded path and the last known state
+  String? _currentFilePath;
+  PlaybackState _lastKnownState = const PlaybackState.initial();
+
   /// Creates an instance of [AudioPlaybackServiceImpl].
   ///
   /// Requires an [AudioPlayerAdapter] and [PlaybackStateMapper] to be injected.
@@ -19,58 +28,87 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     required AudioPlayerAdapter audioPlayerAdapter,
     required PlaybackStateMapper playbackStateMapper,
   }) : _audioPlayerAdapter = audioPlayerAdapter,
-       _playbackStateMapper = playbackStateMapper {
-    // Initialize the mapper with adapter streams
-    _playbackStateMapper.initialize(
-      positionStream: _audioPlayerAdapter.onPositionChanged,
-      durationStream: _audioPlayerAdapter.onDurationChanged,
-      completeStream: _audioPlayerAdapter.onPlayerComplete,
-      playerStateStream: _audioPlayerAdapter.onPlayerStateChanged,
+       _playbackStateMapper = playbackStateMapper,
+       _playbackStateSubject = BehaviorSubject<PlaybackState>() {
+    // Immediately subscribe to the mapper's output stream
+    _mapperSubscription = _playbackStateMapper.playbackStateStream.listen(
+      (state) {
+        logger.d('[SERVICE] Received PlaybackState from Mapper: $state');
+        _lastKnownState = state; // Update last known state
+        _playbackStateSubject.add(state); // Forward state to external listeners
+      },
+      onError: (error) {
+        logger.e('[SERVICE] Error from mapper stream: $error');
+        _playbackStateSubject.addError(error);
+        // Potentially add a specific error state here?
+        _playbackStateSubject.add(
+          const PlaybackState.error(message: 'Playback error'),
+        );
+      },
+      onDone: () {
+        logger.d('[SERVICE] Mapper stream closed');
+        _playbackStateSubject.close();
+      },
     );
+    logger.d('[SERVICE] Initialized and subscribed to mapper stream.');
   }
 
   @override
-  Future<void> play(String filePath) async {
-    logger.d('SERVICE PLAY [$filePath]: START');
+  Stream<PlaybackState> get playbackStateStream => _playbackStateSubject.stream;
+
+  @override
+  Future<void> play(String pathOrUrl) async {
+    logger.d('SERVICE PLAY [$pathOrUrl]: START');
     try {
-      // Stop any previous playback before starting new
-      logger.d('SERVICE PLAY [$filePath]: Calling stop...');
+      final isSameFile = pathOrUrl == _currentFilePath;
+
+      // Always perform a full stop/load/play
+      logger.d('SERVICE PLAY [$pathOrUrl]: Playing file from beginning...');
+      logger.d('SERVICE PLAY [$pathOrUrl]: Calling stop...');
       await _audioPlayerAdapter.stop();
-      logger.d('SERVICE PLAY [$filePath]: Stop complete.');
+      logger.d('SERVICE PLAY [$pathOrUrl]: Stop complete.');
 
-      // Set the file path in the mapper using the interface method
-      logger.d('SERVICE PLAY [$filePath]: Setting mapper path...');
-      _playbackStateMapper.setCurrentFilePath(filePath);
-      logger.d('SERVICE PLAY [$filePath]: Mapper path set.');
+      // Update current path only if it's different
+      if (!isSameFile) {
+        logger.d('SERVICE PLAY [$pathOrUrl]: Setting mapper path...');
+        // Let the mapper know the context
+        _playbackStateMapper.setCurrentFilePath(pathOrUrl);
+        _currentFilePath = pathOrUrl; // Update current file path
+        logger.d('SERVICE PLAY [$pathOrUrl]: Mapper path set.');
+      }
 
-      // Set the audio source and resume playback
-      logger.d('SERVICE PLAY [$filePath]: Calling setSourceUrl...');
-      await _audioPlayerAdapter.setSourceUrl(filePath);
-      logger.d('SERVICE PLAY [$filePath]: setSourceUrl complete.');
+      logger.d('SERVICE PLAY [$pathOrUrl]: Calling setSourceUrl...');
+      await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
+      logger.d('SERVICE PLAY [$pathOrUrl]: setSourceUrl complete.');
 
-      logger.d('SERVICE PLAY [$filePath]: Calling resume...');
+      logger.d('SERVICE PLAY [$pathOrUrl]: Calling resume...');
       await _audioPlayerAdapter.resume();
-      logger.d('SERVICE PLAY [$filePath]: Resume complete.');
+      logger.d('SERVICE PLAY [$pathOrUrl]: Resume complete.');
 
-      logger.d('SERVICE PLAY [$filePath]: END (Success)');
-    } catch (e) {
-      logger.e('SERVICE PLAY [$filePath]: ERROR - $e');
-      // Error handling will be done by the mapper via error streams from adapter
+      logger.d('SERVICE PLAY [$pathOrUrl]: END (Success)');
+    } catch (e, s) {
+      logger.e('SERVICE PLAY [$pathOrUrl]: FAILED', error: e, stackTrace: s);
+      _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
+      // Rethrow or handle as needed
       rethrow;
     }
   }
 
   @override
   Future<void> pause() async {
-    logger.d('SERVICE PAUSE: Calling adapter.pause()');
+    logger.d('SERVICE PAUSE: START');
     await _audioPlayerAdapter.pause();
     logger.d('SERVICE PAUSE: Complete');
   }
 
   @override
   Future<void> resume() async {
+    logger.d('SERVICE RESUME: START');
+
+    // Just resume from current position, no seeking needed
     logger.d('SERVICE RESUME: Calling adapter.resume()');
     await _audioPlayerAdapter.resume();
+
     logger.d('SERVICE RESUME: Complete');
   }
 
@@ -91,14 +129,24 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   }
 
   @override
-  Stream<PlaybackState> get playbackStateStream =>
-      _playbackStateMapper.playbackStateStream;
-
-  @override
   Future<void> dispose() async {
     logger.d('SERVICE DISPOSE: Starting');
     await _audioPlayerAdapter.dispose();
     _playbackStateMapper.dispose();
+    // Also cancel the subscription to avoid leaks
+    await _mapperSubscription.cancel();
+    // Close the subject
+    await _playbackStateSubject.close();
     logger.d('SERVICE DISPOSE: Complete');
   }
 }
+
+// Helper extension moved here to access private members for testing
+// @visibleForTesting // REMOVED - Causes issues, use direct access in test if needed
+// extension AudioPlaybackServiceTestExtension on AudioPlaybackServiceImpl {
+//   void setCurrentFilePathForTest(String path) {
+//     // This exposes internal state for testing. Use with caution.
+//     // Consider if tests can be structured differently to avoid this.
+//     _currentFilePath = path;
+//   }
+// }

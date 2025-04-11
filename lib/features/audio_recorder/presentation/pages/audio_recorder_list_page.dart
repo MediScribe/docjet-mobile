@@ -14,8 +14,8 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
 
-// Using centralized logger with level OFF
 // TEMPORARILY ENABLE DEBUG LOGGING FOR LIST PAGE
+// SET BACK TO OFF - Only Cubit needs debug for now
 final logger = Logger(level: Level.debug);
 
 // This outer widget can remain StatelessWidget, it just provides the context
@@ -162,14 +162,15 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Loaded state
           else if (state is AudioListLoaded) {
-            logger.d(
-              "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
-            );
-            logger.d(
-              '[BlocConsumer BUILDER] Received AudioListLoaded with PlaybackInfo: ${state.playbackInfo}',
+            // logger.d(
+            //   "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
+            // ); // Comment out general loaded log
+            logger.i(
+              // Change to INFO, log key fields only
+              '[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${state.playbackInfo.isPlaying}, path=${state.playbackInfo.activeFilePath?.split('/').last ?? 'null'}',
             );
             if (state.transcriptions.isEmpty) {
-              logger.i("[AudioRecorderListView] Builder: ListLoaded is empty.");
+              // logger.i("[AudioRecorderListView] Builder: ListLoaded is empty."); // Comment out
               return const Center(
                 child: Text('No recordings yet. Tap + to start recording.'),
               );
@@ -184,8 +185,13 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
               // Use sorted list
               itemCount: sortedTranscriptions.length,
               itemBuilder: (context, index) {
-                // Access playbackInfo from the current state INSIDE the builder
+                // Access state.playbackInfo INSIDE the builder
                 final playbackInfo = (state).playbackInfo;
+
+                // Ensure this log is commented out
+                // logger.d(
+                //   '[itemBuilder ${transcription.localFilePath.split('/').last}] Calculated Props: isActive=${isActiveItem}, isPlaying=${itemIsPlaying}, itemPos=${itemPosition.inMilliseconds}ms, displayDur=${displayDuration.inMilliseconds}ms',
+                // );
 
                 // Use Transcription type
                 final transcription = sortedTranscriptions[index];
@@ -215,11 +221,6 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         : duration; // Duration shown on the widget
                 final itemError = isActiveItem ? playbackInfo.error : null;
                 // Slider should only be enabled if this IS the active item and duration is known
-
-                // <<< ADD LOGGING HERE >>>
-                logger.d(
-                  '[itemBuilder ${transcription.localFilePath.split('/').last}] Calculated Props: isActive=$isActiveItem, isPlaying=$itemIsPlaying, itemPos=${itemPosition.inMilliseconds}ms, displayDur=${displayDuration.inMilliseconds}ms',
-                );
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -317,9 +318,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Initial state or other unexpected states
           else {
-            logger.w(
-              "[AudioRecorderListView] Builder: Received unexpected state: ${state.runtimeType}",
-            );
+            // logger.w(
+            //   "[AudioRecorderListView] Builder: Received unexpected state: ${state.runtimeType}",
+            // ); // Comment out
             // Show loading or an empty message as a fallback
             return const Center(
               child: Text('Initializing or unexpected state...'),

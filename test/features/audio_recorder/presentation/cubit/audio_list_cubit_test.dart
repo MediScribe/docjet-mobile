@@ -322,4 +322,431 @@ void main() {
           ],
     );
   });
+
+  group('Play -> Pause -> Play Again Sequence', () {
+    late StreamController<PlaybackState> playbackStateController;
+    const tPath = '/path/test.m4a';
+    final tInitialState = AudioListLoaded(
+      transcriptions: [tTranscription1],
+    ); // Need some transcription
+    final tPlayingState = PlaybackState.playing(
+      currentPosition: const Duration(seconds: 5),
+      totalDuration: const Duration(seconds: 30),
+    );
+    final tPausedState = PlaybackState.paused(
+      currentPosition: const Duration(seconds: 5),
+      totalDuration: const Duration(seconds: 30),
+    );
+    final tPlayingAgainState = PlaybackState.playing(
+      currentPosition: Duration.zero, // Reset position
+      totalDuration: const Duration(seconds: 30),
+    );
+
+    setUp(() {
+      // Mock setup specific to this group
+      playbackStateController = StreamController<PlaybackState>.broadcast();
+      mockRepository = MockAudioRecorderRepository(); // Ensure mocks are fresh
+      mockAudioPlaybackService = MockAudioPlaybackService();
+      when(
+        mockAudioPlaybackService.playbackStateStream,
+      ).thenAnswer((_) => playbackStateController.stream);
+      // Stub service methods used in the sequence
+      when(mockAudioPlaybackService.play(any)).thenAnswer((_) async {});
+      when(mockAudioPlaybackService.pause()).thenAnswer((_) async {});
+
+      // Create cubit for this group
+      cubit = AudioListCubit(
+        repository: mockRepository,
+        audioPlaybackService: mockAudioPlaybackService,
+      );
+    });
+
+    tearDown(() {
+      playbackStateController.close();
+      cubit.close(); // Ensure cubit is closed
+    });
+
+    blocTest<AudioListCubit, AudioListState>(
+      'emits correct PlaybackInfo sequence for Play -> Pause -> Play Again',
+      build: () => cubit,
+      seed: () => tInitialState,
+      act: (cubit) async {
+        // 1. Play
+        await cubit.playRecording(tPath);
+        playbackStateController.add(tPlayingState);
+        await Future.delayed(Duration.zero); // Allow stream processing
+
+        // 2. Pause
+        await cubit.pauseRecording();
+        playbackStateController.add(tPausedState);
+        await Future.delayed(Duration.zero); // Allow stream processing
+
+        // 3. Play Again
+        await cubit.playRecording(tPath);
+        playbackStateController.add(tPlayingAgainState);
+        await Future.delayed(Duration.zero); // Allow stream processing
+      },
+      expect:
+          () => <Matcher>[
+            // State after 1st Play
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after play',
+              isA<PlaybackInfo>()
+                  .having((p) => p.activeFilePath, 'activeFilePath', tPath)
+                  .having((p) => p.isPlaying, 'isPlaying', true)
+                  .having((p) => p.isLoading, 'isLoading', false)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    tPlayingState.mapOrNull(playing: (s) => s.currentPosition),
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    tPlayingState.mapOrNull(playing: (s) => s.totalDuration),
+                  ),
+            ),
+            // State after Pause
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after pause',
+              isA<PlaybackInfo>()
+                  .having((p) => p.activeFilePath, 'activeFilePath', tPath)
+                  .having((p) => p.isPlaying, 'isPlaying', false)
+                  .having((p) => p.isLoading, 'isLoading', false)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    tPausedState.mapOrNull(paused: (s) => s.currentPosition),
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    tPausedState.mapOrNull(paused: (s) => s.totalDuration),
+                  ),
+            ),
+            // State after 2nd Play
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after play again',
+              isA<PlaybackInfo>()
+                  .having((p) => p.activeFilePath, 'activeFilePath', tPath)
+                  .having((p) => p.isPlaying, 'isPlaying', true)
+                  .having((p) => p.isLoading, 'isLoading', false)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    tPlayingAgainState.mapOrNull(
+                      playing: (s) => s.currentPosition,
+                    ),
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    tPlayingAgainState.mapOrNull(
+                      playing: (s) => s.totalDuration,
+                    ),
+                  ),
+            ),
+          ],
+      verify: (_) {
+        // Verify service calls
+        verify(mockAudioPlaybackService.play(tPath)).called(2);
+        verify(mockAudioPlaybackService.pause()).called(1);
+      },
+    );
+  });
+
+  group('Play -> Stop Event -> Play Again Race Condition', () {
+    late StreamController<PlaybackState> playbackStateController;
+    const tPath = '/path/test.m4a';
+    // Use a transcription list that includes tPath1 if needed for state consistency
+    final tInitialState = AudioListLoaded(transcriptions: [tTranscription1]);
+    final tPlayingState1 = PlaybackState.playing(
+      currentPosition: const Duration(seconds: 5),
+      totalDuration: const Duration(seconds: 30),
+    );
+    final tStoppedState = PlaybackState.stopped();
+    final tPlayingState2 = PlaybackState.playing(
+      currentPosition: Duration.zero, // Reset position
+      totalDuration: const Duration(seconds: 30),
+    );
+
+    setUp(() {
+      playbackStateController = StreamController<PlaybackState>.broadcast();
+      mockRepository = MockAudioRecorderRepository();
+      mockAudioPlaybackService = MockAudioPlaybackService();
+      when(
+        mockAudioPlaybackService.playbackStateStream,
+      ).thenAnswer((_) => playbackStateController.stream);
+      // Stub service play/stop
+      when(mockAudioPlaybackService.play(any)).thenAnswer((_) async {});
+      when(
+        mockAudioPlaybackService.stop(),
+      ).thenAnswer((_) async {}); // Needed by play() internally
+
+      cubit = AudioListCubit(
+        repository: mockRepository,
+        audioPlaybackService: mockAudioPlaybackService,
+      );
+    });
+
+    tearDown(() {
+      playbackStateController.close();
+      cubit.close();
+    });
+
+    blocTest<AudioListCubit, AudioListState>(
+      'handles race condition where stop event arrives during second play call',
+      build: () => cubit,
+      seed: () => tInitialState,
+      act: (cubit) async {
+        // 1. Initial Play
+        await cubit.playRecording(tPath);
+        playbackStateController.add(tPlayingState1);
+        await Future.delayed(Duration.zero); // Allow stream processing
+
+        // 2. Call Play Again (triggers implicit stop first)
+        await cubit.playRecording(tPath); // Sets internal path again
+
+        // 3. Simulate Stop Event arriving BEFORE the new Playing state
+        playbackStateController.add(tStoppedState);
+        await Future.delayed(Duration.zero); // Allow stream processing
+
+        // 4. Simulate new Playing state arriving AFTER the stop state
+        playbackStateController.add(tPlayingState2);
+        await Future.delayed(Duration.zero); // Allow stream processing
+      },
+      expect:
+          () => <Matcher>[
+            // State after 1st Play
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo.activeFilePath,
+              'activeFilePath after 1st play',
+              tPath,
+            ),
+            // State after Stop event (Current logic resets path)
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after stop event',
+              isA<PlaybackInfo>()
+                  .having((p) => p.activeFilePath, 'activeFilePath', tPath)
+                  .having((p) => p.isPlaying, 'isPlaying', false)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    Duration.zero,
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    Duration.zero,
+                  ),
+            ),
+            // State after 2nd Play event (BUG: Path becomes null here)
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after 2nd play event',
+              isA<PlaybackInfo>()
+                  .having((p) => p.activeFilePath, 'activeFilePath', tPath)
+                  .having((p) => p.isPlaying, 'isPlaying', true)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    tPlayingState2.mapOrNull(playing: (s) => s.currentPosition),
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    tPlayingState2.mapOrNull(playing: (s) => s.totalDuration),
+                  ),
+            ),
+          ],
+      verify: (_) {
+        // Verify service calls (play called twice)
+        verify(mockAudioPlaybackService.play(tPath)).called(2);
+      },
+    );
+  });
+
+  group('pauseRecording', () {
+    late StreamController<PlaybackState> playbackStateController;
+    const tPath = '/path/test.m4a';
+    final tInitialState = AudioListLoaded(
+      transcriptions: [tTranscription1],
+      playbackInfo: const PlaybackInfo(
+        activeFilePath: tPath,
+        isPlaying: true,
+        isLoading: false,
+        currentPosition: Duration(seconds: 5),
+        totalDuration: Duration(seconds: 30),
+      ),
+    );
+    final tPausedState = PlaybackState.paused(
+      currentPosition: const Duration(seconds: 5),
+      totalDuration: const Duration(seconds: 30),
+    );
+
+    setUp(() {
+      playbackStateController = StreamController<PlaybackState>.broadcast();
+      mockRepository = MockAudioRecorderRepository();
+      mockAudioPlaybackService = MockAudioPlaybackService();
+      when(
+        mockAudioPlaybackService.playbackStateStream,
+      ).thenAnswer((_) => playbackStateController.stream);
+      when(mockAudioPlaybackService.pause()).thenAnswer((_) async {});
+
+      cubit = AudioListCubit(
+        repository: mockRepository,
+        audioPlaybackService: mockAudioPlaybackService,
+      );
+    });
+
+    tearDown(() {
+      playbackStateController.close();
+      cubit.close();
+    });
+
+    // THIS TEST SHOULD FAIL IF OUR UI IS BROKEN
+    blocTest<AudioListCubit, AudioListState>(
+      'preserves activeFilePath when paused',
+      build: () => cubit,
+      seed: () => tInitialState,
+      act: (cubit) async {
+        // Set the internal _currentPlayingFilePath in the cubit
+        await cubit.playRecording(tPath);
+
+        // Pause the recording
+        await cubit.pauseRecording();
+
+        // Simulate the service emitting paused state
+        playbackStateController.add(tPausedState);
+      },
+      wait: const Duration(
+        milliseconds: 100,
+      ), // Give time for events to process
+      expect:
+          () => [
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after pause',
+              isA<PlaybackInfo>()
+                  .having(
+                    (p) => p.activeFilePath,
+                    'activeFilePath',
+                    tPath,
+                  ) // SHOULD PRESERVE THE PATH
+                  .having((p) => p.isPlaying, 'isPlaying', false)
+                  .having((p) => p.isLoading, 'isLoading', false)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    tPausedState.mapOrNull(paused: (s) => s.currentPosition),
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    tPausedState.mapOrNull(paused: (s) => s.totalDuration),
+                  ),
+            ),
+          ],
+      verify: (_) {
+        verify(mockAudioPlaybackService.pause()).called(1);
+      },
+    );
+  });
+
+  group('seekRecording', () {
+    late StreamController<PlaybackState> playbackStateController;
+    const tPath = '/path/test.m4a';
+    final tInitialState = AudioListLoaded(
+      transcriptions: [tTranscription1],
+      playbackInfo: const PlaybackInfo(
+        activeFilePath: tPath,
+        isPlaying: true,
+        isLoading: false,
+        currentPosition: Duration(seconds: 5),
+        totalDuration: Duration(seconds: 30),
+      ),
+    );
+    final tPlayingAfterSeekState = PlaybackState.playing(
+      currentPosition: const Duration(seconds: 15), // Seeked position
+      totalDuration: const Duration(seconds: 30),
+    );
+
+    setUp(() {
+      playbackStateController = StreamController<PlaybackState>.broadcast();
+      mockRepository = MockAudioRecorderRepository();
+      mockAudioPlaybackService = MockAudioPlaybackService();
+      when(
+        mockAudioPlaybackService.playbackStateStream,
+      ).thenAnswer((_) => playbackStateController.stream);
+      when(mockAudioPlaybackService.seek(any)).thenAnswer((_) async {});
+
+      cubit = AudioListCubit(
+        repository: mockRepository,
+        audioPlaybackService: mockAudioPlaybackService,
+      );
+    });
+
+    tearDown(() {
+      playbackStateController.close();
+      cubit.close();
+    });
+
+    // THIS TEST SHOULD FAIL IF OUR UI IS BROKEN
+    blocTest<AudioListCubit, AudioListState>(
+      'preserves activeFilePath when seeking',
+      build: () => cubit,
+      seed: () => tInitialState,
+      act: (cubit) async {
+        // Set the internal _currentPlayingFilePath in the cubit
+        await cubit.playRecording(tPath);
+
+        // Seek to a specific position
+        await cubit.seekRecording(const Duration(seconds: 15));
+
+        // Simulate the service emitting state after seek
+        playbackStateController.add(tPlayingAfterSeekState);
+      },
+      wait: const Duration(
+        milliseconds: 100,
+      ), // Give time for events to process
+      expect:
+          () => [
+            isA<AudioListLoaded>().having(
+              (s) => s.playbackInfo,
+              'playbackInfo after seek',
+              isA<PlaybackInfo>()
+                  .having(
+                    (p) => p.activeFilePath,
+                    'activeFilePath',
+                    tPath,
+                  ) // SHOULD PRESERVE THE PATH
+                  .having((p) => p.isPlaying, 'isPlaying', true)
+                  .having((p) => p.isLoading, 'isLoading', false)
+                  .having(
+                    (p) => p.currentPosition,
+                    'currentPosition',
+                    tPlayingAfterSeekState.mapOrNull(
+                      playing: (s) => s.currentPosition,
+                    ),
+                  )
+                  .having(
+                    (p) => p.totalDuration,
+                    'totalDuration',
+                    tPlayingAfterSeekState.mapOrNull(
+                      playing: (s) => s.totalDuration,
+                    ),
+                  ),
+            ),
+          ],
+      verify: (_) {
+        verify(
+          mockAudioPlaybackService.seek(const Duration(seconds: 15)),
+        ).called(1);
+      },
+    );
+  });
 }

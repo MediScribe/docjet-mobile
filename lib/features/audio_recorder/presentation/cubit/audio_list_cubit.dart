@@ -11,8 +11,8 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 
 part 'audio_list_state.dart';
 
-// Using centralized logger with level OFF
-final logger = Logger(level: Level.off);
+// RE-ENABLE DEBUG FOR CUBIT
+final logger = Logger(level: Level.debug);
 
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
@@ -52,11 +52,16 @@ class AudioListCubit extends Cubit<AudioListState> {
   }
 
   void _onPlaybackStateChanged(PlaybackState playbackState) {
-    logger.d('[CUBIT] Received PlaybackState update: $playbackState');
+    logger.d(
+      '[CUBIT_onPlaybackStateChanged] Received PlaybackState update: ${playbackState.runtimeType}',
+    );
     if (state is AudioListLoaded) {
       final currentState = state as AudioListLoaded;
-      logger.t(
-        '[CUBIT] Current state is AudioListLoaded, updating playbackInfo...',
+      logger.d(
+        '[CUBIT_onPlaybackStateChanged] Current state: ${currentState.playbackInfo}',
+      );
+      logger.d(
+        '[CUBIT_onPlaybackStateChanged] Internal _currentPlayingFilePath: ${_currentPlayingFilePath?.split('/').last ?? 'null'}',
       );
 
       // Map the freezed PlaybackState to PlaybackInfo properties
@@ -70,29 +75,46 @@ class AudioListCubit extends Cubit<AudioListState> {
       // Handle the different state variants from freezed
       playbackState.when(
         initial: () {
+          logger.d('[CUBIT_onPlaybackStateChanged] Handling initial state');
           // No changes needed, use defaults
         },
         loading: () {
+          logger.d('[CUBIT_onPlaybackStateChanged] Handling loading state');
           isLoading = true;
         },
         playing: (currentPosition, duration) {
+          logger.d(
+            '[CUBIT_onPlaybackStateChanged] Handling playing state: pos=${currentPosition.inMilliseconds}ms, dur=${duration.inMilliseconds}ms',
+          );
           isPlaying = true;
           position = currentPosition;
           totalDuration = duration;
         },
         paused: (currentPosition, duration) {
+          logger.d(
+            '[CUBIT_onPlaybackStateChanged] Handling paused state: pos=${currentPosition.inMilliseconds}ms, dur=${duration.inMilliseconds}ms',
+          );
+          // IMPORTANT: Keep the file path during pause
           position = currentPosition;
           totalDuration = duration;
         },
         stopped: () {
-          // No changes needed
-          _currentPlayingFilePath = null;
+          logger.d('[CUBIT_onPlaybackStateChanged] Handling stopped state');
+          // Do not clear the path here, as this might be an intermediate stop
+          // triggered by a new play command. Let playRecording manage the path.
         },
         completed: () {
-          // Mark as completed
+          logger.d('[CUBIT_onPlaybackStateChanged] Handling completed state');
+          // Completion is final, clear the path.
           _currentPlayingFilePath = null;
+          logger.d(
+            '[CUBIT_onPlaybackStateChanged] Cleared _currentPlayingFilePath on completed state',
+          );
         },
         error: (message, currentPosition, duration) {
+          logger.d(
+            '[CUBIT_onPlaybackStateChanged] Handling error state: $message',
+          );
           errorMessage = message;
           if (currentPosition != null) position = currentPosition;
           if (duration != null) totalDuration = duration;
@@ -108,19 +130,24 @@ class AudioListCubit extends Cubit<AudioListState> {
         error: errorMessage,
       );
 
-      logger.t('[CUBIT] New PlaybackInfo created: $newPlaybackInfo');
+      logger.d(
+        '[CUBIT_onPlaybackStateChanged] New PlaybackInfo: ${newPlaybackInfo.toString()}',
+      );
+      logger.d(
+        '[CUBIT_onPlaybackStateChanged] Comparison: ${currentState.playbackInfo != newPlaybackInfo}',
+      );
 
       if (currentState.playbackInfo != newPlaybackInfo) {
-        emit(currentState.copyWith(playbackInfo: newPlaybackInfo));
         logger.d(
-          '[CUBIT] Emitted updated AudioListLoaded state with new playbackInfo.',
+          '[CUBIT_onPlaybackStateChanged] Emitting state: activeFilePath=${newPlaybackInfo.activeFilePath?.split('/').last ?? 'null'}, isPlaying=${newPlaybackInfo.isPlaying}',
         );
+        emit(currentState.copyWith(playbackInfo: newPlaybackInfo));
       } else {
-        logger.t('[CUBIT] PlaybackInfo unchanged, state not emitted.');
+        logger.d('[CUBIT_onPlaybackStateChanged] No state change needed');
       }
     } else {
-      logger.t(
-        '[CUBIT] Current state is not AudioListLoaded (${state.runtimeType}), ignoring playback update.',
+      logger.d(
+        '[CUBIT_onPlaybackStateChanged] Current state is not AudioListLoaded',
       );
     }
   }
@@ -186,13 +213,20 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Plays the specified recording.
   Future<void> playRecording(String filePath) async {
-    logger.i('[CUBIT] playRecording called for: $filePath');
+    logger.i(
+      // Use INFO for high-level action start
+      '[CUBIT_playRecording] START - Req Path: ${filePath.split('/').last}',
+    );
     _currentPlayingFilePath = filePath;
+    logger.d(
+      '  -> _currentPlayingFilePath SET to: ${_currentPlayingFilePath?.split('/').last}',
+    ); // DEBUG detail
     try {
+      logger.d('  -> Calling service.play()'); // DEBUG detail
       await _audioPlaybackService.play(filePath);
-      logger.d('[CUBIT] Called _audioPlaybackService.play() for $filePath');
+      logger.d('  -> Service call complete.'); // DEBUG detail
     } catch (e) {
-      logger.e('[CUBIT] Error calling play on service: $e');
+      logger.e('[CUBIT_playRecording] Error calling play on service: $e');
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -211,12 +245,13 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Pauses the current playback.
   Future<void> pauseRecording() async {
-    logger.i('[CUBIT] pauseRecording called.');
+    logger.i('[CUBIT_pauseRecording] START'); // Use INFO for action start
     try {
+      logger.d('  -> Calling service.pause()'); // DEBUG detail
       await _audioPlaybackService.pause();
-      logger.d('[CUBIT] Called _audioPlaybackService.pause()');
+      logger.d('  -> Service call complete.'); // DEBUG detail
     } catch (e) {
-      logger.e('[CUBIT] Error calling pause on service: $e');
+      logger.e('[CUBIT_pauseRecording] Error calling pause on service: $e');
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -253,17 +288,21 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Stops the current playback completely.
   Future<void> stopRecording() async {
-    logger.i('[CUBIT] stopRecording called.');
-    final previousFilePath = _currentPlayingFilePath;
-    _currentPlayingFilePath = null; // Clear path immediately
+    logger.i('[CUBIT_stopRecording] START'); // Use INFO for action start
+    // final previousFilePath = _currentPlayingFilePath; // Keep commented out if not needed
+    _currentPlayingFilePath = null;
+    logger.d('  -> _currentPlayingFilePath CLEARED'); // DEBUG detail
     try {
+      logger.d('  -> Calling service.stop()'); // DEBUG detail
       await _audioPlaybackService.stop();
-      logger.d('[CUBIT] Called _audioPlaybackService.stop()');
+      logger.d('  -> Service call complete.'); // DEBUG detail
 
       // Emit state update ONLY if something was actually playing
       if (state is AudioListLoaded &&
           (state as AudioListLoaded).playbackInfo.activeFilePath != null) {
-        logger.d('[CUBIT] Emitting state update after explicit stop.');
+        logger.d(
+          '  -> Emitting state update after explicit stop.',
+        ); // DEBUG detail
         emit(
           (state as AudioListLoaded).copyWith(
             playbackInfo: const PlaybackInfo.initial(),

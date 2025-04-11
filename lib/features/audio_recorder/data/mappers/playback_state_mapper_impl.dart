@@ -8,8 +8,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_st
 import 'package:flutter/foundation.dart'; // For @visibleForTesting
 import 'package:rxdart/rxdart.dart';
 
-// Using centralized logger with level OFF
-final logger = Logger(level: Level.off);
+// RE-ENABLE DEBUG LOGGING FOR MAPPER
+final logger = Logger(level: Level.debug);
 
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
@@ -44,53 +44,60 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   }
 
   Stream<PlaybackState> _createCombinedStream() {
+    logger.d('MAPPER: _createCombinedStream called');
     return Rx.merge([
-      positionController.stream.map((pos) {
-        _currentPosition = pos;
-        // Clear error only if not in a terminal state
-        if (_currentPlayerState != DomainPlayerState.stopped && // Changed type
-            _currentPlayerState != DomainPlayerState.completed) {
-          // Changed type
-          _maybeClearError();
-        }
-        return _constructState();
-      }),
-      durationController.stream.map((dur) {
-        _currentDuration = dur;
-        _maybeClearError();
-        return _constructState();
-      }),
-      completeController.stream.map((_) {
-        _currentPlayerState = DomainPlayerState.completed; // Changed value
-        _currentPosition = _currentDuration;
-        _maybeClearError();
-        return _constructState();
-      }),
-      playerStateController.stream.map((state) {
-        // state is now DomainPlayerState
-        final previousState = _currentPlayerState;
-        _currentPlayerState = state;
+          positionController.stream.map((pos) {
+            // logger.d('MAPPER_INPUT: Position Update: ${pos.inMilliseconds}ms'); // <<< KEEP COMMENTED
+            _currentPosition = pos;
+            // Clear error only if not in a terminal state
+            if (_currentPlayerState !=
+                    DomainPlayerState.stopped && // Changed type
+                _currentPlayerState != DomainPlayerState.completed) {
+              // Changed type
+              _maybeClearError();
+            }
+            return _constructState();
+          }),
+          durationController.stream.map((dur) {
+            _currentDuration = dur;
+            _maybeClearError();
+            return _constructState();
+          }),
+          completeController.stream.map((_) {
+            _currentPlayerState = DomainPlayerState.completed; // Changed value
+            _currentPosition = _currentDuration;
+            _maybeClearError();
+            return _constructState();
+          }),
+          playerStateController.stream.map((state) {
+            logger.d('MAPPER_INPUT: PlayerState Update: $state');
+            // state is now DomainPlayerState
+            final previousState = _currentPlayerState;
+            _currentPlayerState = state;
 
-        // Reset position if stopped/completed
-        if ((state == DomainPlayerState.stopped || // Changed type
-                state == DomainPlayerState.completed) && // Changed type
-            previousState != DomainPlayerState.completed) {
-          // Changed type
-          _currentPosition = Duration.zero;
-        }
+            // Reset position if stopped/completed
+            if ((state == DomainPlayerState.stopped || // Changed type
+                    state == DomainPlayerState.completed) && // Changed type
+                previousState != DomainPlayerState.completed) {
+              // Changed type
+              _currentPosition = Duration.zero;
+            }
 
-        // Clear error when entering a non-error state
-        if (state != DomainPlayerState.error) {
-          // Changed condition
-          _maybeClearError();
-        }
-        return _constructState();
-      }),
-      errorController.stream.map((errorMsg) {
-        _currentError = errorMsg;
-        return _constructState();
-      }),
-    ]).startWith(const PlaybackState.initial()).distinct();
+            // Clear error when entering a non-error state
+            if (state != DomainPlayerState.error) {
+              // Changed condition
+              _maybeClearError();
+            }
+            return _constructState();
+          }),
+          errorController.stream.map((errorMsg) {
+            _currentError = errorMsg;
+            return _constructState();
+          }),
+        ])
+        // Keep commented: .map((state) { logger.d('MAPPER_OUTPUT (pre-distinct): ${state.toString()}'); return state; })
+        .startWith(const PlaybackState.initial())
+        .distinct();
   }
 
   void _maybeClearError() {
@@ -163,12 +170,12 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
       completeStream.listen(completeController.add, onError: _handleError),
     );
     _subscriptions.add(
-      playerStateStream.listen(
-        // Listens to Stream<DomainPlayerState>
-        playerStateController.add, // Adds DomainPlayerState to controller
-        onError: _handleError,
-      ),
+      playerStateStream.listen((domainState) {
+        logger.d('MAPPER: Received DomainPlayerState: $domainState');
+        playerStateController.add(domainState);
+      }, onError: _handleError),
     );
+    logger.d('MAPPER: initialize() complete, streams subscribed.');
   }
 
   void _handleError(Object error, StackTrace stackTrace) {

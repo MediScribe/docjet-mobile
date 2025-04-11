@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';
 
-// Using centralized logger with level OFF
-final logger = Logger(level: Level.off);
+// Temporarily show debug logs
+final logger = Logger(level: Level.debug);
 
 class AudioPlayerWidget extends StatelessWidget {
   final String filePath;
@@ -35,6 +35,31 @@ class AudioPlayerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool canPlayPause = !isLoading && error == null;
+    final bool canSeek =
+        !isLoading && error == null && totalDuration > Duration.zero;
+
+    final double sliderMax =
+        (totalDuration.inSeconds > 0
+            ? totalDuration.inSeconds.toDouble()
+            : 1.0);
+    final double sliderValue = currentPosition.inSeconds.toDouble().clamp(
+      0.0,
+      sliderMax,
+    );
+
+    final String positionText = _formatDuration(currentPosition);
+    final String durationText = _formatDuration(totalDuration);
+
+    logger.d(
+      "AudioPlayerWidget: isPlaying=$isPlaying, path=${filePath.split('/').last}",
+    );
+    logger.d("AudioPlayerWidget: canPlayPause=$canPlayPause");
+    logger.d(
+      "AudioPlayerWidget: canSeek=$canSeek, totalDuration=$totalDuration",
+    );
+    logger.d("AudioPlayerWidget: sliderValue=$sliderValue / $sliderMax");
+
     if (isLoading) {
       return _buildLoadingIndicator();
     }

@@ -8,8 +8,8 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 // Import for Platform check if needed later, or Uri directly
 
-// Using centralized logger with level OFF
-final logger = Logger(level: Level.off);
+// RE-ENABLE DEBUG LOGGING FOR ADAPTER
+final logger = Logger(level: Level.debug);
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
@@ -25,9 +25,18 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   AudioPlayerAdapterImpl(this._audioPlayer);
 
   @override
-  Future<void> pause() {
+  Future<void> pause() async {
     logger.d('Adapter: pause() called');
-    return _audioPlayer.pause();
+    logger.d('Adapter pause() called by:\n${StackTrace.current}');
+    await _audioPlayer.pause();
+    // Add logging right after pause is called
+    logger.d(
+      'Adapter: pause operation completed. Current player state: ${_audioPlayer.playerState}',
+    );
+    logger.d(
+      'Adapter: is playing: ${_audioPlayer.playing}, processingState: ${_audioPlayer.processingState}',
+    );
+    return;
   }
 
   @override
@@ -63,8 +72,8 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     // Map just_audio's PlayerState (ProcessingState + playing bool) to DomainPlayerState
     return _audioPlayer.playerStateStream
         .map((state) {
-          logger.t(
-            'Adapter: Mapping PlayerState: ${state.processingState}, playing: ${state.playing}',
+          logger.d(
+            'ADAPTER_INPUT: just_audio PlayerState: ${state.processingState}, playing: ${state.playing}',
           );
           switch (state.processingState) {
             case ProcessingState.idle: // REMOVED ALIAS
@@ -95,17 +104,23 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   @override
   Stream<Duration> get onDurationChanged {
     logger.d('Adapter: onDurationChanged stream requested');
-    // just_audio's durationStream emits nullable Durations.
-    // We need to filter out nulls or provide a default, assuming domain expects non-null.
-    // Let's filter out nulls for now.
-    return _audioPlayer.durationStream.where((d) => d != null).cast<Duration>();
+    return _audioPlayer.durationStream
+        .map((d) {
+          // logger.d('ADAPTER_INPUT: just_audio Duration: ${d?.inMilliseconds}ms'); // <<< COMMENT OUT
+          return d;
+        })
+        .where((d) => d != null)
+        .cast<Duration>();
   }
 
   @override
   Stream<Duration> get onPositionChanged {
     logger.d('Adapter: onPositionChanged stream requested');
     // Expose the player's stream directly
-    return _audioPlayer.positionStream;
+    return _audioPlayer.positionStream.map((pos) {
+      // logger.d('ADAPTER_INPUT: just_audio Position: ${pos.inMilliseconds}ms'); // <<< COMMENT OUT
+      return pos;
+    });
   }
 
   @override
@@ -113,7 +128,13 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     logger.d('Adapter: onPlayerComplete stream requested');
     // Filter the playerStateStream for the completed state and map to void.
     return _audioPlayer.playerStateStream
-        .where((state) => state.processingState == ProcessingState.completed)
+        .where((state) {
+          final completed = state.processingState == ProcessingState.completed;
+          if (completed) {
+            logger.d('ADAPTER_INPUT: just_audio PlayerState completed');
+          }
+          return completed;
+        })
         .map((_) {}); // Map to an empty expression block for void
   }
 

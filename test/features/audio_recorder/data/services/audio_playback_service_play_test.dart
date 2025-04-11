@@ -11,7 +11,7 @@ import 'package:mockito/mockito.dart';
 // Use fake_async for better time control in plain tests
 import 'package:fake_async/fake_async.dart';
 // Import logger
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/logger.dart'; // Import logger explicitly
 
 // Import the generated mocks
 import 'audio_playback_service_play_test.mocks.dart';
@@ -452,9 +452,9 @@ void main() {
         verify(
           mockAudioPlayerAdapter.resume(),
         ).called(1); // Resume called for second play
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1); // Set Path called for second play
+
+        // With new implementation we do NOT call setCurrentFilePath for same file
+        verifyNever(mockPlaybackStateMapper.setCurrentFilePath(any));
 
         // Simulate restart loading/playing states
         mockPlaybackStateController.add(loadingState2);
@@ -464,6 +464,60 @@ void main() {
 
         // Await the expectLater future
         await stateExpectation;
+      },
+    );
+
+    test(
+      'play called on the same file while paused should properly restart playback from beginning',
+      () async {
+        // Arrange
+        const tFilePath = 'test/path.mp3';
+        const initialDuration = Duration(seconds: 30);
+        const pausedPosition = Duration(seconds: 10);
+
+        final initialPlayingState = entity.PlaybackState.playing(
+          currentPosition: Duration.zero,
+          totalDuration: initialDuration,
+        );
+        final pausedState = entity.PlaybackState.paused(
+          currentPosition: pausedPosition,
+          totalDuration: initialDuration,
+        );
+
+        // 1. Initial Play
+        await service.play(tFilePath);
+        mockPlaybackStateController.add(initialPlayingState);
+        await Future.delayed(Duration.zero); // Ensure state is processed
+
+        // Verify initial play interactions happened once
+        verify(mockAudioPlayerAdapter.stop()).called(1);
+        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePath)).called(1);
+        verify(mockPlaybackStateMapper.setCurrentFilePath(tFilePath)).called(1);
+        verify(mockAudioPlayerAdapter.resume()).called(1); // First resume call
+
+        // 2. Pause
+        await service.pause();
+        verify(mockAudioPlayerAdapter.pause()).called(1);
+        mockPlaybackStateController.add(pausedState);
+        await Future.delayed(
+          Duration.zero,
+        ); // Ensure service._lastKnownState is updated
+
+        // Clear interactions to verify just the second play call
+        clearInteractions(mockAudioPlayerAdapter);
+        clearInteractions(mockPlaybackStateMapper);
+
+        // 3. Act: Play the same file again while paused
+        await service.play(tFilePath);
+
+        // Assert: With the new implementation, we DO expect these methods to be called
+        // for restarting playback, even on the same file
+        verify(mockAudioPlayerAdapter.stop()).called(1);
+        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePath)).called(1);
+        verify(mockAudioPlayerAdapter.resume()).called(1);
+
+        // We should NOT call setCurrentFilePath again for the same file
+        verifyNever(mockPlaybackStateMapper.setCurrentFilePath(any));
       },
     );
 
