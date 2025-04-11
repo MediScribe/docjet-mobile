@@ -237,10 +237,14 @@ void main() {
   testWidgets(
     'AudioPlayerWidget receives updated position when only PlaybackInfo changes',
     (WidgetTester tester) async {
+      // Arrange: Stream controller for manual state emission
+      final controller = StreamController<AudioListState>.broadcast();
+
       // Arrange: Define state sequence
       final initialLoadedState = AudioListLoaded(
         transcriptions: tTranscriptionList,
-        playbackInfo: const PlaybackInfo.initial(),
+        playbackInfo:
+            const PlaybackInfo.initial(), // Start with initial playback info
       );
       final playingState1 = AudioListLoaded(
         transcriptions: tTranscriptionList,
@@ -259,63 +263,92 @@ void main() {
           activeFilePath: tTranscription1.localFilePath,
           isPlaying: true,
           isLoading: false,
-          currentPosition: const Duration(seconds: 10),
+          currentPosition: const Duration(seconds: 10), // Updated position
           totalDuration: const Duration(milliseconds: 30000),
           error: null,
         ),
       );
 
-      // Arrange: Stub the cubit stream sequence
-      whenListen(
-        mockAudioListCubit,
-        Stream.fromIterable([initialLoadedState, playingState1, playingState2]),
-      );
+      // Arrange: Stub the cubit stream to use the controller
+      // Provide the INITIAL state the cubit should have when the widget builds
+      when(() => mockAudioListCubit.state).thenReturn(initialLoadedState);
+      when(
+        () => mockAudioListCubit.stream,
+      ).thenAnswer((_) => controller.stream);
 
-      // Act: Pump the widget with the initial state already set
+      // Act: Pump initial widget
       await tester.pumpWidget(createWidgetUnderTest());
-      // Maybe a slight pump is needed to ensure initial state renders?
-      // await tester.pump(); // Let's try without first.
+      // pumpAndSettle ensures initial state is fully rendered
+      await tester.pumpAndSettle();
 
-      // Assert: Find the widget for the first item
+      // --- Assert Initial State (before any emissions) ---
       final playerWidgetFinder = find.byKey(
         ValueKey(tTranscription1.localFilePath),
       );
       expect(
         playerWidgetFinder,
         findsOneWidget,
-        reason: "Should find player widget for item 1 initially",
+        reason: "Should find player widget initially",
+      );
+      AudioPlayerWidget playerWidgetInitial = tester.widget(playerWidgetFinder);
+      expect(
+        playerWidgetInitial.isPlaying,
+        isFalse, // Based on initialLoadedState
+        reason: "Should not be playing initially",
+      );
+      expect(
+        playerWidgetInitial.currentPosition,
+        Duration.zero, // Based on initialLoadedState
+        reason: "Position should be zero initially",
       );
 
-      // Assert: Check initial playing state (from initialState)
+      // --- Act & Assert for playingState1 ---
+      controller.add(playingState1);
+      await tester.pump(); // Process the single frame
+      await tester.pump(); // ADDED: Extra pump to ensure state propagation?
+
       AudioPlayerWidget playerWidget1 = tester.widget(playerWidgetFinder);
       expect(
         playerWidget1.isPlaying,
         isTrue,
-        reason: "Widget should be playing in state 1",
+        reason: "Widget should be playing after state 1 emission",
       );
       expect(
         playerWidget1.currentPosition,
         const Duration(seconds: 5),
-        reason: "Position should be 5s in state 1",
+        reason: "Position should be 5s after state 1 emission",
       );
-      expect(playerWidget1.totalDuration, const Duration(milliseconds: 30000));
+      expect(
+        playerWidget1.totalDuration,
+        const Duration(milliseconds: 30000),
+        reason: "Total duration should match state 1",
+      );
 
-      // Act: Pump ONCE to process the single emitted state (playingState2)
-      await tester.pump();
+      // --- Act & Assert for playingState2 ---
+      controller.add(playingState2);
+      await tester.pump(); // Process the single frame
+      await tester.pump(); // ADDED: Extra pump here too for consistency
 
       // Assert: Find the SAME widget instance and check updated position
       AudioPlayerWidget playerWidget2 = tester.widget(playerWidgetFinder);
       expect(
         playerWidget2.isPlaying,
         isTrue,
-        reason: "Widget should still be playing in state 2",
+        reason: "Widget should still be playing after state 2 emission",
       );
       expect(
         playerWidget2.currentPosition,
         const Duration(seconds: 10),
-        reason: "Position should update to 10s in state 2",
+        reason: "Position should update to 10s after state 2 emission",
       );
-      expect(playerWidget2.totalDuration, const Duration(milliseconds: 30000));
+      expect(
+        playerWidget2.totalDuration,
+        const Duration(milliseconds: 30000),
+        reason: "Total duration should remain the same",
+      );
+
+      // Clean up controller
+      await controller.close();
     },
   );
 

@@ -158,46 +158,24 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     required Stream<DomainPlayerState>
     playerStateStream, // Changed parameter type
   }) {
-    logger.d('MAPPER: initialize() called with streams:');
-    logger.d('MAPPER:  - positionStream: $positionStream');
-    logger.d('MAPPER:  - durationStream: $durationStream');
-    logger.d('MAPPER:  - completeStream: $completeStream');
-    logger.d('MAPPER:  - playerStateStream: $playerStateStream');
-
     dispose();
 
-    logger.d('MAPPER: Subscribing to positionStream');
     _subscriptions.add(
-      positionStream.listen((position) {
-        logger.d('MAPPER: Received position: ${position.inMilliseconds}ms');
-        positionController.add(position);
-      }, onError: _handleError),
+      positionStream.listen(positionController.add, onError: _handleError),
     );
-
-    logger.d('MAPPER: Subscribing to durationStream');
     _subscriptions.add(
-      durationStream.listen((duration) {
-        logger.d('MAPPER: Received duration: ${duration.inMilliseconds}ms');
-        durationController.add(duration);
-      }, onError: _handleError),
+      durationStream.listen(durationController.add, onError: _handleError),
     );
-
-    logger.d('MAPPER: Subscribing to completeStream');
     _subscriptions.add(
-      completeStream.listen((event) {
-        logger.d('MAPPER: Received complete event');
-        completeController.add(event);
-      }, onError: _handleError),
+      completeStream.listen(completeController.add, onError: _handleError),
     );
-
-    logger.d('MAPPER: Subscribing to playerStateStream');
     _subscriptions.add(
       playerStateStream.listen((domainState) {
         logger.d('MAPPER: Received DomainPlayerState: $domainState');
         playerStateController.add(domainState);
       }, onError: _handleError),
     );
-    logger.d('MAPPER: initialize() complete, all streams subscribed.');
+    logger.d('MAPPER: initialize() complete, streams subscribed.');
   }
 
   void _handleError(Object error, StackTrace stackTrace) {

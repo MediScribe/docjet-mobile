@@ -57,6 +57,17 @@ void main() {
     ).thenAnswer((_) async => Duration.zero);
     when(mockAudioPlayer.dispose()).thenAnswer((_) async {});
 
+    // ADDED: Stub playerState getter with a default value
+    when(mockAudioPlayer.playerState).thenReturn(
+      PlayerState(false, ProcessingState.ready), // Default: paused/ready
+    );
+
+    // ADDED: Stub playing getter with a default value consistent with playerState
+    when(mockAudioPlayer.playing).thenReturn(false);
+
+    // ADDED: Stub processingState getter with a default value consistent with playerState
+    when(mockAudioPlayer.processingState).thenReturn(ProcessingState.ready);
+
     // 5. NOW instantiate the adapter implementation with the fully stubbed mock
     audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);
   });
