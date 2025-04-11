@@ -11,8 +11,8 @@ The project utilizes a feature-sliced approach combined with Clean Architecture 
 *   **`lib/core/`**: Contains application-wide, reusable components, abstractions, and utilities (DI, error handling, platform interfaces, base use cases, logging).
 *   **`lib/features/`**: Houses individual, self-contained feature modules. Currently, only `audio_recorder` exists.
 *   **`lib/features/<feature_name>/`**: Each feature internally follows Clean Architecture layers:
-    *   **`domain/`**: Contains business logic, entities, repository interfaces, domain service interfaces, and feature-specific use cases. It has no dependencies on other layers.
-    *   **`data/`**: Implements repository interfaces, defines data sources (local, remote), manages data models/DTOs, and data-specific exceptions/services. Depends only on `domain`.
+    *   **`domain/`**: Contains business logic, entities, models, repository interfaces, domain service interfaces, adapters, mappers, and feature-specific use cases. It has no dependencies on other layers.
+    *   **`data/`**: Implements repository interfaces, defines data sources (local, remote), manages data models/DTOs, data-specific exceptions, factories, services, adapters, and mappers. Depends only on `domain`.
     *   **`presentation/`**: Contains UI elements (pages, widgets) and state management (Cubits/Blocs). Depends only on `domain`.
 
 ```mermaid
@@ -227,14 +227,21 @@ lib/features/audio_recorder/
 │   │   ├── domain_player_state.dart     # Entity (enum): Library-agnostic player states.
 │   │   └── playback_state.dart          # Entity (Freezed): UI-facing playback states.
 │   ├── mappers/
-│   │   └── playback_state_mapper.dart   # Interface: Abstracts raw event -> PlaybackState. Consumes DomainPlayerState.
-│   └── services/
-│       └── audio_playback_service.dart  # Interface: High-level playback API.
+│   │   └── playback_state_mapper.dart   # Interface: Abstracts raw event -> PlaybackState.
+│   ├── models/                          # Domain specific models (if any, separate from entities)
+│   ├── repositories/                    # Repository Interfaces (e.g., LocalJobStore)
+│   ├── services/
+│   │   └── audio_playback_service.dart  # Interface: High-level playback API.
+│   └── usecases/                        # Feature specific business logic units
 ├── data/
 │   ├── adapters/
 │   │   └── audio_player_adapter_impl.dart # Implementation: Wraps 'audioplayers'. Maps to DomainPlayerState.
+│   ├── datasources/                     # Data source implementations (e.g., HiveLocalJobStoreImpl)
+│   ├── exceptions/                      # Data layer specific exceptions
+│   ├── factories/                       # Factories for creating data layer objects
 │   ├── mappers/
 │   │   └── playback_state_mapper_impl.dart# Implementation: Maps DomainPlayerState -> PlaybackState.
+│   ├── repositories/                    # Repository Implementations
 │   └── services/
 │       ├── audio_duration_retriever_impl.dart # IMPL: Uses 'just_audio' for duration.
 │       └── audio_playback_service_impl.dart # Implementation: Orchestrates Adapter & Mapper.
@@ -242,6 +249,7 @@ lib/features/audio_recorder/
     ├── cubit/
     │   ├── audio_list_cubit.dart        # State Management: Uses AudioPlaybackService.
     │   └── audio_list_state.dart        # State Definition: Includes PlaybackInfo.
+    ├── pages/                           # Feature screens/pages
     └── widgets/
         └── audio_player_widget.dart     # UI Component: Displays controls & info.
 ```
