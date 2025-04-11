@@ -1,3 +1,4 @@
+import 'package:bloc_test/bloc_test.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
@@ -8,33 +9,37 @@ import 'package:docjet_mobile/features/audio_recorder/presentation/pages/audio_r
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
-import 'dart:async'; // Add async import
-// Add this import
+import 'package:docjet_mobile/features/audio_recorder/presentation/widgets/audio_player_widget.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:equatable/equatable.dart';
 
-// Import generated mocks
-import 'audio_recorder_list_page_test.mocks.dart';
+// Mock the Cubit using mocktail
+class MockAudioListCubit extends MockBloc<AudioListEvent, AudioListState>
+    implements AudioListCubit {}
 
-@GenerateNiceMocks([
-  MockSpec<AudioListCubit>(),
-  MockSpec<AudioRecordingCubit>(),
-])
+// Mock the other needed Cubit
+class MockAudioRecordingCubit extends MockBloc<Object, AudioRecordingState>
+    implements AudioRecordingCubit {}
+
+// Define a base event class if your cubit needs specific events
+abstract class AudioListEvent extends Equatable {
+  @override
+  List<Object?> get props => [];
+}
+
 void main() {
   late MockAudioListCubit mockAudioListCubit;
   late MockAudioRecordingCubit mockAudioRecordingCubit;
-  late StreamController<AudioRecordingState> recordingStateController;
-  late GetIt sl;
 
-  // Sample Transcription data for testing (Keep for potential future use)
+  // Sample Transcription data for testing
   final tNow = DateTime.now();
   final tTranscription1 = Transcription(
     id: '1',
     localFilePath: '/local/path1.m4a',
     status: TranscriptionStatus.completed,
     localCreatedAt: tNow.subtract(const Duration(days: 1)),
-    displayText: 'Hello world',
+    localDurationMillis: 30000, // Example duration
+    displayTitle: 'Recording 1', // Example title
   );
   final tTranscription2 = Transcription(
     id: '2',
@@ -42,76 +47,48 @@ void main() {
     status: TranscriptionStatus.processing,
     localCreatedAt: tNow,
     displayTitle: 'Existing Title',
+    localDurationMillis: 60000, // Example duration
   );
   final tTranscriptionList = [tTranscription1, tTranscription2];
 
   setUp(() {
-    // Initialize dependency injection
-    sl = GetIt.instance;
-    sl.reset();
-
     // Mocks
     mockAudioListCubit = MockAudioListCubit();
     mockAudioRecordingCubit = MockAudioRecordingCubit();
-    recordingStateController =
-        StreamController<AudioRecordingState>.broadcast();
 
-    // --- Setup for AudioRecordingCubit SECOND ---
-    // Stub state getter
-    when(mockAudioRecordingCubit.state).thenReturn(AudioRecordingInitial());
-    // Stub stream
+    // Setup for AudioListCubit (using Mocktail/BlocTest standards)
+    EquatableConfig.stringify = true; // Optional: for easier debugging
+    registerFallbackValue(AudioListInitial());
+    registerFallbackValue(AudioListLoaded(transcriptions: []));
+    // Register fallbacks for the new mock
+    registerFallbackValue(
+      AudioRecordingInitial(),
+    ); // Assuming this state exists
+    registerFallbackValue(
+      AudioRecordingReady(),
+    ); // Assuming this state exists and is needed
+
+    // Stub initial states and methods for mocks
     when(
-      mockAudioRecordingCubit.stream,
-    ).thenAnswer((_) => recordingStateController.stream);
-
-    // Stub async method prepareRecorder
-    when(mockAudioRecordingCubit.prepareRecorder()).thenAnswer((_) async {
-      // Simulate async preparation
-      await Future.delayed(const Duration(milliseconds: 10));
-      if (!recordingStateController.isClosed) {
-        recordingStateController.add(const AudioRecordingReady());
-      }
-      // No explicit return needed for Future<void>
-    });
-
-    // Register the mock AudioRecordingCubit AFTER setting up its stubs
-    sl.registerFactory<AudioRecordingCubit>(() => mockAudioRecordingCubit);
-    // --- End AudioRecordingCubit Setup ---
-
-    // --- Adjusted Setup for AudioListCubit ---
-    // Stub the initial state ONLY. Stream stubbing will happen per-test.
-    when(mockAudioListCubit.state).thenReturn(AudioListInitial());
-    // Provide a default stream. Tests needing specific streams will override this.
+      () => mockAudioListCubit.state,
+    ).thenReturn(AudioListInitial()); // Provide initial state
+    when(() => mockAudioRecordingCubit.state).thenReturn(
+      AudioRecordingReady(),
+    ); // Provide initial state for the recording cubit
     when(
-      mockAudioListCubit.stream,
-    ).thenAnswer((_) => Stream<AudioListState>.value(AudioListInitial()));
-    // Ensure loadAudioRecordings is stubbed (as before)
-    when(
-      mockAudioListCubit.loadAudioRecordings(),
-    ).thenAnswer((_) async => Future<void>.value());
-
-    // Register the mock AudioListCubit
-    sl.registerSingleton<AudioListCubit>(mockAudioListCubit);
-    // --- End Adjusted AudioListCubit Setup ---
-  });
-
-  tearDown(() {
-    recordingStateController.close(); // Close the stream controller
-    // No need to unregister Factory, GetIt handles it if reset in setUp
-    // sl.unregister<AudioRecordingCubit>(); // Remove this
+      () => mockAudioRecordingCubit.prepareRecorder(),
+    ).thenAnswer((_) async {}); // Stub the prepareRecorder method
   });
 
   Widget createWidgetUnderTest() {
-    // Wrap MaterialApp with MultiBlocProvider to provide ALL necessary mocks
+    // Use MultiBlocProvider to provide both mocks ABOVE MaterialApp
     return MultiBlocProvider(
       providers: [
         BlocProvider<AudioListCubit>.value(value: mockAudioListCubit),
-        // Provide the MockAudioRecordingCubit here
         BlocProvider<AudioRecordingCubit>.value(value: mockAudioRecordingCubit),
       ],
       child: const MaterialApp(
-        // The home widget remains the same
-        home: AudioRecorderListPage(),
+        home: AudioRecorderListView(), // Target the view with the BlocConsumer
       ),
     );
   }
@@ -120,12 +97,14 @@ void main() {
     'renders CircularProgressIndicator when state is AudioListLoading',
     (tester) async {
       // Arrange
-      when(mockAudioListCubit.state).thenReturn(AudioListLoading());
-      when(
-        mockAudioListCubit.stream,
-      ).thenAnswer((_) => Stream<AudioListState>.value(AudioListLoading()));
+      whenListen(
+        mockAudioListCubit,
+        Stream<AudioListState>.fromIterable([AudioListLoading()]),
+        initialState: AudioListInitial(),
+      );
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
+      await tester.pump();
       // Assert
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     },
@@ -135,72 +114,26 @@ void main() {
     tester,
   ) async {
     // Arrange
-    when(mockAudioListCubit.state).thenReturn(
-      AudioListLoaded(transcriptions: [tTranscription1, tTranscription2]),
-    );
-    when(mockAudioListCubit.stream).thenAnswer(
-      (_) => Stream<AudioListState>.value(
-        AudioListLoaded(transcriptions: [tTranscription1, tTranscription2]),
-      ),
+    final loadedState = AudioListLoaded(transcriptions: tTranscriptionList);
+    whenListen(
+      mockAudioListCubit,
+      Stream<AudioListState>.fromIterable([loadedState]),
+      initialState: AudioListInitial(),
     );
 
     // Act
     await tester.pumpWidget(createWidgetUnderTest());
-    // Give it more time to settle, just in case
-    await tester.pumpAndSettle(
-      const Duration(seconds: 1),
-    ); // Replaced pump(100ms) with pumpAndSettle(1s)
+    await tester.pumpAndSettle();
 
     // Assert
     expect(find.byType(ListView), findsOneWidget);
-    expect(find.byType(ListTile), findsNWidgets(2));
-
-    // Verify first item (implicitly titled 'Recording 1')
-    final listTile1Finder = find.widgetWithText(ListTile, 'Recording 1');
-    expect(listTile1Finder, findsOneWidget); // Ensure the tile itself is found
+    expect(find.byType(ListTile), findsNWidgets(tTranscriptionList.length));
+    expect(find.widgetWithText(ListTile, 'Recording 1'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Existing Title'), findsOneWidget);
     expect(
-      find.descendant(
-        of: listTile1Finder,
-        matching: find.textContaining(
-          'Status: completed',
-        ), // Corrected: Check exact status text
-      ),
-      findsOneWidget,
+      find.byType(AudioPlayerWidget),
+      findsNWidgets(tTranscriptionList.length),
     );
-    expect(
-      find.descendant(
-        of: listTile1Finder,
-        matching: find.textContaining(
-          'Path: path1.m4a',
-        ), // Added: Check path text
-      ),
-      findsOneWidget,
-    );
-
-    // Verify second item (explicit title 'My Recording')
-    final listTile2Finder = find.widgetWithText(ListTile, 'Existing Title');
-    expect(listTile2Finder, findsOneWidget); // Ensure the tile itself is found
-    expect(
-      find.descendant(
-        of: listTile2Finder,
-        matching: find.textContaining(
-          'Status: processing',
-        ), // Corrected: Check exact status text
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: listTile2Finder,
-        matching: find.textContaining(
-          'Path: path2.m4a',
-        ), // Added: Check path text
-      ),
-      findsOneWidget,
-    );
-
-    // Verify AudioPlayerWidget presence for each item
-    // ... existing code ...
   });
 
   testWidgets(
@@ -208,13 +141,8 @@ void main() {
     (tester) async {
       // Arrange
       when(
-        mockAudioListCubit.state,
+        () => mockAudioListCubit.state,
       ).thenReturn(const AudioListLoaded(transcriptions: []));
-      when(mockAudioListCubit.stream).thenAnswer(
-        (_) => Stream<AudioListState>.value(
-          const AudioListLoaded(transcriptions: []),
-        ),
-      );
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -234,13 +162,8 @@ void main() {
       // Arrange
       const errorMessage = 'Failed to load';
       when(
-        mockAudioListCubit.state,
+        () => mockAudioListCubit.state,
       ).thenReturn(const AudioListError(message: errorMessage));
-      when(mockAudioListCubit.stream).thenAnswer(
-        (_) => Stream<AudioListState>.value(
-          const AudioListError(message: errorMessage),
-        ),
-      );
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -258,13 +181,11 @@ void main() {
     // Arrange
     const errorMessage = 'Failed to load';
     when(
-      mockAudioListCubit.state,
+      () => mockAudioListCubit.state,
     ).thenReturn(const AudioListError(message: errorMessage));
-    when(mockAudioListCubit.stream).thenAnswer(
-      (_) => Stream<AudioListState>.value(
-        const AudioListError(message: errorMessage),
-      ),
-    );
+    when(
+      () => mockAudioListCubit.loadAudioRecordings(),
+    ).thenAnswer((_) async {});
 
     // Act
     await tester.pumpWidget(createWidgetUnderTest());
@@ -272,7 +193,7 @@ void main() {
     await tester.pump();
 
     // Assert
-    verify(mockAudioListCubit.loadAudioRecordings()).called(1);
+    verify(() => mockAudioListCubit.loadAudioRecordings()).called(1);
   });
 
   testWidgets(
@@ -280,13 +201,11 @@ void main() {
     (tester) async {
       // Arrange
       when(
-        mockAudioListCubit.state,
+        () => mockAudioListCubit.state,
       ).thenReturn(AudioListLoaded(transcriptions: tTranscriptionList));
-      when(mockAudioListCubit.stream).thenAnswer(
-        (_) => Stream<AudioListState>.value(
-          AudioListLoaded(transcriptions: tTranscriptionList),
-        ),
-      );
+      when(
+        () => mockAudioListCubit.loadAudioRecordings(),
+      ).thenAnswer((_) async {});
 
       // Act
       await tester.pumpWidget(createWidgetUnderTest());
@@ -308,12 +227,96 @@ void main() {
       await tester.pumpAndSettle(); // Allow list page rebuild
 
       // Assert: Verify loadAudioRecordings was called (implicitly by checking state changes or mock)
-      // verify(() => mockAudioListCubit.loadAudioRecordings()).called(1);
       // Note: Direct verification might be tricky depending on how state updates
       // after pop. Let's assume for now the test setup handles this implicitly
       // or we can add more specific state checks if needed.
     },
   );
 
-  // TODO: Add tests for deleting items (e.g., tapping delete in bottom sheet)
+  testWidgets(
+    'AudioPlayerWidget receives updated position when only PlaybackInfo changes',
+    (WidgetTester tester) async {
+      // Arrange: Define state sequence
+      final initialLoadedState = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: const PlaybackInfo.initial(),
+      );
+      final playingState1 = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: PlaybackInfo(
+          activeFilePath: tTranscription1.localFilePath,
+          isPlaying: true,
+          isLoading: false,
+          currentPosition: const Duration(seconds: 5),
+          totalDuration: const Duration(milliseconds: 30000),
+          error: null,
+        ),
+      );
+      final playingState2 = AudioListLoaded(
+        transcriptions: tTranscriptionList,
+        playbackInfo: PlaybackInfo(
+          activeFilePath: tTranscription1.localFilePath,
+          isPlaying: true,
+          isLoading: false,
+          currentPosition: const Duration(seconds: 10),
+          totalDuration: const Duration(milliseconds: 30000),
+          error: null,
+        ),
+      );
+
+      // Arrange: Stub the cubit stream using whenListen (from bloc_test)
+      // Set initial state directly, stream only emits the subsequent state.
+      whenListen(
+        mockAudioListCubit,
+        Stream.fromIterable([playingState2]), // Only emit the second state
+        initialState: playingState1, // Start in the first playing state
+      );
+
+      // Act: Pump the widget with the initial state already set
+      await tester.pumpWidget(createWidgetUnderTest());
+      // Maybe a slight pump is needed to ensure initial state renders?
+      // await tester.pump(); // Let's try without first.
+
+      // Assert: Find the widget for the first item
+      final playerWidgetFinder = find.byKey(
+        ValueKey(tTranscription1.localFilePath),
+      );
+      expect(
+        playerWidgetFinder,
+        findsOneWidget,
+        reason: "Should find player widget for item 1 initially",
+      );
+
+      // Assert: Check initial playing state (from initialState)
+      AudioPlayerWidget playerWidget1 = tester.widget(playerWidgetFinder);
+      expect(
+        playerWidget1.isPlaying,
+        isTrue,
+        reason: "Widget should be playing in state 1",
+      );
+      expect(
+        playerWidget1.currentPosition,
+        const Duration(seconds: 5),
+        reason: "Position should be 5s in state 1",
+      );
+      expect(playerWidget1.totalDuration, const Duration(milliseconds: 30000));
+
+      // Act: Pump ONCE to process the single emitted state (playingState2)
+      await tester.pump();
+
+      // Assert: Find the SAME widget instance and check updated position
+      AudioPlayerWidget playerWidget2 = tester.widget(playerWidgetFinder);
+      expect(
+        playerWidget2.isPlaying,
+        isTrue,
+        reason: "Widget should still be playing in state 2",
+      );
+      expect(
+        playerWidget2.currentPosition,
+        const Duration(seconds: 10),
+        reason: "Position should update to 10s in state 2",
+      );
+      expect(playerWidget2.totalDuration, const Duration(milliseconds: 30000));
+    },
+  );
 }

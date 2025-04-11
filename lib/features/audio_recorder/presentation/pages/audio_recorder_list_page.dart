@@ -13,6 +13,7 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 // import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
+
 // Using centralized logger with level OFF
 final logger = Logger(level: Level.off);
 
@@ -174,12 +175,14 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             );
             // state.recordings is already sorted by the Cubit
             final sortedTranscriptions = state.transcriptions;
-            final playbackInfo = state.playbackInfo;
 
             return ListView.builder(
               // Use sorted list
               itemCount: sortedTranscriptions.length,
               itemBuilder: (context, index) {
+                // Access playbackInfo from the current state INSIDE the builder
+                final playbackInfo = (state).playbackInfo;
+
                 // Use Transcription type
                 final transcription = sortedTranscriptions[index];
                 // Use Transcription properties

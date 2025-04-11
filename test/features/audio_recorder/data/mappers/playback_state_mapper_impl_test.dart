@@ -144,30 +144,47 @@ void main() {
         mapper.playbackStateStream,
         emitsInOrder([
           const PlaybackState.initial(),
-          const PlaybackState.stopped(),
+          const PlaybackState.stopped(), // Triggered by initial duration/position
+          // Distinct() should filter duplicates if duration/position emit stopped again
           const PlaybackState.playing(
             totalDuration: initialDuration,
             currentPosition: initialPosition,
+          ), // Triggered by playing state
+        ]),
+      );
+
+      // New positions to test in sequence
+      const positionUpdate1 = Duration(seconds: 10);
+      const positionUpdate2 = Duration(seconds: 15);
+      const positionUpdate3 = Duration(seconds: 20);
+
+      // Expect the new states with updated positions (keeping same duration)
+      // We expect ONE state emission PER position update
+      final expectation = expectLater(
+        mapper.playbackStateStream,
+        emitsInOrder([
+          PlaybackState.playing(
+            totalDuration: initialDuration, // Same duration
+            currentPosition: positionUpdate1, // Updated position 1
+          ),
+          PlaybackState.playing(
+            totalDuration: initialDuration, // Same duration
+            currentPosition: positionUpdate2, // Updated position 2
+          ),
+          PlaybackState.playing(
+            totalDuration: initialDuration, // Same duration
+            currentPosition: positionUpdate3, // Updated position 3
           ),
         ]),
       );
 
-      // New position to test
-      const newPosition = Duration(seconds: 30);
-
-      // Expect the new state with updated position (keeping same duration)
-      final expectation = expectLater(
-        mapper.playbackStateStream,
-        emits(
-          const PlaybackState.playing(
-            totalDuration: initialDuration, // Same duration
-            currentPosition: newPosition, // Updated position
-          ),
-        ),
-      );
-
-      // Act: Push a position update
-      positionController.add(newPosition);
+      // Act: Push multiple position updates sequentially
+      positionController.add(positionUpdate1);
+      // Need a small delay or yield if using fake_async to allow stream processing
+      // await Future.delayed(Duration.zero); // Use if not in fake_async
+      positionController.add(positionUpdate2);
+      // await Future.delayed(Duration.zero);
+      positionController.add(positionUpdate3);
 
       // Wait for the expectation to complete
       await expectation;

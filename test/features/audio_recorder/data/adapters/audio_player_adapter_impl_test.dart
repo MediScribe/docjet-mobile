@@ -234,38 +234,55 @@ void main() {
       },
     );
 
-    test("onDurationChanged should expose player's durationStream", () {
-      // Arrange - durationController stream is already stubbed in setup
-      // Act
-      final stream = audioPlayerAdapter.onDurationChanged;
-      // Assert
-      // Check if the adapter's stream correctly pipes the mock's stream.
-      // We use expectLater because the stream might emit null initially if the mock does.
-      expectLater(stream, emitsInOrder([const Duration(seconds: 60)]));
-      durationController.add(
-        const Duration(seconds: 60),
-      ); // Add a value to the mock stream
-    });
+    test(
+      "onDurationChanged should expose player's durationStream, filtering nulls",
+      () {
+        // Arrange
+        final stream = audioPlayerAdapter.onDurationChanged;
+        const duration1 = Duration(seconds: 60);
+        const duration2 = Duration(seconds: 120);
+
+        // Assert
+        // Expect non-null durations to be passed through.
+        expectLater(stream, emitsInOrder([duration1, duration2]));
+
+        // Act
+        durationController.add(null); // Should be filtered out
+        durationController.add(duration1);
+        durationController.add(null); // Should be filtered out
+        durationController.add(duration2);
+      },
+    );
 
     test("onPositionChanged should expose player's positionStream", () {
-      // Arrange - positionController stream is already stubbed in setup
-      // Act
+      // Arrange
       final stream = audioPlayerAdapter.onPositionChanged;
+      const position1 = Duration(seconds: 5);
+      const position2 = Duration(seconds: 10);
+
       // Assert
-      expectLater(stream, emits(const Duration(seconds: 10)));
-      positionController.add(const Duration(seconds: 10));
+      // Expect positions to be passed through directly.
+      expectLater(stream, emitsInOrder([position1, position2]));
+
+      // Act
+      positionController.add(position1);
+      positionController.add(position2);
     });
 
-    test("onPlayerComplete should be derived from playerStateStream", () {
-      // Arrange - playerStateController stream is already stubbed in setup
+    test('onPlayerComplete should emit when processing state is completed', () {
+      // Arrange
       final stream = audioPlayerAdapter.onPlayerComplete;
 
       // Assert
-      // Expect a void event when ProcessingState.completed is emitted
-      expectLater(stream, emits(null));
+      expectLater(stream, emits(null)); // Emits void (represented as null)
 
       // Act
-      playerStateController.add(PlayerState(false, ProcessingState.completed));
+      playerStateController.add(PlayerState(false, ProcessingState.loading));
+      playerStateController.add(PlayerState(true, ProcessingState.ready));
+      playerStateController.add(
+        PlayerState(false, ProcessingState.completed),
+      ); // Should trigger emit
+      playerStateController.add(PlayerState(false, ProcessingState.idle));
     });
   });
 
