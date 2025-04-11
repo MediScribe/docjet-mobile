@@ -15,7 +15,10 @@ abstract class AudioPlaybackService {
   Future<void> resume();
 
   /// Seeks to the specified [position] in the currently playing audio.
-  Future<void> seek(Duration position);
+  ///
+  /// Accepts an optional [totalDuration] hint which can be used by the
+  /// implementation to provide more immediate state updates after seeking.
+  Future<void> seek(Duration position, {Duration? totalDuration});
 
   /// Stops the currently playing audio and resets the player state.
   Future<void> stop();

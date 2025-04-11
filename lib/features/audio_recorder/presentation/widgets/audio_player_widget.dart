@@ -149,19 +149,25 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                   : Icons.play_circle_filled,
             ),
             iconSize: 32,
-            tooltip: widget.isPlaying ? 'Pause' : 'Play',
+            tooltip: widget.isPlaying ? 'Pause' : 'Play / Resume',
             onPressed:
                 canPlayPause
                     ? () {
-                      // logger.d(
-                      //   'AudioPlayerWidget: Play/Pause Tapped! isPlaying = ${widget.isPlaying}, filePath = ${widget.filePath.split('/').last}',
-                      // );
                       if (widget.isPlaying) {
+                        // If playing, always pause
+                        // logger.d('[AudioPlayerWidget] Action: Pause Tapped');
                         context.read<AudioListCubit>().pauseRecording();
                       } else {
-                        context.read<AudioListCubit>().playRecording(
-                          widget.filePath,
-                        );
+                        // If not playing, decide whether to play from start or resume
+                        if (widget.currentPosition > Duration.zero) {
+                          // logger.d('[AudioPlayerWidget] Action: Resume Tapped (pos > 0)');
+                          context.read<AudioListCubit>().resumeRecording();
+                        } else {
+                          // logger.d('[AudioPlayerWidget] Action: Play Tapped (pos == 0)');
+                          context.read<AudioListCubit>().playRecording(
+                            widget.filePath,
+                          );
+                        }
                       }
                     }
                     : null,

@@ -375,4 +375,34 @@ The issue likely lies in how the state is updated *after* the seek command is se
 **Next Steps:**
 1.  **Detailed Seek Testing:** Need to determine *exactly* what happens visually and audibly after `onChangeEnd` fires in different scenarios (seeking while playing vs. seeking while paused).
 2.  **Trace Post-Seek State:** Analyze logs from the Mapper and Cubit immediately following the `onChangeEnd` event to see if the expected position update is generated and propagated.
-3.  **Implement Fix:** Based on findings, potentially manually update the Cubit state in `seekRecording` for immediate visual feedback, or fix any propagation issues found. 
+3.  **Implement Fix:** Based on findings, potentially manually update the Cubit state in `seekRecording` for immediate visual feedback, or fix any propagation issues found.
+
+## Update 4: Seek Interaction Bugs & Lessons Learned
+
+We've made progress, but encountered subtle state synchronization issues related to seeking:
+
+**Current State:**
+1.  **Play/Pause/Resume:** Functional.
+2.  **Playback Position Update:** Playhead (slider, text) updates smoothly during playback.
+3.  **Seek Drag Visuals:** Slider thumb follows finger drag correctly (using local `StatefulWidget` state).
+4.  **Seek Action (Click/Release):**
+    *   Slider thumb jumps visually to the correct position upon release (local state update).
+    *   The underlying seek command *is* sent correctly to the service/adapter.
+
+**Remaining Critical Bugs:**
+1.  **First Seek Resets to Zero:** Immediately after the *first* seek action (drag/release) on a file, the playhead visually resets to zero. This occurs because the first state update propagated back from the service/cubit reports position zero, likely due to timing issues where the position stream hasn't updated yet post-seek.
+2.  **Subsequent Seeks Work (Post-Play):** After hitting the Play button *once* (on any file), subsequent seek actions on *that same file* work correctly – the playhead stays put after release, and playback resumes from the seeked position.
+3.  **Cross-File Interference:** Seeking in one file *after* the initial Play may cause incorrect position/duration state to appear when interacting with *other* files before playing them explicitly.
+4.  **Pause After Seek Unresponsive:** Clicking the Pause button immediately after a seek action (when the button correctly shows Pause) often does nothing, suggesting the underlying player state is paused, but the UI state (`isPlaying=true`) isn't corrected until later.
+
+**Lessons Learned:**
+*   **DI & Integration Testing:** Unit tests are insufficient for catching issues related to dependency injection wiring and inter-component communication (Mapper not initialized, Service stream not connected properly).
+*   **State Stream Filtering:** Reactive stream operators like `.distinct()` must be carefully designed. Overly aggressive filtering can block necessary state updates (e.g., position updates during playback, play/pause transitions).
+*   **UI Responsiveness vs. State Consistency:** Achieving immediate UI feedback (like slider dragging/jumping) often requires temporary local state management (`StatefulWidget`). However, this local state must be carefully synchronized with the authoritative state flowing from the service/cubit to avoid inconsistencies.
+    *   Relying *only* on the natural state stream post-action can feel laggy.
+    *   Emitting state *manually* from higher layers (Cubit optimistic updates, Service immediate emissions post-seek) can fix lag but introduces significant risks of race conditions and inconsistencies if not perfectly aligned with the *actual* state changes happening deeper down (e.g., causing the Pause button issue).
+*   **State Initialization:** The initial state of the player/service/cubit upon app start or after stopping playback significantly impacts the behavior of the first interaction (like the first seek resetting).
+*   **Context Management:** Ensuring the correct context (current file path, duration) is available and used consistently across layers (Widget, Cubit, Service) during actions like seek is crucial, especially when playback might be stopped.
+
+**Next Steps:**
+Focus on fixing the "First Seek Resets to Zero" and "Pause After Seek Unresponsive" bugs by ensuring the state propagation after a seek is both timely *and* accurate, likely by having the Service emit a definitive `paused` state with the correct position *and duration* immediately after a seek action completes. 

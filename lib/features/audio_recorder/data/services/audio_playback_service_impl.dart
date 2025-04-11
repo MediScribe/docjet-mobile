@@ -20,6 +20,8 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   // Keep track of the currently loaded path and the last known state
   String? _currentFilePath;
   PlaybackState _lastKnownState = const PlaybackState.initial();
+  // Flag to differentiate pause-after-seek from natural pause
+  bool _seekPerformedWhileNotPlaying = false;
 
   /// Creates an instance of [AudioPlaybackServiceImpl].
   ///
@@ -37,6 +39,11 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         // COMMENT OUT VERBOSE LOG
         // logger.d('[SERVICE_RX] Received PlaybackState from Mapper: $state');
         _lastKnownState = state; // Update last known state
+        // Reset flag on natural state changes if appropriate
+        if (state.maybeMap(playing: (_) => true, orElse: () => false)) {
+          _seekPerformedWhileNotPlaying = false; // Reset on natural play
+        }
+        // TODO: Consider resetting on stop/complete/error as well?
         _playbackStateSubject.add(state); // Forward state to external listeners
       },
       onError: (error, stackTrace) {
@@ -74,68 +81,49 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     logger.d('[SERVICE PLAY $pathOrUrl] START', stackTrace: trace);
     try {
       final isSameFile = pathOrUrl == _currentFilePath;
-      // Check if the last known state was paused
-      final isPaused = _lastKnownState.maybeWhen(
-        paused: (_, __) => true, // It's paused if it matches the paused state
-        orElse:
-            () => false, // Otherwise, it's not considered paused for this logic
-      );
-
       logger.d(
-        '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile, isPaused: $isPaused, lastKnownState: $_lastKnownState',
+        '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile. Forcing full restart.',
       );
 
-      if (isSameFile && isPaused) {
-        // Same file and was paused -> Just resume playback
-        logger.d('[SERVICE PLAY $pathOrUrl] Action: Resuming paused file...');
-        await _audioPlayerAdapter.resume();
-        logger.d('[SERVICE PLAY $pathOrUrl] Adapter resume() call completed.');
+      // Always performing full stop/load/play sequence
+      logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
+      await _audioPlayerAdapter.stop();
+      logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.');
+
+      // Update current path ONLY if it's a different file
+      if (!isSameFile) {
+        logger.d('[SERVICE PLAY $pathOrUrl] Action: Updating file path...');
+        _playbackStateMapper.setCurrentFilePath(pathOrUrl);
+        _currentFilePath = pathOrUrl;
+        logger.d('[SERVICE PLAY $pathOrUrl] File path updated.');
       } else {
-        // Different file OR wasn't paused -> Full stop/load/play sequence
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Performing full restart (different file or not paused)...',
-        );
-
-        // Always perform a full stop first to ensure clean state
-        logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
-        await _audioPlayerAdapter.stop();
-        logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.');
-
-        // Update current path ONLY if it's a different file
-        if (!isSameFile) {
-          logger.d('[SERVICE PLAY $pathOrUrl] Action: Updating file path...');
-          _playbackStateMapper.setCurrentFilePath(pathOrUrl);
-          _currentFilePath = pathOrUrl; // Update internal tracking
-          logger.d('[SERVICE PLAY $pathOrUrl] File path updated.');
-        } else {
-          logger.d(
-            '[SERVICE PLAY $pathOrUrl] Action: Skipping file path update (same file).',
-          );
-        }
-
-        logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
-        );
-        await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-        logger.d(
-          '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
-        );
-
-        logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
-        );
-        await _audioPlayerAdapter.resume();
-        logger.d(
-          '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
+          '[SERVICE PLAY $pathOrUrl] Action: Skipping file path update (same file).',
         );
       }
 
-      logger.d('[SERVICE PLAY $pathOrUrl] END (Success)');
+      logger.d(
+        '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
+      );
+      await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
+      logger.d(
+        '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
+      );
+
+      logger.d(
+        '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
+      );
+      await _audioPlayerAdapter
+          .resume(); // resume() starts playback after setSourceUrl
+      logger.d(
+        '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
+      );
     } catch (e, s) {
       logger.e('[SERVICE PLAY $pathOrUrl] FAILED', error: e, stackTrace: s);
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
       rethrow;
     }
+    logger.d('[SERVICE PLAY $pathOrUrl] END (Success)');
   }
 
   @override
@@ -169,21 +157,15 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   }
 
   @override
-  Future<void> seek(Duration position) async {
+  Future<void> seek(Duration position, {Duration? totalDuration}) async {
     final trace = StackTrace.current;
     logger.d(
-      '[SERVICE SEEK ${position.inMilliseconds}ms] START',
+      '[SERVICE SEEK ${position.inMilliseconds}ms] START (provided duration: ${totalDuration?.inMilliseconds}ms)',
       stackTrace: trace,
     );
     try {
-      logger.d(
-        '[SERVICE SEEK] Action: Calling adapter.seek(${position.inMilliseconds}ms)',
-      );
       await _audioPlayerAdapter.seek(position);
       logger.d('[SERVICE SEEK] Adapter seek() call complete.');
-
-      // --- REMOVED immediate state emission (AGAIN!) ---
-      // Rely on the adapter/mapper streams to update the state naturally.
     } catch (e, s) {
       logger.e('[SERVICE SEEK] FAILED', error: e, stackTrace: s);
       rethrow;

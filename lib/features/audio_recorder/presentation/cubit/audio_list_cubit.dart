@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';
@@ -271,6 +272,28 @@ class AudioListCubit extends Cubit<AudioListState> {
     }
   }
 
+  /// Resumes the currently paused playback.
+  Future<void> resumeRecording() async {
+    logger.i('[CUBIT_resumeRecording] START');
+    try {
+      logger.d('  -> Calling service.resume()');
+      await _audioPlaybackService.resume();
+      logger.d('  -> Service call complete.');
+    } catch (e) {
+      logger.e('[CUBIT_resumeRecording] Error calling resume on service: $e');
+      if (state is AudioListLoaded) {
+        final currentState = state as AudioListLoaded;
+        emit(
+          currentState.copyWith(
+            playbackInfo: currentState.playbackInfo.copyWith(
+              error: 'Failed to resume playback: $e',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   /// Seeks to a specific position in the specified playback file.
   Future<void> seekRecording(String filePath, Duration position) async {
     logger.i(
@@ -288,14 +311,37 @@ class AudioListCubit extends Cubit<AudioListState> {
     );
 
     try {
-      // Just tell the service to seek. The service will emit the updated state.
-      await _audioPlaybackService.seek(position);
-      logger.d(
-        '[CUBIT] Called _audioPlaybackService.seek($position) on path $filePath',
+      // Find the transcription to get the reliable total duration
+      final currentState = state as AudioListLoaded;
+      final transcription = currentState.transcriptions.firstWhere(
+        (t) => t.localFilePath == filePath, // Use localFilePath for lookup
+        orElse: () {
+          logger.w(
+            '[CUBIT] Could not find transcription for $filePath in state list for duration lookup.',
+          );
+          // Return a default Transcription with zero duration
+          return Transcription(
+            id: null,
+            localFilePath: filePath, // Use the path we have
+            status: TranscriptionStatus.unknown, // Use imported enum
+            localDurationMillis: 0,
+            // Ensure all required constructor fields are present if Transcription changed
+            localCreatedAt: null, // Added potentially missing required field
+          );
+        },
+      );
+      final reliableTotalDuration = Duration(
+        milliseconds: transcription.localDurationMillis ?? 0,
       );
 
-      // --- REMOVED Optimistic Update ---
-      // The service now emits the state immediately after seek completes.
+      // Pass the reliable duration to the service using named parameter
+      await _audioPlaybackService.seek(
+        position,
+        totalDuration: reliableTotalDuration, // Correct named parameter
+      );
+      logger.d(
+        '[CUBIT] Called _audioPlaybackService.seek($position, totalDuration: $reliableTotalDuration) on path $filePath',
+      );
     } catch (e) {
       logger.e('[CUBIT] Error calling seek on service: $e');
       // Emit an error state for the UI if seek fails at the service level
