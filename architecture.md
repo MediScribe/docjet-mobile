@@ -119,3 +119,121 @@ This architecture treats local files as opaque handles/payloads. The primary sou
     *   `AudioFileManager` (`data/services/`) likely provides basic path listing, removing the old N+1 problem (implementation details not fully verified but structure exists).
 3.  **Backend Integration (Interface + Fake Implementation):**
     *   **`TranscriptionRemoteDataSource` Interface (Domain - Implemented):** Defines contract (`
+
+## 3. Audio Playback Architecture (Refactored - April 2024)
+
+The audio playback system was significantly refactored to improve testability and separation of concerns, moving away from a monolithic service. It now utilizes a **Clean Architecture approach with Adapter and Mapper patterns**.
+
+This refactoring addressed challenges in testing complex asynchronous stream logic and tightly coupled dependencies. The new architecture isolates the third-party audio player (`audioplayers` package) and separates the logic for transforming raw player events into domain-specific state.
+
+### 3.1. Playback Architecture Diagram
+
+```mermaid
+graph LR
+    subgraph "Presentation Layer (UI & State)"
+        direction LR
+        UI[AudioPlayerWidget]
+        CUBIT[AudioListCubit]
+    end
+
+    subgraph "Domain Layer (Interf & Ent)"
+        direction LR
+        ENTITY["PlaybackState (Freezed)"]
+        SVC_IF[AudioPlaybackService Interface]
+        ADP_IF[AudioPlayerAdapter Interface]
+        MAP_IF[PlaybackStateMapper Interface]
+    end
+
+    subgraph "Data Layer (Implementations)"
+        direction LR
+        SVC_IMPL[AudioPlaybackServiceImpl]
+        ADP_IMPL[AudioPlayerAdapterImpl]
+        MAP_IMPL[PlaybackStateMapperImpl]
+    end
+
+    subgraph "External Dependencies"
+        direction LR
+        PLAYER[audioplayers::AudioPlayer]
+    end
+
+    %% --- Dependencies --- 
+    UI --> CUBIT
+    CUBIT --> SVC_IF
+    CUBIT --> ENTITY
+    
+    SVC_IMPL --> SVC_IF
+    SVC_IMPL --> ADP_IF
+    SVC_IMPL --> MAP_IF
+    
+    ADP_IMPL --> ADP_IF
+    MAP_IMPL --> MAP_IF
+    
+    ADP_IMPL --> PLAYER
+    MAP_IMPL --> ENTITY
+    MAP_IMPL -- Uses --> PLAYER
+    MAP_IMPL -- Uses --> ADP_IF
+
+    %% Grouping for Layout Hint (Optional)
+    subgraph Feature
+      direction LR
+      subgraph Presentation [Presentation Layer]
+        UI
+        CUBIT
+      end
+      subgraph Domain [Domain Layer]
+        ENTITY
+        SVC_IF
+        ADP_IF
+        MAP_IF
+      end
+      subgraph Data [Data Layer]
+        SVC_IMPL
+        ADP_IMPL
+        MAP_IMPL
+      end
+    end
+    
+    Presentation --> Domain
+    Data --> Domain
+    Data --> External
+
+```
+
+### 3.2. Relevant File Structure
+
+```
+lib/features/audio_recorder/
+├── domain/
+│   ├── adapters/
+│   │   └── audio_player_adapter.dart      # Interface: Abstracts audio player operations & events
+│   ├── entities/
+│   │   └── playback_state.dart          # Entity (Freezed): Defines possible playback states
+│   ├── mappers/
+│   │   └── playback_state_mapper.dart   # Interface: Abstracts raw event -> PlaybackState mapping
+│   └── services/
+│       └── audio_playback_service.dart  # Interface: Defines high-level playback control API
+├── data/
+│   ├── adapters/
+│   │   └── audio_player_adapter_impl.dart # Implementation: Wraps 'audioplayers' package
+│   ├── mappers/
+│   │   └── playback_state_mapper_impl.dart# Implementation: Maps raw streams to PlaybackState using RxDart
+│   └── services/
+│       └── audio_playback_service_impl.dart # Implementation: Orchestrates Adapter & Mapper
+└── presentation/
+    ├── cubit/
+    │   ├── audio_list_cubit.dart        # State Management: Handles UI logic, interacts with Service
+    │   └── audio_list_state.dart        # State Definition: Includes PlaybackInfo for UI
+    └── widgets/
+        └── audio_player_widget.dart     # UI Component: Displays playback controls & info
+```
+
+### 3.3. File Responsibilities
+
+*   **Domain Layer:**
+    *   `domain/adapters/audio_player_adapter.dart`: Defines the *contract* for how the application interacts with *any* audio player. Specifies methods (play, pause, stop, seek, setSourceUrl, dispose) and output streams (`onPlayerStateChanged`, `onDurationChanged`, `onPositionChanged`, `onPlayerComplete`). It isolates the rest of the app from the specifics of the `audioplayers` package.
+    *   `domain/entities/playback_state.dart`: Defines the core *business state* of playback using a `freezed` sealed class (`initial`, `loading`, `playing`, `paused`, `stopped`, `completed`, `error`). This is the canonical representation of state used within the domain and presentation layers.
+    *   `domain/mappers/playback_state_mapper.dart`: Defines the *contract* for transforming the raw, low-level event streams provided by the `AudioPlayerAdapter` into the unified, high-level `Stream<PlaybackState>`. It includes an `initialize` method signature to signal the need for input streams and a `dispose` method.
+    *   `domain/services/audio_playback_service.dart`: Defines the high-level *use cases* for audio playback available to the presentation layer (play, pause, resume, seek, stop, dispose). It exposes the final `Stream<PlaybackState>` for UI updates.
+*   **Data Layer:**
+    *   `data/adapters/audio_player_adapter_impl.dart`: *Implements* the `AudioPlayerAdapter` interface using the `audioplayers` package. It holds an instance of `AudioPlayer`, delegates method calls directly to it, and exposes its raw streams. **Crucially, its `setSourceUrl` implementation now correctly uses `Uri.tryParse` to detect the scheme and calls `_audioPlayer.setSource` with either `DeviceFileSource` for local paths or `UrlSource` for network URLs.**
+    *   `data/mappers/playback_state_mapper_impl.dart`: *Implements* the `PlaybackStateMapper`. It takes the raw streams from the adapter (via its `initialize` method), uses `rxdart`
