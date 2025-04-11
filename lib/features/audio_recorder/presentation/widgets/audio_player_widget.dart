@@ -1,12 +1,16 @@
+import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
 
-// Temporarily show debug logs
-final logger = Logger(level: Level.debug);
+// Keep helper function global or move to a util file
+String _formatDuration(Duration duration) {
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return '$minutes:$seconds';
+}
 
-class AudioPlayerWidget extends StatelessWidget {
+class AudioPlayerWidget extends StatefulWidget {
   final String filePath;
   final VoidCallback onDelete;
   final bool isPlaying;
@@ -16,57 +20,67 @@ class AudioPlayerWidget extends StatelessWidget {
   final String? error;
 
   const AudioPlayerWidget({
-    super.key,
+    required Key key,
     required this.filePath,
     required this.onDelete,
     required this.isPlaying,
     required this.isLoading,
     required this.currentPosition,
     required this.totalDuration,
-    this.error,
-  });
+    required this.error,
+  }) : super(key: key);
 
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
+  @override
+  State<AudioPlayerWidget> createState() => _AudioPlayerWidgetState();
+}
+
+class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
+  // Use the logger instance potentially defined in your logger.dart util
+  // Or instantiate one if necessary: final logger = Logger('AudioPlayerWidget');
+
+  // Local state for dragging
+  bool _isDragging = false;
+  double _dragValue = 0.0;
 
   @override
   Widget build(BuildContext context) {
-    final bool canPlayPause = !isLoading && error == null;
+    final bool canPlayPause = !widget.isLoading && widget.error == null;
     final bool canSeek =
-        !isLoading && error == null && totalDuration > Duration.zero;
+        !widget.isLoading &&
+        widget.error == null &&
+        widget.totalDuration > Duration.zero;
 
     // Use milliseconds for slider precision
     final double sliderMax =
-        (totalDuration.inMilliseconds > 0
-            ? totalDuration.inMilliseconds.toDouble()
+        (widget.totalDuration.inMilliseconds > 0
+            ? widget.totalDuration.inMilliseconds.toDouble()
             : 1.0);
-    final double sliderValue = currentPosition.inMilliseconds.toDouble().clamp(
-      0.0,
-      sliderMax,
-    );
+    final double currentPositionValue = widget.currentPosition.inMilliseconds
+        .toDouble()
+        .clamp(0.0, sliderMax);
 
-    final String positionText = _formatDuration(currentPosition);
-    final String durationText = _formatDuration(totalDuration);
+    // Determine the actual value to display on the slider and text
+    final displayValueMillis = _isDragging ? _dragValue : currentPositionValue;
+    final displayPosition = Duration(milliseconds: displayValueMillis.toInt());
+
+    final String positionText = _formatDuration(displayPosition);
+    final String durationText = _formatDuration(widget.totalDuration);
 
     // logger.d(
-    //   "AudioPlayerWidget: isPlaying=$isPlaying, path=${filePath.split('/').last}",
+    //   "AudioPlayerWidget: isPlaying=${widget.isPlaying}, path=${widget.filePath.split('/').last}",
     // );
     // logger.d("AudioPlayerWidget: canPlayPause=$canPlayPause");
     // logger.d(
-    //   "AudioPlayerWidget: canSeek=$canSeek, totalDuration=$totalDuration",
+    //   "AudioPlayerWidget: canSeek=$canSeek, totalDuration=$widget.totalDuration",
     // );
-    // logger.d("AudioPlayerWidget: sliderValue=$sliderValue / $sliderMax");
+    // logger.d("AudioPlayerWidget: sliderValue=$currentPositionValue / $sliderMax");
 
-    if (isLoading) {
+    if (widget.isLoading) {
       return _buildLoadingIndicator();
     }
 
-    if (error != null) {
-      return _buildErrorState(error!);
+    if (widget.error != null) {
+      return _buildErrorState(widget.error!);
     }
 
     return _buildPlayerControls(context);
@@ -93,7 +107,7 @@ class AudioPlayerWidget extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: onDelete,
+            onPressed: widget.onDelete,
             icon: const Icon(Icons.delete),
             tooltip: 'Delete Recording',
           ),
@@ -103,22 +117,26 @@ class AudioPlayerWidget extends StatelessWidget {
   }
 
   Widget _buildPlayerControls(BuildContext context) {
-    final bool canPlayPause = !isLoading && error == null;
+    final bool canPlayPause = !widget.isLoading && widget.error == null;
     final bool canSeek =
-        !isLoading && error == null && totalDuration > Duration.zero;
+        !widget.isLoading &&
+        widget.error == null &&
+        widget.totalDuration > Duration.zero;
 
-    // Use milliseconds for slider precision
     final double sliderMax =
-        (totalDuration.inMilliseconds > 0
-            ? totalDuration.inMilliseconds.toDouble()
+        (widget.totalDuration.inMilliseconds > 0
+            ? widget.totalDuration.inMilliseconds.toDouble()
             : 1.0);
-    final double sliderValue = currentPosition.inMilliseconds.toDouble().clamp(
-      0.0,
-      sliderMax,
-    );
+    final double currentPositionValue = widget.currentPosition.inMilliseconds
+        .toDouble()
+        .clamp(0.0, sliderMax);
 
-    final String positionText = _formatDuration(currentPosition);
-    final String durationText = _formatDuration(totalDuration);
+    // Determine the actual value to display on the slider and text
+    final displayValueMillis = _isDragging ? _dragValue : currentPositionValue;
+    final displayPosition = Duration(milliseconds: displayValueMillis.toInt());
+
+    final String positionText = _formatDuration(displayPosition);
+    final String durationText = _formatDuration(widget.totalDuration);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -126,20 +144,24 @@ class AudioPlayerWidget extends StatelessWidget {
         children: [
           IconButton(
             icon: Icon(
-              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              widget.isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_filled,
             ),
             iconSize: 32,
-            tooltip: isPlaying ? 'Pause' : 'Play',
+            tooltip: widget.isPlaying ? 'Pause' : 'Play',
             onPressed:
                 canPlayPause
                     ? () {
-                      logger.d(
-                        'AudioPlayerWidget: Play/Pause Tapped! isPlaying = $isPlaying, filePath = ${filePath.split('/').last}',
-                      );
-                      if (isPlaying) {
+                      // logger.d(
+                      //   'AudioPlayerWidget: Play/Pause Tapped! isPlaying = ${widget.isPlaying}, filePath = ${widget.filePath.split('/').last}',
+                      // );
+                      if (widget.isPlaying) {
                         context.read<AudioListCubit>().pauseRecording();
                       } else {
-                        context.read<AudioListCubit>().playRecording(filePath);
+                        context.read<AudioListCubit>().playRecording(
+                          widget.filePath,
+                        );
                       }
                     }
                     : null,
@@ -161,30 +183,33 @@ class AudioPlayerWidget extends StatelessWidget {
                     ),
                   ),
                   child: Slider(
-                    value: sliderValue,
+                    value: displayValueMillis,
                     min: 0.0,
                     max: sliderMax,
-                    // Update UI continuously during drag, but don't seek yet
                     onChanged:
                         canSeek
                             ? (value) {
-                              // Potential future optimization: Update a local state variable
-                              // here to show the seek position visually during the drag,
-                              // without actually calling the cubit.
+                              // Update local drag value for immediate feedback
+                              setState(() {
+                                _isDragging = true;
+                                _dragValue = value;
+                              });
+                              // Consider throttling or debouncing if this causes performance issues
                             }
                             : null,
-                    // Seek only when the user finishes dragging
                     onChangeEnd:
                         canSeek
                             ? (value) {
                               final seekPosition = Duration(
-                                // Use milliseconds based on the slider value
                                 milliseconds: value.toInt(),
                               );
-                              logger.d(
-                                '[AudioPlayerWidget] onChangeEnd: Seeking to $seekPosition (from value $value)',
-                              );
+                              // Reset dragging flag
+                              setState(() {
+                                _isDragging = false;
+                              });
+                              // Call the cubit to perform the actual seek
                               context.read<AudioListCubit>().seekRecording(
+                                widget.filePath,
                                 seekPosition,
                               );
                             }
@@ -215,7 +240,7 @@ class AudioPlayerWidget extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Delete Recording',
-            onPressed: onDelete,
+            onPressed: widget.onDelete,
           ),
         ],
       ),

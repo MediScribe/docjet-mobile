@@ -705,7 +705,7 @@ void main() {
         await cubit.playRecording(tPath);
 
         // Seek to a specific position
-        await cubit.seekRecording(const Duration(seconds: 15));
+        await cubit.seekRecording(tPath, const Duration(seconds: 15));
 
         // Simulate the service emitting state after seek
         playbackStateController.add(tPlayingAfterSeekState);
@@ -748,5 +748,45 @@ void main() {
         ).called(1);
       },
     );
+
+    test(
+      'should call audioPlaybackService.seek with correct position',
+      () async {
+        // Arrange
+        const testPosition = Duration(seconds: 10);
+        const testFilePath =
+            'some/path/test.mp3'; // Need a file path for the test
+        when(
+          () => mockAudioPlaybackService.seek(any()),
+        ).thenAnswer((_) => Future<void>.value());
+
+        // Act
+        await cubit.seekRecording(testFilePath, testPosition); // Corrected call
+
+        // Assert
+        verify(() => mockAudioPlaybackService.seek(testPosition)).called(1);
+      },
+    );
+
+    test('should throw exception when seek position is invalid', () async {
+      // Arrange
+      final exception = Exception('Invalid seek position');
+      when(() => mockAudioPlaybackService.seek(any())).thenThrow(exception);
+
+      // Act
+      // We expect the first call to potentially complete (or throw internally)
+      try {
+        await cubit.seekRecording('dummy/path', Duration.zero);
+      } catch (e) {
+        // Expected path if seek throws immediately
+      }
+
+      // Assert: Check that calling it *again* (or verifying the behavior)
+      // properly reflects the thrown exception from the mock.
+      expect(
+        () => cubit.seekRecording('dummy/path', Duration.zero),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 }

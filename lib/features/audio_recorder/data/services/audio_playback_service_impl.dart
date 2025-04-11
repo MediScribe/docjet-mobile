@@ -181,6 +181,9 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       );
       await _audioPlayerAdapter.seek(position);
       logger.d('[SERVICE SEEK] Adapter seek() call complete.');
+
+      // --- REMOVED immediate state emission (AGAIN!) ---
+      // Rely on the adapter/mapper streams to update the state naturally.
     } catch (e, s) {
       logger.e('[SERVICE SEEK] FAILED', error: e, stackTrace: s);
       rethrow;

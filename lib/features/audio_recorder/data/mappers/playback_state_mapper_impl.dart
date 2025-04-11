@@ -118,7 +118,18 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
             if (state != DomainPlayerState.error) {
               _maybeClearError('PlayerState Update');
             }
-            return _constructState('PlayerState Update');
+
+            // **** TEMPORARY LOGGING START ****
+            logger.i(
+              '[MAPPER_PLAYER_STATE_MAP] Received DomainPlayerState: $state. Previous: $previousState. Current internal: $_currentPlayerState',
+            );
+            final constructedState = _constructState('PlayerState Update');
+            logger.i(
+              '[MAPPER_PLAYER_STATE_MAP] Result of _constructState: ${constructedState.runtimeType}',
+            );
+            // **** TEMPORARY LOGGING END ****
+
+            return constructedState; // Return the already constructed state
           }),
       errorController.stream
           .doOnData((errMsg) {
