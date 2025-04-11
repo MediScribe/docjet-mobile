@@ -350,4 +350,29 @@ With play/pause/resume working, the remaining known issue is the non-functional 
 2.  **Add Service Integration Tests:** Test `AudioPlaybackServiceImpl` by connecting it to a *real* `PlaybackStateMapperImpl` (which in turn gets mock input streams) and verifying the service's output stream and state transitions.
 3.  **Add Cubit Integration Tests:** Test `AudioListCubit` with a less-mocked `AudioPlaybackService` to ensure it handles service state updates correctly.
 4.  **Enhance Widget Tests:** Ensure `AudioPlayerWidget` tests cover UI updates based on various `PlaybackInfo` states received from a mocked Cubit.
-5.  **Consider End-to-End:** Evaluate adding integration_test for the full play/pause/seek/stop user flow. 
+5.  **Consider End-to-End:** Evaluate adding integration_test for the full play/pause/seek/stop user flow.
+
+## Update 3: Playhead Updates Fixed, Seek Still Broken
+
+Progress! We've slain several dragons:
+
+1.  **State Stream Filtering Fixed:** The overly aggressive `.distinct()` filter in `PlaybackStateMapperImpl` was corrected. It now allows `currentPosition` updates through during playback by comparing positions within a tolerance, not just the state type.
+2.  **Slider Precision Fixed:** The `AudioPlayerWidget`'s `Slider` calculations (`sliderMax`, `sliderValue`) were updated to use milliseconds instead of seconds, matching the precision of the incoming `currentPosition` updates.
+3.  **Seek Trigger Optimized:** The seek command (`context.read<AudioListCubit>().seekRecording`) was moved from the `Slider`'s `onChanged` callback to `onChangeEnd`, preventing excessive seek commands during dragging.
+
+**Outcome:**
+The playhead (slider thumb and position text) now updates **smoothly and correctly** during audio playback.
+
+**Remaining Issue:**
+Despite the `onChangeEnd` callback successfully triggering the `seekRecording` call with the correct target `Duration` (verified by logs), the **seek action itself still fails visually.** When the user drags the slider and releases, the slider thumb **does not jump** to the target position, even though the underlying audio player *might* be seeking correctly (needs confirmation).
+
+**Current Hypothesis:**
+The issue likely lies in how the state is updated *after* the seek command is sent. Possible causes:
+*   The `just_audio` player might not emit a position update immediately after a `seek()` call, especially if paused. Updates might only resume upon playback.
+*   The `PlaybackStateMapper` or `AudioListCubit` might still be inadvertently filtering or mishandling the state update that *should* reflect the new position post-seek.
+*   The UI (`AudioPlayerWidget`) isn't receiving or reacting to the post-seek state update correctly.
+
+**Next Steps:**
+1.  **Detailed Seek Testing:** Need to determine *exactly* what happens visually and audibly after `onChangeEnd` fires in different scenarios (seeking while playing vs. seeking while paused).
+2.  **Trace Post-Seek State:** Analyze logs from the Mapper and Cubit immediately following the `onChangeEnd` event to see if the expected position update is generated and propagated.
+3.  **Implement Fix:** Based on findings, potentially manually update the Cubit state in `seekRecording` for immediate visual feedback, or fix any propagation issues found. 

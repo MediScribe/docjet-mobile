@@ -137,36 +137,69 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     //   (state) => logger.d('[MAPPER_COMBINE_OUT] Pre-Distinct: $state'),
     // )
     .distinct((prev, next) {
-      // Consider states the same if their core type and duration match,
-      // ignoring the currentPosition for distinctness.
+      // Consider states the same ONLY IF:
+      // 1. Their core type is the same
+      // 2. Their total duration is within tolerance
+      // 3. AND their current position is within tolerance (if applicable)
       final bool sameType = prev.runtimeType == next.runtimeType;
+      if (!sameType) {
+        // logger.d('[MAPPER_DISTINCT] Different Type: $prev vs $next => DIFFERENT (Emit)');
+        return false; // Different types are always distinct
+      }
+
+      // If types are the same, compare duration and position if they exist on the state.
       Duration prevDuration = Duration.zero;
       Duration nextDuration = Duration.zero;
-      const Duration durationTolerance = Duration(
-        milliseconds: 20,
-      ); // Tolerance
+      Duration prevPosition = Duration.zero;
+      Duration nextPosition = Duration.zero;
+      const Duration tolerance = Duration(
+        milliseconds: 100, // Tolerance for position/duration ms
+      );
 
-      // Extract duration safely based on type
+      // Extract data using mapOrNull - handles states without these properties gracefully
       prev.mapOrNull(
-        playing: (s) => prevDuration = s.totalDuration,
-        paused: (s) => prevDuration = s.totalDuration,
-        error: (s) => prevDuration = s.totalDuration ?? Duration.zero,
+        playing: (s) {
+          prevDuration = s.totalDuration;
+          prevPosition = s.currentPosition;
+        },
+        paused: (s) {
+          prevDuration = s.totalDuration;
+          prevPosition = s.currentPosition;
+        },
+        error: (s) {
+          // Error state might also carry position/duration
+          prevDuration = s.totalDuration ?? Duration.zero;
+          prevPosition = s.currentPosition ?? Duration.zero;
+        },
       );
       next.mapOrNull(
-        playing: (s) => nextDuration = s.totalDuration,
-        paused: (s) => nextDuration = s.totalDuration,
-        error: (s) => nextDuration = s.totalDuration ?? Duration.zero,
+        playing: (s) {
+          nextDuration = s.totalDuration;
+          nextPosition = s.currentPosition;
+        },
+        paused: (s) {
+          nextDuration = s.totalDuration;
+          nextPosition = s.currentPosition;
+        },
+        error: (s) {
+          nextDuration = s.totalDuration ?? Duration.zero;
+          nextPosition = s.currentPosition ?? Duration.zero;
+        },
       );
 
-      // Check duration within tolerance
+      // Now compare the extracted values (or their defaults)
       final bool durationWithinTolerance =
-          (prevDuration - nextDuration).abs() <= durationTolerance;
+          (prevDuration - nextDuration).abs() <= tolerance;
+      final bool positionWithinTolerance =
+          (prevPosition - nextPosition).abs() <= tolerance;
 
-      final bool areSame = sameType && durationWithinTolerance;
+      // States are the same (should be filtered) only if type, duration, AND position are within tolerance.
+      final bool areSame = durationWithinTolerance && positionWithinTolerance;
 
-      // Log the comparison result for debugging (COMMENT OUT NOW)
       // logger.d(
-      //   '[MAPPER_DISTINCT] Comparing: prev=$prev, next=$next => sameType: $sameType, durationWithinTolerance: $durationWithinTolerance (${prevDuration.inMilliseconds}ms vs ${nextDuration.inMilliseconds}ms), Result: ${areSame ? \'SAME (Filter)\' : \'DIFFERENT (Emit)\'}',\n          // );
+      //   '[MAPPER_DISTINCT] Comparing ($sameType): pD=${prevDuration.inMilliseconds}, nD=${nextDuration.inMilliseconds} -> $durationWithinTolerance | pP=${prevPosition.inMilliseconds}, nP=${nextPosition.inMilliseconds} -> $positionWithinTolerance | Result: ${areSame ? \'SAME (Filter)\' : \'DIFFERENT (Emit)\'}',
+      // );
+
       return areSame;
     })
     // Log after distinct to see what gets emitted (COMMENT OUT)
