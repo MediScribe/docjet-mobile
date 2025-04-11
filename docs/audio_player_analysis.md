@@ -406,3 +406,22 @@ We've made progress, but encountered subtle state synchronization issues related
 
 **Next Steps:**
 Focus on fixing the "First Seek Resets to Zero" and "Pause After Seek Unresponsive" bugs by ensuring the state propagation after a seek is both timely *and* accurate, likely by having the Service emit a definitive `paused` state with the correct position *and duration* immediately after a seek action completes. 
+
+## Update 5: "Fresh Seek" Reset Identified
+
+Further testing revealed a critical nuance:
+
+1.  **Simplification Backlash:** The simplified approach (removing immediate service emits, separate play/pause/resume) exposed an initialization problem.
+2.  **The "Fresh Seek" Bug:** Seeking on a file *before* it has been played at least once results in the playhead resetting to zero when Play/Resume is subsequently pressed. The visual jump after releasing the drag works (local state), but the underlying player state doesn't seem to retain the seeked position until *after* a full `play` cycle (stop/setSource/resume) has occurred.
+3.  **Flickering:** A visual flicker occurs specifically during the *first* play action, potentially indicating a widget rebuild or state reset related to this initialization issue.
+
+**Revised Hypothesis:** The `just_audio` player or the adapter's streams may not reliably report the updated position after a `seek` command *if* the audio source hasn't been fully loaded/initialized by a prior `play` action. The `resume` call after a "fresh seek" acts on stale (zero) position data.
+
+**Revised Next Steps:**
+1.  **Verify `just_audio` Seek Behavior:** Confirm if `seek` updates position streams correctly before `load`/`setSourceUrl`.
+2.  **Trace Initial State Flow:** Add detailed logging to Adapter/Mapper streams after a "fresh seek".
+3.  **Consider "Priming" on Seek:** Investigate if `load` (or similar) needs to be called during seek for unloaded files.
+4.  **Investigate Flickering:** Check `Key` usage in the list builder and analyze the cause of the first-play rebuild.
+
+**Next Steps:**
+Focus on fixing the "First Seek Resets to Zero" and "Pause After Seek Unresponsive" bugs by ensuring the state propagation after a seek is both timely *and* accurate, likely by having the Service emit a definitive `paused` state with the correct position *and duration* immediately after a seek action completes. 
