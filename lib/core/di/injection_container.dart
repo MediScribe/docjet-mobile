@@ -14,7 +14,7 @@ import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_r
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 
@@ -104,6 +104,7 @@ Future<void> init() async {
 
   // --- External Dependencies ---
   sl.registerLazySingleton(() => AudioRecorder()); // From 'record' package
+  sl.registerLazySingleton(() => just_audio.AudioPlayer());
 
   // --- Core Platform Implementations ---
   // Register concrete implementations for the platform interfaces
@@ -135,12 +136,9 @@ Future<void> init() async {
     ),
   );
 
-  // + Register Audio Player (audioplayers package)
-  sl.registerLazySingleton(() => AudioPlayer());
-
   // Add adapter registration
   sl.registerLazySingleton<AudioPlayerAdapter>(
-    () => AudioPlayerAdapterImpl(sl()),
+    () => AudioPlayerAdapterImpl(sl<just_audio.AudioPlayer>()),
   );
 
   // Add mapper registration

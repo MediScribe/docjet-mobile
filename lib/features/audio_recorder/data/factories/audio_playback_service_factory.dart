@@ -1,4 +1,5 @@
-import 'package:audioplayers/audioplayers.dart';
+// import 'package:audioplayers/audioplayers.dart'; // REMOVED
+import 'package:just_audio/just_audio.dart'; // ADDED
 import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
@@ -14,8 +15,8 @@ class AudioPlaybackServiceFactory {
   ///
   /// Returns a ready-to-use service that adheres to the AudioPlaybackService interface.
   static AudioPlaybackService create() {
-    // Create the actual AudioPlayer instance
-    final audioPlayer = AudioPlayer();
+    // Create the actual AudioPlayer instance from just_audio
+    final audioPlayer = AudioPlayer(); // Now refers to just_audio.AudioPlayer
 
     // Create and configure the adapter
     final adapter = AudioPlayerAdapterImpl(audioPlayer);
