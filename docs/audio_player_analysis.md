@@ -3,6 +3,20 @@
 ## Critical Issue
 **The audio player plays/pauses only the first time, then subsequent play button presses restart the audio instead of resuming from the paused position. In addition, seek doesnt work at all.**
 
+## Progress Update (As of Recent Changes)
+
+1.  **Play/Pause/Resume Bug Fixed:** The core issue where playing a paused track restarted it has been addressed following a TDD approach.
+    *   A new test case (`'play called on the same file while paused should RESUME playback, not restart'`) was added to `test/.../audio_playback_service_play_test.dart` to specifically assert the correct resume behavior. This test initially failed, confirming the bug.
+    *   The `play` method in `lib/.../audio_playback_service_impl.dart` was modified. It now checks if the player `_lastKnownState` is `paused` and if the requested `pathOrUrl` is the `_currentFilePath`. If both are true, it correctly calls only `_audioPlayerAdapter.resume()` instead of the full `stop`/`setSourceUrl`/`resume` sequence.
+    *   The old test case (`'play called on the same file while paused should properly restart playback from beginning'`) that validated the incorrect restart behavior was removed after the fix was implemented and the new test passed.
+    *   All tests in `audio_playback_service_play_test.dart` now pass, confirming the fix for the play/pause/resume logic within the service.
+2.  **Extensive Logging Added:** To aid in debugging the remaining issues (specifically the non-functional seek), detailed logging (`logger.d`, `logger.e`) has been added throughout:
+    *   `lib/features/audio_recorder/data/services/audio_playback_service_impl.dart`
+    *   `lib/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart`
+    *   `lib/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart`
+    These logs include method entry/exit points, key state variables, stream events, and error details with stack traces.
+3.  **Remaining Issue:** The problem with **seek functionality not working** as described in the original critical issue is **still outstanding** and requires investigation, now aided by the new logging.
+
 ## Root Cause Analysis
 
 The fundamental issue is in `AudioPlaybackServiceImpl.play()` method:

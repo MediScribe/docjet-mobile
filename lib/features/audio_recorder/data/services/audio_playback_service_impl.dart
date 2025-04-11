@@ -61,29 +61,50 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     logger.d('SERVICE PLAY [$pathOrUrl]: START');
     try {
       final isSameFile = pathOrUrl == _currentFilePath;
+      // Check if the last known state was paused
+      final isPaused = _lastKnownState.maybeWhen(
+        paused: (_, __) => true, // It's paused if it matches the paused state
+        orElse:
+            () => false, // Otherwise, it's not considered paused for this logic
+      );
 
-      // Always perform a full stop/load/play
-      logger.d('SERVICE PLAY [$pathOrUrl]: Playing file from beginning...');
-      logger.d('SERVICE PLAY [$pathOrUrl]: Calling stop...');
-      await _audioPlayerAdapter.stop();
-      logger.d('SERVICE PLAY [$pathOrUrl]: Stop complete.');
+      logger.d(
+        'SERVICE PLAY [$pathOrUrl]: isSameFile: $isSameFile, isPaused: $isPaused',
+      );
 
-      // Update current path only if it's different
-      if (!isSameFile) {
-        logger.d('SERVICE PLAY [$pathOrUrl]: Setting mapper path...');
-        // Let the mapper know the context
-        _playbackStateMapper.setCurrentFilePath(pathOrUrl);
-        _currentFilePath = pathOrUrl; // Update current file path
-        logger.d('SERVICE PLAY [$pathOrUrl]: Mapper path set.');
+      if (isSameFile && isPaused) {
+        // Same file and was paused -> Just resume playback
+        logger.d('SERVICE PLAY [$pathOrUrl]: Resuming paused file...');
+        await _audioPlayerAdapter
+            .resume(); // This maps to the underlying player's play/resume
+        logger.d('SERVICE PLAY [$pathOrUrl]: Resume call completed.');
+      } else {
+        // Different file OR wasn't paused -> Full stop/load/play sequence
+        logger.d(
+          'SERVICE PLAY [$pathOrUrl]: Performing full restart (different file or not paused)...',
+        );
+
+        // Always perform a full stop first to ensure clean state
+        logger.d('SERVICE PLAY [$pathOrUrl]: Calling stop...');
+        await _audioPlayerAdapter.stop();
+        logger.d('SERVICE PLAY [$pathOrUrl]: Stop complete.');
+
+        // Update current path ONLY if it's a different file
+        if (!isSameFile) {
+          logger.d('SERVICE PLAY [$pathOrUrl]: Setting mapper path...');
+          _playbackStateMapper.setCurrentFilePath(pathOrUrl);
+          _currentFilePath = pathOrUrl; // Update internal tracking
+          logger.d('SERVICE PLAY [$pathOrUrl]: Mapper path set.');
+        }
+
+        logger.d('SERVICE PLAY [$pathOrUrl]: Calling setSourceUrl...');
+        await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
+        logger.d('SERVICE PLAY [$pathOrUrl]: setSourceUrl complete.');
+
+        logger.d('SERVICE PLAY [$pathOrUrl]: Calling resume (for start)...');
+        await _audioPlayerAdapter.resume(); // Start playback from beginning
+        logger.d('SERVICE PLAY [$pathOrUrl]: Resume (for start) complete.');
       }
-
-      logger.d('SERVICE PLAY [$pathOrUrl]: Calling setSourceUrl...');
-      await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-      logger.d('SERVICE PLAY [$pathOrUrl]: setSourceUrl complete.');
-
-      logger.d('SERVICE PLAY [$pathOrUrl]: Calling resume...');
-      await _audioPlayerAdapter.resume();
-      logger.d('SERVICE PLAY [$pathOrUrl]: Resume complete.');
 
       logger.d('SERVICE PLAY [$pathOrUrl]: END (Success)');
     } catch (e, s) {

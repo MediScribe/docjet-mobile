@@ -468,56 +468,81 @@ void main() {
     );
 
     test(
-      'play called on the same file while paused should properly restart playback from beginning',
+      'play called on the same file while paused should RESUME playback, not restart',
       () async {
         // Arrange
-        const tFilePath = 'test/path.mp3';
-        const initialDuration = Duration(seconds: 30);
-        const pausedPosition = Duration(seconds: 10);
+        const tFilePath = 'test/path_resume.mp3';
+        const initialDuration = Duration(seconds: 60);
+        const pausedPosition = Duration(seconds: 25);
 
+        // Mock the initial state sequence (play -> pause)
         final initialPlayingState = entity.PlaybackState.playing(
           currentPosition: Duration.zero,
           totalDuration: initialDuration,
         );
         final pausedState = entity.PlaybackState.paused(
-          currentPosition: pausedPosition,
+          currentPosition: pausedPosition, // Record the pause position
           totalDuration: initialDuration,
         );
 
-        // 1. Initial Play
+        // -- First Play --
+        logger.d('TEST [resume paused]: Initial play call...');
         await service.play(tFilePath);
+        // Simulate mapper emitting the state
         mockPlaybackStateController.add(initialPlayingState);
-        await Future.delayed(Duration.zero); // Ensure state is processed
+        await Future.delayed(Duration.zero); // Process stream
+        logger.d('TEST [resume paused]: Initial play state emitted.');
 
-        // Verify initial play interactions happened once
+        // Verify initial interactions
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePath)).called(1);
         verify(mockPlaybackStateMapper.setCurrentFilePath(tFilePath)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1); // First resume call
+        verify(mockAudioPlayerAdapter.resume()).called(1); // First resume
 
-        // 2. Pause
+        // -- Pause --
+        logger.d('TEST [resume paused]: Pause call...');
         await service.pause();
         verify(mockAudioPlayerAdapter.pause()).called(1);
+        // Simulate mapper emitting the paused state - IMPORTANT for the service logic
         mockPlaybackStateController.add(pausedState);
-        await Future.delayed(
-          Duration.zero,
-        ); // Ensure service._lastKnownState is updated
+        await Future.delayed(Duration.zero); // Process stream
+        // service._lastKnownState should now be `pausedState`
+        logger.d('TEST [resume paused]: Paused state emitted.');
 
-        // Clear interactions to verify just the second play call
+        // Clear interactions AFTER pause, before the second play
+        logger.d(
+          'TEST [resume paused]: Clearing interactions before second play...',
+        );
         clearInteractions(mockAudioPlayerAdapter);
-        clearInteractions(mockPlaybackStateMapper);
+        clearInteractions(mockPlaybackStateMapper); // Clear mapper too
 
-        // 3. Act: Play the same file again while paused
+        // Act: Play the SAME file again while paused
+        logger.d(
+          'TEST [resume paused]: Calling second play (resume expected)...',
+        );
         await service.play(tFilePath);
+        logger.d('TEST [resume paused]: Second play call complete.');
 
-        // Assert: With the new implementation, we DO expect these methods to be called
-        // for restarting playback, even on the same file
-        verify(mockAudioPlayerAdapter.stop()).called(1);
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePath)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1);
+        // Assert: Correct behavior - RESUME was called, stop/setSourceUrl were NOT
+        logger.d('TEST [resume paused]: Verifying RESUME interactions...');
+        verifyNever(mockAudioPlayerAdapter.stop()); // Should NOT stop
+        verifyNever(
+          mockAudioPlayerAdapter.setSourceUrl(any),
+        ); // Should NOT set source again
+        verify(mockAudioPlayerAdapter.resume()).called(1); // SHOULD call resume
+        verifyNever(
+          mockPlaybackStateMapper.setCurrentFilePath(any),
+        ); // Should NOT set path again
 
-        // We should NOT call setCurrentFilePath again for the same file
-        verifyNever(mockPlaybackStateMapper.setCurrentFilePath(any));
+        // Optionally: Simulate mapper emitting playing state again after resume
+        final resumingState = entity.PlaybackState.playing(
+          currentPosition: pausedPosition, // Should resume near here
+          totalDuration: initialDuration,
+        );
+        mockPlaybackStateController.add(resumingState);
+        await Future.delayed(Duration.zero);
+
+        logger.d('TEST [resume paused]: Interactions verified. Test END.');
       },
     );
 
