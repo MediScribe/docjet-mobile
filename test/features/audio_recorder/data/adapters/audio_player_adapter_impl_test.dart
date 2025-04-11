@@ -109,28 +109,52 @@ void main() {
   });
 
   group('setSourceUrl', () {
+    // Test Red 1: Local File Path
     test(
-      'should call setSourceUrl on AudioPlayer with correct source',
+      'should call setSource on AudioPlayer with DeviceFileSource for local paths',
       () async {
         // Arrange
-        const url = 'http://example.com/audio.mp3';
-        // Define mock behavior
-        when(mockAudioPlayer.setSourceUrl(any)).thenAnswer((_) async {});
+        const localPath =
+            '/var/mobile/Containers/Data/Application/some-uuid/tmp/my_audio.m4a';
+        // Expect setSource to be called, not setSourceUrl
+        when(mockAudioPlayer.setSource(any)).thenAnswer((_) async => {});
 
         // Act
-        await audioPlayerAdapter.setSourceUrl(url);
+        await audioPlayerAdapter.setSourceUrl(localPath);
 
         // Assert
-        // Verify setSourceUrl was called exactly once and capture the argument
-        final verification = verify(mockAudioPlayer.setSourceUrl(captureAny));
+        // Verify setSource was called exactly once and capture the Source argument
+        final verification = verify(mockAudioPlayer.setSource(captureAny));
         verification.called(1);
 
-        // Assert: Check the captured argument
-        final capturedUrl = verification.captured.single as String;
-        expect(capturedUrl, url);
+        // Assert: Check the captured argument is DeviceFileSource with the correct path
+        final capturedSource = verification.captured.single as Source;
+        expect(capturedSource, isA<DeviceFileSource>());
+        expect((capturedSource as DeviceFileSource).path, localPath);
+      },
+    );
 
-        // Note: We originally used UrlSource, but setSourceUrl takes a String.
-        // Let's verify the String argument directly.
+    // Test Red 2: Remote URL
+    test(
+      'should call setSource on AudioPlayer with UrlSource for remote URLs',
+      () async {
+        // Arrange
+        const remoteUrl = 'https://example.com/audio.mp3';
+        // Expect setSource to be called
+        when(mockAudioPlayer.setSource(any)).thenAnswer((_) async => {});
+
+        // Act
+        await audioPlayerAdapter.setSourceUrl(remoteUrl);
+
+        // Assert
+        // Verify setSource was called exactly once and capture the Source argument
+        final verification = verify(mockAudioPlayer.setSource(captureAny));
+        verification.called(1);
+
+        // Assert: Check the captured argument is UrlSource with the correct URL
+        final capturedSource = verification.captured.single as Source;
+        expect(capturedSource, isA<UrlSource>());
+        expect((capturedSource as UrlSource).url, remoteUrl);
       },
     );
   });

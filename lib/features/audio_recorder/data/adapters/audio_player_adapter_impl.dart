@@ -1,6 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';
+import 'dart:io'; // Import for Platform check if needed later, or Uri directly
 
 // Using centralized logger with level OFF
 final logger = Logger(level: Level.off);
@@ -73,8 +74,20 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   }
 
   @override
-  Future<void> setSourceUrl(String url) {
-    // Delegate to the actual player
-    return _audioPlayer.setSourceUrl(url);
+  Future<void> setSourceUrl(String pathOrUrl) async {
+    // Use Uri.tryParse to determine if it's a URL scheme we recognize
+    final uri = Uri.tryParse(pathOrUrl);
+    final bool isNetworkUrl =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+
+    if (isNetworkUrl) {
+      // It's a URL
+      await _audioPlayer.setSource(UrlSource(pathOrUrl));
+    } else {
+      // Assume it's a local file path
+      // Note: This assumes non-http/https URIs are file paths, which is generally safe
+      // for our use case but could be refined further if file:// URIs are expected.
+      await _audioPlayer.setSource(DeviceFileSource(pathOrUrl));
+    }
   }
 }
