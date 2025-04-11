@@ -28,6 +28,10 @@ class AudioListCubit extends Cubit<AudioListState> {
     _listenToPlaybackService();
   }
 
+  String mapFailureToMessage(Failure failure) {
+    return failure.toString();
+  }
+
   void _listenToPlaybackService() {
     logger.d('[CUBIT] Subscribing to AudioPlaybackService stream...');
     _playbackSubscription = _audioPlaybackService.playbackStateStream.listen(
@@ -52,9 +56,10 @@ class AudioListCubit extends Cubit<AudioListState> {
   }
 
   void _onPlaybackStateChanged(PlaybackState playbackState) {
-    logger.d(
-      '[CUBIT_onPlaybackStateChanged] Received PlaybackState update: ${playbackState.runtimeType}',
-    );
+    // COMMENT OUT VERBOSE LOG
+    // logger.d(
+    //   '[CUBIT_onPlaybackStateChanged] Received PlaybackState update: ${playbackState.runtimeType}',
+    // );
     if (state is AudioListLoaded) {
       final currentState = state as AudioListLoaded;
       logger.d(
@@ -137,18 +142,20 @@ class AudioListCubit extends Cubit<AudioListState> {
         '[CUBIT_onPlaybackStateChanged] Comparison: ${currentState.playbackInfo != newPlaybackInfo}',
       );
 
+      // ADD MORE DETAILED LOGGING BEFORE EMIT (COMMENT OUT)
+      // logger.d(
+      //   '[CUBIT_onPlaybackStateChanged] Calculated New PlaybackInfo: activeFilePath=${newPlaybackInfo.activeFilePath?.split('/').last ?? 'null'}, isPlaying=${newPlaybackInfo.isPlaying}, isLoading=${newPlaybackInfo.isLoading}, position=${newPlaybackInfo.currentPosition.inMilliseconds}ms',
+      // );
+
       if (currentState.playbackInfo != newPlaybackInfo) {
-        logger.d(
-          '[CUBIT_onPlaybackStateChanged] Emitting state: activeFilePath=${newPlaybackInfo.activeFilePath?.split('/').last ?? 'null'}, isPlaying=${newPlaybackInfo.isPlaying}',
-        );
+        // Log BEFORE emitting (COMMENT OUT)
+        // logger.d('[CUBIT_onPlaybackStateChanged] Emitting updated AudioListLoaded state...');
         emit(currentState.copyWith(playbackInfo: newPlaybackInfo));
       } else {
-        logger.d('[CUBIT_onPlaybackStateChanged] No state change needed');
+        // Log BEFORE emitting (COMMENT OUT)
+        // logger.d('[CUBIT_onPlaybackStateChanged] Emitting updated AudioListLoaded state...');
+        emit(currentState.copyWith(playbackInfo: newPlaybackInfo));
       }
-    } else {
-      logger.d(
-        '[CUBIT_onPlaybackStateChanged] Current state is not AudioListLoaded',
-      );
     }
   }
 
@@ -161,7 +168,7 @@ class AudioListCubit extends Cubit<AudioListState> {
     failureOrRecordings.fold(
       (failure) {
         logger.e('[CUBIT] Error loading recordings: $failure');
-        emit(AudioListError(message: _mapFailureToMessage(failure)));
+        emit(AudioListError(message: mapFailureToMessage(failure)));
       },
       (transcriptions) {
         logger.i(
@@ -194,7 +201,7 @@ class AudioListCubit extends Cubit<AudioListState> {
         emit(
           AudioListError(
             message:
-                'Failed to delete recording: ${_mapFailureToMessage(failure)}',
+                'Failed to delete recording: ${mapFailureToMessage(failure)}',
           ),
         );
       },
@@ -214,7 +221,6 @@ class AudioListCubit extends Cubit<AudioListState> {
   /// Plays the specified recording.
   Future<void> playRecording(String filePath) async {
     logger.i(
-      // Use INFO for high-level action start
       '[CUBIT_playRecording] START - Req Path: ${filePath.split('/').last}',
     );
     _currentPlayingFilePath = filePath;
@@ -222,7 +228,13 @@ class AudioListCubit extends Cubit<AudioListState> {
       '  -> _currentPlayingFilePath SET to: ${_currentPlayingFilePath?.split('/').last}',
     ); // DEBUG detail
     try {
-      logger.d('  -> Calling service.play()'); // DEBUG detail
+      // <<< REMOVE CUBIT PLAY LOG 2 >>>
+      logger.d(
+        '[CUBIT_playRecording] ABOUT TO CALL _audioPlaybackService.play($filePath)',
+      );
+      // // ignore: avoid_print
+      // print(
+      //   '[RAW PRINT CUBIT CHECK] About to call service.play() with filePath: $filePath');
       await _audioPlaybackService.play(filePath);
       logger.d('  -> Service call complete.'); // DEBUG detail
     } catch (e) {
@@ -324,10 +336,6 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
-  }
-
-  String _mapFailureToMessage(Failure failure) {
-    return failure.toString();
   }
 
   @override

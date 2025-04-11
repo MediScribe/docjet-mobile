@@ -131,6 +131,9 @@ class AudioPlayerWidget extends StatelessWidget {
             onPressed:
                 canPlayPause
                     ? () {
+                      logger.d(
+                        'AudioPlayerWidget: Play/Pause Tapped! isPlaying = $isPlaying, filePath = ${filePath.split('/').last}',
+                      );
                       if (isPlaying) {
                         context.read<AudioListCubit>().pauseRecording();
                       } else {

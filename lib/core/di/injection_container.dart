@@ -147,12 +147,28 @@ Future<void> init() async {
   );
 
   // + Register Audio Playback Service
-  sl.registerLazySingleton<AudioPlaybackService>(
-    () => AudioPlaybackServiceImpl(
-      audioPlayerAdapter: sl(),
-      playbackStateMapper: sl(),
-    ),
-  );
+  sl.registerLazySingleton<AudioPlaybackService>(() {
+    // Resolve dependencies first
+    final adapter = sl<AudioPlayerAdapter>();
+    final mapper = sl<PlaybackStateMapper>();
+
+    // **** THE CRITICAL WIRING STEP ****
+    // Initialize the mapper with the adapter's streams
+    // We MUST cast mapper back to its implementation type to access initialize
+    (mapper as PlaybackStateMapperImpl).initialize(
+      positionStream: adapter.onPositionChanged,
+      durationStream: adapter.onDurationChanged,
+      completeStream: adapter.onPlayerComplete,
+      playerStateStream: adapter.onPlayerStateChanged,
+    );
+    // ***********************************
+
+    // Now create the service instance with the wired dependencies
+    return AudioPlaybackServiceImpl(
+      audioPlayerAdapter: adapter,
+      playbackStateMapper: mapper,
+    );
+  });
 
   // + Register TranscriptionMergeService
   sl.registerLazySingleton<TranscriptionMergeService>(

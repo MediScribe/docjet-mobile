@@ -22,136 +22,267 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   // );
 
   // Constructor no longer needs to listen immediately
-  AudioPlayerAdapterImpl(this._audioPlayer);
+  AudioPlayerAdapterImpl(this._audioPlayer) {
+    logger.d('[ADAPTER_INIT] Creating AudioPlayerAdapterImpl instance.');
+    // Log player state changes immediately upon creation for debugging
+    _audioPlayer.playerStateStream.listen(
+      (state) {
+        logger.d(
+          '[ADAPTER_INTERNAL] Player state changed: ${state.processingState}, playing: ${state.playing}',
+        );
+      },
+      onError: (e, s) {
+        logger.e(
+          '[ADAPTER_INTERNAL] Error in playerStateStream',
+          error: e,
+          stackTrace: s,
+        );
+      },
+    );
+    _audioPlayer.positionStream.listen(
+      (pos) {
+        // Limit logging frequency if needed
+        // COMMENT OUT HIGH-FREQUENCY POSITION LOG
+        // logger.d('[ADAPTER_INTERNAL] Position changed: ${pos.inMilliseconds}ms');
+      },
+      onError: (e, s) {
+        logger.e(
+          '[ADAPTER_INTERNAL] Error in positionStream',
+          error: e,
+          stackTrace: s,
+        );
+      },
+    );
+    _audioPlayer.durationStream.listen(
+      (dur) {
+        logger.d(
+          '[ADAPTER_INTERNAL] Duration changed: ${dur?.inMilliseconds}ms',
+        );
+      },
+      onError: (e, s) {
+        logger.e(
+          '[ADAPTER_INTERNAL] Error in durationStream',
+          error: e,
+          stackTrace: s,
+        );
+      },
+    );
+  }
 
   @override
   Future<void> pause() async {
-    logger.d('Adapter: pause() called');
-    logger.d('Adapter pause() called by:\n${StackTrace.current}');
-    await _audioPlayer.pause();
-    // Add logging right after pause is called
-    logger.d(
-      'Adapter: pause operation completed. Current player state: ${_audioPlayer.playerState}',
-    );
-    logger.d(
-      'Adapter: is playing: ${_audioPlayer.playing}, processingState: ${_audioPlayer.processingState}',
-    );
-    return;
+    final trace = StackTrace.current;
+    logger.d('[ADAPTER PAUSE] START', stackTrace: trace);
+    try {
+      await _audioPlayer.pause();
+      logger.d(
+        '[ADAPTER PAUSE] Call complete. Current state: playing=${_audioPlayer.playing}, processing=${_audioPlayer.processingState}',
+      );
+    } catch (e, s) {
+      logger.e('[ADAPTER PAUSE] FAILED', error: e, stackTrace: s);
+      rethrow;
+    }
+    logger.d('[ADAPTER PAUSE] END');
   }
 
   @override
-  Future<void> resume() {
+  Future<void> resume() async {
+    // Changed return type to Future<void> for consistency with async
+    final trace = StackTrace.current;
     // just_audio uses play() to resume
-    logger.d('Adapter: resume() called (delegating to play())');
-    return _audioPlayer.play();
+    logger.d(
+      '[ADAPTER RESUME] START (delegating to play())',
+      stackTrace: trace,
+    );
+    try {
+      await _audioPlayer.play();
+      logger.d('[ADAPTER RESUME] play() call complete.');
+    } catch (e, s) {
+      logger.e('[ADAPTER RESUME] FAILED', error: e, stackTrace: s);
+      rethrow;
+    }
+    logger.d('[ADAPTER RESUME] END');
+    // Since play() returns Future<void>, we don't need to return explicitly
   }
 
   @override
-  Future<void> seek(Duration position) {
-    logger.d('Adapter: seek() called with position: $position');
-    return _audioPlayer.seek(position);
+  Future<void> seek(Duration position) async {
+    final trace = StackTrace.current;
+    logger.d(
+      '[ADAPTER SEEK ${position.inMilliseconds}ms] START',
+      stackTrace: trace,
+    );
+    try {
+      await _audioPlayer.seek(position);
+      logger.d('[ADAPTER SEEK] Call complete.');
+    } catch (e, s) {
+      logger.e('[ADAPTER SEEK] FAILED', error: e, stackTrace: s);
+      rethrow;
+    }
+    logger.d('[ADAPTER SEEK ${position.inMilliseconds}ms] END');
   }
 
   @override
-  Future<void> stop() {
-    logger.d('Adapter: stop() called');
-    logger.d('Adapter stop() called by:\n${StackTrace.current}');
-    return _audioPlayer.stop();
+  Future<void> stop() async {
+    final trace = StackTrace.current;
+    logger.d('[ADAPTER STOP] START', stackTrace: trace);
+    try {
+      await _audioPlayer.stop();
+      logger.d('[ADAPTER STOP] Call complete.');
+    } catch (e, s) {
+      logger.e('[ADAPTER STOP] FAILED', error: e, stackTrace: s);
+      rethrow;
+    }
+    logger.d('[ADAPTER STOP] END');
   }
 
   @override
   Future<void> dispose() async {
-    logger.d('Adapter: dispose() called');
+    logger.d('[ADAPTER DISPOSE] START');
     // just_audio only has dispose(), no release()
-    await _audioPlayer.dispose();
+    try {
+      await _audioPlayer.dispose();
+      logger.d('[ADAPTER DISPOSE] Call complete.');
+    } catch (e, s) {
+      logger.e('[ADAPTER DISPOSE] FAILED', error: e, stackTrace: s);
+      // Decide if rethrow is appropriate
+    }
+    logger.d('[ADAPTER DISPOSE] END');
   }
 
   @override
   Stream<DomainPlayerState> get onPlayerStateChanged {
-    logger.d('Adapter: onPlayerStateChanged stream requested');
+    logger.d('[ADAPTER STREAM] onPlayerStateChanged accessed');
     // Map just_audio's PlayerState (ProcessingState + playing bool) to DomainPlayerState
     return _audioPlayer.playerStateStream
         .map((state) {
           logger.d(
-            'ADAPTER_INPUT: just_audio PlayerState: ${state.processingState}, playing: ${state.playing}',
+            '[ADAPTER STREAM MAP] Input PlayerState: processing=${state.processingState}, playing=${state.playing}',
           );
+          DomainPlayerState domainState;
           switch (state.processingState) {
             case ProcessingState.idle: // REMOVED ALIAS
               // Idle usually means stopped or initial
-              return DomainPlayerState.stopped;
+              domainState = DomainPlayerState.stopped;
+              break;
             case ProcessingState.loading: // REMOVED ALIAS
-              return DomainPlayerState.loading;
+              domainState = DomainPlayerState.loading;
+              break;
             case ProcessingState.buffering: // REMOVED ALIAS
               // Treat buffering as a loading state from the domain perspective
-              return DomainPlayerState.loading;
+              domainState = DomainPlayerState.loading;
+              break;
             case ProcessingState.ready: // REMOVED ALIAS
               // Ready means it can play. Check the playing flag.
-              return state.playing
-                  ? DomainPlayerState.playing
-                  : DomainPlayerState.paused;
+              domainState =
+                  state.playing
+                      ? DomainPlayerState.playing
+                      : DomainPlayerState.paused;
+              break;
             case ProcessingState.completed: // REMOVED ALIAS
-              return DomainPlayerState.completed;
+              domainState = DomainPlayerState.completed;
+              break;
           }
+          // COMMENT OUT VERBOSE LOG
+          // logger.d(
+          //   '[ADAPTER STREAM MAP] Output DomainPlayerState: $domainState',
+          // );
+          return domainState;
         })
-        .handleError((error) {
-          // Optional: Map specific player errors to a domain error state
-          logger.e('Error in playerStateStream: $error');
-          return DomainPlayerState.error;
+        .handleError((error, stackTrace) {
+          logger.e(
+            '[ADAPTER STREAM] Error in playerStateStream',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          // Map specific player errors to a domain error state or rethrow
+          // For now, just logging and letting the stream emit the error.
+          // Consider emitting DomainPlayerState.error here if needed.
+          throw error; // Rethrow to propagate the error
         })
         .distinct(); // Avoid emitting consecutive identical states
   }
 
   @override
   Stream<Duration> get onDurationChanged {
-    logger.d('Adapter: onDurationChanged stream requested');
+    logger.d('[ADAPTER STREAM] onDurationChanged accessed');
     return _audioPlayer.durationStream
         .map((d) {
-          // logger.d('ADAPTER_INPUT: just_audio Duration: ${d?.inMilliseconds}ms'); // <<< COMMENT OUT
+          // logger.d('[ADAPTER STREAM MAP] Input Duration: ${d?.inMilliseconds}ms'); // Keep commented
           return d;
         })
         .where((d) => d != null)
-        .cast<Duration>();
+        .cast<Duration>()
+        .handleError((error, stackTrace) {
+          logger.e(
+            '[ADAPTER STREAM] Error in durationStream',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          throw error;
+        });
   }
 
   @override
   Stream<Duration> get onPositionChanged {
-    logger.d('Adapter: onPositionChanged stream requested');
-    // Expose the player's stream directly
-    return _audioPlayer.positionStream.map((pos) {
-      // logger.d('ADAPTER_INPUT: just_audio Position: ${pos.inMilliseconds}ms'); // <<< COMMENT OUT
-      return pos;
-    });
+    logger.d('[ADAPTER STREAM] onPositionChanged accessed');
+    return _audioPlayer.positionStream
+        .map((pos) {
+          // logger.d('[ADAPTER STREAM MAP] Input Position: ${pos.inMilliseconds}ms'); // Keep commented
+          return pos;
+        })
+        .handleError((error, stackTrace) {
+          logger.e(
+            '[ADAPTER STREAM] Error in positionStream',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          throw error;
+        });
   }
 
   @override
   Stream<void> get onPlayerComplete {
-    logger.d('Adapter: onPlayerComplete stream requested');
-    // Filter the playerStateStream for the completed state and map to void.
+    logger.d('[ADAPTER STREAM] onPlayerComplete accessed');
     return _audioPlayer.playerStateStream
         .where((state) {
           final completed = state.processingState == ProcessingState.completed;
           if (completed) {
-            logger.d('ADAPTER_INPUT: just_audio PlayerState completed');
+            logger.d('[ADAPTER STREAM FILTER] PlayerState completed detected.');
           }
           return completed;
         })
-        .map((_) {}); // Map to an empty expression block for void
+        .map((_) {
+          logger.d(
+            '[ADAPTER STREAM MAP] Mapping completed state to void event.',
+          );
+          return;
+        })
+        .handleError((error, stackTrace) {
+          logger.e(
+            '[ADAPTER STREAM] Error in onPlayerComplete stream logic',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          throw error;
+        });
   }
 
   @override
   Future<void> setSourceUrl(String pathOrUrl) async {
-    logger.d('ADAPTER setSourceUrl: Received pathOrUrl: [$pathOrUrl]');
+    final trace = StackTrace.current;
+    logger.d('[ADAPTER SET_SOURCE $pathOrUrl] START', stackTrace: trace);
     try {
       final uri = Uri.parse(pathOrUrl);
       final bool isNetworkUrl = (uri.scheme == 'http' || uri.scheme == 'https');
 
       AudioSource source; // REMOVED ALIAS
       if (isNetworkUrl) {
-        logger.d('ADAPTER setSourceUrl: Detected as NETWORK URL.');
+        logger.d('[ADAPTER SET_SOURCE $pathOrUrl] Detected NETWORK URL.');
         source = AudioSource.uri(uri); // REMOVED ALIAS
       } else {
         logger.d(
-          'ADAPTER setSourceUrl: Detected as LOCAL PATH (assuming file scheme).',
+          '[ADAPTER SET_SOURCE $pathOrUrl] Detected LOCAL PATH (assuming file scheme).',
         );
         // Ensure it's treated as a file URI, even if scheme is missing
         source = AudioSource.uri(
@@ -160,15 +291,20 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
         );
       }
 
-      logger.d('ADAPTER setSourceUrl: Calling _audioPlayer.setAudioSource');
+      logger.d(
+        '[ADAPTER SET_SOURCE $pathOrUrl] Action: Calling _audioPlayer.setAudioSource...',
+      );
       // setAudioSource returns nullable duration, but our interface is void.
       await _audioPlayer.setAudioSource(source);
-      logger.d('ADAPTER setSourceUrl: setAudioSource call complete.');
+      logger.d('[ADAPTER SET_SOURCE $pathOrUrl] setAudioSource call complete.');
     } catch (e, stackTrace) {
-      logger.e('ADAPTER Error in setSourceUrl: $e\n$stackTrace');
-      // Rethrow or handle as appropriate for the application
-      // Consider wrapping in a domain-specific exception
+      logger.e(
+        '[ADAPTER SET_SOURCE $pathOrUrl] FAILED',
+        error: e,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
+    logger.d('[ADAPTER SET_SOURCE $pathOrUrl] END');
   }
 }

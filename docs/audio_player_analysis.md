@@ -272,3 +272,82 @@ To prevent similar issues in the future, we need to adopt a test-from-usage phil
 This issue demonstrates how a technically correct implementation can still fail to meet user needs. Clean Architecture is valuable, but it must be guided by clear user-focused requirements and tests.
 
 The path forward isn't to abandon our architecture, but to realign our implementation and tests with what users actually need. By fixing the tests to validate correct behavior and updating the implementation to check player state, we can resolve this issue while strengthening our development approach for the future. 
+
+## Update: Service Logic Fixed, Focus Shifted to State Propagation
+
+Following the TDD approach outlined above:
+
+1.  **New Test Added:** A test case (`'play called on the same file while paused should RESUME playback, not restart'`) was added to `test/features/audio_recorder/data/services/audio_playback_service_play_test.dart`. This test specifically asserts the correct resume behavior (calling `resume()` only, without `stop()` or `setSourceUrl()`). It initially failed, confirming the bug in the service implementation.
+2.  **Service Implementation Fixed:** The `play` method in `lib/features/audio_recorder/data/services/audio_playback_service_impl.dart` was modified. It now correctly checks `_lastKnownState` using `maybeWhen`. If the state is `paused` and the `pathOrUrl` matches `_currentFilePath`, it only calls `_audioPlayerAdapter.resume()`. Otherwise, it performs the full stop/setSourceUrl/resume sequence.
+3.  **Obsolete Test Removed:** The old test case (`'play called on the same file while paused should properly restart playback from beginning'`) that validated the incorrect restart behavior was removed after the fix was implemented and the new test passed.
+4.  **Service Tests Pass:** All tests in `audio_playback_service_play_test.dart` now pass, confirming the fix for the play/pause/resume logic *within the service itself*.
+
+### New Problem: UI State Synchronization
+
+Despite the service logic being fixed and verified by unit tests, the observed behavior in the UI remained incorrect: pressing the play button on an already playing track *still* restarted it instead of pausing.
+
+**Root Cause Analysis (Current Issue):**
+
+Logs revealed the following sequence:
+1.  User taps play. Service starts playing.
+2.  Service reports `PlaybackState.playing` back up the chain (via Mapper to Cubit).
+3.  User taps the play button *again*.
+4.  **Crucially**, the `AudioPlayerWidget` instance handling the button tap still has `isPlaying = false` in its state when the `onPressed` handler executes.
+5.  Because `isPlaying` is perceived as `false`, the widget's `onPressed` handler incorrectly calls `cubit.playRecording()` *again*, instead of `cubit.pauseRecording()`.
+6.  The service receives a second `play` command while its internal state might still be `playing` (or potentially reset by the rapid second call), leading it to execute the "full restart" path.
+
+**Conclusion (Current Issue):**
+
+The problem is **NOT** in the `AudioPlaybackServiceImpl.play()` method's core logic anymore. The issue lies in the **state propagation and synchronization** between the `AudioListCubit` and the `AudioPlayerWidget`. The UI is not receiving or rebuilding with the updated `isPlaying = true` state quickly enough, or there's a flaw in how the state comparison or emission works in the Cubit (`_onPlaybackStateChanged`).
+
+**Next Steps (Debugging State Propagation):**
+
+1.  **Verify Cubit Emission:** Added detailed logging in `AudioListCubit._onPlaybackStateChanged` to confirm:
+    *   That it correctly calculates `PlaybackInfo` with `isPlaying = true` when receiving `PlaybackState.playing`.
+    *   Whether the `Equatable` comparison (`currentState.playbackInfo != newPlaybackInfo`) evaluates to `true`, triggering an `emit`.
+2.  **Verify UI Reception:** If the Cubit *is* emitting the correct state, the next step is to add logging to the `BlocBuilder<AudioListCubit, AudioListState>` that builds the `AudioPlayerWidget` list, logging the received `state.playbackInfo` on each rebuild to see when/if the UI receives the update.
+
+The investigation continues, focusing now on the Cubit's state management and the UI's reaction to it. 
+
+## Update 2: Play/Pause/Resume Fixed - Root Cause: Missing DI Wiring & State Propagation
+
+The plot thickened. While the previous update correctly identified a state synchronization issue, the *true* root cause was deeper:
+
+1.  **Dependency Injection Failure:** The core issue was discovered in `lib/core/di/injection_container.dart`. While the `AudioPlayerAdapterImpl`, `PlaybackStateMapperImpl`, and `AudioPlaybackServiceImpl` were registered, the crucial step of **connecting the mapper to the adapter's streams was missing**. The `PlaybackStateMapperImpl.initialize()` method, which subscribes the mapper to the adapter's `onPlayerStateChanged`, `onPositionChanged`, etc., was never called.
+    *   **Impact:** The mapper remained deaf to adapter events. The service, listening only to the mapper's stream, never received accurate state updates (`playing`, `paused`), causing its internal `_lastKnownState` to be incorrect. This forced the service's `play()` method down the restart path (`stop`/`setSourceUrl`/`resume`) even when a resume was intended.
+    *   **Fix:** Modified the `AudioPlaybackService` registration in `injection_container.dart` to explicitly call `(mapper as PlaybackStateMapperImpl).initialize(...)` with the adapter's streams after resolving both dependencies.
+
+2.  **Log Spam & Filtering:** After fixing the DI, state updates flowed correctly, but revealed excessive logging due to high-frequency position updates (~60Hz) from `just_audio` propagating through the chain. The RxDart `.distinct()` operator in the mapper was initially too simple.
+    *   **Fix 1 (Filtering):** Implemented a custom comparison function for `.distinct()` in `PlaybackStateMapperImpl` to ignore `currentPosition` changes unless the state type (playing/paused) or `totalDuration` (within a tolerance) also changed. This successfully filtered the *state* spam.
+    *   **Fix 2 (Logging):** Silenced the verbose `DEBUG` level logs related to stream propagation (`Pre-Distinct`, internal `distinct` comparison, `Post-Distinct`, `SERVICE_RX`, `CUBIT_onPlaybackStateChanged`, etc.) across the Adapter, Mapper, Service, and Cubit layers, as they were obscuring analysis during normal operation.
+
+**Outcome:**
+With the DI wiring fixed and the state stream filtering/logging refined, the play/pause/resume functionality now **works correctly** in the UI. The button icon updates appropriately, and the audio pauses and resumes as expected.
+
+## Why Didn't Our Tests Catch This?
+
+This painful debugging journey highlights critical gaps in our testing strategy:
+
+1.  **Unit Test Isolation:** Our unit tests for `AudioPlaybackServiceImpl` were highly effective at verifying its *internal logic* based on controlled inputs (mocked mapper stream). However, they were completely blind to the interaction *between* components and the dependency injection setup. The service logic was correct (after the first fix), but it never received the right inputs in the real app.
+2.  **Missing Integration Tests:** We lacked tests covering the crucial link between the `AudioPlayerAdapter`, `PlaybackStateMapper`, and `AudioPlaybackService`. A test verifying that events from the adapter stream *actually result* in state changes on the service's output stream would have caught the missing `mapper.initialize()` call.
+3.  **Over-Reliance on Mocking Behavior:** We mocked the *output* of the mapper (`mockMapper.playbackStateStream`) in the service tests, rather than mocking the *input* streams from the adapter and verifying the mapper's output. This hid the internal wiring problem.
+4.  **Insufficient UI/Widget Testing:** While widget tests might exist, they likely mocked the Cubit state directly. A widget test interacting with a less-mocked Cubit (connected to a service with the DI issue) *might* have shown the button state never updating, hinting at the underlying problem.
+
+**In short, we tested the units in isolation but failed to test the fucking plumbing connecting them.**
+
+## Next Steps: Fixing Seek & Improving Tests
+
+With play/pause/resume working, the remaining known issue is the non-functional seek.
+
+**Debugging Seek:**
+1.  **Isolate & Log:** Capture logs specifically generated during a seek attempt (dragging the slider).
+2.  **Trace Path:** Follow the call stack: `AudioPlayerWidget.Slider.onChanged` -> `AudioListCubit.seekRecording` -> `AudioPlaybackService.seek` -> `AudioPlayerAdapter.seek` -> `just_audio.seek`.
+3.  **Analyze Behavior:** Observe what happens visually (slider jump? audio change?) and correlate with logs to find the failure point.
+4.  **Review Logic:** Check slider value calculation, duration conversion, and any state checks within the seek methods.
+
+**Improving Test Strategy:**
+1.  **Add Mapper Integration Tests:** Test `PlaybackStateMapperImpl` by providing mock input streams (adapter outputs) and verifying the emitted `PlaybackState` stream.
+2.  **Add Service Integration Tests:** Test `AudioPlaybackServiceImpl` by connecting it to a *real* `PlaybackStateMapperImpl` (which in turn gets mock input streams) and verifying the service's output stream and state transitions.
+3.  **Add Cubit Integration Tests:** Test `AudioListCubit` with a less-mocked `AudioPlaybackService` to ensure it handles service state updates correctly.
+4.  **Enhance Widget Tests:** Ensure `AudioPlayerWidget` tests cover UI updates based on various `PlaybackInfo` states received from a mocked Cubit.
+5.  **Consider End-to-End:** Evaluate adding integration_test for the full play/pause/seek/stop user flow. 
