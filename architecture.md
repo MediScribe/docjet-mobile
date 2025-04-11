@@ -122,9 +122,15 @@ This architecture treats local files as opaque handles/payloads. The primary sou
 
 ## 3. Audio Playback Architecture (Refactored - April 2024)
 
-The audio playback system was significantly refactored to improve testability and separation of concerns, moving away from a monolithic service. It now utilizes a **Clean Architecture approach with Adapter and Mapper patterns**.
+**CRITICAL NOTE (April 15th, 2024):** A major issue was identified: the application currently uses **TWO different audio player libraries**: `audioplayers` for the main playback adapter (`AudioPlayerAdapterImpl`) and `just_audio` for duration retrieval (`AudioDurationRetrieverImpl`). Additionally, the `AudioPlayerAdapter` interface in the **Domain Layer** incorrectly exposes types (`PlayerState`) from the `audioplayers` package, violating the Dependency Rule (data layer leaking into domain). This redundancy and leaky abstraction must be fixed.
 
-This refactoring addressed challenges in testing complex asynchronous stream logic and tightly coupled dependencies. The new architecture isolates the third-party audio player (`audioplayers` package) and separates the logic for transforming raw player events into domain-specific state.
+**REVISED PLAN:** The architecture will be refactored in two phases:
+1.  **Phase 1 (Interface Decoupling):** Define a library-agnostic `DomainPlayerState` enum/class. Update the `AudioPlayerAdapter` interface to use this domain type for its state stream. Update the current `audioplayers`-based implementation and its consumers (mapper, tests) to work with this new interface contract.
+2.  **Phase 2 (Standardize on `just_audio`):** Rewrite the `AudioPlayerAdapterImpl` to use `just_audio` instead of `audioplayers`. Update the adapter tests accordingly. Remove the `audioplayers` dependency entirely.
+
+The following description reflects the state *before* this critical refactoring begins.
+
+The audio playback system was significantly refactored to improve testability and separation of concerns, moving away from a monolithic service. It now utilizes a **Clean Architecture approach with Adapter and Mapper patterns**.
 
 ### 3.1. Playback Architecture Diagram
 
@@ -154,6 +160,7 @@ graph LR
     subgraph "External Dependencies"
         direction LR
         PLAYER[audioplayers::AudioPlayer]
+        PLAYER_DURATION[just_audio::AudioPlayer]
     end
 
     %% --- Dependencies --- 
@@ -172,6 +179,7 @@ graph LR
     MAP_IMPL --> ENTITY
     MAP_IMPL -- Uses --> PLAYER
     MAP_IMPL -- Uses --> ADP_IF
+    SVC_DURATION[AudioDurationRetrieverImpl] -- Uses --> PLAYER_DURATION
 
     %% Grouping for Layout Hint (Optional)
     subgraph Feature
@@ -190,6 +198,7 @@ graph LR
         SVC_IMPL
         ADP_IMPL
         MAP_IMPL
+        SVC_DURATION[AudioDurationRetrieverImpl]
       end
     end
     
@@ -230,10 +239,12 @@ lib/features/audio_recorder/
 ### 3.3. File Responsibilities
 
 *   **Domain Layer:**
-    *   `domain/adapters/audio_player_adapter.dart`: Defines the *contract* for how the application interacts with *any* audio player. Specifies methods (play, pause, stop, seek, setSourceUrl, dispose) and output streams (`onPlayerStateChanged`, `onDurationChanged`, `onPositionChanged`, `onPlayerComplete`). It isolates the rest of the app from the specifics of the `audioplayers` package.
+    *   `domain/adapters/audio_player_adapter.dart`: Defines the *contract* for how the application interacts with *any* audio player. Specifies methods (play, pause, stop, seek, setSourceUrl, dispose) and output streams (`onPlayerStateChanged`, `onDurationChanged`, `onPositionChanged`, `onPlayerComplete`). **ISSUE (April 15th, 2024): This interface currently leaks the `audioplayers::PlayerState` type in its `onPlayerStateChanged` stream.** **PHASE 1 PLAN:** This stream will be changed to use a new, library-agnostic `DomainPlayerState` defined within the domain layer.
     *   `domain/entities/playback_state.dart`: Defines the core *business state* of playback using a `freezed` sealed class (`initial`, `loading`, `playing`, `paused`, `stopped`, `completed`, `error`). This is the canonical representation of state used within the domain and presentation layers.
-    *   `domain/mappers/playback_state_mapper.dart`: Defines the *contract* for transforming the raw, low-level event streams provided by the `AudioPlayerAdapter` into the unified, high-level `Stream<PlaybackState>`. It includes an `initialize` method signature to signal the need for input streams and a `dispose` method.
+    *   `domain/mappers/playback_state_mapper.dart`: Defines the *contract* for transforming the raw, low-level event streams provided by the `AudioPlayerAdapter` into the unified, high-level `Stream<PlaybackState>`. **PHASE 1 PLAN:** The `initialize` method's `playerStateStream` input type will change from `Stream<audioplayers::PlayerState>` to `Stream<DomainPlayerState>`.
     *   `domain/services/audio_playback_service.dart`: Defines the high-level *use cases* for audio playback available to the presentation layer (play, pause, resume, seek, stop, dispose). It exposes the final `Stream<PlaybackState>` for UI updates.
 *   **Data Layer:**
-    *   `data/adapters/audio_player_adapter_impl.dart`: *Implements* the `AudioPlayerAdapter` interface using the `audioplayers` package. It holds an instance of `AudioPlayer`, delegates method calls directly to it, and exposes its raw streams. **Crucially, its `setSourceUrl` implementation now correctly uses `Uri.tryParse` to detect the scheme and calls `_audioPlayer.setSource` with either `DeviceFileSource` for local paths or `UrlSource` for network URLs.**
-    *   `data/mappers/playback_state_mapper_impl.dart`: *Implements* the `PlaybackStateMapper`. It takes the raw streams from the adapter (via its `initialize` method), uses `rxdart`
+    *   `data/adapters/audio_player_adapter_impl.dart`: *Implements* the `AudioPlayerAdapter` interface using the `audioplayers` package. **PHASE 1 PLAN:** The `onPlayerStateChanged` getter will be updated to map internal `audioplayers` states to the new `DomainPlayerState`. **PHASE 2 PLAN:** This entire implementation will be rewritten to use `just_audio`.
+    *   `data/mappers/playback_state_mapper_impl.dart`: *Implements* the `PlaybackStateMapper`. **PHASE 1 PLAN:** This implementation will be updated to accept `DomainPlayerState` from the adapter via `initialize`.
+    *   `data/services/audio_duration_retriever_impl.dart`: (**ISSUE**) Uses `just_audio` to get duration. **PHASE 2 PLAN:** This becomes the *only* place `just_audio` (or whatever final player) is used directly outside the adapter.
+    *   `data/services/audio_playback_service_impl.dart`: (**ISSUE**) Orchestrates Adapter & Mapper. **PHASE 1 PLAN:** This implementation will be updated to use `just_audio` for playback.
