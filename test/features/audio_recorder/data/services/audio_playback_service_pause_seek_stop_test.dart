@@ -77,7 +77,6 @@ void main() {
     when(mockAudioPlayerAdapter.resume()).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.pause()).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.seek(any)).thenAnswer((_) => Future.value());
-    when(mockAudioPlayerAdapter.play(any)).thenAnswer((_) => Future.value());
 
     // Stub adapter streams (return empty streams for these tests)
     when(

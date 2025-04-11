@@ -1,14 +1,8 @@
-import 'package:audioplayers/audioplayers.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 
 /// Abstract interface for interacting with an audio player.
 /// This isolates the application logic from the specific audio player implementation.
 abstract class AudioPlayerAdapter {
-  /// Plays the audio from the specified [url].
-  /// Assumes `setSourceUrl` has been called previously or handles source setting internally.
-  Future<void> play(
-    String url,
-  ); // Note: Test plan mentions testing play() delegation. Let's keep it.
-
   /// Sets the audio source to the given [url].
   Future<void> setSourceUrl(String url);
 
@@ -27,8 +21,8 @@ abstract class AudioPlayerAdapter {
   /// Releases resources associated with the audio player.
   Future<void> dispose();
 
-  /// Stream of player state changes.
-  Stream<PlayerState> get onPlayerStateChanged;
+  /// Stream of player state changes using the domain-specific state.
+  Stream<DomainPlayerState> get onPlayerStateChanged;
 
   /// Stream of audio duration changes.
   Stream<Duration> get onDurationChanged;

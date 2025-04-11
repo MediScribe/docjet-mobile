@@ -1,7 +1,8 @@
-import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart' as audioplayers;
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';
-import 'dart:io'; // Import for Platform check if needed later, or Uri directly
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
+// Import for Platform check if needed later, or Uri directly
 
 // Using centralized logger with level OFF
 // TEMPORARILY ENABLE DEBUG LOGGING FOR ADAPTER
@@ -9,15 +10,9 @@ final logger = Logger(level: Level.debug);
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `audioplayers` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
-  final AudioPlayer _audioPlayer;
+  final audioplayers.AudioPlayer _audioPlayer;
 
   AudioPlayerAdapterImpl(this._audioPlayer);
-
-  @override
-  Future<void> play(String filePath) async {
-    // Delegate to the actual player
-    await _audioPlayer.play(DeviceFileSource(filePath));
-  }
 
   @override
   Future<void> pause() {
@@ -51,9 +46,27 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   }
 
   @override
-  Stream<PlayerState> get onPlayerStateChanged {
-    // Expose the player's stream directly
-    return _audioPlayer.onPlayerStateChanged;
+  Stream<DomainPlayerState> get onPlayerStateChanged {
+    // Map the audioplayers state stream to the DomainPlayerState enum stream.
+    return _audioPlayer.onPlayerStateChanged.map((playerState) {
+      switch (playerState) {
+        case audioplayers.PlayerState.playing:
+          return DomainPlayerState.playing;
+        case audioplayers.PlayerState.paused:
+          return DomainPlayerState.paused;
+        case audioplayers.PlayerState.stopped:
+          return DomainPlayerState.stopped;
+        case audioplayers.PlayerState.completed:
+          return DomainPlayerState.completed;
+        // Map disposed state to initial. 'stopped' is handled above.
+        case audioplayers.PlayerState.disposed:
+          return DomainPlayerState.initial; // Or potentially stopped
+        // Removed unreachable default and duplicate stopped case.
+      }
+      // REMOVED dead code: The switch is exhaustive.
+      // logger.w('Reached end of switch in onPlayerStateChanged unexpectedly for $playerState, returning initial');
+      // return DomainPlayerState.initial;
+    });
   }
 
   @override
@@ -87,7 +100,7 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
         'ADAPTER setSourceUrl: Detected as NETWORK URL. Using UrlSource.',
       );
       // It's a URL
-      await _audioPlayer.setSource(UrlSource(pathOrUrl));
+      await _audioPlayer.setSource(audioplayers.UrlSource(pathOrUrl));
     } else {
       logger.d(
         'ADAPTER setSourceUrl: Detected as LOCAL PATH. Using DeviceFileSource.',
@@ -95,7 +108,7 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
       // Assume it's a local file path
       // Note: This assumes non-http/https URIs are file paths, which is generally safe
       // for our use case but could be refined further if file:// URIs are expected.
-      await _audioPlayer.setSource(DeviceFileSource(pathOrUrl));
+      await _audioPlayer.setSource(audioplayers.DeviceFileSource(pathOrUrl));
     }
     logger.d('ADAPTER setSourceUrl: setSource call complete.');
   }

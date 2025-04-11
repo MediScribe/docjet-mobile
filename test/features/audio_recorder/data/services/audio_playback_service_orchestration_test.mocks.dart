@@ -5,9 +5,10 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i3;
 
-import 'package:audioplayers/audioplayers.dart' as _i4;
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'
     as _i2;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
+    as _i4;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'
     as _i6;
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart'
@@ -38,10 +39,11 @@ class MockAudioPlayerAdapter extends _i1.Mock
   }
 
   @override
-  _i3.Stream<_i4.PlayerState> get onPlayerStateChanged => (super.noSuchMethod(
+  _i3.Stream<_i4.DomainPlayerState> get onPlayerStateChanged =>
+      (super.noSuchMethod(
         Invocation.getter(#onPlayerStateChanged),
-        returnValue: _i3.Stream<_i4.PlayerState>.empty(),
-      ) as _i3.Stream<_i4.PlayerState>);
+        returnValue: _i3.Stream<_i4.DomainPlayerState>.empty(),
+      ) as _i3.Stream<_i4.DomainPlayerState>);
 
   @override
   _i3.Stream<Duration> get onDurationChanged => (super.noSuchMethod(
@@ -60,16 +62,6 @@ class MockAudioPlayerAdapter extends _i1.Mock
         Invocation.getter(#onPlayerComplete),
         returnValue: _i3.Stream<void>.empty(),
       ) as _i3.Stream<void>);
-
-  @override
-  _i3.Future<void> play(String? url) => (super.noSuchMethod(
-        Invocation.method(
-          #play,
-          [url],
-        ),
-        returnValue: _i3.Future<void>.value(),
-        returnValueForMissingStub: _i3.Future<void>.value(),
-      ) as _i3.Future<void>);
 
   @override
   _i3.Future<void> setSourceUrl(String? url) => (super.noSuchMethod(
@@ -152,7 +144,7 @@ class MockPlaybackStateMapper extends _i1.Mock
     required _i3.Stream<Duration>? positionStream,
     required _i3.Stream<Duration>? durationStream,
     required _i3.Stream<void>? completeStream,
-    required _i3.Stream<_i4.PlayerState>? playerStateStream,
+    required _i3.Stream<_i4.DomainPlayerState>? playerStateStream,
   }) =>
       super.noSuchMethod(
         Invocation.method(

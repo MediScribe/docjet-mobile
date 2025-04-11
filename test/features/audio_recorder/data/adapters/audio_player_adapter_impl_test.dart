@@ -1,8 +1,9 @@
 import 'dart:async'; // Needed for StreamController
 
-import 'package:audioplayers/audioplayers.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart'; // Implementation (will be created)
-import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'; // Interface
+import 'package:audioplayers/audioplayers.dart' as audioplayers;
+import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'; // <-- Import the new Domain State
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -11,44 +12,38 @@ import 'package:mockito/mockito.dart';
 import 'audio_player_adapter_impl_test.mocks.dart';
 
 // Generate mocks for the AudioPlayer class
-@GenerateMocks([AudioPlayer])
+@GenerateMocks([audioplayers.AudioPlayer]) // Use aliased import
 void main() {
   late MockAudioPlayer mockAudioPlayer;
   late AudioPlayerAdapter audioPlayerAdapter;
+  late StreamController<audioplayers.PlayerState> playerStateController;
 
   setUp(() {
-    // Arrange: Create a fresh mock for each test
     mockAudioPlayer = MockAudioPlayer();
-    // Arrange: Instantiate the adapter implementation with the mock player
-    // Note: This requires AudioPlayerAdapterImpl to be created first!
-    // For now, we write the test assuming it exists.
     audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);
+
+    // Setup stream controller for player state
+    playerStateController =
+        StreamController<audioplayers.PlayerState>.broadcast();
+    // Stub the mock player's stream getter
+    when(
+      mockAudioPlayer.onPlayerStateChanged,
+    ).thenAnswer((_) => playerStateController.stream);
+
+    // Stub other streams for completeness, though not focus of this change
+    when(
+      mockAudioPlayer.onDurationChanged,
+    ).thenAnswer((_) => StreamController<Duration>.broadcast().stream);
+    when(
+      mockAudioPlayer.onPositionChanged,
+    ).thenAnswer((_) => StreamController<Duration>.broadcast().stream);
+    when(
+      mockAudioPlayer.onPlayerComplete,
+    ).thenAnswer((_) => StreamController<void>.broadcast().stream);
   });
 
-  group('play', () {
-    test('should call play on AudioPlayer with correct source', () async {
-      // Arrange
-      const filePath = '/path/to/audio.mp3';
-
-      // Define the mock behavior: when play is called with any source, return success
-      // We use 'any' here because DeviceFileSource doesn't implement == correctly for mockito matching
-      // We'll verify the source type and path separately.
-      when(mockAudioPlayer.play(any)).thenAnswer((_) async {});
-
-      // Act
-      await audioPlayerAdapter.play(filePath);
-
-      // Assert
-      // Verify that play was called exactly once
-      // and capture the argument passed to it.
-      final verification = verify(mockAudioPlayer.play(captureAny));
-      verification.called(1);
-
-      // Assert: Check the captured argument
-      final capturedSource = verification.captured.single as Source;
-      expect(capturedSource, isA<DeviceFileSource>());
-      expect((capturedSource as DeviceFileSource).path, filePath);
-    });
+  tearDown(() {
+    playerStateController.close();
   });
 
   group('pause', () {
@@ -128,9 +123,13 @@ void main() {
         verification.called(1);
 
         // Assert: Check the captured argument is DeviceFileSource with the correct path
-        final capturedSource = verification.captured.single as Source;
-        expect(capturedSource, isA<DeviceFileSource>());
-        expect((capturedSource as DeviceFileSource).path, localPath);
+        final capturedSource =
+            verification.captured.single as audioplayers.Source;
+        expect(capturedSource, isA<audioplayers.DeviceFileSource>());
+        expect(
+          (capturedSource as audioplayers.DeviceFileSource).path,
+          localPath,
+        );
       },
     );
 
@@ -152,9 +151,10 @@ void main() {
         verification.called(1);
 
         // Assert: Check the captured argument is UrlSource with the correct URL
-        final capturedSource = verification.captured.single as Source;
-        expect(capturedSource, isA<UrlSource>());
-        expect((capturedSource as UrlSource).url, remoteUrl);
+        final capturedSource =
+            verification.captured.single as audioplayers.Source;
+        expect(capturedSource, isA<audioplayers.UrlSource>());
+        expect((capturedSource as audioplayers.UrlSource).url, remoteUrl);
       },
     );
   });
@@ -176,20 +176,36 @@ void main() {
   });
 
   group('streams', () {
-    test("onPlayerStateChanged should expose player's stream", () {
-      // Arrange
-      final testStream = StreamController<PlayerState>.broadcast().stream;
-      when(mockAudioPlayer.onPlayerStateChanged).thenAnswer((_) => testStream);
+    test(
+      'onPlayerStateChanged should map audioplayers states to DomainPlayerState',
+      () {
+        // Arrange: Mock player is already set up in setUp to return playerStateController.stream
+        final stream = audioPlayerAdapter.onPlayerStateChanged;
 
-      // Act
-      final stream = audioPlayerAdapter.onPlayerStateChanged;
+        // Assert: Expect the adapter's stream to emit correctly mapped DomainPlayerState values
+        // when the underlying mock stream emits audioplayers states.
+        expectLater(
+          stream,
+          emitsInOrder([
+            DomainPlayerState.playing,
+            DomainPlayerState.paused,
+            DomainPlayerState.stopped,
+            DomainPlayerState.completed,
+            DomainPlayerState
+                .initial, // Map unknown/other states if needed, or define error
+          ]),
+        );
 
-      // Assert
-      expect(
-        stream,
-        same(testStream),
-      ); // Use 'same' to check for identical stream instance
-    });
+        // Act: Push states into the mock controller
+        playerStateController.add(audioplayers.PlayerState.playing);
+        playerStateController.add(audioplayers.PlayerState.paused);
+        playerStateController.add(audioplayers.PlayerState.stopped);
+        playerStateController.add(audioplayers.PlayerState.completed);
+        playerStateController.add(
+          audioplayers.PlayerState.disposed,
+        ); // Example of a state not directly mapped
+      },
+    );
 
     test("onDurationChanged should expose player's stream", () {
       // Arrange

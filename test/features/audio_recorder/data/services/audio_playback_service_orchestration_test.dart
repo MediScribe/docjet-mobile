@@ -1,6 +1,6 @@
-import 'package:audioplayers/audioplayers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,9 +17,6 @@ void main() {
     late MockAudioPlayerAdapter mockAdapter;
     late MockPlaybackStateMapper mockMapper;
     late AudioPlaybackServiceImpl service;
-    final testStream = Stream<PlaybackState>.value(
-      const PlaybackState.initial(),
-    );
 
     setUp(() {
       mockAdapter = MockAudioPlayerAdapter();
@@ -29,7 +26,9 @@ void main() {
       final positionStream = Stream<Duration>.value(Duration.zero);
       final durationStream = Stream<Duration>.value(Duration.zero);
       final completeStream = Stream<void>.value(null);
-      final playerStateStream = Stream<PlayerState>.value(PlayerState.stopped);
+      final playerStateStream = Stream<DomainPlayerState>.value(
+        DomainPlayerState.stopped,
+      );
 
       when(mockAdapter.onPositionChanged).thenAnswer((_) => positionStream);
       when(mockAdapter.onDurationChanged).thenAnswer((_) => durationStream);
@@ -39,13 +38,36 @@ void main() {
       ).thenAnswer((_) => playerStateStream);
 
       // Mock mapper stream
-      when(mockMapper.playbackStateStream).thenAnswer((_) => testStream);
+      final testMapperOutputStream = Stream<PlaybackState>.value(
+        const PlaybackState.initial(),
+      );
+      when(
+        mockMapper.playbackStateStream,
+      ).thenAnswer((_) => testMapperOutputStream);
 
-      // Create service with mocks - we'll need to implement this constructor
+      // Mock the initialize call on the mapper
+      when(
+        mockMapper.initialize(
+          positionStream: anyNamed('positionStream'),
+          durationStream: anyNamed('durationStream'),
+          completeStream: anyNamed('completeStream'),
+          playerStateStream: anyNamed('playerStateStream'),
+        ),
+      ).thenReturn(null);
+
       service = AudioPlaybackServiceImpl(
         audioPlayerAdapter: mockAdapter,
         playbackStateMapper: mockMapper,
       );
+
+      verify(
+        mockMapper.initialize(
+          positionStream: positionStream,
+          durationStream: durationStream,
+          completeStream: completeStream,
+          playerStateStream: playerStateStream,
+        ),
+      ).called(1);
     });
 
     tearDown(() async {
@@ -114,8 +136,16 @@ void main() {
     });
 
     test('playbackStateStream should return mapper.playbackStateStream', () {
+      // Arrange
+      final testMapperOutputStream = Stream<PlaybackState>.value(
+        const PlaybackState.initial(),
+      );
+      when(
+        mockMapper.playbackStateStream,
+      ).thenAnswer((_) => testMapperOutputStream);
+
       // Act & Assert
-      expect(service.playbackStateStream, equals(testStream));
+      expect(service.playbackStateStream, equals(testMapperOutputStream));
     });
   });
 }

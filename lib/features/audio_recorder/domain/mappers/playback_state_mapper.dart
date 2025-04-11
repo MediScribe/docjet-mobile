@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart'; // Import for PlayerState
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'; // Import DomainPlayerState
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 
 /// Interface for a mapper that transforms raw audio player streams into a unified
@@ -17,8 +17,8 @@ abstract class PlaybackStateMapper {
     required Stream<Duration> positionStream,
     required Stream<Duration> durationStream,
     required Stream<void> completeStream,
-    required Stream<PlayerState>
-    playerStateStream, // Assuming PlayerState is from audioplayers
+    required Stream<DomainPlayerState>
+    playerStateStream, // Changed to DomainPlayerState
     // Add error stream input if needed later
   });
 
