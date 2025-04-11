@@ -11,20 +11,16 @@ abstract class AudioPlaybackService {
   /// Pauses the currently playing audio.
   Future<void> pause();
 
-  /// Resumes playback from the current position.
+  /// Resumes the paused audio.
   Future<void> resume();
 
-  /// Seeks to the specified [position] in the currently playing audio.
-  ///
-  /// Accepts an optional [totalDuration] hint which can be used by the
-  /// implementation to provide more immediate state updates after seeking.
-  Future<void> seek(Duration position, {Duration? totalDuration});
+  /// Seeks to the specified [position] in the audio file identified by [pathOrUrl].
+  Future<void> seek(String pathOrUrl, Duration position);
 
-  /// Stops the currently playing audio and resets the player state.
+  /// Stops the currently playing audio and releases some resources.
   Future<void> stop();
 
-  /// Releases resources held by the service, like the audio player and stream controllers.
-  /// Should be called when the service is no longer needed.
+  /// Disposes of the service and releases all resources.
   Future<void> dispose();
 
   /// A stream that emits [PlaybackState] updates whenever the playback status changes

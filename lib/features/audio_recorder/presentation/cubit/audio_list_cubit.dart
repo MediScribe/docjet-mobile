@@ -294,75 +294,61 @@ class AudioListCubit extends Cubit<AudioListState> {
     }
   }
 
-  /// Seeks to a specific position in the specified playback file.
+  /// Seeks to a specific position in the specified recording file.
   Future<void> seekRecording(String filePath, Duration position) async {
-    logger.i(
-      '[CUBIT] seekRecording called for path: $filePath, position: $position',
+    logger.d(
+      '[CUBIT_seekRecording] START - File: ${filePath.split('/').last}, Seek Request: ${position.inMilliseconds}ms',
     );
-    // NOTE: No need to check state here, service handles context.
-    // Let the service handle checking if it can seek.
-
-    // Set the internal path for context IF NEEDED by play/pause later?
-    // Consider if this is still necessary or if service solely manages context.
-    // For now, let's keep it to ensure play/pause know the target after seek.
+    // No need to check state here if service handles priming correctly.
+    // However, we MUST update the internal path *now* so subsequent play/resume work.
     _currentPlayingFilePath = filePath;
     logger.d(
       '  -> _currentPlayingFilePath SET to: ${_currentPlayingFilePath?.split('/').last}',
     );
 
-    try {
-      // Find the transcription to get the reliable total duration
-      final currentState = state as AudioListLoaded;
-      final transcription = currentState.transcriptions.firstWhere(
-        (t) => t.localFilePath == filePath, // Use localFilePath for lookup
-        orElse: () {
-          logger.w(
-            '[CUBIT] Could not find transcription for $filePath in state list for duration lookup.',
-          );
-          // Return a default Transcription with zero duration
-          return Transcription(
-            id: null,
-            localFilePath: filePath, // Use the path we have
-            status: TranscriptionStatus.unknown, // Use imported enum
-            localDurationMillis: 0,
-            // Ensure all required constructor fields are present if Transcription changed
-            localCreatedAt: null, // Added potentially missing required field
-          );
-        },
-      );
-      final reliableTotalDuration = Duration(
-        milliseconds: transcription.localDurationMillis ?? 0,
-      );
+    // We don't need to check for activeFilePath in the state anymore,
+    // as we are explicitly told which file to seek via the filePath argument.
 
-      // Pass the reliable duration to the service using named parameter
-      await _audioPlaybackService.seek(
-        position,
-        totalDuration: reliableTotalDuration, // Correct named parameter
-      );
+    logger.d(
+      '[CUBIT_seekRecording] Seeking in file: ${filePath.split('/').last}',
+    );
+
+    try {
+      // NOTE: This assumes the UI updates visually based on local drag state,
+      // and we rely on the service/mapper stream to update the *authoritative* state.
+      // We don't emit an optimistic state here to avoid potential race conditions.
       logger.d(
-        '[CUBIT] Called _audioPlaybackService.seek($position, totalDuration: $reliableTotalDuration) on path $filePath',
+        '[CUBIT_seekRecording] Calling _audioPlaybackService.seek($filePath, $position)...',
       );
+      await _audioPlaybackService.seek(
+        filePath,
+        position,
+      ); // Use passed filePath
+      logger.d('  -> Service seek call complete.');
     } catch (e) {
-      logger.e('[CUBIT] Error calling seek on service: $e');
-      // Emit an error state for the UI if seek fails at the service level
+      logger.e('[CUBIT_seekRecording] Error calling seek on service: $e');
+      // Update state with error - Ensure we have AudioListLoaded state to copy from
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
           currentState.copyWith(
             playbackInfo: currentState.playbackInfo.copyWith(
-              activeFilePath: filePath, // Provide context for the error
-              error: 'Failed to seek playback: $e',
-              isLoading: false, // Ensure loading is false on error
+              activeFilePath:
+                  filePath, // Set the active path even on error for context
+              error: 'Seek failed: $e',
+              isLoading: false, // Ensure loading is false
+              // Keep other state properties as they were before seek attempt?
             ),
           ),
         );
       } else {
-        // If state is not loaded, maybe just log or emit a generic error?
         logger.e(
-          '[CUBIT] Seek error occurred but state was not AudioListLoaded.',
+          '[CUBIT_seekRecording] Seek error occurred but state was not AudioListLoaded.',
         );
+        // Optionally emit a general error state if not loaded?
       }
     }
+    logger.d('[CUBIT_seekRecording] END');
   }
 
   /// Stops the current playback completely.

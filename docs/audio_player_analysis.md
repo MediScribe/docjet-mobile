@@ -407,21 +407,41 @@ We've made progress, but encountered subtle state synchronization issues related
 **Next Steps:**
 Focus on fixing the "First Seek Resets to Zero" and "Pause After Seek Unresponsive" bugs by ensuring the state propagation after a seek is both timely *and* accurate, likely by having the Service emit a definitive `paused` state with the correct position *and duration* immediately after a seek action completes. 
 
-## Update 5: "Fresh Seek" Reset Identified
+## Update 5: "Fresh Seek" Reset Bug FIXED
 
-Further testing revealed a critical nuance:
+After much bullshit and chasing our tails, the "Fresh Seek" bug (seeking on a file before its first play causes position reset on subsequent play) and the related UI flickering are **fixed**.
 
-1.  **Simplification Backlash:** The simplified approach (removing immediate service emits, separate play/pause/resume) exposed an initialization problem.
-2.  **The "Fresh Seek" Bug:** Seeking on a file *before* it has been played at least once results in the playhead resetting to zero when Play/Resume is subsequently pressed. The visual jump after releasing the drag works (local state), but the underlying player state doesn't seem to retain the seeked position until *after* a full `play` cycle (stop/setSource/resume) has occurred.
-3.  **Flickering:** A visual flicker occurs specifically during the *first* play action, potentially indicating a widget rebuild or state reset related to this initialization issue.
+**Root Cause Confirmed:**
+*   **`just_audio` Behavior:** The core issue was exactly as suspected. The `just_audio` player **ignores `seek()` calls if the audio source has not been loaded** via `setSourceUrl()` or `load()`. Seeking before the first play did nothing to the player's internal state.
+*   **Cubit Context:** The `AudioListCubit` initially lacked the necessary context (`filePath`) in its `seekRecording` method to know *which* file the user intended to seek, preventing it from informing the service correctly.
 
-**Revised Hypothesis:** The `just_audio` player or the adapter's streams may not reliably report the updated position after a `seek` command *if* the audio source hasn't been fully loaded/initialized by a prior `play` action. The `resume` call after a "fresh seek" acts on stale (zero) position data.
+**The Goddamn Fix:**
 
-**Revised Next Steps:**
-1.  **Verify `just_audio` Seek Behavior:** Confirm if `seek` updates position streams correctly before `load`/`setSourceUrl`.
-2.  **Trace Initial State Flow:** Add detailed logging to Adapter/Mapper streams after a "fresh seek".
-3.  **Consider "Priming" on Seek:** Investigate if `load` (or similar) needs to be called during seek for unloaded files.
-4.  **Investigate Flickering:** Check `Key` usage in the list builder and analyze the cause of the first-play rebuild.
+1.  **Service-Level Priming:** The `AudioPlaybackServiceImpl.seek()` method was modified.
+    *   It now accepts the `pathOrUrl` of the file to seek.
+    *   It checks if the requested file is the currently loaded one and if the player is in a "ready" state.
+    *   **Crucially**, if the file is *not* ready (i.e., it's a "fresh seek"), the service now "primes the pump":
+        *   Calls `adapter.stop()` to clear any previous state.
+        *   Updates its internal `_currentFilePath` and informs the `PlaybackStateMapper`.
+        *   Calls `adapter.setSourceUrl(pathOrUrl)` which **implicitly loads the audio**.
+        *   *Then* calls `adapter.seek(position)` on the now-loaded audio.
+        *   Finally, calls `adapter.pause()` immediately to prevent auto-play and ensure the player is left in a paused state at the correct seeked position.
+    *   If the file was already loaded, it simply calls `adapter.seek(position)`.
 
-**Next Steps:**
-Focus on fixing the "First Seek Resets to Zero" and "Pause After Seek Unresponsive" bugs by ensuring the state propagation after a seek is both timely *and* accurate, likely by having the Service emit a definitive `paused` state with the correct position *and duration* immediately after a seek action completes. 
+2.  **Cubit Context Fixed:**
+    *   The `AudioListCubit.seekRecording()` method signature was corrected to accept both `filePath` and `position`.
+    *   The `AudioPlayerWidget` was updated to call the Cubit's `seekRecording` with the correct `filePath` from its `widget.filePath`.
+    *   The Cubit now correctly sets its internal `_currentPlayingFilePath` when `seekRecording` is called, ensuring subsequent `playRecording` or `resumeRecording` calls target the correct, primed file.
+
+**Outcome:**
+*   Seeking a file *before* its first play now correctly loads the audio source, seeks to the desired position, and leaves the player paused at that position.
+*   Pressing Play/Resume after a "fresh seek" correctly starts playback from the seeked position, not from zero.
+*   The UI flickering on the first play action is resolved because the audio metadata (like `totalDuration`) is loaded during the priming step in the seek logic, preventing unexpected state changes during the subsequent play action.
+
+**Final Lessons Learned (Reiteration):**
+*   **Know Your Dependencies:** Don't assume library behavior. `just_audio`'s `seek` requirement was the core problem. RTFM or test in isolation.
+*   **Context is King:** Ensure all layers (Widget -> Cubit -> Service) have the necessary context (like `filePath`) to perform actions correctly, especially when dealing with multiple items.
+*   **Trust, but Verify (with Logs):** Logging was essential to trace the state flow and identify that the Cubit was missing context and the Service wasn't priming the player.
+*   **Test the Plumbing:** Integration tests covering the interaction between Widget -> Cubit -> Service -> Adapter would have likely caught the missing context or the ignored seek much earlier. Unit tests for isolated components were insufficient.
+
+This concludes the saga of the shitty audio player seek functionality. It should now work as expected. 

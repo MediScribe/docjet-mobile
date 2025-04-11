@@ -157,20 +157,86 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   }
 
   @override
-  Future<void> seek(Duration position, {Duration? totalDuration}) async {
+  Future<void> seek(String pathOrUrl, Duration position) async {
     final trace = StackTrace.current;
     logger.d(
-      '[SERVICE SEEK ${position.inMilliseconds}ms] START (provided duration: ${totalDuration?.inMilliseconds}ms)',
+      '[SERVICE SEEK $pathOrUrl ${position.inMilliseconds}ms] START',
       stackTrace: trace,
     );
     try {
-      await _audioPlayerAdapter.seek(position);
-      logger.d('[SERVICE SEEK] Adapter seek() call complete.');
+      final isSameFile = pathOrUrl == _currentFilePath;
+      // Determine if the player is ready for this file
+      // We consider it "ready" if it's the same file and not in an initial/stopped/error state.
+      // A simple check for matching _currentFilePath is a good proxy, assuming play/stop manages it.
+      final bool isReady =
+          isSameFile &&
+          !_lastKnownState.maybeWhen(
+            initial: () => true,
+            stopped: () => true,
+            error: (_, __, ___) => true,
+            orElse: () => false,
+          );
+
+      logger.d(
+        '[SERVICE SEEK $pathOrUrl] State Check: isSameFile: $isSameFile, isReady: $isReady',
+      );
+
+      if (!isReady) {
+        // --- Prime the Pump: Load the file first ---
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Action: Not ready. Priming the pump...',
+        );
+        logger.d('[SERVICE SEEK $pathOrUrl] Action: Calling adapter.stop()...');
+        await _audioPlayerAdapter.stop(); // Stop previous playback
+
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Action: Updating file path for mapper & service...',
+        );
+        _playbackStateMapper.setCurrentFilePath(pathOrUrl); // Inform mapper
+        _currentFilePath = pathOrUrl; // Update service state
+
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
+        );
+        // setSourceUrl implicitly loads the audio
+        await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Adapter setSourceUrl() call complete (loaded).',
+        );
+
+        // Now seek on the loaded file
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Action: Calling adapter.seek($position)...',
+        );
+        await _audioPlayerAdapter.seek(position);
+        logger.d('[SERVICE SEEK $pathOrUrl] Adapter seek() call complete.');
+
+        // CRITICAL: Immediately pause to prevent auto-play and set state correctly
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Action: Calling adapter.pause()...',
+        );
+        await _audioPlayerAdapter.pause();
+        logger.d('[SERVICE SEEK $pathOrUrl] Adapter pause() call complete.');
+        // No need to manually emit state here, the adapter+mapper should handle it.
+        // Set a flag maybe? No, let's rely on natural state flow for now.
+        logger.d('[SERVICE SEEK $pathOrUrl] Priming complete.');
+      } else {
+        // --- Already Loaded: Just Seek ---
+        logger.d(
+          '[SERVICE SEEK $pathOrUrl] Action: Already loaded. Calling adapter.seek($position)...',
+        );
+        await _audioPlayerAdapter.seek(position);
+        logger.d('[SERVICE SEEK $pathOrUrl] Adapter seek() call complete.');
+        // If it was playing, seek might pause it, or might keep playing depending on player.
+        // If it was paused, it should remain paused at the new position.
+        // We rely on the adapter/mapper stream to report the correct state after seek.
+      }
     } catch (e, s) {
-      logger.e('[SERVICE SEEK] FAILED', error: e, stackTrace: s);
+      logger.e('[SERVICE SEEK $pathOrUrl] FAILED', error: e, stackTrace: s);
+      _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
       rethrow;
     }
-    logger.d('[SERVICE SEEK ${position.inMilliseconds}ms] END');
+    logger.d('[SERVICE SEEK $pathOrUrl ${position.inMilliseconds}ms] END');
   }
 
   @override
