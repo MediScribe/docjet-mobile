@@ -107,10 +107,8 @@ class AudioPlayerWidget extends StatelessWidget {
                 canPlayPause
                     ? () {
                       if (isPlaying) {
-                        logger.t('UI: Pause button pressed for $filePath');
                         context.read<AudioListCubit>().pauseRecording();
                       } else {
-                        logger.t('UI: Play button pressed for $filePath');
                         context.read<AudioListCubit>().playRecording(filePath);
                       }
                     }
@@ -139,9 +137,6 @@ class AudioPlayerWidget extends StatelessWidget {
                     onChanged:
                         canSeek
                             ? (value) {
-                              logger.t(
-                                'UI: Slider changed for $filePath to $value',
-                              );
                               context.read<AudioListCubit>().seekRecording(
                                 Duration(seconds: value.toInt()),
                               );

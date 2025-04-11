@@ -18,6 +18,7 @@ class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
   final AudioPlaybackService _audioPlaybackService;
   StreamSubscription? _playbackSubscription;
+  String? _currentPlayingFilePath;
 
   AudioListCubit({
     required this.repository,
@@ -59,7 +60,7 @@ class AudioListCubit extends Cubit<AudioListState> {
       );
 
       // Map the freezed PlaybackState to PlaybackInfo properties
-      String? filePath;
+      String? filePath = _currentPlayingFilePath;
       bool isPlaying = false;
       bool isLoading = false;
       Duration position = Duration.zero;
@@ -85,9 +86,11 @@ class AudioListCubit extends Cubit<AudioListState> {
         },
         stopped: () {
           // No changes needed
+          _currentPlayingFilePath = null;
         },
         completed: () {
           // Mark as completed
+          _currentPlayingFilePath = null;
         },
         error: (message, currentPosition, duration) {
           errorMessage = message;
@@ -184,6 +187,7 @@ class AudioListCubit extends Cubit<AudioListState> {
   /// Plays the specified recording.
   Future<void> playRecording(String filePath) async {
     logger.i('[CUBIT] playRecording called for: $filePath');
+    _currentPlayingFilePath = filePath;
     try {
       await _audioPlaybackService.play(filePath);
       logger.d('[CUBIT] Called _audioPlaybackService.play() for $filePath');
@@ -248,11 +252,24 @@ class AudioListCubit extends Cubit<AudioListState> {
   }
 
   /// Stops the current playback completely.
-  Future<void> stopPlayback() async {
-    logger.i('[CUBIT] stopPlayback called.');
+  Future<void> stopRecording() async {
+    logger.i('[CUBIT] stopRecording called.');
+    final previousFilePath = _currentPlayingFilePath;
+    _currentPlayingFilePath = null; // Clear path immediately
     try {
       await _audioPlaybackService.stop();
       logger.d('[CUBIT] Called _audioPlaybackService.stop()');
+
+      // Emit state update ONLY if something was actually playing
+      if (state is AudioListLoaded &&
+          (state as AudioListLoaded).playbackInfo.activeFilePath != null) {
+        logger.d('[CUBIT] Emitting state update after explicit stop.');
+        emit(
+          (state as AudioListLoaded).copyWith(
+            playbackInfo: const PlaybackInfo.initial(),
+          ),
+        );
+      }
     } catch (e) {
       logger.e('[CUBIT] Error calling stop on service: $e');
       if (state is AudioListLoaded) {

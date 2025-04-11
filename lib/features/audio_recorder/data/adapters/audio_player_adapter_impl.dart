@@ -9,8 +9,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_pla
 // Import for Platform check if needed later, or Uri directly
 
 // Using centralized logger with level OFF
-// TEMPORARILY ENABLE DEBUG LOGGING FOR ADAPTER
-final logger = Logger(level: Level.debug);
+final logger = Logger(level: Level.off);
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
@@ -47,6 +46,7 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   @override
   Future<void> stop() {
     logger.d('Adapter: stop() called');
+    logger.d('Adapter stop() called by:\n${StackTrace.current}');
     return _audioPlayer.stop();
   }
 

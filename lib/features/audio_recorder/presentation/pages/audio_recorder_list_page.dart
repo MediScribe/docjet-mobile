@@ -15,7 +15,8 @@ import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
 
 // Using centralized logger with level OFF
-final logger = Logger(level: Level.off);
+// TEMPORARILY ENABLE DEBUG LOGGING FOR LIST PAGE
+final logger = Logger(level: Level.debug);
 
 // This outer widget can remain StatelessWidget, it just provides the context
 class AudioRecorderListPage extends StatelessWidget {
@@ -164,6 +165,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             logger.d(
               "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
             );
+            logger.d(
+              '[BlocConsumer BUILDER] Received AudioListLoaded with PlaybackInfo: ${state.playbackInfo}',
+            );
             if (state.transcriptions.isEmpty) {
               logger.i("[AudioRecorderListView] Builder: ListLoaded is empty.");
               return const Center(
@@ -211,6 +215,11 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         : duration; // Duration shown on the widget
                 final itemError = isActiveItem ? playbackInfo.error : null;
                 // Slider should only be enabled if this IS the active item and duration is known
+
+                // <<< ADD LOGGING HERE >>>
+                logger.d(
+                  '[itemBuilder ${transcription.localFilePath.split('/').last}] Calculated Props: isActive=$isActiveItem, isPlaying=$itemIsPlaying, itemPos=${itemPosition.inMilliseconds}ms, displayDur=${displayDuration.inMilliseconds}ms',
+                );
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
