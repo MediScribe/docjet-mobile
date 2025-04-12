@@ -256,19 +256,7 @@ void main() {
       final sliderFinder = find.byType(Slider);
       expect(sliderFinder, findsOneWidget);
 
-      // Simulate dragging the slider
-      // Note: tester.drag works, but slider.onChangeEnd is typically triggered
-      // by tapping or releasing the drag. Let's simulate a direct value change.
-      await tester.tap(sliderFinder);
-      await tester.pumpAndSettle(); // Let animations settle
-      await tester.drag(
-        sliderFinder,
-        const Offset(200.0, 0.0),
-      ); // Arbitrary drag
-      await tester.pumpAndSettle();
-
-      // More direct way for testing: directly update the slider value
-      // This targets the onChangeEnd logic which calls seekRecording
+      // Simulate the slider value change directly via onChangeEnd
       final Slider sliderWidget = tester.widget<Slider>(sliderFinder);
       sliderWidget.onChangeEnd!(finalPositionValue);
       await tester.pump(); // Process the call

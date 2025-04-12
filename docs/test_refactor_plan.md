@@ -40,7 +40,7 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 
 *   [ ] **Evaluate Test Timing Control:** Evaluate the use of `fake_async` vs. standard `async`/`await` mechanisms for controlling time in tests. Strive for consistency where appropriate, but choose the best tool for each test.
 *   [ ] **Refactor Service Tests (`audio_playback_service_*_test.dart`):**
-    *   [ ] **Test `play()` logic:** Verify correct adapter interactions (`stop`, `setSourceUrl`, `resume`) and output stream states (`loading`, then state from mapper) for initial play.
+    *   [x] **Test `play()` logic:** Verify correct adapter interactions (`stop`, `setSourceUrl`, `resume`) and output stream states (`loading`, then state from mapper) for initial play. (Verified in `play_test.dart`)
     *   [ ] **Test `play()` resume logic:** Verify only `resume` is called on the adapter when `play` is called on the same file while paused.
     *   [ ] **Test `play()` restart logic:** Verify full restart (`stop`, `setSourceUrl`, `resume`) when `play` is called on a *different* file or on the *same* file while already playing/stopped.
     *   [x] **Test `pause()` logic:** Verify `adapter.pause` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
