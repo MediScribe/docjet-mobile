@@ -1,10 +1,12 @@
 import 'package:docjet_mobile/core/utils/logger.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart'
-    hide logger;
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-// Keep helper function global or move to a util file
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = Logger(level: Level.debug);
+
+// Helper function (keep global or move to utils)
 String _formatDuration(Duration duration) {
   final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
   final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -36,19 +38,16 @@ class AudioPlayerWidget extends StatefulWidget {
 }
 
 class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
-  // Use the logger instance potentially defined in your logger.dart util
-  // Or instantiate one if necessary: final logger = Logger('AudioPlayerWidget');
-
-  // Local state for dragging
+  // Local state for slider dragging visual feedback
   bool _isDragging = false;
   double _dragValue = 0.0;
 
   @override
   Widget build(BuildContext context) {
-    // TEMPORARY FLICKER DEBUG
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    logger.d(
-      '[WIDGET_BUILD ${widget.filePath.split('/').last}] Time: ${timestamp}ms - Props: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, pos=${widget.currentPosition.inMilliseconds}ms, dur=${widget.totalDuration.inMilliseconds}ms, error=${widget.error}',
+    // Demoted build log from DEBUG to TRACE due to high frequency
+    // final timestamp = DateTime.now().millisecondsSinceEpoch; // Can remove timestamp
+    logger.t(
+      '[WIDGET_BUILD ${widget.filePath.split('/').last}] Props: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, pos=${widget.currentPosition.inMilliseconds}ms, dur=${widget.totalDuration.inMilliseconds}ms, error=${widget.error}',
     );
 
     final bool canPlayPause = !widget.isLoading && widget.error == null;
@@ -61,18 +60,21 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     final double sliderMax =
         (widget.totalDuration.inMilliseconds > 0
             ? widget.totalDuration.inMilliseconds.toDouble()
-            : 1.0);
+            : 1.0); // Avoid division by zero if duration is 0
     final double currentPositionValue = widget.currentPosition.inMilliseconds
         .toDouble()
-        .clamp(0.0, sliderMax);
+        .clamp(0.0, sliderMax); // Ensure value stays within bounds
 
     // Determine the actual value to display on the slider and text
     final displayValueMillis = _isDragging ? _dragValue : currentPositionValue;
-    final displayPosition = Duration(milliseconds: displayValueMillis.toInt());
+    final displayPosition = Duration(
+      milliseconds: displayValueMillis.round(),
+    ); // Use round()
 
     final String positionText = _formatDuration(displayPosition);
     final String durationText = _formatDuration(widget.totalDuration);
 
+    // Commented out redundant debug logs
     // logger.d(
     //   "AudioPlayerWidget: isPlaying=${widget.isPlaying}, path=${widget.filePath.split('/').last}",
     // );
@@ -90,7 +92,16 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       return _buildErrorState(widget.error!);
     }
 
-    return _buildPlayerControls(context);
+    // Use helper method for cleaner build function
+    return _buildPlayerControls(
+      context,
+      canPlayPause,
+      canSeek,
+      displayValueMillis,
+      sliderMax,
+      positionText,
+      durationText,
+    );
   }
 
   Widget _buildLoadingIndicator() {
@@ -123,28 +134,15 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     );
   }
 
-  Widget _buildPlayerControls(BuildContext context) {
-    final bool canPlayPause = !widget.isLoading && widget.error == null;
-    final bool canSeek =
-        !widget.isLoading &&
-        widget.error == null &&
-        widget.totalDuration > Duration.zero;
-
-    final double sliderMax =
-        (widget.totalDuration.inMilliseconds > 0
-            ? widget.totalDuration.inMilliseconds.toDouble()
-            : 1.0);
-    final double currentPositionValue = widget.currentPosition.inMilliseconds
-        .toDouble()
-        .clamp(0.0, sliderMax);
-
-    // Determine the actual value to display on the slider and text
-    final displayValueMillis = _isDragging ? _dragValue : currentPositionValue;
-    final displayPosition = Duration(milliseconds: displayValueMillis.toInt());
-
-    final String positionText = _formatDuration(displayPosition);
-    final String durationText = _formatDuration(widget.totalDuration);
-
+  Widget _buildPlayerControls(
+    BuildContext context,
+    bool canPlayPause,
+    bool canSeek,
+    double displayValueMillis,
+    double sliderMax,
+    String positionText,
+    String durationText,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Row(
@@ -161,16 +159,14 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                 canPlayPause
                     ? () {
                       if (widget.isPlaying) {
-                        // If playing, always pause
-                        // logger.d('[AudioPlayerWidget] Action: Pause Tapped');
+                        // logger.d('[AudioPlayerWidget] Action: Pause Tapped'); // Keep DEBUG
                         context.read<AudioListCubit>().pauseRecording();
                       } else {
-                        // If not playing, decide whether to play from start or resume
                         if (widget.currentPosition > Duration.zero) {
-                          // logger.d('[AudioPlayerWidget] Action: Resume Tapped (pos > 0)');
+                          // logger.d('[AudioPlayerWidget] Action: Resume Tapped (pos > 0)'); // Keep DEBUG
                           context.read<AudioListCubit>().resumeRecording();
                         } else {
-                          // logger.d('[AudioPlayerWidget] Action: Play Tapped (pos == 0)');
+                          // logger.d('[AudioPlayerWidget] Action: Play Tapped (pos == 0)'); // Keep DEBUG
                           context.read<AudioListCubit>().playRecording(
                             widget.filePath,
                           );
@@ -180,7 +176,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     : null,
           ),
           const SizedBox(width: 8),
-
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -202,25 +197,28 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     onChanged:
                         canSeek
                             ? (value) {
-                              // Update local drag value for immediate feedback
+                              // Update local state ONLY for visual drag feedback
                               setState(() {
                                 _isDragging = true;
                                 _dragValue = value;
                               });
-                              // Consider throttling or debouncing if this causes performance issues
                             }
                             : null,
                     onChangeEnd:
                         canSeek
                             ? (value) {
                               final seekPosition = Duration(
-                                milliseconds: value.toInt(),
+                                milliseconds: value.round(), // Use round()
                               );
-                              // Reset dragging flag
+                              // Reset dragging flag AFTER cubit call potentially?
+                              // No, reset immediately for smoother visual transition.
                               setState(() {
                                 _isDragging = false;
                               });
                               // Call the cubit to perform the actual seek
+                              // logger.d(
+                              //   '[AudioPlayerWidget] Action: Seek onChangeEnd ($seekPosition)',
+                              // ); // Keep DEBUG
                               context.read<AudioListCubit>().seekRecording(
                                 widget.filePath,
                                 seekPosition,
@@ -249,7 +247,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             ),
           ),
           const SizedBox(width: 8),
-
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Delete Recording',

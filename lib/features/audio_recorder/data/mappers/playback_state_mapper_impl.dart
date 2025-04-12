@@ -8,13 +8,13 @@ import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_st
 import 'package:flutter/foundation.dart'; // For @visibleForTesting
 import 'package:rxdart/rxdart.dart';
 
-// Set Logger Level HIGH to silence most logs by default
-final logger = Logger(level: Level.warning);
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = Logger(level: Level.debug);
 
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
-  // Controllers for input streams
+  // Stream Controllers for input streams from the Adapter
   @visibleForTesting
   final positionController = StreamController<Duration>.broadcast();
   @visibleForTesting
@@ -22,219 +22,191 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   @visibleForTesting
   final completeController = StreamController<void>.broadcast();
   @visibleForTesting
-  final playerStateController = StreamController<DomainPlayerState>.broadcast(); // Changed type
+  final playerStateController = StreamController<DomainPlayerState>.broadcast();
   @visibleForTesting
   final errorController = StreamController<String>.broadcast();
 
   // The merged and mapped output stream
   late final Stream<PlaybackState> _playbackStateStream;
 
-  // Internal state variables
-  DomainPlayerState _currentPlayerState =
-      DomainPlayerState.initial; // Changed type and initial value
+  // Subscriptions to input streams (held for potential cleanup)
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+
+  // Internal state variables tracking the latest values from input streams
+  DomainPlayerState _currentPlayerState = DomainPlayerState.initial;
   Duration _currentDuration = Duration.zero;
   Duration _currentPosition = Duration.zero;
   String? _currentError;
 
-  // Subscriptions to input streams for cleanup
-  final List<StreamSubscription<dynamic>> _subscriptions = [];
-
   PlaybackStateMapperImpl() {
-    // logger.d('[MAPPER_INIT] Creating PlaybackStateMapperImpl instance.');
-    _playbackStateStream = _createCombinedStream().asBroadcastStream(
-      onListen: (_) {},
-      // (_) => logger.d(
-      //   '[MAPPER_STREAM] Listener added to playbackStateStream.',
-      // ),
-      onCancel: (_) {},
-      // (_) => logger.d(
-      //   '[MAPPER_STREAM] Listener removed from playbackStateStream.',
-      // ),
-    );
-    // logger.d('[MAPPER_INIT] PlaybackState stream created.');
+    _playbackStateStream = _createCombinedStream().asBroadcastStream();
   }
+
+  // --- Interface Implementation ---
+
+  Stream<PlaybackState> get playbackStateStream => _playbackStateStream;
+
+  @override
+  void initialize({
+    required Stream<Duration> positionStream,
+    required Stream<Duration> durationStream,
+    required Stream<void> completeStream,
+    required Stream<DomainPlayerState> playerStateStream,
+  }) {
+    logger.d(
+      '[MAPPER_INIT] Initializing and subscribing to adapter streams...',
+    );
+    // Clear any existing subscriptions before creating new ones
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+
+    // Subscribe to the provided streams and pipe them to internal controllers
+    _subscriptions.add(
+      positionStream.listen(
+        positionController.add,
+        onError: (e, s) {
+          logger.e(
+            '[MAPPER_INIT] Error on adapter positionStream',
+            error: e,
+            stackTrace: s,
+          );
+          errorController.add('Adapter position stream error: $e');
+        },
+      ),
+    );
+    _subscriptions.add(
+      durationStream.listen(
+        durationController.add,
+        onError: (e, s) {
+          logger.e(
+            '[MAPPER_INIT] Error on adapter durationStream',
+            error: e,
+            stackTrace: s,
+          );
+          errorController.add('Adapter duration stream error: $e');
+        },
+      ),
+    );
+    _subscriptions.add(
+      completeStream.listen(
+        completeController.add,
+        onError: (e, s) {
+          logger.e(
+            '[MAPPER_INIT] Error on adapter completeStream',
+            error: e,
+            stackTrace: s,
+          );
+          errorController.add('Adapter complete stream error: $e');
+        },
+      ),
+    );
+    _subscriptions.add(
+      playerStateStream.listen(
+        playerStateController.add,
+        onError: (e, s) {
+          logger.e(
+            '[MAPPER_INIT] Error on adapter playerStateStream',
+            error: e,
+            stackTrace: s,
+          );
+          errorController.add('Adapter player state stream error: $e');
+        },
+      ),
+    );
+    logger.d('[MAPPER_INIT] Subscriptions complete.');
+  }
+
+  @override
+  void dispose() {
+    logger.d('[MAPPER_DISPOSE] Disposing PlaybackStateMapperImpl...');
+    // Cancel all stream subscriptions
+    for (var sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
+    // Close all internal controllers
+    positionController.close();
+    durationController.close();
+    completeController.close();
+    playerStateController.close();
+    errorController.close();
+    logger.d('[MAPPER_DISPOSE] Dispose complete.');
+  }
+
+  // --- Internal Stream Combination Logic ---
 
   Stream<PlaybackState> _createCombinedStream() {
-    // logger.d('[MAPPER_COMBINE] Creating combined stream...');
     return Rx.merge([
-      positionController.stream
-      // .doOnData((pos) {
-      //   // COMMENT OUT HIGH-FREQUENCY POSITION LOG
-      //   // logger.d(
-      //   //   '[MAPPER_RX] Input Position Update: ${pos.inMilliseconds}ms',
-      //   // );
-      // })
-      .map((pos) {
-        _currentPosition = pos;
-        if (_currentPlayerState != DomainPlayerState.stopped &&
-            _currentPlayerState != DomainPlayerState.completed) {
-          _maybeClearError('Position Update');
-        }
-        return _constructState('Position Update');
-      }),
-      durationController.stream
-      // .doOnData((dur) {
-      //   logger.d(
-      //     '[MAPPER_RX] Input Duration Update: ${dur.inMilliseconds}ms',
-      //   );
-      // })
-      .map((dur) {
-        _currentDuration = dur;
-        _maybeClearError('Duration Update');
-        return _constructState('Duration Update');
-      }),
-      completeController.stream
-      // .doOnData((_) {
-      //   logger.d('[MAPPER_RX] Input Complete Event');
-      // })
-      .map((_) {
-        _currentPlayerState = DomainPlayerState.completed;
-        // Set position to duration on completion for consistency
-        _currentPosition = _currentDuration;
-        _maybeClearError('Complete Event');
-        return _constructState('Complete Event');
-      }),
-      playerStateController.stream
-      // .doOnData((state) {
-      //   // COMMENT OUT VERBOSE LOG
-      //   // logger.d('[MAPPER_RX] Input PlayerState Update: $state');
-      // })
-      .map((state) {
-        final previousState = _currentPlayerState;
-        _currentPlayerState = state;
+          positionController.stream.map((pos) {
+            _currentPosition = pos;
+            if (_currentPlayerState != DomainPlayerState.stopped &&
+                _currentPlayerState != DomainPlayerState.completed) {
+              _maybeClearError('Position Update');
+            }
+            return _constructState('Position Update');
+          }),
+          durationController.stream.map((dur) {
+            _currentDuration = dur;
+            _maybeClearError('Duration Update');
+            return _constructState('Duration Update');
+          }),
+          completeController.stream.map((_) {
+            _currentPlayerState = DomainPlayerState.completed;
+            _currentPosition =
+                _currentDuration; // Set position to duration on completion
+            _maybeClearError('Complete Event');
+            return _constructState('Complete Event');
+          }),
+          playerStateController.stream.map((state) {
+            final previousState = _currentPlayerState;
+            _currentPlayerState = state;
 
-        // Reset position if stopped/completed
-        if ((state == DomainPlayerState.stopped ||
-                state == DomainPlayerState.completed) &&
-            previousState != state) {
-          // Avoid resetting if already stopped/completed
-          // logger.d(
-          //   '[MAPPER_LOGIC] Resetting position due to state change: $previousState -> $state',
-          // );
-          _currentPosition = Duration.zero;
-        }
+            if ((state == DomainPlayerState.stopped ||
+                    state == DomainPlayerState.completed) &&
+                previousState != state) {
+              _currentPosition = Duration.zero;
+              // Clear file path context ONLY on explicit stop/completion, AFTER potential playback
+              // No, completion handler above already clears it.
+              // Stop might or might not clear it depending on desired resume behavior.
+              // For now, let's NOT clear path on stop.
+            }
 
-        // Clear error when entering a non-error state
-        if (state != DomainPlayerState.error) {
-          _maybeClearError('PlayerState Update');
-        }
-
-        // **** TEMPORARY LOGGING START ****
-        // logger.i(
-        //   '[MAPPER_PLAYER_STATE_MAP] Received DomainPlayerState: $state. Previous: $previousState. Current internal: $_currentPlayerState',
-        // );
-        final constructedState = _constructState('PlayerState Update');
-        // logger.i(
-        //   '[MAPPER_PLAYER_STATE_MAP] Result of _constructState: ${constructedState.runtimeType}',
-        // );
-        // **** TEMPORARY LOGGING END ****
-
-        return constructedState; // Return the already constructed state
-      }),
-      errorController.stream
-      // .doOnData((errMsg) {
-      //   logger.w(
-      //     '[MAPPER_RX] Input Error Event: $errMsg',
-      //   ); // Log errors as warnings
-      // })
-      .map((errorMsg) {
-        _currentError = errorMsg;
-        // Don't clear position/duration on error
-        return _constructState('Error Event');
-      }),
-    ]).startWith(const PlaybackState.initial())
-    // Log before distinct to see everything coming through - COMMENTED OUT DUE TO SPAM
-    // .doOnData(
-    //   (state) => logger.d(
-    //     '[MAPPER_PRE_DISTINCT] Time: ${DateTime.now().millisecondsSinceEpoch}ms - State: $state',
-    //   ),
-    // )
-    .distinct((prev, next) {
-      // Consider states the same ONLY IF:
-      // 1. Their core type is the same
-      // 2. Their total duration is within tolerance
-      // 3. AND their current position is within tolerance (if applicable)
-      final bool sameType = prev.runtimeType == next.runtimeType;
-      if (!sameType) {
-        // logger.d('[MAPPER_DISTINCT] Different Type: $prev vs $next => DIFFERENT (Emit)');
-        return false; // Different types are always distinct
-      }
-
-      // If types are the same, compare duration and position if they exist on the state.
-      Duration prevDuration = Duration.zero;
-      Duration nextDuration = Duration.zero;
-      Duration prevPosition = Duration.zero;
-      Duration nextPosition = Duration.zero;
-      const Duration tolerance = Duration(
-        milliseconds: 100, // REVERTED Tolerance for position/duration ms
-      );
-
-      // Extract data using mapOrNull - handles states without these properties gracefully
-      prev.mapOrNull(
-        playing: (s) {
-          prevDuration = s.totalDuration;
-          prevPosition = s.currentPosition;
-        },
-        paused: (s) {
-          prevDuration = s.totalDuration;
-          prevPosition = s.currentPosition;
-        },
-        error: (s) {
-          // Error state might also carry position/duration
-          prevDuration = s.totalDuration ?? Duration.zero;
-          prevPosition = s.currentPosition ?? Duration.zero;
-        },
-      );
-      next.mapOrNull(
-        playing: (s) {
-          nextDuration = s.totalDuration;
-          nextPosition = s.currentPosition;
-        },
-        paused: (s) {
-          nextDuration = s.totalDuration;
-          nextPosition = s.currentPosition;
-        },
-        error: (s) {
-          nextDuration = s.totalDuration ?? Duration.zero;
-          nextPosition = s.currentPosition ?? Duration.zero;
-        },
-      );
-
-      // Now compare the extracted values (or their defaults)
-      final bool durationWithinTolerance =
-          (prevDuration - nextDuration).abs() <= tolerance;
-      final bool positionWithinTolerance =
-          (prevPosition - nextPosition).abs() <= tolerance;
-
-      // States are the same (should be filtered) only if type, duration, AND position are within tolerance.
-      final bool areSame = durationWithinTolerance && positionWithinTolerance;
-
-      // logger.d(
-      //   '[MAPPER_DISTINCT] Comparing ($sameType): pD=${prevDuration.inMilliseconds}, nD=${nextDuration.inMilliseconds} -> $durationWithinTolerance | pP=${prevPosition.inMilliseconds}, nP=${nextPosition.inMilliseconds} -> $positionWithinTolerance | Result: ${areSame ? \'SAME (Filter)\' : \'DIFFERENT (Emit)\'}',
-      // );
-
-      return areSame;
-    })
-    // Log after distinct to see what gets emitted - COMMENTED OUT DUE TO SPAM
-    // .doOnData(
-    //   (state) =>
-    //       logger.d(
-    //         '[MAPPER_POST_DISTINCT] Time: ${DateTime.now().millisecondsSinceEpoch}ms - State (Emitting): $state',
-    //       ),
-    // )
-    ;
+            if (state != DomainPlayerState.error) {
+              _maybeClearError('PlayerState Update');
+            }
+            return _constructState('PlayerState Update');
+          }),
+          errorController.stream.map((errorMsg) {
+            _currentError = errorMsg;
+            return _constructState('Error Event');
+          }),
+        ])
+        .startWith(const PlaybackState.initial())
+        .doOnData(
+          // Demoted from DEBUG to TRACE due to high frequency
+          (state) => logger.t('[MAPPER_PRE_DISTINCT] State: $state'),
+        )
+        .distinct(_areStatesEquivalent)
+        .doOnData(
+          // Demoted from DEBUG to TRACE due to high frequency
+          (state) =>
+              logger.t('[MAPPER_POST_DISTINCT] State (Emitting): $state'),
+        );
   }
 
+  /// Clears the internal error state if it's currently set.
   void _maybeClearError(String trigger) {
     if (_currentError != null) {
-      // logger.d(
-      //   '[MAPPER_LOGIC] Clearing error (was: $_currentError) due to $trigger',
-      // );
+      // logger.d('[MAPPER_LOGIC] Clearing error due to: $trigger'); // Keep DEBUG
       _currentError = null;
     }
   }
 
+  /// Constructs the appropriate [PlaybackState] based on the current internal state.
   PlaybackState _constructState(String trigger) {
+    // logger.t('[MAPPER_CONSTRUCT] Trigger: $trigger'); // Optional TRACE
     PlaybackState newState;
     if (_currentError != null) {
       newState = PlaybackState.error(
@@ -256,136 +228,105 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
             totalDuration: _currentDuration,
           );
           break;
-        case DomainPlayerState.stopped:
-        case DomainPlayerState.initial:
-          newState = const PlaybackState.stopped();
+        case DomainPlayerState.loading:
+          newState = const PlaybackState.loading();
           break;
         case DomainPlayerState.completed:
           newState = const PlaybackState.completed();
           break;
-        case DomainPlayerState.loading:
-          newState = const PlaybackState.loading();
+        case DomainPlayerState.stopped:
+          newState = const PlaybackState.stopped();
           break;
         case DomainPlayerState.error:
-          // Should be caught by _currentError check, but fallback
-          // logger.w(
-          //   '[MAPPER_CONSTRUCT] Constructing state from DomainPlayerState.error - this might indicate an issue.',
-          // );
+          // This case should technically be handled by the _currentError check above,
+          // but include it for completeness.
+          logger.w(
+            '[MAPPER_CONSTRUCT] Constructing state from DomainPlayerState.error, but _currentError was null?',
+          );
           newState = PlaybackState.error(
-            message: 'Playback error state encountered',
+            message: 'Unknown player error',
             currentPosition: _currentPosition,
             totalDuration: _currentDuration,
           );
           break;
+        case DomainPlayerState.initial:
+        default:
+          newState = const PlaybackState.initial();
+          break;
       }
     }
-    // logger.d('[MAPPER_CONSTRUCT] State constructed from trigger '$trigger': $newState');
+    // Instead, the service using this mapper is responsible for knowing the current file path context.
     return newState;
   }
 
-  @override
-  Stream<PlaybackState> get playbackStateStream => _playbackStateStream;
-
-  @override
-  void initialize({
-    required Stream<Duration> positionStream,
-    required Stream<Duration> durationStream,
-    required Stream<void> completeStream,
-    required Stream<DomainPlayerState> playerStateStream,
-  }) {
-    // logger.d(
-    //   '[MAPPER_INIT] initialize() called. Disposing existing subscriptions...',
-    // );
-    dispose(); // Ensure clean state before re-initializing
-
-    // logger.d('[MAPPER_INIT] Subscribing to input streams...');
-    try {
-      _subscriptions.add(
-        positionStream.listen(
-          positionController.add,
-          onError: _handleError,
-          onDone: () {},
-          // onDone: () => logger.d('[MAPPER_RX_DONE] positionStream closed'),
-        ),
-      );
-      _subscriptions.add(
-        durationStream.listen(
-          durationController.add,
-          onError: _handleError,
-          onDone: () {},
-          // onDone: () => logger.d('[MAPPER_RX_DONE] durationStream closed'),
-        ),
-      );
-      _subscriptions.add(
-        completeStream.listen(
-          completeController.add,
-          onError: _handleError,
-          onDone: () {},
-          // onDone: () => logger.d('[MAPPER_RX_DONE] completeStream closed'),
-        ),
-      );
-      _subscriptions.add(
-        playerStateStream.listen(
-          (domainState) {
-            // logger.d(
-            //   '[MAPPER_RX] Received DomainPlayerState for forwarding: $domainState',
-            // );
-            playerStateController.add(domainState);
-          },
-          onError: _handleError,
-          onDone: () {},
-          // onDone: () => logger.d('[MAPPER_RX_DONE] playerStateStream closed'),
-        ),
-      );
-      // logger.d('[MAPPER_INIT] Input streams subscribed successfully.');
-    } catch (e, s) {
-      // logger.e(
-      //   '[MAPPER_INIT] FAILED to subscribe to input streams',
-      //   error: e,
-      //   stackTrace: s,
-      // );
-      // Consider how to handle initialization failure
-      _handleError(e, s); // Report error via the mapper's error stream
+  /// Comparison logic for the `distinct` operator.
+  bool _areStatesEquivalent(PlaybackState prev, PlaybackState next) {
+    final bool sameType = prev.runtimeType == next.runtimeType;
+    if (!sameType) {
+      // logger.t('[MAPPER_DISTINCT] Different Type: $prev vs $next => DIFFERENT (Emit)'); // Demoted
+      return false;
     }
-  }
 
-  void _handleError(Object error, StackTrace stackTrace) {
-    // logger.e(
-    //   '[MAPPER_ERROR] Error received in input stream',
-    //   error: error,
-    //   stackTrace: stackTrace,
-    // );
-    final errorMsg = 'Mapper Input Stream Error: $error';
-    _currentError = errorMsg; // Update internal state immediately
-    errorController.add(errorMsg); // Emit error state
-    // Avoid calling _constructState here as it might lead to infinite loops if the error state itself causes issues
-  }
+    Duration prevDuration = Duration.zero;
+    Duration nextDuration = Duration.zero;
+    Duration prevPosition = Duration.zero;
+    Duration nextPosition = Duration.zero;
+    const Duration tolerance = Duration(
+      milliseconds: 100,
+    ); // Tolerance for position/duration
 
-  @override
-  void setCurrentFilePath(String? filePath) {
-    // This function seems unused internally, but log if called.
-    // logger.d(
-    //   '[MAPPER_SET_PATH] setCurrentFilePath called with: $filePath (Note: This seems unused)',
-    // );
-  }
+    // Extract data using mapOrNull
+    prev.mapOrNull(
+      playing: (s) {
+        prevDuration = s.totalDuration;
+        prevPosition = s.currentPosition;
+      },
+      paused: (s) {
+        prevDuration = s.totalDuration;
+        prevPosition = s.currentPosition;
+      },
+      completed: (s) {
+        // Completed state has no fields in the definition
+        // prevDuration = s.totalDuration; // REMOVED
+        // prevPosition = s.finalPosition; // REMOVED
+      },
+      error: (s) {
+        prevDuration = s.totalDuration ?? Duration.zero;
+        prevPosition = s.currentPosition ?? Duration.zero;
+      },
+    );
+    next.mapOrNull(
+      playing: (s) {
+        nextDuration = s.totalDuration;
+        nextPosition = s.currentPosition;
+      },
+      paused: (s) {
+        nextDuration = s.totalDuration;
+        nextPosition = s.currentPosition;
+      },
+      completed: (s) {
+        // Completed state has no fields in the definition
+        // nextDuration = s.totalDuration; // REMOVED
+        // nextPosition = s.finalPosition; // REMOVED
+      },
+      error: (s) {
+        nextDuration = s.totalDuration ?? Duration.zero;
+        nextPosition = s.currentPosition ?? Duration.zero;
+      },
+    );
 
-  @override
-  void dispose() {
-    // logger.d(
-    //   '[MAPPER_DISPOSE] dispose() called. Cancelling ${_subscriptions.length} subscriptions.',
-    // );
-    for (final sub in _subscriptions) {
-      try {
-        sub.cancel();
-      } catch (e, s) {
-        // logger.w(
-        //   '[MAPPER_DISPOSE] Error cancelling subscription: $e',
-        //   stackTrace: s,
-        // );
-      }
-    }
-    _subscriptions.clear();
-    // logger.d('[MAPPER_DISPOSE] Subscriptions cancelled and cleared.');
-    // Note: We don't close the input controllers here as they might be managed externally
+    final bool durationWithinTolerance =
+        (prevDuration - nextDuration).abs() <= tolerance;
+    final bool positionWithinTolerance =
+        (prevPosition - nextPosition).abs() <= tolerance;
+
+    // Consider states equivalent only if type, duration, AND position are within tolerance.
+    final bool areSame = durationWithinTolerance && positionWithinTolerance;
+
+    // logger.t(
+    //   '[MAPPER_DISTINCT] Comparing ($sameType): pD=${prevDuration.inMilliseconds}, nD=${nextDuration.inMilliseconds} -> $durationWithinTolerance | pP=${prevPosition.inMilliseconds}, nP=${nextPosition.inMilliseconds} -> $positionWithinTolerance | Result: ${areSame ? \'SAME (Filter)\' : \'DIFFERENT (Emit)\'}',
+    // ); // Demoted
+
+    return areSame;
   }
 }

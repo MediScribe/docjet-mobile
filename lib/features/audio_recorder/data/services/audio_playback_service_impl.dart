@@ -7,6 +7,9 @@ import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_st
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 import 'package:rxdart/rxdart.dart';
 
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = Logger(level: Level.debug);
+
 /// Concrete implementation of [AudioPlaybackService] using the adapter and mapper pattern.
 /// This service orchestrates the interactions between the [AudioPlayerAdapter] and
 /// [PlaybackStateMapper] to provide a clean, testable audio playback service.
@@ -36,14 +39,14 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     // Immediately subscribe to the mapper's output stream
     _mapperSubscription = _playbackStateMapper.playbackStateStream.listen(
       (state) {
-        // COMMENT OUT VERBOSE LOG
-        // logger.d('[SERVICE_RX] Received PlaybackState from Mapper: $state');
+        // Demoted from DEBUG to TRACE due to high frequency
+        logger.t('[SERVICE_RX] Received PlaybackState from Mapper: $state');
         _lastKnownState = state; // Update last known state
         // Reset flag on natural state changes if appropriate
         if (state.maybeMap(playing: (_) => true, orElse: () => false)) {
           _seekPerformedWhileNotPlaying = false; // Reset on natural play
         }
-        // TODO: Consider resetting on stop/complete/error as well?
+        // TODO: Consider resetting _seekPerformedWhileNotPlaying on stop/complete/error as well?
         _playbackStateSubject.add(state); // Forward state to external listeners
       },
       onError: (error, stackTrace) {
@@ -71,7 +74,7 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
 
   @override
   Stream<PlaybackState> get playbackStateStream {
-    logger.d('[SERVICE_STREAM] playbackStateStream accessed.');
+    // logger.d('[SERVICE_STREAM] playbackStateStream accessed.'); // Removed: Noisy
     return _playbackStateSubject.stream;
   }
 
@@ -81,21 +84,20 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     logger.d('[SERVICE PLAY $pathOrUrl] START', stackTrace: trace);
     try {
       final isSameFile = pathOrUrl == _currentFilePath;
-      logger.d(
-        '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile. Forcing full restart.',
-      );
+      // logger.d(
+      //   '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile. Forcing full restart.',
+      // ); // Keep DEBUG
 
       // Always performing full stop/load/play sequence
       logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
       await _audioPlayerAdapter.stop();
-      logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.');
+      // logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.'); // Keep DEBUG
 
       // Update current path ONLY if it's a different file
       if (!isSameFile) {
         logger.d('[SERVICE PLAY $pathOrUrl] Action: Updating file path...');
-        _playbackStateMapper.setCurrentFilePath(pathOrUrl);
         _currentFilePath = pathOrUrl;
-        logger.d('[SERVICE PLAY $pathOrUrl] File path updated.');
+        // logger.d('[SERVICE PLAY $pathOrUrl] File path updated.'); // Keep DEBUG
       } else {
         logger.d(
           '[SERVICE PLAY $pathOrUrl] Action: Skipping file path update (same file).',
@@ -106,18 +108,18 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
       );
       await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-      logger.d(
-        '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
-      );
+      // logger.d(
+      //   '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
+      // ); // Keep DEBUG
 
       logger.d(
         '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
       );
       await _audioPlayerAdapter
           .resume(); // resume() starts playback after setSourceUrl
-      logger.d(
-        '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
-      );
+      // logger.d(
+      //   '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
+      // ); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE PLAY $pathOrUrl] FAILED', error: e, stackTrace: s);
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
@@ -132,7 +134,7 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     logger.d('[SERVICE PAUSE] START', stackTrace: trace);
     try {
       await _audioPlayerAdapter.pause();
-      logger.d('[SERVICE PAUSE] Adapter pause() call complete.');
+      // logger.d('[SERVICE PAUSE] Adapter pause() call complete.'); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE PAUSE] FAILED', error: e, stackTrace: s);
       rethrow;
@@ -148,7 +150,7 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       // Just resume from current position, no seeking needed
       logger.d('[SERVICE RESUME] Action: Calling adapter.resume()');
       await _audioPlayerAdapter.resume();
-      logger.d('[SERVICE RESUME] Adapter resume() call complete.');
+      // logger.d('[SERVICE RESUME] Adapter resume() call complete.'); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE RESUME] FAILED', error: e, stackTrace: s);
       rethrow;
@@ -177,9 +179,9 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
             orElse: () => false,
           );
 
-      logger.d(
-        '[SERVICE SEEK $pathOrUrl] State Check: isSameFile: $isSameFile, isReady: $isReady',
-      );
+      // logger.d(
+      //   '[SERVICE SEEK $pathOrUrl] State Check: isSameFile: $isSameFile, isReady: $isReady',
+      // ); // Keep DEBUG
 
       if (!isReady) {
         // --- Prime the Pump: Load the file first ---
@@ -192,7 +194,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         logger.d(
           '[SERVICE SEEK $pathOrUrl] Action: Updating file path for mapper & service...',
         );
-        _playbackStateMapper.setCurrentFilePath(pathOrUrl); // Inform mapper
         _currentFilePath = pathOrUrl; // Update service state
 
         logger.d(
@@ -246,12 +247,14 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     try {
       logger.d('[SERVICE STOP] Action: Calling adapter.stop()');
       await _audioPlayerAdapter.stop();
-      logger.d('[SERVICE STOP] Adapter stop() call complete.');
+      // logger.d('[SERVICE STOP] Adapter stop() call complete.'); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE STOP] FAILED', error: e, stackTrace: s);
       rethrow;
     }
-    logger.d('[SERVICE STOP] END');
+    // Clear context on explicit stop?
+    _currentFilePath = null;
+    logger.d('[SERVICE STOP] END (Context Cleared)');
   }
 
   @override
@@ -260,11 +263,11 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     try {
       logger.d('[SERVICE DISPOSE] Action: Calling adapter.dispose()');
       await _audioPlayerAdapter.dispose();
-      logger.d('[SERVICE DISPOSE] Action: Calling mapper.dispose()');
-      _playbackStateMapper.dispose();
-      logger.d('[SERVICE DISPOSE] Action: Cancelling mapper subscription');
+      // logger.d('[SERVICE DISPOSE] Action: Calling mapper.dispose()'); // Keep DEBUG
+      _playbackStateMapper.dispose(); // Ensure mapper is disposed
+      // logger.d('[SERVICE DISPOSE] Action: Cancelling mapper subscription'); // Keep DEBUG
       await _mapperSubscription.cancel();
-      logger.d('[SERVICE DISPOSE] Action: Closing playback state subject');
+      // logger.d('[SERVICE DISPOSE] Action: Closing playback state subject'); // Keep DEBUG
       await _playbackStateSubject.close();
     } catch (e, s) {
       logger.e(

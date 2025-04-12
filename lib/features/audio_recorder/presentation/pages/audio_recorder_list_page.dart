@@ -25,9 +25,9 @@ class AudioRecorderListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The BlocProvider<AudioListCubit> is now handled in main.dart
-    logger.d(
-      "[AudioRecorderListPage] build: Using AudioListCubit provided from above.",
-    );
+    // logger.d(
+    //   "[AudioRecorderListPage] build: Using AudioListCubit provided from above.",
+    // );
     return const AudioRecorderListView(); // Child remains the same
   }
 }
@@ -60,11 +60,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
 
   // Navigation logic updated
   Future<void> _showAudioRecorderPage(BuildContext context) async {
-    logger.i("[AudioRecorderListView] _showAudioRecorderPage called.");
-    // Get the List Cubit instance BEFORE the await for refresh logic
+    // logger.i("[AudioRecorderListView] _showAudioRecorderPage called.");
     final listCubit = context.read<AudioListCubit>();
 
-    // Use Navigator.push and await the result
     final bool? shouldRefresh = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -85,28 +83,29 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       ),
     );
 
-    logger.d(
-      "[AudioRecorderListView] Returned from AudioRecorderPage. shouldRefresh: $shouldRefresh",
-    );
+    // logger.d(
+    //   "[AudioRecorderListView] Returned from AudioRecorderPage. shouldRefresh: $shouldRefresh",
+    // );
 
     // If the recorder page popped with 'true', refresh the list
     // Use the cubit instance captured before the await, AFTER checking mounted
     if (shouldRefresh == true && mounted) {
-      logger.i("[AudioRecorderListView] Refreshing recordings list.");
+      // logger.i("[AudioRecorderListView] Refreshing recordings list.");
       listCubit.loadAudioRecordings(); // Use the captured instance
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    logger.d("[AudioRecorderListView] build() called.");
+    // logger.d("[AudioRecorderListView] build() called.");
 
     return Scaffold(
       appBar: AppBar(title: const Text('Recordings')),
       // Use the correct Cubit and State types
       body: BlocConsumer<AudioListCubit, AudioListState>(
         listener: (context, state) {
-          logger.d(
+          // Demoted from DEBUG to TRACE due to high frequency potential
+          logger.t(
             "[AudioRecorderListView] Listener received state: ${state.runtimeType}",
           );
           // Only handle errors relevant to the list loading process
@@ -121,18 +120,19 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           // as they belong to the recording cubit, not the list cubit.
         },
         builder: (context, state) {
+          // Demoted from DEBUG to TRACE due to high frequency potential
+          logger.t(
+            "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
+          );
           // COMMENT OUT logger.d(
-          //   "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
+          //   "[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${(state as AudioListLoaded).playbackInfo.isPlaying}, path=${(state as AudioListLoaded).playbackInfo.activeFilePath?.split('/').last ?? 'null'}",
           // );
-          // COMMENT OUT // logger.d(
-          // COMMENT OUT //   "[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${(state as AudioListLoaded).playbackInfo.isPlaying}, path=${(state as AudioListLoaded).playbackInfo.activeFilePath?.split('/').last ?? 'null'}",
-          // COMMENT OUT // );
 
           // Handle Loading state
           if (state is AudioListLoading) {
-            logger.d(
-              "[AudioRecorderListView] Builder: State IS AudioListLoading.",
-            );
+            // logger.d(
+            //   "[AudioRecorderListView] Builder: State IS AudioListLoading.",
+            // );
             return const Center(child: CircularProgressIndicator());
           }
           // Removed PermissionDenied state handling - this page doesn't manage that
@@ -141,9 +141,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           */
           // Handle Error state
           else if (state is AudioListError) {
-            logger.d(
-              "[AudioRecorderListView] Builder: State IS AudioListError.",
-            );
+            // logger.d(
+            //   "[AudioRecorderListView] Builder: State IS AudioListError.",
+            // );
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -178,9 +178,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                 child: Text('No recordings yet. Tap + to start recording.'),
               );
             }
-            logger.d(
-              "[AudioRecorderListView] Builder: ListLoaded has ${state.transcriptions.length} items.",
-            );
+            // logger.d(
+            //   "[AudioRecorderListView] Builder: ListLoaded has ${state.transcriptions.length} items.",
+            // );
             // state.recordings is already sorted by the Cubit
             final sortedTranscriptions = state.transcriptions;
 
@@ -273,9 +273,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         trailing: IconButton(
                           icon: const Icon(Icons.more_vert),
                           onPressed: () {
-                            logger.d(
-                              "[ListView] More icon tapped for ${transcription.localFilePath}",
-                            );
+                            // logger.d(
+                            //   "[ListView] More icon tapped for ${transcription.localFilePath}",
+                            // );
                             // TODO: Update _showRecordingOptions to accept Transcription or path
                             // For now, casting to AudioRecord will fail, need to adjust options logic
                             // _showRecordingOptions(context, transcription); // This will fail
