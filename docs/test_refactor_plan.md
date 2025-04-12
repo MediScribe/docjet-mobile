@@ -61,6 +61,12 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [ ] **Test `stopRecording` interaction:** Verify `service.stop()` is called.
     *   [ ] **Test state updates from service stream:** Simulate `PlaybackState` events from the mocked service stream and verify the `AudioListCubit` emits the correct `AudioListState` with updated `PlaybackInfo` (filePath, isPlaying, isLoading, position, duration, error).
     *   [x] **Run Cubit Tests:** `flutter test test/features/audio_recorder/presentation/cubit/` - Fix failures.
+*   [x] **Refactor Adapter Tests (`audio_player_adapter_impl_test.dart`):**
+    *   [x] **Fix Compilation Errors:** Correct mock syntax and remove incorrect use of Mocktail/Function() syntax in Mockito-based tests.
+    *   [x] **Fix Streaming Tests:** Use Completer pattern to prevent tests from hanging indefinitely while waiting for events. Add timeout handling to fail gracefully if events don't arrive.
+    *   [x] **Test Stream Mappings:** Verify that events emitted by the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) correctly reflect the input events from the mocked `AudioPlayer` streams.
+    *   [x] **Test Method Calls:** Verify that adapter methods (`play`, `pause`, `seek`, etc.) call the corresponding methods on the underlying `just_audio` player.
+    *   [x] **Run Adapter Tests:** `flutter test test/features/audio_recorder/data/adapters/` - All tests pass.
 *   [ ] **Refactor Mapper Tests (`playback_state_mapper_impl_test.dart`):**
     *   [ ] **Test basic state mappings:** Ensure `DomainPlayerState.playing/paused/stopped/loading/completed` input results in the correct output `PlaybackState`.
     *   [ ] **Test position/duration updates:** Ensure position/duration changes on input streams correctly update the `currentPosition`/`totalDuration` in the output `PlaybackState`.
@@ -68,10 +74,6 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [ ] **Test error handling:** Simulate errors on input streams and verify `PlaybackState.error` is emitted.
     *   [ ] **Test edge cases:** Check behavior with simultaneous events, initial state, stream completion.
     *   [ ] **Run Mapper Tests:** `flutter test test/features/audio_recorder/data/mappers/` - Fix failures.
-*   [ ] **Refactor Adapter Tests (`audio_player_adapter_impl_test.dart`):**
-    *   [ ] **Test method calls:** Verify calls to adapter methods (`play`, `pause`, `seek`, etc.) correctly call the corresponding methods on the mocked `just_audio.AudioPlayer`.
-    *   [ ] **Test stream mappings:** Simulate events from the mocked `AudioPlayer`'s streams (`playerStateStream`, `positionStream`, etc.) and verify the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) emit the correctly mapped values/`DomainPlayerState`.
-    *   [ ] **Run Adapter Tests:** `flutter test test/features/audio_recorder/data/adapters/` - Fix failures.
 *   [ ] **Refactor Widget Tests (`audio_player_widget_test.dart`):**
     *   [ ] **Test rendering:** Verify the correct UI (icons, text, slider visibility/value) is shown for different `PlaybackInfo` states (playing, paused, loading, error, different positions/durations) passed as props.
     *   [ ] **Test interactions:** Verify tapping play/pause/delete buttons calls the correct methods (`playRecording`, `pauseRecording`, `onDelete`) on the mocked `AudioListCubit` *with correct arguments* (`filePath`).
