@@ -113,12 +113,13 @@ This architecture treats local files as opaque handles/payloads. The primary sou
     *   `AudioDurationRetriever` (`data/services/`) is called by `AudioLocalDataSourceImpl.stopRecording()` (`data/datasources/`).
     *   `AudioLocalDataSourceImpl` creates a `LocalJob` entity (`domain/entities/`) with `status = created`, `durationMillis`, `localFilePath`, `localCreatedAt`.
     *   It saves this `LocalJob` using the injected `LocalJobStore` interface (`domain/repositories/`).
-    *   **`LocalJobStore` Interface (Domain - Implemented):** Defines the contract for local persistence.
-    *   **Implementation (`HiveLocalJobStoreImpl` - Implemented):** Uses `Hive` (`data/datasources/`) to store `LocalJob` objects. Hive is initialized, adapters registered, and the store injected via `get_it` (`core/di/`).
+    *   **`LocalJobStore` Interface (Domain - Implemented):** Defines the contract for local persistence (`domain/repositories/local_job_store.dart`).
+    *   **Implementation (`HiveLocalJobStoreImpl` - Implemented):** Uses `Hive` (`data/datasources/local_job_store_impl.dart`) to store `LocalJob` objects. Hive is initialized, adapters registered, and the store injected via `get_it` (`core/di/`).
 2.  **Simplified Local File Listing (Assumed via `AudioFileManager`):**
     *   `AudioFileManager` (`data/services/`) likely provides basic path listing, removing the old N+1 problem (implementation details not fully verified but structure exists).
 3.  **Backend Integration (Interface + Fake Implementation):**
-    *   **`TranscriptionRemoteDataSource` Interface (Domain - Implemented):** Defines contract (`
+    *   **`TranscriptionRemoteDataSource` Interface (Domain - Implemented):** Defines contract (`domain/repositories/transcription_remote_data_source.dart`).
+    *   **Fake Implementation (`FakeTranscriptionDataSourceImpl` - Implemented):** A fake implementation exists (`data/datasources/fake_transcription_data_source_impl.dart`) for development and testing purposes, registered via `get_it`.
 
 ## 3. Audio Playback Architecture (Refactored & Standardized)
 
@@ -268,12 +269,39 @@ lib/features/audio_recorder/
 *   **Data Layer:**
     *   `data/adapters/audio_player_adapter_impl.dart`: *Implements* `AudioPlayerAdapter` using **`just_audio`**. Maps internal `just_audio` states to `DomainPlayerState`.
     *   `data/mappers/playback_state_mapper_impl.dart`: *Implements* `PlaybackStateMapper`. **Crucially, this implementation uses RxDart (`Rx.merge`, `BehaviorSubject`, etc.) to combine the various input streams (`positionStream`, `durationStream`, `playerStateStream`, `completeStream`) provided by the `AudioPlayerAdapter` via the `initialize` method. It maintains internal state (`_currentPlayerState`, `_currentDuration`, `_currentPosition`) and constructs the final `PlaybackState` based on the latest events from all input streams. It exposes the resulting combined and mapped `Stream<PlaybackState>`. Note that filtering logic (e.g., using `.distinct()` with custom comparators) might be needed here to manage high-frequency streams like position updates.**
-    *   `data/services/audio_duration_retriever_impl.dart`: (**NOTE:** Still uses `just_audio`. Could potentially be merged or simplified now that the main player uses `just_audio`, but kept separate for now.)
-    *   `data/services/audio_playback_service_impl.dart`: Orchestrates the playback lifecycle by calling methods on the `AudioPlayerAdapter` (e.g., `play`, `pause`, `stop`, `setSourceUrl`). **!! CRITICAL WARNING !!: This service (or the Dependency Injection container constructing it, typically in `lib/core/di/injection_container.dart`) is responsible for initializing the `PlaybackStateMapper` by passing the necessary streams obtained from the `AudioPlayerAdapter`. Failure to wire this correctly means the Mapper will NOT receive player events, the Service's `playbackStateStream` will remain stale, and the UI will not update correctly (e.g., play/pause buttons unresponsive, position not advancing). This silent failure mode is NOT caught by simple unit tests mocking the Mapper's output. See `docs/audio_player_analysis.md` Update 2.** It exposes the `playbackStateStream` provided by the *correctly initialized* mapper. **Note on `play()` vs `resume()`:** While the `AudioListCubit` should correctly call `resumeRecording()` (-> `service.resume()`) for resuming playback, the `play()` method in this service includes internal state checks (`_lastKnownState`) as a safeguard. It can handle being called on a paused track by correctly invoking `resume()` internally, ensuring robustness even if the calling layer makes a mistake.
+    *   `data/services/audio_duration_retriever_impl.dart`: *Implements* `AudioDurationRetriever` using `just_audio` (`data/services/audio_duration_retriever_impl.dart`). Although the primary player adapter also uses `just_audio`, this service is kept separate, likely to maintain a clear single responsibility (retrieving duration without needing full playback controls).
+    *   `data/services/audio_playback_service_impl.dart`: Orchestrates the playback lifecycle by calling methods on the `AudioPlayerAdapter` (e.g., `play`, `pause`, `stop`, `setSourceUrl`). **!! CRITICAL WIRING !!: This service's creation within the Dependency Injection container (typically in `lib/core/di/injection_container.dart`) is responsible for initializing the `PlaybackStateMapper` by passing the necessary streams obtained from the `AudioPlayerAdapter`. See Section 3.4 below.** It exposes the `playbackStateStream` provided by the *correctly initialized* mapper. **Note on `play()` vs `resume()`:** While the `AudioListCubit` should correctly call `resumeRecording()` (-> `service.resume()`) for resuming playback, the `play()` method in this service includes internal state checks (`_lastKnownState`) as a safeguard. It can handle being called on a paused track by correctly invoking `resume()` internally, ensuring robustness even if the calling layer makes a mistake.
 
-### 3.4. Implementation Notes & Gotchas (NEW SECTION)
+### 3.4. Implementation Notes & Gotchas (Updated)
 
 **WARNING:** The most critical point of failure observed during implementation is the **dependency injection wiring** between the `AudioPlayerAdapter`, `PlaybackStateMapper`, and `AudioPlaybackService`. Ensure the `PlaybackStateMapperImpl` is correctly initialized with the necessary streams obtained from the `AudioPlayerAdapterImpl` within the DI container (typically `lib/core/di/injection_container.dart`). **Failure to perform this wiring correctly is the most likely cause of silent playback state failures (e.g., UI not updating, buttons unresponsive) and will NOT be caught by unit tests that mock component outputs.**
+
+The crucial wiring code within the `AudioPlaybackService` factory in `injection_container.dart` looks like this:
+
+```dart
+sl.registerLazySingleton<AudioPlaybackService>(() {
+  // Resolve dependencies first
+  final adapter = sl<AudioPlayerAdapter>();
+  final mapper = sl<PlaybackStateMapper>();
+
+  // **** THE CRITICAL WIRING STEP ****
+  // Initialize the mapper with the adapter's streams
+  // We MUST cast mapper back to its implementation type to access initialize
+  (mapper as PlaybackStateMapperImpl).initialize(
+    positionStream: adapter.onPositionChanged,
+    durationStream: adapter.onDurationChanged,
+    completeStream: adapter.onPlayerComplete,
+    playerStateStream: adapter.onPlayerStateChanged,
+  );
+  // ***********************************
+
+  // Now create the service instance with the wired dependencies
+  return AudioPlaybackServiceImpl(
+    audioPlayerAdapter: adapter,
+    playbackStateMapper: mapper,
+  );
+});
+```
 
 Implementing this architecture with `just_audio` surfaced several important points:
 
@@ -281,3 +309,15 @@ Implementing this architecture with `just_audio` surfaced several important poin
 *   **`just_audio`: Stream Frequency & Filtering:** `just_audio` streams, particularly `positionStream`, can emit events very frequently (e.g., 60Hz). The `PlaybackStateMapperImpl` needs to handle this, potentially filtering events (e.g., using RxDart's `.distinct()` with custom comparison logic) to avoid unnecessary state calculations and UI rebuilds while still allowing essential updates (like position changes during playback or state changes). See `docs/audio_player_analysis.md` Update 2/3.
 *   **State Synchronization & UI Responsiveness:** Achieving immediate UI feedback (e.g., slider thumb tracking user drag) often requires temporary local state within the widget (`StatefulWidget`). This local state must be carefully reconciled with the authoritative `PlaybackState` flowing from the Cubit/Service to avoid visual inconsistencies or flickering, especially after actions like seeking. Relying solely on the state stream can feel laggy, but manual/optimistic updates introduce risks if not perfectly aligned with the actual player state changes. See `docs/audio_player_analysis.md` Update 4.
 *   **Integration Testing:** Given the critical dependency wiring between the Adapter, Mapper, and Service, **integration tests** are highly recommended. These tests should verify that events emitted by a (mocked) Adapter correctly propagate through a real Mapper and Service to produce the expected `PlaybackState` output, catching DI or initialization errors that unit tests miss.
+
+### 3.5. Testing Strategy (NEW SECTION)
+
+This architecture enables a robust testing strategy across different layers:
+
+*   **Domain Layer:** Tested using pure Dart **unit tests**. These tests verify business logic, entities, and interface contracts without any Flutter or external dependencies. Mocks are used for repository/service interfaces defined within the domain.
+*   **Data Layer:**
+    *   **Unit Tests:** Repository implementations, data sources, mappers, and services are unit-tested. External dependencies (e.g., `just_audio`, `Hive`, network clients like `Dio`, platform interfaces) are mocked using libraries like `mockito`. This verifies the logic within the data layer components in isolation.
+    *   **Integration Tests:** Where valuable, integration tests can verify the interaction with actual external systems like the local database (Hive) or file system, though these are typically slower and more brittle than unit tests.
+*   **Presentation Layer:**
+    *   **Cubit/Bloc Tests:** State management logic is tested using libraries like `bloc_test`. Dependencies (Repositories/Services from the domain layer) are mocked to verify that the Cubit emits the correct states in response to events or method calls.
+    *   **Widget Tests:** UI components (`Widgets`, `Pages`) are tested using `flutter_test`. These tests verify that widgets render correctly based on given states and that user interactions (button taps, form inputs) trigger the appropriate actions (e.g., calling methods on a mocked Cubit).
