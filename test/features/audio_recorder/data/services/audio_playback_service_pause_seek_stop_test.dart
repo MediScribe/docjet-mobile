@@ -440,6 +440,37 @@ void main() {
       logger.d('TEST [resume paused]: Interactions verified. Test END.');
     });
     // END NEW TEST CASE
+
+    test(
+      'seek() when no track loaded (fresh seek) should prime the pump: stop, setSource, implicit seek(0), seek(pos), pause',
+      () async {
+        // Use async, not fakeAsync for simplicity here
+        // Arrange
+        clearInteractions(mockAudioPlayerAdapter); // Ensure clean state
+        const seekPosition = Duration(seconds: 5);
+        const testFilePath = 'some/fresh_path.mp3';
+
+        // Act: Call seek when nothing is playing/loaded
+        await service.seek(testFilePath, seekPosition);
+        // Allow async operations triggered by seek to complete
+        await Future.delayed(Duration.zero);
+
+        // Assert: Verify the specific sequence of adapter calls
+        verifyInOrder([
+          mockAudioPlayerAdapter.stop(), // 1. Stop any previous playback
+          mockAudioPlayerAdapter.setSourceUrl(
+            testFilePath,
+          ), // 2. Load the new file
+          // 3. Verify the explicit seek to desired position
+          mockAudioPlayerAdapter.seek(testFilePath, seekPosition),
+          // 4. Pause immediately after seek
+          mockAudioPlayerAdapter.pause(),
+        ]);
+
+        // Verify no UNEXPECTED calls occurred
+        verifyNever(mockAudioPlayerAdapter.resume());
+      },
+    ); // End test case
   }); // End group
 }
 
