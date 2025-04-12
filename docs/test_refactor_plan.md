@@ -45,29 +45,33 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] **Test `play()` restart logic:** Verify full restart (`stop`, `setSourceUrl`, `resume`) when `play` is called on a *different* file or on the *same* file while already playing/stopped.
     *   [x] **Test `pause()` logic:** Verify `adapter.pause` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
     *   [x] **Test `resume()` logic:** Verify `adapter.resume` is called and stream reflects state from mapper.
-    *   [ ] **Test `seek()` "fresh seek" logic:** Verify sequence (`stop`, `setSourceUrl`, `seek`, `pause`) when seeking before playback has started or on a different file.
-        *   **ISSUE (FAILING):** This test (`seek() when no track loaded...`) is failing, potentially with `verifyInOrder`.
-        *   **Observed Error:** Actual mock calls show `seek(Duration.zero)` instead of the expected `seek(position)`.
-        *   **Hypothesis:** The `AudioPlayerAdapterImpl` or `just_audio` might perform an *implicit* `seek(Duration.zero)` during `setSourceUrl` or source preparation, which gets recorded by the mock before the explicit `seek(position)`. `fakeAsync` might be involved in exposing this timing.
-        *   **Connection:** This unexpected adapter behavior is likely related to the UI flicker observed during initial `play()`, as both suggest inefficient/complex state transitions during track setup in the service/adapter.
-        *   **Next Steps:** 1) Confirm `pause()` call exists in service `seek()`. 2) Deep dive into `AudioPlayerAdapterImpl` (`setSourceUrl`/`seek`) and `just_audio` behavior. 3) Locate and analyze the exact code of the failing `verifyInOrder` test.
+    *   [x] **Test `seek()` "fresh seek" logic:** Verify sequence (`stop`, `setSourceUrl`, `seek`, `pause`) when seeking before playback has started or on a different file.
+        *   **ISSUE (RESOLVED):** This test (`seek() when no track loaded...`) was failing due to incorrect assumptions about adapter behavior and issues with Mockito verification (`verifyInOrder` vs. `verify().called()`).
+        *   ~~**Observed Error:** Actual mock calls show `seek(Duration.zero)` instead of the expected `seek(position)`.~~ (Incorrect initial diagnosis)
+        *   ~~**Hypothesis:** The `AudioPlayerAdapterImpl` or `just_audio` might perform an *implicit* `seek(Duration.zero)` during `setSourceUrl` or source preparation, which gets recorded by the mock before the explicit `seek(position)`. `fakeAsync` might be involved in exposing this timing.~~ (Incorrect initial diagnosis)
+        *   ~~**Connection:** This unexpected adapter behavior is likely related to the UI flicker observed during initial `play()`, as both suggest inefficient/complex state transitions during track setup in the service/adapter.~~
+        *   **Resolution:** The test was fixed by:
+            1.  Restoring the test case which was inadvertently deleted.
+            2.  Ensuring the `verifyInOrder` sequence correctly reflected the actual calls: `stop()`, `setSourceUrl(path)`, `seek(path, position)`, `pause()`. The implicit `seek(0)` theory was incorrect; the main issue was the interaction verification logic.
+            3.  Removing redundant `verify(...).called(1)` calls after the `verifyInOrder` block, which were causing "No matching calls" errors because `verifyInOrder` consumes the verified calls.
     *   [x] **Test `seek()` during playback logic:** Verify `adapter.seek` is called when seeking on the currently playing/paused file. (Verified in `pause_seek_stop_test.dart`)
     *   [x] **Test `stop()` logic:** Verify `adapter.stop` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
-    *   [ ] **Remove internal sequence checks:** Eliminate tests that *only* check the order of internal adapter calls without verifying the resulting state or a necessary side effect. **Re-evaluate:** The failing `verifyInOrder` test *is* an internal sequence check, but it revealed a significant discrepancy potentially linked to UI issues. Keep *this specific test* (or a refined version) until the underlying adapter behavior is understood. Other purely internal sequence checks without user-visible impact might still be removed.
-    *   [ ] **Run Service Tests:** `flutter test test/features/audio_recorder/data/services/` - **FAILING** (due to "fresh seek" test).
+    *   [ ] **Remove internal sequence checks:** Eliminate tests that *only* check the order of internal adapter calls without verifying the resulting state or a necessary side effect. **Re-evaluate:** The failing `verifyInOrder` test *was* an internal sequence check, but it revealed a significant discrepancy (now resolved) potentially linked to UI issues. Keep *this specific test* as it validates the "prime the pump" behaviour correctly now. Other purely internal sequence checks without user-visible impact might still be removed.
+    *   [ ] **Run Service Tests:** `flutter test test/features/audio_recorder/data/services/` - **Partially Done** (`pause_seek_stop_test.dart` passes, need to check others).
 *   [ ] **Refactor Cubit Tests (`audio_list_cubit_test.dart`):**
     *   [ ] **Test `loadAudioRecordings`:** Update the expected error message format in tests to match the actual implementation: "File System Error: Failed to list files" instead of "FileSystemFailure(Failed to list files)".
     *   [ ] **Test `stopRecording`**: Update the test to simulate the playback state stream emitting a stopped event, rather than expecting direct state emission from the method call.
     *   [x] **Test `seekRecording` error handling:** Fixed to verify state changes with error messages, rather than expecting exceptions to be thrown.
-    *   [ ] **Test `playRecording` interaction:** Verify `service.play(filePath)` is called.
-        *   [ ] **FAILING TEST:** Need to address the "handles race condition where stop event arrives during second play call" test failure.
-    *   [ ] **Test `pauseRecording` interaction:** Verify `service.pause()` is called.
-        *   [ ] **FAILING TEST:** Need to address the "preserves activeFilePath when paused" test failure.
+    *   [x] **Test `playRecording` interaction:** Verify `service.play(filePath)` is called.
+        *   [x] **FIXED:** Fixed the "handles race condition where stop event arrives during second play call" test failure by preserving the `_currentPlayingFilePath` while clearing the `activeFilePath` in UI state when receiving a stopped state. This allows the second play call to work correctly even if a stop event arrives after it.
+        *   [x] **KEY ARCHITECTURAL PATTERN:** Maintain a clear separation between internal tracking (`_currentPlayingFilePath`) and UI state (`activeFilePath`). Internal tracking persists through state changes from the audio service, while UI state reflects what the user should see. This prevents race conditions during asynchronous playback operations.
+    *   [x] **Test `pauseRecording` interaction:** Verify `service.pause()` is called.
+        *   [x] **FIXED:** Fixed the "preserves activeFilePath when paused" test failure by updating the `pauseRecording` method to capture the activeFilePath from the current state when needed and by ensuring the UI state correctly preserves this path when paused.
     *   [ ] **Test `resumeRecording` interaction:** Verify `service.resume()` is called.
     *   [x] **Test `seekRecording` interaction:** Verify `service.seek(filePath, position)` is called.
     *   [ ] **Test `stopRecording` interaction:** Verify `service.stop()` is called.
     *   [ ] **Test state updates from service stream:** Simulate `PlaybackState` events from the mocked service stream and verify the `AudioListCubit` emits the correct `AudioListState` with updated `PlaybackInfo` (filePath, isPlaying, isLoading, position, duration, error).
-    *   [ ] **Run Cubit Tests:** `flutter test test/features/audio_recorder/presentation/cubit/` - **FAILING** (due to race condition and pause state tests).
+    *   [x] **Run Cubit Tests:** `flutter test test/features/audio_recorder/presentation/cubit/audio_list_cubit_test.dart` - **PASSING** (All tests pass now).
 *   [x] **Refactor Adapter Tests (`audio_player_adapter_impl_test.dart`):**
     *   [x] **Fix Compilation Errors:** Correct mock syntax and remove incorrect use of Mocktail/Function() syntax in Mockito-based tests.
     *   [x] **Fix Streaming Tests:** Use Completer pattern to prevent tests from hanging indefinitely while waiting for events. Add timeout handling to fail gracefully if events don't arrive.
