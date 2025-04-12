@@ -459,4 +459,140 @@ Following extensive debugging and verification against the codebase:
 
 3.  **Code Alignment:** The implementations in `AudioPlaybackServiceImpl` (for both `play` and `seek`) and `AudioListCubit` (for `seekRecording` and calling `resumeRecording`) now align with this final state.
 
+## Test Reliability and Async Testing Best Practices
+
+A key challenge in this refactor was reliably testing asynchronous behaviors, particularly with streaming APIs. Some tests that correctly validated behavior in principle were failing inconsistently due to timing issues and race conditions. Here are the key lessons learned:
+
+### 1. Direct State Collection vs. Stream Matchers
+
+The original tests used Dart's `expectLater` with `emits`/`emitsInOrder` to verify stream emissions:
+
+```dart
+final stateExpectation = expectLater(
+  service.playbackStateStream.skip(2), // Skip initial states 
+  emits(resumedPlayingState), // Expect exactly the resumed state
+);
+
+// Perform actions...
+
+await stateExpectation; // Wait for expected state
+```
+
+This approach is concise but fails in complex scenarios with multiple state transitions because:
+- It's sensitive to timing issues between emissions
+- It provides poor diagnostics when expectations fail
+- Filtering with `.skip(N)` becomes brittle if the state sequence changes
+
+The more reliable approach is collecting states manually:
+
+```dart
+final emittedStates = <PlaybackState>[];
+final subscription = service.playbackStateStream.listen((state) {
+  logger.d('State received: $state'); // Debug logging
+  emittedStates.add(state);
+});
+
+try {
+  // Perform actions...
+  
+  // Allow time for processing
+  await Future.delayed(Duration(milliseconds: 50));
+  
+  // Verify specific state or sequence
+  expect(
+    emittedStates.last, 
+    equals(resumedPlayingState),
+    reason: 'Service should emit the resumed playing state',
+  );
+} finally {
+  // Always clean up subscription
+  await subscription.cancel();
+}
+```
+
+This pattern provides:
+- Better visibility into all emitted states (aids debugging)
+- Reliable verification of complex state sequences
+- Freedom to make multiple assertions on the collected states
+- Explicit cleanup via try/finally
+
+### 2. Preventing Stream Processing Race Conditions
+
+When testing async code, especially streams:
+
+1. **Use `await Future.delayed(Duration.zero)`** after adding items to controllers:
+   ```dart
+   mockPlaybackStateController.add(pausedState);
+   await Future.delayed(Duration.zero); // Process stream
+   ```
+   This allows the event loop to complete one iteration, ensuring stream events are processed.
+
+2. **Add explicit delays for complex scenarios**:
+   ```dart
+   // For complex state synchronization:
+   await Future.delayed(Duration(milliseconds: 50));
+   ```
+
+3. **Phase your tests** with clear demarcation between setup, actions, and verification:
+   ```dart
+   // -- First Play --
+   await service.play(tFilePath);
+   mockPlaybackStateController.add(initialPlayingState);
+   await Future.delayed(Duration.zero);
+   
+   // -- Pause --
+   await service.pause();
+   mockPlaybackStateController.add(pausedState);
+   await Future.delayed(Duration.zero);
+   
+   // -- Second Play (Resume) --
+   await service.play(tFilePath);
+   // Verify only resume was called...
+   ```
+
+### 3. Mocktail/Mockito Best Practices
+
+Several test issues stemmed from improper use of mocking frameworks:
+
+1. **Separate verification phases** with `clearInteractions`:
+   ```dart
+   // Verify first play
+   verify(mockAdapter.stop()).called(1);
+   verify(mockAdapter.setSourceUrl(tPath)).called(1);
+   verify(mockAdapter.resume()).called(1);
+   
+   // Clear before second phase
+   clearInteractions(mockAdapter);
+   
+   // Act and verify second phase separately
+   await service.play(tPath);
+   verifyNever(mockAdapter.stop()); // Should NOT call stop
+   verify(mockAdapter.resume()).called(1); // Should ONLY resume
+   ```
+
+2. **Don't mix `verifyInOrder` with individual verifies** for the same calls:
+   ```dart
+   // CORRECT: Use verifyInOrder for sequence 
+   verifyInOrder([
+     mockAdapter.stop(),
+     mockAdapter.setSourceUrl(tPath),
+     mockAdapter.resume(),
+   ]);
+   
+   // WRONG: Don't then verify these same calls individually
+   // verify(mockAdapter.stop()).called(1); // REDUNDANT - causes "No matching calls" error
+   ```
+
+3. **Re-stub after clearing interactions** if needed:
+   ```dart
+   clearInteractions(mockAdapter);
+   clearInteractions(mockMapper);
+   
+   // Re-stub essential behaviors after clearing
+   when(mockMapper.playbackStateStream)
+       .thenAnswer((_) => mockController.stream);
+   ```
+
+These testing patterns have significantly improved the reliability of async tests throughout the audio player codebase.
+
 **Conclusion:** The audio player's core playback and seek functionalities related to the initial bug report and subsequent findings are now working as expected based on code verification and log analysis. 

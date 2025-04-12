@@ -42,14 +42,13 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 *   [ ] **Refactor Service Tests (`audio_playback_service_*_test.dart`):**
     *   [x] **Test `play()` logic:** Verify correct adapter interactions (`stop`, `setSourceUrl`, `resume`) and output stream states (`loading`, then state from mapper) for initial play. (Verified in `play_test.dart`)
     *   [x] **Test `play()` resume logic:** Verify only `resume` is called on the adapter when `play` is called on the same file while paused.
+        * **Key Insight**: Improved test reliability by implementing a direct state collection approach with a subscription rather than using `expectLater` with `emits` for complex state sequences. This avoids timing issues and provides clearer failure diagnostics.
+        * **Pattern**: For testing complex stream emissions, prefer collecting states with `final emittedStates = <State>[]; final subscription = stream.listen((state) => emittedStates.add(state));` then asserting on the collected states after the test actions.
     *   [x] **Test `play()` restart logic:** Verify full restart (`stop`, `setSourceUrl`, `resume`) when `play` is called on a *different* file or on the *same* file while already playing/stopped.
     *   [x] **Test `pause()` logic:** Verify `adapter.pause` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
     *   [x] **Test `resume()` logic:** Verify `adapter.resume` is called and stream reflects state from mapper.
     *   [x] **Test `seek()` "fresh seek" logic:** Verify sequence (`stop`, `setSourceUrl`, `seek`, `pause`) when seeking before playback has started or on a different file.
         *   **ISSUE (RESOLVED):** This test (`seek() when no track loaded...`) was failing due to incorrect assumptions about adapter behavior and issues with Mockito verification (`verifyInOrder` vs. `verify().called()`).
-        *   ~~**Observed Error:** Actual mock calls show `seek(Duration.zero)` instead of the expected `seek(position)`.~~ (Incorrect initial diagnosis)
-        *   ~~**Hypothesis:** The `AudioPlayerAdapterImpl` or `just_audio` might perform an *implicit* `seek(Duration.zero)` during `setSourceUrl` or source preparation, which gets recorded by the mock before the explicit `seek(position)`. `fakeAsync` might be involved in exposing this timing.~~ (Incorrect initial diagnosis)
-        *   ~~**Connection:** This unexpected adapter behavior is likely related to the UI flicker observed during initial `play()`, as both suggest inefficient/complex state transitions during track setup in the service/adapter.~~
         *   **Resolution:** The test was fixed by:
             1.  Restoring the test case which was inadvertently deleted.
             2.  Ensuring the `verifyInOrder` sequence correctly reflected the actual calls: `stop()`, `setSourceUrl(path)`, `seek(path, position)`, `pause()`. The implicit `seek(0)` theory was incorrect; the main issue was the interaction verification logic.
@@ -127,4 +126,51 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 *   [ ] **Review Test Descriptions:** Ensure names clearly state the behavior verified.
 *   [ ] **Audit Mocking Consistency:** Review all feature tests (`test/features/audio_recorder/`) to ensure consistent use of `mockito` generation for class/interface mocks, removing any other libraries (`mocktail`) or manual mocks.
 *   [ ] **Cleanup:** Remove dead/commented-out code.
-*   [ ] **Documentation:** Update docs if needed. 
+*   [ ] **Documentation:** Update docs if needed.
+
+## Lessons Learned from Test Refactoring
+
+*Key insights gained during the refactoring process:*
+
+1. **Async Stream Testing Approaches:**
+   * **Direct State Collection:** For complex stream testing scenarios, manually collecting emitted states with a subscription is more reliable than using `expectLater` with `emits`/`emitsInOrder`. This approach:
+     * Provides better diagnostic information when tests fail
+     * Reduces timing/race condition issues
+     * Allows more flexible assertions on the collected states
+     * Example pattern:
+     ```dart
+     final emittedStates = <State>[];
+     final subscription = stream.listen((state) {
+       log('State received: $state'); // Optional but helpful
+       emittedStates.add(state);
+     });
+     
+     try {
+       // Perform test actions...
+       // ...then verify collected states
+       expect(emittedStates, [expectedState1, expectedState2]);
+     } finally {
+       // Always clean up
+       await subscription.cancel();
+     }
+     ```
+
+2. **Stream Processing Timing:**
+   * Always include `await Future.delayed(Duration.zero)` after stream emissions to ensure event loop iterations complete
+   * For complex scenarios, consider using longer delays (e.g., `Duration(milliseconds: 50)`) to ensure stream processing completes
+   * Log state transitions with timestamps to debug timing issues
+
+3. **Mockito Verification Gotchas:**
+   * `verifyInOrder` "consumes" the verified calls - don't mix with individual `verify(...).called(N)` for the same calls
+   * When verifying complex call sequences, prefer `verifyInOrder` to ensure proper sequencing
+   * Always `clearInteractions` before a new test phase to isolate verification
+
+4. **Test Structure for Async Tests:**
+   * Follow a clear Arrange-Act-Assert (AAA) pattern even for complex async tests
+   * In tests with multiple phases, clearly demarcate phases with comments
+   * For tests with multiple state transitions, log each phase and state clearly
+
+5. **Debugging Techniques:**
+   * Use explicit subscriptions with logging for stream debugging instead of `print` statements
+   * Add clear phase markers to logs (e.g., "TEST [resume paused]: Initial play call...")
+   * Consider adding a cleanup phase with try/finally to ensure resources are properly released 

@@ -1,17 +1,17 @@
 // Imports
 import 'dart:async';
+import 'dart:developer';
+
+// Import logger
+import 'package:docjet_mobile/core/utils/logger.dart'; // Import logger explicitly
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'
     as entity;
-import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-// Use fake_async for better time control in plain tests
-import 'package:fake_async/fake_async.dart';
-// Import logger
-import 'package:docjet_mobile/core/utils/logger.dart'; // Import logger explicitly
 
 // Import the generated mocks
 import 'audio_playback_service_play_test.mocks.dart';
@@ -118,62 +118,61 @@ void main() {
         );
 
         // **DEBUG: Log all emitted states**
-        final emittedStatesForDebug = <entity.PlaybackState>[];
+        final emittedStates = <entity.PlaybackState>[];
         final debugSubscription = service.playbackStateStream.listen((state) {
           logger.d('*** DEBUG: State Emitted: $state');
-          emittedStatesForDebug.add(state);
+          emittedStates.add(state);
         });
 
-        // Expect loading (from service.play) -> playing (from controller)
-        logger.d('TEST [initial play]: Setting up expectLater...');
-        final stateExpectation = expectLater(
-          service.playbackStateStream, // This comes from the mock mapper
-          emitsInOrder([
-            // Removed initial state from expectation
-            expectedLoadingState,
-            expectedPlayingState,
-          ]),
-        );
-        logger.d('TEST [initial play]: expectLater set up.');
+        try {
+          // Act 1: Call play, AWAIT it now that we are not in fakeAsync
+          logger.d('TEST [initial play]: Calling service.play (awaiting)...');
+          await service.play(tFilePathDevice);
+          logger.d('TEST [initial play]: service.play called (awaiting).');
+          // Yield to allow stream processing after service call completes
+          await Future.delayed(Duration.zero);
+          logger.d('TEST [initial play]: >> After delay post-play');
 
-        // Act 1: Call play, AWAIT it now that we are not in fakeAsync
-        logger.d('TEST [initial play]: Calling service.play (awaiting)...');
-        await service.play(tFilePathDevice);
-        logger.d('TEST [initial play]: service.play called (awaiting).');
-        // Yield to allow stream processing after service call completes
-        await Future.delayed(Duration.zero);
-        logger.d('TEST [initial play]: >> After delay post-play');
+          // Assert Interactions AFTER await
+          logger.d('TEST [initial play]: Verifying adapter calls...');
+          verify(mockAudioPlayerAdapter.stop()).called(1);
+          verify(
+            mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice),
+          ).called(1);
+          verify(mockAudioPlayerAdapter.resume()).called(1);
+          logger.d('TEST [initial play]: Adapter calls verified.');
 
-        // Assert Interactions AFTER await
-        logger.d('TEST [initial play]: Verifying adapter calls...');
-        verify(mockAudioPlayerAdapter.stop()).called(1);
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1);
-        logger.d('TEST [initial play]: Adapter calls verified.');
+          // Act 2: Simulate mapper emitting the loading state FIRST
+          logger.d(
+            'TEST [initial play]: Adding loading state to controller...',
+          );
+          mockPlaybackStateController.add(expectedLoadingState);
+          logger.d('TEST [initial play]: >> After adding LOADING state');
+          // Yield AGAIN immediately after adding to controller
+          await Future.delayed(Duration.zero);
+          logger.d('TEST [initial play]: >> After SECOND delay post-LOADING');
 
-        // Act 2: Simulate mapper emitting the loading state FIRST
-        logger.d('TEST [initial play]: Adding loading state to controller...');
-        mockPlaybackStateController.add(expectedLoadingState);
-        logger.d('TEST [initial play]: >> After adding LOADING state');
-        // Yield AGAIN immediately after adding to controller
-        await Future.delayed(Duration.zero);
-        logger.d('TEST [initial play]: >> After SECOND delay post-LOADING');
+          // Act 3: Simulate mapper emitting the final state
+          logger.d(
+            'TEST [initial play]: Adding playing state to controller...',
+          );
+          mockPlaybackStateController.add(expectedPlayingState);
+          logger.d('TEST [initial play]: >> After adding PLAYING state');
+          // Yield AGAIN immediately after adding to controller
+          await Future.delayed(Duration.zero);
+          logger.d('TEST [initial play]: >> After THIRD delay post-PLAYING');
 
-        // Act 3: Simulate mapper emitting the final state
-        logger.d('TEST [initial play]: Adding playing state to controller...');
-        mockPlaybackStateController.add(expectedPlayingState);
-        logger.d('TEST [initial play]: >> After adding PLAYING state');
-        // Yield AGAIN immediately after adding to controller
-        await Future.delayed(Duration.zero);
-        logger.d('TEST [initial play]: >> After THIRD delay post-PLAYING');
-
-        // Await the expectLater future
-        logger.d('TEST [initial play]: Awaiting expectLater...');
-        await stateExpectation;
-        logger.d('TEST [initial play]: expectLater completed.');
-
-        // **DEBUG: Cancel subscription**
-        await debugSubscription.cancel();
+          // **Assert collected states**
+          expect(
+            emittedStates,
+            equals([expectedLoadingState, expectedPlayingState]),
+          );
+          logger.d('TEST [initial play]: Asserted collected states.');
+        } finally {
+          // **DEBUG: Cancel subscription**
+          await debugSubscription.cancel();
+          logger.d('TEST [initial play]: Subscription cancelled.');
+        }
         logger.d('TEST [initial play]: END');
       },
     );
@@ -333,65 +332,51 @@ void main() {
       },
     );
 
-    test('play should throw if adapter.resume throws', () {
-      fakeAsync((async) {
-        // Arrange
-        final testError = Exception('Resume failed!');
-        // Stub stop, setSourceUrl to succeed, but resume to throw
-        when(mockAudioPlayerAdapter.stop()).thenAnswer((_) => Future.value());
-        when(
-          mockAudioPlayerAdapter.setSourceUrl(any),
-        ).thenAnswer((_) => Future.value());
-        when(mockAudioPlayerAdapter.resume()).thenThrow(testError);
+    test('play should throw if adapter.resume throws', () async {
+      // Arrange
+      final testError = Exception('Resume failed!');
+      // Stub stop, setSourceUrl to succeed, but resume to throw
+      when(mockAudioPlayerAdapter.stop()).thenAnswer((_) async {});
+      when(mockAudioPlayerAdapter.setSourceUrl(any)).thenAnswer((_) async {});
+      when(mockAudioPlayerAdapter.resume()).thenThrow(testError);
 
-        // Act & Assert: Expect the service.play call itself to throw
-        expect(
-          () => service.play(tFilePathDevice),
-          throwsA(
-            isA<Exception>().having(
-              (e) => e.toString(),
-              'toString',
-              contains('Resume failed!'),
-            ),
+      // Act & Assert: Use expectLater for async throws check
+      await expectLater(
+        service.play(tFilePathDevice),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'toString',
+            contains('Resume failed!'),
           ),
-        );
+        ),
+      );
 
-        // Allow the async operations within play to attempt to run
-        async.flushMicrotasks();
-
-        // Verify interactions up to the point of failure
-        verify(mockAudioPlayerAdapter.stop()).called(1);
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
-        verify(
-          mockAudioPlayerAdapter.resume(),
-        ).called(1); // Resume was attempted
-      });
+      // Verify interactions up to the point of failure
+      verify(mockAudioPlayerAdapter.stop()).called(1);
+      verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
+      verify(mockAudioPlayerAdapter.resume()).called(1); // Resume was attempted
     });
 
-    test('play should throw if adapter.setSourceUrl throws', () {
-      fakeAsync((async) {
-        // Arrange
-        final testError = Exception('SetSourceUrl failed!');
-        // Stub stop to succeed, but setSourceUrl to throw
-        when(mockAudioPlayerAdapter.stop()).thenAnswer((_) => Future.value());
-        when(mockAudioPlayerAdapter.setSourceUrl(any)).thenThrow(testError);
+    test('play should throw if adapter.setSourceUrl throws', () async {
+      // Arrange
+      final testError = Exception('SetSourceUrl failed!');
+      // Stub stop to succeed, but setSourceUrl to throw
+      when(mockAudioPlayerAdapter.stop()).thenAnswer((_) async {});
+      when(mockAudioPlayerAdapter.setSourceUrl(any)).thenThrow(testError);
 
-        // Act & Assert: Expect the service.play call itself to throw
-        expect(
-          () => service.play(tFilePathDevice),
-          throwsA(predicate((e) => e is Exception && e == testError)),
-        );
+      // Act & Assert: Use expectLater for async throws check
+      await expectLater(
+        service.play(tFilePathDevice),
+        throwsA(predicate((e) => e is Exception && e == testError)),
+      );
 
-        // Allow the async operations within play to attempt to run
-        async.flushMicrotasks();
-
-        // Verify interactions up to the point of failure
-        verify(mockAudioPlayerAdapter.stop()).called(1);
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
-        verifyNever(
-          mockAudioPlayerAdapter.resume(),
-        ); // Resume should NOT be called
-      });
+      // Verify interactions up to the point of failure
+      verify(mockAudioPlayerAdapter.stop()).called(1);
+      verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
+      verifyNever(
+        mockAudioPlayerAdapter.resume(),
+      ); // Resume should NOT be called
     });
 
     test(
@@ -473,63 +458,85 @@ void main() {
         const initialDuration = Duration(seconds: 60);
         const pausedPosition = Duration(seconds: 25);
 
-        // Mock the initial state sequence (play -> pause)
+        // Create states to be emitted
         final initialPlayingState = entity.PlaybackState.playing(
           currentPosition: Duration.zero,
           totalDuration: initialDuration,
         );
         final pausedState = entity.PlaybackState.paused(
-          currentPosition: pausedPosition, // Record the pause position
+          currentPosition: pausedPosition,
+          totalDuration: initialDuration,
+        );
+        final resumedPlayingState = entity.PlaybackState.playing(
+          currentPosition: pausedPosition, // Resume from paused position
           totalDuration: initialDuration,
         );
 
         // -- First Play --
         logger.d('TEST [resume paused]: Initial play call...');
         await service.play(tFilePath);
-        // Simulate mapper emitting the state
-        mockPlaybackStateController.add(initialPlayingState);
-        await Future.delayed(Duration.zero); // Process stream
-        logger.d('TEST [resume paused]: Initial play state emitted.');
 
         // Verify initial interactions
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePath)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1); // First resume
+        verify(mockAudioPlayerAdapter.resume()).called(1);
+
+        // Simulate mapper emitting the initial playing state
+        mockPlaybackStateController.add(initialPlayingState);
+        await Future.delayed(Duration.zero); // Process stream
 
         // -- Pause --
         logger.d('TEST [resume paused]: Pause call...');
         await service.pause();
         verify(mockAudioPlayerAdapter.pause()).called(1);
-        // Simulate mapper emitting the paused state - IMPORTANT for the service logic
+
+        // Simulate mapper emitting the paused state
         mockPlaybackStateController.add(pausedState);
         await Future.delayed(Duration.zero); // Process stream
-        // service._lastKnownState should now be `pausedState`
-        logger.d('TEST [resume paused]: Paused state emitted.');
 
-        // Clear interactions AFTER pause, before the second play
-        logger.d(
-          'TEST [resume paused]: Clearing interactions before second play...',
-        );
+        // Clear interactions before the second play call
         clearInteractions(mockAudioPlayerAdapter);
-        clearInteractions(mockPlaybackStateMapper); // Clear mapper too
 
-        // Act: Play the SAME file again while paused
-        logger.d(
-          'TEST [resume paused]: Calling second play (resume expected)...',
-        );
-        await service.play(tFilePath);
-        logger.d('TEST [resume paused]: Second play call complete.');
+        // -- Act: Setup a subscription to verify states after this point --
+        final emittedStates = <entity.PlaybackState>[];
+        final subscription = service.playbackStateStream.listen((state) {
+          logger.d('TEST [resume paused]: State received: $state');
+          emittedStates.add(state);
+        });
 
-        // Assert: Correct behavior - RESUME was called, stop/setSourceUrl were NOT
-        logger.d('TEST [resume paused]: Verifying RESUME interactions...');
-        verifyNever(mockAudioPlayerAdapter.stop()); // Should NOT stop
-        verifyNever(
-          mockAudioPlayerAdapter.setSourceUrl(any),
-        ); // Should NOT set source again
-        verify(mockAudioPlayerAdapter.resume()).called(1); // SHOULD call resume
+        try {
+          // Call play again on the paused file
+          logger.d('TEST [resume paused]: Second play call (should resume)...');
+          await service.play(tFilePath);
+
+          // Verify ONLY resume was called
+          verifyNever(mockAudioPlayerAdapter.stop());
+          verifyNever(mockAudioPlayerAdapter.setSourceUrl(any));
+          verify(mockAudioPlayerAdapter.resume()).called(1);
+
+          // Simulate mapper emitting the resumed playing state
+          mockPlaybackStateController.add(resumedPlayingState);
+          await Future.delayed(Duration.zero); // Process stream
+
+          // Give the stream time to propagate the state
+          await Future.delayed(Duration(milliseconds: 50));
+
+          // Verify we received the resumed state
+          expect(
+            emittedStates.last,
+            equals(resumedPlayingState),
+            reason: 'Service should emit the resumed playing state',
+          );
+
+          logger.d('TEST [resume paused]: Test completed successfully!');
+        } finally {
+          // Always clean up the subscription
+          await subscription.cancel();
+        }
       },
     );
 
-    // Add more tests for edge cases: empty file path, network errors if applicable etc.
-  });
-}
+    // TODO: Add test for play throwing if adapter.stop throws (initial play)
+    // TODO: Add test for play throwing if adapter.stop throws (subsequent play - restart)
+  }); // Close the group
+} // Close main
