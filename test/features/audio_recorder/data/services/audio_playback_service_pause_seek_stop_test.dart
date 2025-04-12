@@ -314,6 +314,43 @@ void main() {
     });
 
     // TODO: Add tests for resume() if not covered elsewhere
+    test(
+      'resume() should call adapter.resume and emit playing state via mapper',
+      () async {
+        // Arrange: Simulate a paused state being emitted by the mapper first
+        const pausedState = entity.PlaybackState.paused(
+          currentPosition: Duration(seconds: 10),
+          totalDuration: Duration(seconds: 60),
+        );
+        const expectedPlayingState = entity.PlaybackState.playing(
+          currentPosition: Duration(seconds: 10), // Should resume from here
+          totalDuration: Duration(seconds: 60),
+        );
+
+        // Expect the playing state AFTER resume is called and mapper emits
+        final expectation = expectLater(
+          service.playbackStateStream,
+          emitsInOrder([pausedState, expectedPlayingState]),
+        );
+
+        // Emit the initial paused state
+        mockPlaybackStateController.add(pausedState);
+        await Future.delayed(Duration.zero); // Allow state to propagate
+
+        // Act: Call the service's resume method
+        await service.resume();
+
+        // Assert: Verify adapter interaction
+        verify(mockAudioPlayerAdapter.resume()).called(1);
+
+        // Simulate mapper emitting the playing state after adapter call
+        mockPlaybackStateController.add(expectedPlayingState);
+        await Future.delayed(Duration.zero); // Allow state to propagate
+
+        // Wait for stream expectation
+        await expectation;
+      },
+    );
 
     // TODO: Add tests for dispose() behavior, ensuring adapter.dispose() is called.
 

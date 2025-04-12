@@ -41,10 +41,10 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 *   [ ] **Evaluate Test Timing Control:** Evaluate the use of `fake_async` vs. standard `async`/`await` mechanisms for controlling time in tests. Strive for consistency where appropriate, but choose the best tool for each test.
 *   [ ] **Refactor Service Tests (`audio_playback_service_*_test.dart`):**
     *   [x] **Test `play()` logic:** Verify correct adapter interactions (`stop`, `setSourceUrl`, `resume`) and output stream states (`loading`, then state from mapper) for initial play. (Verified in `play_test.dart`)
-    *   [ ] **Test `play()` resume logic:** Verify only `resume` is called on the adapter when `play` is called on the same file while paused.
-    *   [ ] **Test `play()` restart logic:** Verify full restart (`stop`, `setSourceUrl`, `resume`) when `play` is called on a *different* file or on the *same* file while already playing/stopped.
+    *   [x] **Test `play()` resume logic:** Verify only `resume` is called on the adapter when `play` is called on the same file while paused.
+    *   [x] **Test `play()` restart logic:** Verify full restart (`stop`, `setSourceUrl`, `resume`) when `play` is called on a *different* file or on the *same* file while already playing/stopped.
     *   [x] **Test `pause()` logic:** Verify `adapter.pause` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
-    *   [ ] **Test `resume()` logic:** Verify `adapter.resume` is called and stream reflects state from mapper.
+    *   [x] **Test `resume()` logic:** Verify `adapter.resume` is called and stream reflects state from mapper.
     *   [ ] **Test `seek()` "fresh seek" logic:** Verify sequence (`stop`, `setSourceUrl`, `seek`, `pause`) when seeking before playback has started or on a different file.
     *   [x] **Test `seek()` during playback logic:** Verify `adapter.seek` is called when seeking on the currently playing/paused file. (Verified in `pause_seek_stop_test.dart`)
     *   [x] **Test `stop()` logic:** Verify `adapter.stop` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
