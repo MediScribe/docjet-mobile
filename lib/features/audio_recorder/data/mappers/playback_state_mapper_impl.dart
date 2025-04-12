@@ -251,7 +251,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
           );
           break;
         case DomainPlayerState.initial:
-        default:
           newState = const PlaybackState.initial();
           break;
       }

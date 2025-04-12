@@ -23,8 +23,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   // Keep track of the currently loaded path and the last known state
   String? _currentFilePath;
   PlaybackState _lastKnownState = const PlaybackState.initial();
-  // Flag to differentiate pause-after-seek from natural pause
-  bool _seekPerformedWhileNotPlaying = false;
 
   /// Creates an instance of [AudioPlaybackServiceImpl].
   ///
@@ -44,7 +42,7 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         _lastKnownState = state; // Update last known state
         // Reset flag on natural state changes if appropriate
         if (state.maybeMap(playing: (_) => true, orElse: () => false)) {
-          _seekPerformedWhileNotPlaying = false; // Reset on natural play
+          // Reset on natural play
         }
         // TODO: Consider resetting _seekPerformedWhileNotPlaying on stop/complete/error as well?
         _playbackStateSubject.add(state); // Forward state to external listeners
@@ -191,22 +189,8 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
 
   @override
   Future<void> seek(String filePath, Duration position) async {
-    final trace = StackTrace.current;
-    // logger.d(
-    //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] START', // Update log
-    //   stackTrace: trace,
-    // );
     try {
-      final isCurrentlyPlaying = _lastKnownState.maybeWhen(
-        playing: (_, __) => true,
-        orElse: () => false,
-      );
-
       final isTargetSameAsCurrent = filePath == _currentFilePath;
-
-      // logger.d(
-      //   '[SERVICE SEEK $filePath] State Check: isCurrentlyPlaying: $isCurrentlyPlaying, isTargetSameAsCurrent: $isTargetSameAsCurrent, _lastKnownState: $_lastKnownState',
-      // );
 
       // Scenario 1: Seeking within the currently playing/paused file
       if (isTargetSameAsCurrent && _currentFilePath != null) {
@@ -256,7 +240,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         //   '[SERVICE SEEK $filePath] Priming: Calling adapter.pause()...',
         // );
         await _audioPlayerAdapter.pause();
-        _seekPerformedWhileNotPlaying = true; // Set flag
         // logger.d(
         //   '[SERVICE SEEK $filePath] Priming: adapter.pause() complete. _seekPerformedWhileNotPlaying=true.',
         // );

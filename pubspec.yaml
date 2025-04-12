@@ -85,6 +85,8 @@ dev_dependencies:
   record_platform_interface: ^1.2.0 # Replacing 'any', using constraint from 'record'
   audio_session: ^0.1.25 # Replacing 'any', using current resolved
   collection: ^1.18.0 # Replacing 'any'
+  path_provider_platform_interface: ^2.1.2 # Added based on dart analyze
+  plugin_platform_interface: ^2.1.8 # Added based on dart analyze
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

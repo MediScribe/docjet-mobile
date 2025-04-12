@@ -230,9 +230,6 @@ void main() {
       const totalDuration = Duration(seconds: 60);
       const initialPosition = Duration(seconds: 10);
       const finalPositionValue = 0.5; // 50% of the slider
-      final finalPosition = Duration(
-        seconds: (totalDuration.inSeconds * finalPositionValue).round(),
-      ); // Expected: 30 seconds
 
       // Stub seekRecording to expect TWO arguments
       when(
@@ -252,10 +249,9 @@ void main() {
 
       await pumpWidget(tester, widget);
 
-      // Act
+      // Act: Directly set the slider value (more robust than dragging)
       final sliderFinder = find.byType(Slider);
       expect(sliderFinder, findsOneWidget);
-
       // Simulate the slider value change directly via onChangeEnd
       final Slider sliderWidget = tester.widget<Slider>(sliderFinder);
       sliderWidget.onChangeEnd!(finalPositionValue);
@@ -340,10 +336,6 @@ void main() {
     ) async {
       // Arrange
       const totalDuration = Duration(seconds: 120);
-      const seekPositionSeconds = 75.0;
-      final expectedSeekDuration = Duration(
-        seconds: seekPositionSeconds.toInt(),
-      );
 
       when(
         () => mockAudioListCubit.seekRecording(any(), any()),
@@ -364,7 +356,6 @@ void main() {
 
       // Act
       // Simulate user interaction: drag slider and release
-      final Offset sliderCenter = tester.getCenter(find.byType(Slider));
       await tester.drag(find.byType(Slider), Offset(50.0, 0.0)); // Drag
       await tester.pump(); // Settle drag
 

@@ -9,9 +9,6 @@ import 'package:audio_session/audio_session.dart' as _i5;
 import 'package:just_audio/just_audio.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i4;
-import 'package:path_provider/path_provider.dart' as _i7;
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart'
-    as _i6;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -672,98 +669,4 @@ class MockAudioPlayer extends _i1.Mock implements _i2.AudioPlayer {
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
       ) as _i3.Future<void>);
-}
-
-/// A class which mocks [PathProviderPlatform].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockPathProviderPlatform extends _i1.Mock
-    implements _i6.PathProviderPlatform {
-  MockPathProviderPlatform() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i3.Future<String?> getTemporaryPath() => (super.noSuchMethod(
-        Invocation.method(
-          #getTemporaryPath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
-
-  @override
-  _i3.Future<String?> getApplicationSupportPath() => (super.noSuchMethod(
-        Invocation.method(
-          #getApplicationSupportPath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
-
-  @override
-  _i3.Future<String?> getLibraryPath() => (super.noSuchMethod(
-        Invocation.method(
-          #getLibraryPath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
-
-  @override
-  _i3.Future<String?> getApplicationDocumentsPath() => (super.noSuchMethod(
-        Invocation.method(
-          #getApplicationDocumentsPath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
-
-  @override
-  _i3.Future<String?> getApplicationCachePath() => (super.noSuchMethod(
-        Invocation.method(
-          #getApplicationCachePath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
-
-  @override
-  _i3.Future<String?> getExternalStoragePath() => (super.noSuchMethod(
-        Invocation.method(
-          #getExternalStoragePath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
-
-  @override
-  _i3.Future<List<String>?> getExternalCachePaths() => (super.noSuchMethod(
-        Invocation.method(
-          #getExternalCachePaths,
-          [],
-        ),
-        returnValue: _i3.Future<List<String>?>.value(),
-      ) as _i3.Future<List<String>?>);
-
-  @override
-  _i3.Future<List<String>?> getExternalStoragePaths(
-          {_i7.StorageDirectory? type}) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getExternalStoragePaths,
-          [],
-          {#type: type},
-        ),
-        returnValue: _i3.Future<List<String>?>.value(),
-      ) as _i3.Future<List<String>?>);
-
-  @override
-  _i3.Future<String?> getDownloadsPath() => (super.noSuchMethod(
-        Invocation.method(
-          #getDownloadsPath,
-          [],
-        ),
-        returnValue: _i3.Future<String?>.value(),
-      ) as _i3.Future<String?>);
 }
