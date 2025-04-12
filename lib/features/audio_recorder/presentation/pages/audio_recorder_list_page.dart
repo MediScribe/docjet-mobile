@@ -191,13 +191,10 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                 // Access state.playbackInfo INSIDE the builder
                 final playbackInfo = (state).playbackInfo;
 
-                // Ensure this log is commented out
-                // logger.d(
-                //   '[itemBuilder ${transcription.localFilePath.split('/').last}] Calculated Props: isActive=${isActiveItem}, isPlaying=${itemIsPlaying}, itemPos=${itemPosition.inMilliseconds}ms, displayDur=${displayDuration.inMilliseconds}ms',
-                // );
-
                 // Use Transcription type
                 final transcription = sortedTranscriptions[index];
+                final fileId = transcription.localFilePath.split('/').last;
+
                 // Use Transcription properties
                 final startTime = transcription.localCreatedAt;
                 final duration =
@@ -217,13 +214,23 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                 final itemPosition =
                     isActiveItem ? playbackInfo.currentPosition : Duration.zero;
                 // Use playbackInfo.totalDuration ONLY if active, otherwise use file's duration
-                // but ensure canSeek only uses playbackInfo.totalDuration
                 final displayDuration =
                     isActiveItem && playbackInfo.totalDuration > Duration.zero
                         ? playbackInfo.totalDuration
                         : duration; // Duration shown on the widget
                 final itemError = isActiveItem ? playbackInfo.error : null;
-                // Slider should only be enabled if this IS the active item and duration is known
+
+                // Add DEBUG logs for the props calculation
+                if (isActiveItem) {
+                  logger.t(
+                    '[PARENT_WIDGET] Props for $fileId: '
+                    'isActiveItem=$isActiveItem '
+                    '(playbackInfo.activeFilePath=${playbackInfo.activeFilePath?.split('/').last}), '
+                    'isPlaying=${itemIsPlaying} (playbackInfo.isPlaying=${playbackInfo.isPlaying}), '
+                    'isLoading=${itemIsLoading}, position=${itemPosition.inMilliseconds}ms, '
+                    'displayDuration=${displayDuration.inMilliseconds}ms',
+                  );
+                }
 
                 return Card(
                   margin: const EdgeInsets.symmetric(

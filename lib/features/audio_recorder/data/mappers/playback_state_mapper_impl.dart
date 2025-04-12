@@ -11,6 +11,9 @@ import 'package:rxdart/rxdart.dart';
 // Set Logger Level to DEBUG for active development/debugging in this file
 final logger = Logger(level: Level.debug);
 
+// Special debug flag for state transition tracking - set to true to enable detailed transition logs
+const bool _debugStateTransitions = true;
+
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
@@ -190,6 +193,8 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
           (state) => logger.t('[MAPPER_PRE_DISTINCT] State: $state'),
         )
         .distinct(_areStatesEquivalent)
+        // Add debouncing to prevent rapid state changes from causing UI flicker
+        .debounceTime(const Duration(milliseconds: 80))
         .doOnData(
           // Demoted from DEBUG to TRACE due to high frequency
           (state) =>
@@ -207,7 +212,10 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
 
   /// Constructs the appropriate [PlaybackState] based on the current internal state.
   PlaybackState _constructState(String trigger) {
-    // logger.t('[MAPPER_CONSTRUCT] Trigger: $trigger'); // Optional TRACE
+    logger.t(
+      '[STATE_FLOW Mapper] Constructing state: playerState=$_currentPlayerState, position=$_currentPosition, duration=$_currentDuration, isComplete=${_currentPlayerState == DomainPlayerState.completed}',
+    );
+
     PlaybackState newState;
     if (_currentError != null) {
       newState = PlaybackState.error(
@@ -239,8 +247,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
           newState = const PlaybackState.stopped();
           break;
         case DomainPlayerState.error:
-          // This case should technically be handled by the _currentError check above,
-          // but include it for completeness.
           logger.w(
             '[MAPPER_CONSTRUCT] Constructing state from DomainPlayerState.error, but _currentError was null?',
           );
@@ -255,12 +261,21 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
           break;
       }
     }
-    // Instead, the service using this mapper is responsible for knowing the current file path context.
+
+    if (_debugStateTransitions) {
+      logger.d(
+        '[STATE_TRANSITION] MAPPER: DomainPlayerState = $_currentPlayerState → PlaybackState = ${newState.runtimeType}',
+      );
+    }
+
     return newState;
   }
 
   /// Comparison logic for the `distinct` operator.
   bool _areStatesEquivalent(PlaybackState prev, PlaybackState next) {
+    logger.t(
+      '[STATE_FLOW Mapper] Comparing states for distinct: prev=$prev, next=$next',
+    );
     final bool sameType = prev.runtimeType == next.runtimeType;
     if (!sameType) {
       // logger.t('[MAPPER_DISTINCT] Different Type: $prev vs $next => DIFFERENT (Emit)'); // Demoted

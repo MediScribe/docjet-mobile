@@ -546,3 +546,306 @@ Based on the findings, implement solutions in this order:
    - Ensure no regressions in functionality
 
 This systematic approach will enable us to identify and fix the flickering issues without relying on trial and error, while providing valuable insights into reactive UI performance optimization. 
+
+# Flickering Issues Resolution
+
+## Diagnostic Approach
+
+To understand the UI flickering issues, we implemented a systematic diagnostic approach focused on capturing precise state transitions and timing data across all layers of the application.
+
+### 1. Strategic Instrumentation
+
+We deployed targeted logging across multiple component layers:
+
+**Player Adapter Layer:**
+```dart
+// Raw player state change tracking
+logger.d('[STATE_TRANSITION #$seqId] RAW: ${state.processingState}, playing=${state.playing}');
+
+// Method timing
+final startLoadTime = DateTime.now().millisecondsSinceEpoch;
+// ... after operation completes
+final loadDuration = DateTime.now().millisecondsSinceEpoch - startLoadTime;
+logger.d('[ADAPTER TIMING] Operation took ${loadDuration}ms');
+```
+
+**Mapper Layer:**
+```dart
+// State translation logging
+logger.d('[STATE_TRANSITION] MAPPER: DomainPlayerState = $_currentPlayerState → PlaybackState = ${newState.runtimeType}');
+```
+
+**Cubit Layer:**
+```dart
+// PlaybackInfo change tracking
+logger.d('[CUBIT_PLAYBACK_INFO] Changed: '
+    'activeFilePath: ${currentPlaybackInfo.activeFilePath?.split('/').last} -> ${newPlaybackInfo.activeFilePath?.split('/').last}, '
+    'isPlaying: ${currentPlaybackInfo.isPlaying} -> ${newPlaybackInfo.isPlaying}, '
+    'isLoading: ${currentPlaybackInfo.isLoading} -> ${newPlaybackInfo.isLoading}, '
+    'state: ${playbackState.runtimeType}');
+```
+
+**UI Layer:**
+```dart
+// Widget rebuild tracking
+final timeSinceLastBuild = _lastBuildTime > 0 ? now - _lastBuildTime : 0;
+_lastBuildTime = now;
+logger.d('[UI TIMING] Widget rebuild #$_buildCount for $fileId, ${timeSinceLastBuild}ms since last rebuild');
+```
+
+**Flow Tracing:**
+```dart
+// Unique flow ID to trace a user action through the entire system
+final flowId = DateTime.now().millisecondsSinceEpoch % 10000;
+logger.d('[FLOW #$flowId] Play/Pause button pressed for $fileId');
+```
+
+### 2. Identified Scenarios
+
+We tested three specific scenarios where flickering was most noticeable:
+
+1. **First Play After Launch:** Starting playback of an audio file for the first time after app initialization
+2. **Switching Audio Files:** Playing a different audio file while one is already playing
+3. **Seek Operations:** Performing seek operations, especially before first play
+
+The first-play scenario demonstrated the most severe flickering, showing a momentary loading circle followed by a play button before finally showing the pause button, despite the user having pressed play.
+
+## Root Cause Analysis
+
+### First Play Flickering
+
+The critical finding was revealed in this sequence of logs:
+
+```
+[ADAPTER RESUME #7] START - Before: playing=false, processingState=ProcessingState.ready
+// ...adapter performs play() operation...
+[ADAPTER RESUME #7] play() call complete - After: playing=false, processingState=ProcessingState.ready
+// ...shortly after, player state changes asynchronously...
+[STATE_TRANSITION #8] RAW: ProcessingState.ready, playing=true
+```
+
+This revealed that the `just_audio` player does not immediately transition to `playing=true` after a successful call to `play()`. Instead, it returns with `playing=false` and only later (asynchronously) updates to `playing=true`.
+
+The full state transition sequence during first play was:
+
+1. **Initial:** `ProcessingState.idle, playing=false` → `DomainPlayerState.stopped` → `PlaybackState.stopped()`
+2. **Loading:** `ProcessingState.loading, playing=false` → `DomainPlayerState.loading` → `PlaybackState.loading()`
+3. **Ready/Not Playing:** `ProcessingState.ready, playing=false` → `DomainPlayerState.paused` → `PlaybackState.paused()`
+4. **Ready/Playing:** `ProcessingState.ready, playing=true` → `DomainPlayerState.playing` → `PlaybackState.playing()`
+
+Each transition triggered UI rebuilds that presented different visual states:
+- Stopped → Loading: **UI shows loading circle**
+- Loading → Paused: **UI shows play button** 
+- Paused → Playing: **UI shows pause button**
+
+All these transitions occurred within ~100-200ms, causing visible flickering.
+
+### Code Flow Analysis
+
+The issue was propagated through our reactive architecture:
+
+1. **Adapter Layer (`AudioPlayerAdapterImpl`):**
+   - Raw player state changes translated to `DomainPlayerState`
+   - No buffering/debouncing of rapid state transitions
+
+2. **Mapper Layer (`PlaybackStateMapperImpl`):**
+   - `DomainPlayerState` translated to `PlaybackState` 
+   - Used `distinct()` operator but no time-based debouncing
+
+3. **Cubit Layer (`AudioListCubit`):**
+   - `PlaybackState` translated to `PlaybackInfo`
+   - Emitted new state for every `PlaybackInfo` change
+
+4. **UI Layer (`AudioPlayerWidget`):**
+   - Rebuilt for every `PlaybackInfo` change
+   - Different visual representations for loading/stopped/paused/playing states
+
+### Switching Files Flickering
+
+When switching between files, the same issue was compounded by additional complexity:
+
+```
+[CUBIT_PLAYBACK_INFO] Changed: activeFilePath: rec_1.m4a -> rec_2.m4a, isPlaying: true -> false, isLoading: true -> false, state: _$LoadingImpl
+// ...quickly followed by...
+[CUBIT_PLAYBACK_INFO] Changed: activeFilePath: rec_2.m4a -> rec_2.m4a, isPlaying: false -> false, isLoading: false -> false, state: _$PausedImpl
+// ...and finally...
+[CUBIT_PLAYBACK_INFO] Changed: activeFilePath: rec_2.m4a -> rec_2.m4a, isPlaying: false -> true, isLoading: false -> false, state: _$PlayingImpl
+```
+
+This caused visual flickering as both the previously playing file's widget and the newly selected file's widget rapidly updated their states.
+
+## The Solution: Time-Based Debouncing
+
+After testing multiple approaches, we implemented a single surgical fix in the mapper layer by adding debouncing to collapse intermediate states:
+
+```dart
+// In PlaybackStateMapperImpl._createCombinedStream()
+.distinct(_areStatesEquivalent)
+// Add debouncing to prevent rapid state changes from causing UI flicker
+.debounceTime(const Duration(milliseconds: 80))
+.doOnData(
+  (state) => logger.t('[MAPPER_POST_DISTINCT] State (Emitting): $state'),
+)
+```
+
+This simple 80ms debounce window:
+
+1. Waits for the player to settle into its final state before propagating changes
+2. Collapses multiple rapid state transitions (loading → paused → playing) into a single, final state transition
+3. Prevents the UI from rebuilding for transient states
+4. Adds only minimal latency (80ms) that is imperceptible to users
+
+The fix is strategically placed in the `PlaybackStateMapperImpl` class because:
+- It's downstream from the adapter, catching all state changes regardless of source
+- It's upstream from the cubit and UI, preventing cascading rebuilds
+- It's specifically designed to filter out noise and provide meaningful state transitions
+
+## Alternative Approaches Considered
+
+### 1. Adapter Flag-Based Approach
+
+We attempted a solution in the adapter layer that used flags to track play requests:
+
+```dart
+bool _playRequested = false;
+int _playRequestTime = 0;
+
+// In onPlayerStateChanged stream mapping
+if (playRequestActive && 
+    (state.processingState == ProcessingState.loading || 
+     state.processingState == ProcessingState.buffering ||
+     (state.processingState == ProcessingState.ready && !state.playing))) {
+  // Override intermediate states during play request
+  domainState = DomainPlayerState.playing;
+}
+```
+
+This approach failed because:
+- State changes often happened through different pathways than expected
+- The logic became complex and brittle
+- It didn't handle all edge cases properly
+
+### 2. Optimistic UI Updates
+
+Another considered approach was implementing optimistic updates in the cubit:
+
+```dart
+// In AudioListCubit.playRecording()
+if (state is AudioListLoaded) {
+  emit(state.copyWith(
+    playbackInfo: state.playbackInfo.copyWith(
+      activeFilePath: filePath,
+      isPlaying: true,  // Optimistically assume it will play
+      isLoading: false  // Skip loading state
+    )
+  ));
+}
+```
+
+This would have:
+- Immediately updated the UI to the final expected state
+- Bypassed intermediate states entirely
+- Potentially caused UI inconsistencies if the play operation failed
+
+### 3. Widget-Level State Handling
+
+A UI-focused approach would have been to handle the transitions in the widget:
+
+```dart
+// In AudioPlayerWidget
+Widget _buildContent() {
+  // Skip showing loading state if we just pressed play
+  if (widget.isLoading && _justPressedPlay) {
+    return _buildPlayingState();
+  }
+  // Rest of the method...
+}
+```
+
+This approach was rejected because:
+- It would require maintaining additional state in the widget
+- It wouldn't address the root cause
+- It would be hard to synchronize across multiple audio player widgets
+
+## Technical Lessons Learned
+
+### 1. Understanding Media Player State Transitions
+
+The `just_audio` player, like many media players, goes through multiple internal states during initialization and playback that don't always align with user-facing concepts:
+
+- **Asynchronous State Changes:** Calls like `play()` complete before the player has fully transitioned to playing
+- **Intermediate States:** Players often have internal buffering/loading states invisible to users
+- **State Race Conditions:** UI can get out of sync with actual player state during rapid operations
+
+**Recommendation:** When integrating any media player library, add centralized debouncing/throttling of state updates to prevent UI flickering.
+
+### 2. Reactive Architecture Considerations
+
+Our implementation revealed important reactive programming patterns:
+
+- **Cascading Updates:** State changes cascade through a reactive system, potentially amplifying small upstream changes
+- **UI Rebuild Cost:** Each state change triggers UI rebuilds, which can be expensive and visually jarring
+- **Balancing Reactivity:** Perfect reactivity (immediately reflecting every state change) must be balanced with visual stability
+
+**Recommendation:** Use operators like `debounceTime()`, `distinct()`, and `throttle()` strategically in reactive streams to filter noise while maintaining responsiveness.
+
+### 3. Diagnostic Techniques for Reactive Systems
+
+Our diagnostic approach provided valuable insights:
+
+- **Cross-Layer Tracing:** Using flow IDs to track a single action through multiple reactive layers
+- **Timing Measurements:** Capturing precise timing of operations and state transitions
+- **State Transition Logging:** Visualizing how states transform across architectural boundaries
+
+**Recommendation:** Implement similar diagnostic tooling early in development of reactive systems to identify potential performance issues before they become user-facing problems.
+
+## Implementation Guidelines
+
+For future media player implementations, consider these guidelines:
+
+1. **Add Debounce By Default:**
+   ```dart
+   playerStateStream
+     .distinct()
+     .debounceTime(const Duration(milliseconds: 50-100))
+   ```
+
+2. **Use Optimistic UI Selectively:**
+   ```dart
+   // When initiating a user-requested play action
+   if (userInitiated) {
+     showPlayingStateImmediately();
+   }
+   ```
+
+3. **Consider Visual Transitions:**
+   ```dart
+   // Use AnimatedSwitcher or similar widgets for smooth transitions
+   AnimatedSwitcher(
+     duration: Duration(milliseconds: 300),
+     child: _buildCurrentStateWidget(),
+   )
+   ```
+
+4. **Cache Player Instances When Practical:**
+   - Pre-initialize player instances for frequently used audio files
+   - Maintain a small cache of player instances to avoid initialization costs
+
+## Testing and Verification
+
+The fix was tested across multiple scenarios:
+
+1. **First Play:** Verified smooth transition from stopped to playing without intermediate states
+2. **Switching Files:** Confirmed clean transition when changing between audio files
+3. **Seek Operations:** Tested various seek operations without UI flickering
+4. **Edge Cases:** Validated behavior for completed files, rapid play/pause actions, and error states
+
+Video recordings before and after the fix confirmed the elimination of the flickering issue across all test cases.
+
+## Conclusion
+
+The audio player flickering issue was resolved through systematic diagnosis and a targeted fix. The core problem was the rapid propagation of intermediate player states through our reactive architecture, causing jarring UI changes. 
+
+By adding an 80ms debounce window in the stream processing, we effectively collapsed these rapid state transitions into a single, stable update, providing a smooth user experience without compromising the reactive nature of the system.
+
+This fix demonstrates the importance of understanding both the underlying library behaviors and the implications of reactive programming patterns when building responsive, stable UIs for media applications. 

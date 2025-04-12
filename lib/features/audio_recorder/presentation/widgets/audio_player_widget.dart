@@ -42,12 +42,25 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   bool _isDragging = false;
   double _dragValue = 0.0;
 
+  // Timing variables for rebuild tracking
+  static int _lastBuildTime = 0;
+  static int _buildCount = 0;
+
   @override
   Widget build(BuildContext context) {
-    // Demoted build log from DEBUG to TRACE due to high frequency
-    // final timestamp = DateTime.now().millisecondsSinceEpoch; // Can remove timestamp
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final timeSinceLastBuild = _lastBuildTime > 0 ? now - _lastBuildTime : 0;
+    _lastBuildTime = now;
+    _buildCount++;
+
+    final fileId = widget.filePath.split('/').last;
     logger.t(
-      '[WIDGET_BUILD ${widget.filePath.split('/').last}] Props: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, pos=${widget.currentPosition.inMilliseconds}ms, dur=${widget.totalDuration.inMilliseconds}ms, error=${widget.error}',
+      '[UI TIMING] Widget rebuild #$_buildCount for $fileId, ${timeSinceLastBuild}ms since last rebuild, isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}',
+    );
+
+    final logPrefix = '[WIDGET_BUILD $fileId]';
+    logger.t(
+      '$logPrefix Rebuilding - Props: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, pos=${widget.currentPosition.inMilliseconds}ms, dur=${widget.totalDuration.inMilliseconds}ms, error=${widget.error}, isDragging=$_isDragging, dragValue=$_dragValue',
     );
 
     final bool canPlayPause = !widget.isLoading && widget.error == null;
@@ -158,20 +171,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             onPressed:
                 canPlayPause
                     ? () {
-                      if (widget.isPlaying) {
-                        // logger.d('[AudioPlayerWidget] Action: Pause Tapped'); // Keep DEBUG
-                        context.read<AudioListCubit>().pauseRecording();
-                      } else {
-                        if (widget.currentPosition > Duration.zero) {
-                          // logger.d('[AudioPlayerWidget] Action: Resume Tapped (pos > 0)'); // Keep DEBUG
-                          context.read<AudioListCubit>().resumeRecording();
-                        } else {
-                          // logger.d('[AudioPlayerWidget] Action: Play Tapped (pos == 0)'); // Keep DEBUG
-                          context.read<AudioListCubit>().playRecording(
-                            widget.filePath,
-                          );
-                        }
-                      }
+                      _handlePlayPause();
                     }
                     : null,
           ),
@@ -197,7 +197,7 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     onChanged:
                         canSeek
                             ? (value) {
-                              // Update local state ONLY for visual drag feedback
+                              _handleDragStart(value);
                               setState(() {
                                 _isDragging = true;
                                 _dragValue = value;
@@ -207,18 +207,13 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     onChangeEnd:
                         canSeek
                             ? (value) {
-                              final seekPosition = Duration(
-                                milliseconds: value.round(), // Use round()
-                              );
-                              // Reset dragging flag AFTER cubit call potentially?
-                              // No, reset immediately for smoother visual transition.
+                              _handleDragEnd(value);
                               setState(() {
                                 _isDragging = false;
                               });
-                              // Call the cubit to perform the actual seek
-                              // logger.d(
-                              //   '[AudioPlayerWidget] Action: Seek onChangeEnd ($seekPosition)',
-                              // ); // Keep DEBUG
+                              final seekPosition = Duration(
+                                milliseconds: value.round(), // Use round()
+                              );
                               context.read<AudioListCubit>().seekRecording(
                                 widget.filePath,
                                 seekPosition,
@@ -254,6 +249,81 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
           ),
         ],
       ),
+    );
+  }
+
+  // Add logs for UI interaction events
+
+  void _handlePlayPause() {
+    final fileId = widget.filePath.split('/').last;
+    final flowId =
+        DateTime.now().millisecondsSinceEpoch % 10000; // Generate a flow ID
+    logger.d('[FLOW #$flowId] Play/Pause button pressed for $fileId');
+    logger.d('[UI EVENT] Play/Pause button pressed for $fileId');
+
+    // Get the current active file from the PlaybackInfo to see if it matches this widget
+    final currentState = context.read<AudioListCubit>().state;
+    final activeFilePath =
+        currentState is AudioListLoaded
+            ? currentState.playbackInfo.activeFilePath
+            : null;
+    final isActiveFilePlaying =
+        currentState is AudioListLoaded
+            ? currentState.playbackInfo.isPlaying
+            : false;
+
+    // Log critical context information
+    logger.d(
+      '[FLOW #$flowId] [UI DECISION] $fileId - Context check: '
+      'activeFilePath=${activeFilePath?.split('/').last}, '
+      'isActiveFilePlaying=$isActiveFilePlaying, '
+      'isThisWidgetTheActiveFile=${widget.filePath == activeFilePath}, '
+      'widgetIsPlaying=${widget.isPlaying}',
+    );
+
+    // Log the current state BEFORE any decisions are made
+    logger.d(
+      '[FLOW #$flowId] [UI DECISION] $fileId - Before action: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, position=${widget.currentPosition.inMilliseconds}ms, duration=${widget.totalDuration.inMilliseconds}ms',
+    );
+
+    // FIXED LOGIC: Only pause if this widget is for the active file
+    final isThisWidgetTheActiveFile = widget.filePath == activeFilePath;
+
+    if (widget.isPlaying && isThisWidgetTheActiveFile) {
+      // Only pause if THIS widget represents the currently active file
+      logger.d(
+        '[FLOW #$flowId] [UI DECISION] $fileId - Widget is active and playing, calling pauseRecording()',
+      );
+      context.read<AudioListCubit>().pauseRecording();
+    } else {
+      // For all other cases, we want to play/resume this file
+      if (widget.currentPosition > Duration.zero) {
+        logger.d(
+          '[FLOW #$flowId] [UI DECISION] $fileId - Widget reports position ${widget.currentPosition.inMilliseconds}ms, calling resumeRecording()',
+        );
+        context.read<AudioListCubit>().resumeRecording();
+      } else {
+        logger.d(
+          '[FLOW #$flowId] [UI DECISION] $fileId - Widget reports zero position, calling playRecording()',
+        );
+        context.read<AudioListCubit>().playRecording(widget.filePath);
+      }
+    }
+  }
+
+  void _handleDragStart(double value) {
+    logger.d(
+      '[UI EVENT] Seek drag started at position ${value.round()}ms for ${widget.filePath.split('/').last}',
+    );
+  }
+
+  void _handleDragUpdate(double value) {
+    // No DEBUG log here - too frequent
+  }
+
+  void _handleDragEnd(double value) {
+    logger.d(
+      '[UI EVENT] Seek drag ended at position ${value.round()}ms for ${widget.filePath.split('/').last}',
     );
   }
 }

@@ -11,15 +11,21 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_pla
 // Set Logger Level to DEBUG for active development/debugging in this file
 final logger = Logger(level: Level.debug);
 
+// Special debug flag for state transition tracking - set to true to enable detailed transition logs
+const bool _debugStateTransitions = true;
+
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   final AudioPlayer _audioPlayer; // REMOVED ALIAS
 
-  // Keep track of the last known state to help with mapping
-  // PlayerState _lastPlayerState = PlayerState( // REMOVED - Unused field
-  //   false, // playing: bool FIRST
-  //   ProcessingState.idle,
-  // );
+  // Keep track of pending play requests to handle transitional states
+  bool _playRequested = false;
+  int _playRequestTime = 0;
+  static const int _playRequestTimeoutMs =
+      1000; // 1 second timeout for play request
+
+  // Create a timestamp counter to track event sequences
+  int _eventSequence = 0;
 
   // Constructor no longer needs to listen immediately
   AudioPlayerAdapterImpl(this._audioPlayer) {
@@ -27,7 +33,11 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     // Internal listeners primarily for logging/debugging if needed
     _audioPlayer.playerStateStream.listen(
       (state) {
-        // Listener is kept for potential future debugging, but no active logging.
+        // Add more detailed logging of raw player state changes
+        final seqId = _eventSequence++; // Increment sequence for each event
+        logger.t(
+          '[ADAPTER_RAW_STATE #$seqId] Raw player state changed: playing=${state.playing}, processingState=${state.processingState}',
+        );
       },
       onError: (e, s) {
         logger.e(
@@ -52,7 +62,10 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     );
     _audioPlayer.durationStream.listen(
       (dur) {
-        // Listener is kept for potential future debugging, but no active logging.
+        // Add logging for duration changes
+        logger.t(
+          '[ADAPTER_RAW_DURATION] Duration changed: ${dur?.inMilliseconds ?? 0}ms',
+        );
       },
       onError: (e, s) {
         logger.e(
@@ -66,31 +79,47 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
   @override
   Future<void> pause() async {
-    logger.d('[ADAPTER PAUSE] START');
+    final seqId = _eventSequence++;
+    logger.d(
+      '[ADAPTER PAUSE #$seqId] START - Before: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
+    );
     try {
+      // Clear play requested flag since we're explicitly pausing
+      _playRequested = false;
+
       await _audioPlayer.pause();
       logger.d(
-        '[ADAPTER PAUSE] Call complete. State: playing=${_audioPlayer.playing}, processing=${_audioPlayer.processingState}',
+        '[ADAPTER PAUSE #$seqId] Call complete - After: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
       );
     } catch (e, s) {
-      logger.e('[ADAPTER PAUSE] FAILED', error: e, stackTrace: s);
+      logger.e('[ADAPTER PAUSE #$seqId] FAILED', error: e, stackTrace: s);
       rethrow;
     }
-    logger.d('[ADAPTER PAUSE] END');
+    logger.d('[ADAPTER PAUSE #$seqId] END');
   }
 
   @override
   Future<void> resume() async {
     // just_audio uses play() to resume
-    logger.d('[ADAPTER RESUME] START (delegating to play())');
+    final seqId = _eventSequence++;
+    logger.d(
+      '[ADAPTER RESUME #$seqId] START - Before: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
+    );
     try {
+      // Set flag to indicate we've requested playing
+      _playRequested = true;
+      _playRequestTime = DateTime.now().millisecondsSinceEpoch;
+
       await _audioPlayer.play();
-      logger.d('[ADAPTER RESUME] play() call complete.');
+      logger.d(
+        '[ADAPTER RESUME #$seqId] play() call complete - After: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
+      );
     } catch (e, s) {
-      logger.e('[ADAPTER RESUME] FAILED', error: e, stackTrace: s);
+      logger.e('[ADAPTER RESUME #$seqId] FAILED', error: e, stackTrace: s);
+      _playRequested = false; // Reset flag on error
       rethrow;
     }
-    logger.d('[ADAPTER RESUME] END');
+    logger.d('[ADAPTER RESUME #$seqId] END');
   }
 
   @override
@@ -111,6 +140,9 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   Future<void> stop() async {
     logger.d('[ADAPTER STOP] START');
     try {
+      // Clear play requested flag since we're explicitly stopping
+      _playRequested = false;
+
       await _audioPlayer.stop();
       logger.d('[ADAPTER STOP] Call complete.');
     } catch (e, s) {
@@ -139,33 +171,77 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     logger.d('[ADAPTER STREAM] onPlayerStateChanged accessed');
     return _audioPlayer.playerStateStream
         .map((state) {
-          // Demoted from DEBUG to TRACE
+          final seqId = _eventSequence++;
+          // Change to TRACE level to reduce noise
           logger.t(
-            '[ADAPTER STREAM MAP] Input PlayerState: processing=${state.processingState}, playing=${state.playing}',
+            '[ADAPTER STREAM MAP #$seqId] Input PlayerState: processingState=${state.processingState}, playing=${state.playing}',
           );
-          DomainPlayerState domainState;
-          switch (state.processingState) {
-            case ProcessingState.idle:
-              domainState = DomainPlayerState.stopped;
-              break;
-            case ProcessingState.loading:
-            case ProcessingState.buffering:
-              domainState = DomainPlayerState.loading;
-              break;
-            case ProcessingState.ready:
-              domainState =
-                  state.playing
-                      ? DomainPlayerState.playing
-                      : DomainPlayerState.paused;
-              break;
-            case ProcessingState.completed:
-              domainState = DomainPlayerState.completed;
-              break;
+
+          // Special debugging for state transitions
+          if (_debugStateTransitions) {
+            logger.d(
+              '[STATE_TRANSITION #$seqId] RAW: ${state.processingState}, playing=${state.playing}',
+            );
           }
-          // Demoted from DEBUG to TRACE
+
+          DomainPlayerState domainState;
+
+          // Check if we have a recent play request
+          final currentTime = DateTime.now().millisecondsSinceEpoch;
+          final playRequestActive =
+              _playRequested &&
+              (currentTime - _playRequestTime < _playRequestTimeoutMs);
+
+          // Handle loading state during active play request
+          if (playRequestActive &&
+              (state.processingState == ProcessingState.loading ||
+                  state.processingState == ProcessingState.buffering ||
+                  (state.processingState == ProcessingState.ready &&
+                      !state.playing))) {
+            // Override intermediate states during play request to avoid UI flicker
+            domainState = DomainPlayerState.playing;
+
+            if (_debugStateTransitions) {
+              logger.d(
+                '[STATE_TRANSITION #$seqId] OVERRIDE: Mapping ${state.processingState}, playing=${state.playing} to DomainPlayerState.playing due to active play request',
+              );
+            }
+          } else {
+            // Normal state mapping logic
+            switch (state.processingState) {
+              case ProcessingState.idle:
+                domainState = DomainPlayerState.stopped;
+                break;
+              case ProcessingState.loading:
+              case ProcessingState.buffering:
+                domainState = DomainPlayerState.loading;
+                break;
+              case ProcessingState.ready:
+                domainState =
+                    state.playing
+                        ? DomainPlayerState.playing
+                        : DomainPlayerState.paused;
+                break;
+              case ProcessingState.completed:
+                domainState = DomainPlayerState.completed;
+                break;
+            }
+          }
+
+          // If we see actual playing state, clear the play requested flag
+          if (state.playing) {
+            _playRequested = false;
+          }
+
           logger.t(
-            '[ADAPTER STREAM MAP] Output DomainPlayerState: $domainState',
+            '[ADAPTER STREAM MAP #$seqId] Translating: ${state.processingState} + playing=${state.playing} => $domainState',
           );
+
+          // Special debugging for state transitions
+          if (_debugStateTransitions) {
+            logger.d('[STATE_TRANSITION #$seqId] MAPPED: $domainState');
+          }
+
           return domainState;
         })
         .handleError((error, stackTrace) {
@@ -247,24 +323,30 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
   @override
   Future<void> setSourceUrl(String url) async {
-    logger.d('[ADAPTER SET_SOURCE_URL] START: $url');
+    final seqId = _eventSequence++;
+    final startLoadTime = DateTime.now().millisecondsSinceEpoch;
+    logger.d(
+      '[ADAPTER SET_SOURCE_URL #$seqId] START: $url - Before: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
+    );
     try {
       // Determine if it's a local file or a remote URL
       Uri uri = Uri.parse(url);
       AudioSource source;
       if (uri.isScheme('file')) {
-        // logger.d('[ADAPTER SET_SOURCE_URL] Detected local file path.'); // Keep for debug
+        logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Detected local file path.');
         source = AudioSource.uri(uri);
       } else if (uri.isScheme('http') || uri.isScheme('https')) {
-        // logger.d('[ADAPTER SET_SOURCE_URL] Detected remote URL.'); // Keep for debug
+        logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Detected remote URL.');
         source = AudioSource.uri(uri);
       } else {
-        // logger.w('[ADAPTER SET_SOURCE_URL] Unrecognized scheme: ${uri.scheme}. Assuming local file path.'); // Keep for debug
+        logger.d(
+          '[ADAPTER SET_SOURCE_URL #$seqId] Unrecognized scheme: ${uri.scheme}. Assuming local file path.',
+        );
         // Assume it's a local path if no scheme or unrecognized scheme
         source = AudioSource.uri(Uri.file(url));
       }
       logger.d(
-        '[ADAPTER SET_SOURCE_URL] Calling _audioPlayer.setAudioSource...',
+        '[ADAPTER SET_SOURCE_URL #$seqId] Calling _audioPlayer.setAudioSource...',
       );
       // Use setAudioSource which returns Future<Duration?> (duration)
       final duration = await _audioPlayer.setAudioSource(
@@ -273,13 +355,20 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
         // initialPosition: Duration.zero,
         // preload: true,
       );
+      final loadDuration =
+          DateTime.now().millisecondsSinceEpoch - startLoadTime;
       logger.d(
-        '[ADAPTER SET_SOURCE_URL] Call complete. Returned duration: ${duration?.inMilliseconds}ms',
+        '[ADAPTER SET_SOURCE_URL #$seqId] Call complete - Returned duration: ${duration?.inMilliseconds}ms, After: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
       );
+      logger.d('[ADAPTER TIMING] Audio source loading took ${loadDuration}ms');
     } catch (e, s) {
-      logger.e('[ADAPTER SET_SOURCE_URL] FAILED', error: e, stackTrace: s);
+      logger.e(
+        '[ADAPTER SET_SOURCE_URL #$seqId] FAILED',
+        error: e,
+        stackTrace: s,
+      );
       rethrow;
     }
-    logger.d('[ADAPTER SET_SOURCE_URL] END');
+    logger.d('[ADAPTER SET_SOURCE_URL #$seqId] END');
   }
 }

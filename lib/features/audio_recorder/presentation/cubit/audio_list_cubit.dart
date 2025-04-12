@@ -14,6 +14,9 @@ part 'audio_list_state.dart';
 // Set Logger Level to DEBUG for active development/debugging in this file
 final logger = Logger(level: Level.debug);
 
+// Special debug flag for state transition tracking - set to true to enable detailed transition logs
+const bool _debugStateTransitions = true;
+
 class AudioListCubit extends Cubit<AudioListState> {
   final AudioRecorderRepository repository;
   final AudioPlaybackService _audioPlaybackService;
@@ -77,75 +80,118 @@ class AudioListCubit extends Cubit<AudioListState> {
   }
 
   void _onPlaybackStateChanged(PlaybackState playbackState) {
-    final logPrefix = '[CUBIT_onPlaybackStateChanged]';
-    logger.t(
-      '$logPrefix Received PlaybackState update: ${playbackState.runtimeType}',
-    );
+    logger.t('[STATE_FLOW Cubit] Received state from service: $playbackState');
 
     if (state is! AudioListLoaded) {
+      logger.w(
+        '[STATE_FLOW Cubit] Received playback state $playbackState but cubit state is not AudioListLoaded: ${state.runtimeType}. Ignoring.',
+      );
       return;
     }
     final currentState = state as AudioListLoaded;
     final currentPlaybackInfo = currentState.playbackInfo;
 
+    // Log how the current PlaybackInfo would map to each widget if there were multiple items
+    if (_debugStateTransitions) {
+      logger.d(
+        '[STATE_TRANSITION] CUBIT: PlaybackState (in) = ${playbackState.runtimeType}',
+      );
+    }
+
     // Map the freezed PlaybackState to PlaybackInfo properties
-    String? filePath =
-        _currentPlayingFilePath; // Use the internally tracked path
+    String? activeFilePath =
+        _currentPlayingFilePath; // Start with internally tracked path
     bool isPlaying = false;
     bool isLoading = false;
-    Duration position = Duration.zero;
+    Duration currentPosition = Duration.zero;
     Duration totalDuration = Duration.zero;
-    String? errorMessage;
+    String? error;
 
     // Extract data from the incoming PlaybackState
     playbackState.when(
       initial: () {
-        // No change to filePath here - rely on explicit operations to set or clear it
+        // Keep the existing _currentPlayingFilePath
+        // Initial state doesn't imply stopping the current file context
       },
       loading: () {
         isLoading = true;
+        // Keep the activeFilePath during loading
       },
-      playing: (currentPosition, duration) {
+      playing: (pos, dur) {
         isPlaying = true;
-        position = currentPosition;
-        totalDuration = duration;
+        currentPosition = pos;
+        totalDuration = dur;
       },
-      paused: (currentPosition, duration) {
-        // Preserve filePath here - we should keep UI context when paused
+      paused: (pos, dur) {
         isPlaying = false;
-        position = currentPosition;
-        totalDuration = duration;
+        currentPosition = pos;
+        totalDuration = dur;
       },
       stopped: () {
-        // Clear the filePath in the UI state but keep _currentPlayingFilePath for context
-        filePath = null; // This is what the UI sees
+        // Player stopped, clear the active file in the UI state
+        activeFilePath = null;
         isPlaying = false;
+        currentPosition = Duration.zero; // Reset position on stop
+        // Keep totalDuration? Maybe not, depends on desired UI
       },
       completed: () {
-        position = totalDuration;
+        // Similar to stopped, but might show full duration/position
+        activeFilePath = null; // File context is gone
+        isPlaying = false;
+        currentPosition = totalDuration; // Show end position
+        // Keep totalDuration
       },
-      error: (message, currentPosition, duration) {
-        errorMessage = message;
-        if (currentPosition != null) position = currentPosition;
-        if (duration != null) totalDuration = duration;
+      error: (message, pos, dur) {
+        error = message;
+        if (pos != null) currentPosition = pos;
+        if (dur != null) totalDuration = dur;
+        // Keep activeFilePath to show error in context
+        isPlaying = false;
+        isLoading = false;
       },
     );
 
-    // Construct the new PlaybackInfo based on extracted data and internal file path
+    // Construct the new PlaybackInfo
     final newPlaybackInfo = PlaybackInfo(
-      activeFilePath:
-          filePath, // Use the potentially updated filePath, which may be null for stopped state
+      activeFilePath: activeFilePath,
       isPlaying: isPlaying,
       isLoading: isLoading,
-      currentPosition: position,
+      currentPosition: currentPosition,
       totalDuration: totalDuration,
-      error: errorMessage,
+      error: error,
     );
 
-    final areDifferent = currentPlaybackInfo != newPlaybackInfo;
+    if (_debugStateTransitions) {
+      logger.d(
+        '[STATE_TRANSITION] CUBIT: PlaybackInfo (out) = activeFilePath:${activeFilePath?.split('/').last}, isPlaying:$isPlaying, isLoading:$isLoading',
+      );
+    }
 
-    if (areDifferent) {
+    // Only emit if the playback info actually changed
+    if (currentPlaybackInfo != newPlaybackInfo) {
+      // Add detailed logging of the PlaybackInfo changes, but only for major state changes
+      if (currentPlaybackInfo.isPlaying != newPlaybackInfo.isPlaying ||
+          currentPlaybackInfo.activeFilePath !=
+              newPlaybackInfo.activeFilePath ||
+          currentPlaybackInfo.isLoading != newPlaybackInfo.isLoading ||
+          currentPlaybackInfo.error != newPlaybackInfo.error) {
+        logger.d(
+          '[CUBIT_PLAYBACK_INFO] Changed: '
+          'activeFilePath: ${currentPlaybackInfo.activeFilePath?.split('/').last} -> ${newPlaybackInfo.activeFilePath?.split('/').last}, '
+          'isPlaying: ${currentPlaybackInfo.isPlaying} -> ${newPlaybackInfo.isPlaying}, '
+          'isLoading: ${currentPlaybackInfo.isLoading} -> ${newPlaybackInfo.isLoading}, '
+          'state: ${playbackState.runtimeType}',
+        );
+      }
+
+      logger.t(
+        '[STATE_FLOW Cubit] Emitting new state with playbackInfo: $newPlaybackInfo',
+      );
       emit(currentState.copyWith(playbackInfo: newPlaybackInfo));
+    } else {
+      logger.t(
+        '[STATE_FLOW Cubit] State unchanged ($playbackState -> $newPlaybackInfo), not emitting.',
+      );
     }
   }
 
@@ -213,21 +259,15 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Initiates playback of the specified recording file.
   Future<void> playRecording(String filePath) async {
-    // logger.i(
-    //   '[CUBIT_playRecording] START - Req Path: ${filePath.split('/').last}',
-    // ); // Keep INFO
+    final flowId = DateTime.now().millisecondsSinceEpoch % 10000;
+    logger.d(
+      '[FLOW #$flowId] [CUBIT ACTION] playRecording CALLED for ${filePath.split('/').last}',
+    );
     _currentPlayingFilePath = filePath; // Set context immediately
-    // logger.d(
-    //   '  -> _currentPlayingFilePath SET to: ${_currentPlayingFilePath?.split('/').last}',
-    // ); // Keep DEBUG
     try {
-      // logger.d(
-      //   '[CUBIT_playRecording] ABOUT TO CALL _audioPlaybackService.play($filePath)',
-      // ); // Keep DEBUG
       await _audioPlaybackService.play(filePath);
-      // logger.d('  -> Service call complete.'); // Keep DEBUG
     } catch (e) {
-      logger.e('[CUBIT_playRecording] Error calling play on service: $e');
+      logger.e('[FLOW #$flowId] [CUBIT ACTION] playRecording ERROR: $e');
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -245,18 +285,21 @@ class AudioListCubit extends Cubit<AudioListState> {
         emit(AudioListError(message: 'Failed to start playback: $e'));
       }
     }
-    // logger.d('[CUBIT_playRecording] END'); // Keep DEBUG
+    logger.d(
+      '[FLOW #$flowId] [CUBIT ACTION] playRecording COMPLETED for ${filePath.split('/').last}',
+    );
   }
 
   /// Pauses the currently playing audio via the service.
   Future<void> pauseRecording() async {
+    logger.d('[CUBIT ACTION] pauseRecording CALLED');
     // Ensure we keep the current playing file path
     if (_currentPlayingFilePath == null && state is AudioListLoaded) {
       final currentState = state as AudioListLoaded;
       if (currentState.playbackInfo.activeFilePath != null) {
         _currentPlayingFilePath = currentState.playbackInfo.activeFilePath;
         logger.d(
-          '[CUBIT_pauseRecording] Setting _currentPlayingFilePath from state: $_currentPlayingFilePath',
+          '[CUBIT ACTION] pauseRecording updated _currentPlayingFilePath from state: $_currentPlayingFilePath',
         );
       }
     }
@@ -264,7 +307,7 @@ class AudioListCubit extends Cubit<AudioListState> {
     try {
       await _audioPlaybackService.pause();
     } catch (e) {
-      logger.e('[CUBIT_pauseRecording] Error calling pause on service: $e');
+      logger.e('[CUBIT ACTION] pauseRecording ERROR: $e');
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -276,6 +319,7 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
+    logger.d('[CUBIT ACTION] pauseRecording COMPLETED');
   }
 
   /// Resumes the currently paused audio via the service.
@@ -312,29 +356,13 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Seeks to a specific position in the specified recording file.
   Future<void> seekRecording(String filePath, Duration position) async {
-    // logger.d(
-    //   '[CUBIT_seekRecording] START - File: ${filePath.split('/').last}, Seek Request: ${position.inMilliseconds}ms',
-    // ); // Keep DEBUG
-
-    // Update internal path immediately so subsequent play/resume work
-    _currentPlayingFilePath = filePath;
-    // logger.d(
-    //   '  -> _currentPlayingFilePath SET to: ${_currentPlayingFilePath?.split('/').last}',
-    // ); // Keep DEBUG
-
-    // logger.d(
-    //   '[CUBIT_seekRecording] Seeking in file: ${filePath.split('/').last}',
-    // ); // Keep DEBUG
-
+    logger.d(
+      '[CUBIT ACTION] seekRecording CALLED for ${filePath.split('/').last} to ${position.inMilliseconds}ms',
+    );
     try {
-      // Rely on service stream for authoritative state, no optimistic UI update here.
-      // logger.d(
-      //   '[CUBIT_seekRecording] Calling _audioPlaybackService.seek($filePath, $position)...',
-      // ); // Keep DEBUG
       await _audioPlaybackService.seek(filePath, position);
-      // logger.d('  -> Service seek call complete.'); // Keep DEBUG
     } catch (e) {
-      logger.e('[CUBIT_seekRecording] Error calling seek on service: $e');
+      logger.e('[CUBIT ACTION] seekRecording ERROR: $e');
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -352,7 +380,7 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
-    // logger.d('[CUBIT_seekRecording] END'); // Keep DEBUG
+    logger.d('[CUBIT ACTION] seekRecording COMPLETED');
   }
 
   /// Stops the currently playing audio via the service.

@@ -37,33 +37,22 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     // Immediately subscribe to the mapper's output stream
     _mapperSubscription = _playbackStateMapper.playbackStateStream.listen(
       (state) {
-        // Demoted from DEBUG to TRACE due to high frequency
-        logger.t('[SERVICE_RX] Received PlaybackState from Mapper: $state');
-        _lastKnownState = state; // Update last known state
-        // Reset flag on natural state changes if appropriate
-        if (state.maybeMap(playing: (_) => true, orElse: () => false)) {
-          // Reset on natural play
-        }
-        // TODO: Consider resetting _seekPerformedWhileNotPlaying on stop/complete/error as well?
-        _playbackStateSubject.add(state); // Forward state to external listeners
+        logger.t('[STATE_FLOW Service] Received state from mapper: $state');
+        _lastKnownState = state;
+        _playbackStateSubject.add(state);
       },
       onError: (error, stackTrace) {
-        // Added stackTrace
         logger.e(
-          '[SERVICE_RX] Error from mapper stream',
+          '[STATE_FLOW Service] Error in playback state stream',
           error: error,
           stackTrace: stackTrace,
         );
-        _playbackStateSubject.addError(error, stackTrace); // Forward stackTrace
-        // Potentially add a specific error state here?
         _playbackStateSubject.add(
-          PlaybackState.error(
-            message: 'Playback error: $error',
-          ), // Include error
+          PlaybackState.error(message: error.toString()),
         );
       },
       onDone: () {
-        logger.d('[SERVICE_RX] Mapper stream closed');
+        logger.i('[STATE_FLOW Service] Playback state stream closed.');
         _playbackStateSubject.close();
       },
     );
@@ -78,97 +67,100 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
 
   @override
   Future<void> play(String pathOrUrl) async {
+    final flowId = DateTime.now().millisecondsSinceEpoch % 10000;
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    logger.d(
+      '[FLOW #$flowId] [SERVICE PLAY DECISION] START for path: ${_truncatePath(pathOrUrl)}',
+    );
     final trace = StackTrace.current;
-    logger.d('[SERVICE PLAY $pathOrUrl] START', stackTrace: trace);
+    logger.d(
+      '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] START',
+      stackTrace: trace,
+    );
     try {
       final isSameFile = pathOrUrl == _currentFilePath;
-      // Use maybeWhen for concise state checking
       final isPaused = _lastKnownState.maybeWhen(
-        paused: (_, __) => true, // Check if the state is paused
-        orElse: () => false, // Default to false for all other states
+        paused: (_, __) => true,
+        orElse: () => false,
       );
 
       logger.d(
-        '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile, isPaused: $isPaused, _lastKnownState: $_lastKnownState',
+        '[FLOW #$flowId] [SERVICE PLAY DECISION] State Check: isSameFile: $isSameFile, isPaused: $isPaused, _lastKnownState: $_lastKnownState',
       );
 
-      // --- Restore Resume Logic ---
       if (isSameFile && isPaused) {
-        // If paused on the same file, just resume
-        logger.d('[SERVICE PLAY $pathOrUrl] Action: Resuming playback.');
-        await _audioPlayerAdapter.resume();
-        logger.d('[SERVICE PLAY $pathOrUrl] Adapter resume() call complete.');
-        // No explicit state emission here; rely on adapter events via mapper
-      } else {
-        // --- Full Restart Logic ---
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Full restart needed (different file or not paused).',
+          '[FLOW #$flowId] [SERVICE PLAY DECISION] Same file and paused, just resuming',
+        );
+        await _audioPlayerAdapter.resume();
+        logger.d(
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Adapter resume() call complete.',
+        );
+      } else {
+        logger.d(
+          '[FLOW #$flowId] [SERVICE PLAY DECISION] Different file or not paused, performing full restart',
+        );
+        logger.d(
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...',
+        );
+        await _audioPlayerAdapter.stop();
+        logger.d(
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Adapter stop() call complete.',
         );
 
-        logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
-        await _audioPlayerAdapter.stop();
-        logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.');
-
-        // Update current path ONLY if it's a different file
-        // Also update the mapper context if the file changes
-        // This logic remains within the 'else' (full restart) block implicitly
-        // because it only needs to happen when not resuming.
-        if (!isSameFile) {
-          logger.d(
-            '[SERVICE PLAY $pathOrUrl] Action: Updating file path & mapper context...',
-          );
+        // Only update _currentFilePath if the path is actually changing
+        if (pathOrUrl != _currentFilePath) {
           _currentFilePath = pathOrUrl;
-          // Let the mapper know the context for accurate duration mapping etc.
-          // This might not be strictly necessary if duration comes from adapter
-          // events, but good practice to keep mapper informed.
-          // Consider if _playbackStateMapper needs setCurrentFilePath method
-          // If it does, call it: _playbackStateMapper.setCurrentFilePath(pathOrUrl);
-          logger.d(
-            '[SERVICE PLAY $pathOrUrl] File path updated, mapper context set (if applicable).',
-          );
-        } else {
-          logger.d(
-            '[SERVICE PLAY $pathOrUrl] Action: Skipping file path update (same file).',
-          );
+          // logger.d('  -> _currentFilePath SET to: $pathOrUrl');
         }
 
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
         );
         await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
         );
 
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
         );
-        await _audioPlayerAdapter
-            .resume(); // resume() starts playback after setSourceUrl
+        await _audioPlayerAdapter.resume();
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
         );
       }
     } catch (e, s) {
-      logger.e('[SERVICE PLAY $pathOrUrl] FAILED', error: e, stackTrace: s);
+      logger.e(
+        '[FLOW #$flowId] [SERVICE PLAY DECISION] ERROR',
+        error: e,
+        stackTrace: s,
+      );
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
       rethrow;
     }
-    logger.d('[SERVICE PLAY $pathOrUrl] END (Success)');
+    final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
+    logger.d(
+      '[FLOW #$flowId] [SERVICE TIMING] play() took ${elapsed}ms to complete',
+    );
+    logger.d('[FLOW #$flowId] [SERVICE PLAY DECISION] END');
   }
 
   @override
   Future<void> pause() async {
+    logger.d(
+      '[SERVICE PAUSE DECISION] START, current state: ${_lastKnownState.runtimeType}',
+    );
     final trace = StackTrace.current;
     logger.d('[SERVICE PAUSE] START', stackTrace: trace);
     try {
       await _audioPlayerAdapter.pause();
       // logger.d('[SERVICE PAUSE] Adapter pause() call complete.'); // Keep DEBUG
     } catch (e, s) {
-      logger.e('[SERVICE PAUSE] FAILED', error: e, stackTrace: s);
+      logger.e('[SERVICE PAUSE DECISION] ERROR', error: e, stackTrace: s);
       rethrow;
     }
-    logger.d('[SERVICE PAUSE] END');
+    logger.d('[SERVICE PAUSE DECISION] END');
   }
 
   @override
@@ -189,11 +181,15 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
 
   @override
   Future<void> seek(String filePath, Duration position) async {
+    logger.d(
+      '[SERVICE SEEK DECISION] START for path: ${_truncatePath(filePath)}, position: ${position.inMilliseconds}ms',
+    );
     try {
       final isTargetSameAsCurrent = filePath == _currentFilePath;
 
       // Scenario 1: Seeking within the currently playing/paused file
       if (isTargetSameAsCurrent && _currentFilePath != null) {
+        logger.d('[SERVICE SEEK DECISION] Same file, seeking within current');
         // logger.d(
         //   '[SERVICE SEEK $filePath] Action: Seeking within current file. Calling adapter.seek...',
         // );
@@ -206,11 +202,9 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       }
       // Scenario 2: Seeking to a new file or seeking when player is stopped/initial
       else {
-        // --- Prime the Pump --- Needs explicit pause after seek
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Action: Priming the pump (new file or stopped state)...',
-        // );
-
+        logger.d(
+          '[SERVICE SEEK DECISION] New file or null current, priming the pump',
+        );
         // 1. Stop any current playback
         // logger.d(
         //   '[SERVICE SEEK $filePath] Priming: Calling adapter.stop()...',
@@ -244,18 +238,12 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         //   '[SERVICE SEEK $filePath] Priming: adapter.pause() complete. _seekPerformedWhileNotPlaying=true.',
         // );
       }
-    } catch (e) {
-      // logger.e(
-      //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] FAILED',
-      //   error: e,
-      //   stackTrace: s,
-      // );
+    } catch (e, s) {
+      logger.e('[SERVICE SEEK DECISION] ERROR', error: e, stackTrace: s);
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
       rethrow;
     }
-    // logger.d(
-    //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] END (Success)',
-    // );
+    logger.d('[SERVICE SEEK DECISION] END');
   }
 
   @override
@@ -296,6 +284,13 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       // Decide if rethrow is appropriate during dispose
     }
     logger.d('[SERVICE DISPOSE] END');
+  }
+
+  // Helper method to truncate long file paths in logs
+  String _truncatePath(String path) {
+    const maxLength = 20;
+    if (path.length <= maxLength) return path;
+    return '...${path.substring(path.length - maxLength)}';
   }
 }
 
