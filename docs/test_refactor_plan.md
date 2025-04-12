@@ -43,11 +43,11 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [ ] **Test `play()` logic:** Verify correct adapter interactions (`stop`, `setSourceUrl`, `resume`) and output stream states (`loading`, then state from mapper) for initial play.
     *   [ ] **Test `play()` resume logic:** Verify only `resume` is called on the adapter when `play` is called on the same file while paused.
     *   [ ] **Test `play()` restart logic:** Verify full restart (`stop`, `setSourceUrl`, `resume`) when `play` is called on a *different* file or on the *same* file while already playing/stopped.
-    *   [ ] **Test `pause()` logic:** Verify `adapter.pause` is called and stream reflects state from mapper.
+    *   [x] **Test `pause()` logic:** Verify `adapter.pause` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
     *   [ ] **Test `resume()` logic:** Verify `adapter.resume` is called and stream reflects state from mapper.
     *   [ ] **Test `seek()` "fresh seek" logic:** Verify sequence (`stop`, `setSourceUrl`, `seek`, `pause`) when seeking before playback has started or on a different file.
-    *   [ ] **Test `seek()` during playback logic:** Verify `adapter.seek` is called when seeking on the currently playing/paused file.
-    *   [ ] **Test `stop()` logic:** Verify `adapter.stop` is called and stream reflects state from mapper.
+    *   [x] **Test `seek()` during playback logic:** Verify `adapter.seek` is called when seeking on the currently playing/paused file. (Verified in `pause_seek_stop_test.dart`)
+    *   [x] **Test `stop()` logic:** Verify `adapter.stop` is called and stream reflects state from mapper. (Verified in `pause_seek_stop_test.dart`)
     *   [ ] **Remove internal sequence checks:** Eliminate tests that *only* check the order of internal adapter calls without verifying the resulting state or a necessary side effect.
     *   [ ] **Run Service Tests:** `flutter test test/features/audio_recorder/data/services/` - Fix failures.
 *   [ ] **Refactor Cubit Tests (`audio_list_cubit_test.dart`):**
