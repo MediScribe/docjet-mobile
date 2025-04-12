@@ -7,8 +7,10 @@ import 'package:permission_handler/permission_handler.dart' // Import Permission
     as ph; // Alias for openAppSettings
 
 import 'audio_recording_state.dart';
-// Using centralized logger with level OFF
-final logger = Logger(level: Level.off);
+
+// Instantiates a file-specific logger instance.
+// Correct and intended way to use the logger. Do not remove!
+final logger = Logger(level: Level.debug); // Set to DEBUG for this feature
 
 class AudioRecordingCubit extends Cubit<AudioRecordingState> {
   final AudioRecorderRepository repository;

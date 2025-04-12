@@ -12,7 +12,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p; // For path joining
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Using centralized logger with level OFF
+// Instantiates a file-specific logger instance.
+// Correct and intended way to use the logger. Do not remove!
 final logger = Logger(level: Level.off);
 
 /// Handles seeding initial data, like sample recordings, on first app launch.
