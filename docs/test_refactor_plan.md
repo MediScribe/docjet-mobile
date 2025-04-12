@@ -73,12 +73,12 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [ ] **Test filtering/distinct logic:** Ensure redundant/unnecessary states aren't emitted (e.g., multiple position updates shouldn't emit identical states if nothing else changed).
     *   [ ] **Test error handling:** Simulate errors on input streams and verify `PlaybackState.error` is emitted.
     *   [ ] **Test edge cases:** Check behavior with simultaneous events, initial state, stream completion.
-    *   [ ] **Run Mapper Tests:** `flutter test test/features/audio_recorder/data/mappers/` - Fix failures.
-*   [ ] **Refactor Widget Tests (`audio_player_widget_test.dart`):**
-    *   [ ] **Test rendering:** Verify the correct UI (icons, text, slider visibility/value) is shown for different `PlaybackInfo` states (playing, paused, loading, error, different positions/durations) passed as props.
-    *   [ ] **Test interactions:** Verify tapping play/pause/delete buttons calls the correct methods (`playRecording`, `pauseRecording`, `onDelete`) on the mocked `AudioListCubit` *with correct arguments* (`filePath`).
-    *   [ ] **Test seek interaction:** Verify dragging the slider calls `cubit.seekRecording(filePath, position)` with the correct path and final slider position.
-    *   [ ] **Run Widget Tests:** `flutter test test/features/audio_recorder/presentation/widgets/` - Fix failures.
+    *   [x] **Run Mapper Tests:** `flutter test test/features/audio_recorder/data/mappers/` - Fix failures. (DONE)
+*   [x] **Refactor Widget Tests (`audio_player_widget_test.dart`):** (DONE - Reviewed, tests seem adequate post-refactor)
+    *   [x] **Test rendering:** Verify the correct UI (icons, text, slider visibility/value) is shown for different `PlaybackInfo` states (playing, paused, loading, error, different positions/durations) passed as props. (DONE - Verified)
+    *   [x] **Test interactions:** Verify tapping play/pause/delete buttons calls the correct methods (`playRecording`, `pauseRecording`, `onDelete`) on the mocked `AudioListCubit` *with correct arguments* (`filePath`). (DONE - Verified)
+    *   [x] **Test seek interaction:** Verify dragging the slider calls `cubit.seekRecording(filePath, position)` with the correct path and final slider position. (DONE - Verified)
+    *   [x] **Run Widget Tests:** `flutter test test/features/audio_recorder/presentation/widgets/` - Fix failures. (DONE - Passed initially)
 *   [ ] **Review Scenario/Edge Case Coverage (Unit Tests):**
     *   [ ] Review and add tests for relevant edge cases and error handling scenarios identified during refactoring.
 *   [ ] **Run All Unit Tests:** Execute `flutter test test/features/audio_recorder/` again. Goal: All refactored unit tests pass.

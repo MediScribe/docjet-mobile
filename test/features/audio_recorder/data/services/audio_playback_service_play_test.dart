@@ -347,7 +347,13 @@ void main() {
         // Act & Assert: Expect the service.play call itself to throw
         expect(
           () => service.play(tFilePathDevice),
-          throwsA(predicate((e) => e is Exception && e == testError)),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'toString',
+              contains('Resume failed!'),
+            ),
+          ),
         );
 
         // Allow the async operations within play to attempt to run
