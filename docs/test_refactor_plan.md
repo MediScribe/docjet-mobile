@@ -1,0 +1,72 @@
+# Audio Player Test Refactor Plan
+
+This plan outlines the steps to fix the failing tests after the audio player refactor and improve the overall testing strategy based on the analysis in `audio_player_analysis.md`.
+
+## Phase 1: Fix Compilation Errors & Basic Functionality
+
+*   [ ] **Identify All Compilation Errors:** Review the `flutter test` output thoroughly to list all files failing to compile. *(Self-note: Already done, primarily `setCurrentFilePath` and `seek`/`seekRecording` signature mismatches)*
+*   [ ] **Fix `setCurrentFilePath` Errors:**
+    *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../mappers/playback_state_mapper_impl_test.dart`.
+    *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_orchestration_test.dart`.
+    *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_pause_seek_stop_test.dart`.
+    *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_play_test.dart`.
+    *   [ ] Verify tests still make logical sense after removal; adapt setup if needed.
+*   [ ] **Fix `seek`/`seekRecording` Signature Errors:**
+    *   [ ] Update `seek` calls/mocks in `test/.../services/audio_playback_service_orchestration_test.dart` to include `filePath`.
+    *   [ ] Update `seekRecording` calls/mocks in `test/.../cubit/audio_list_cubit_test.dart` to include `filePath`.
+    *   [ ] Update `seekRecording` calls/mocks in `test/.../widgets/audio_player_widget_test.dart` to include `filePath`.
+    *   [ ] Ensure Mockito `when`/`verify` argument matchers are correct for the new signature.
+*   [ ] **Run Tests:** Execute `flutter test test/features/audio_recorder/` again. Goal: Zero compilation errors. Some tests might still fail logically.
+
+## Phase 2: Re-evaluate and Refactor Existing Tests
+
+*   [ ] **Review Service Tests (`audio_playback_service_*_test.dart`):**
+    *   [ ] Focus tests on verifying the *output state* (`playbackStateStream`) based on method calls (`play`, `pause`, `resume`, `seek`, `stop`) and mocked adapter *stream behavior* (simulating events from the adapter), not just mocking the service's output stream directly.
+    *   [ ] Add tests specifically for the "fresh seek" priming logic (seek before play).
+    *   [ ] Add tests specifically for the play/resume logic (calling `play` on a paused file).
+    *   [ ] Remove tests that solely verify internal call sequences (e.g., `stop` then `setSourceUrl`).
+*   [ ] **Review Cubit Tests (`audio_list_cubit_test.dart`):**
+    *   [ ] Test that the Cubit emits the correct `AudioListState` (with `PlaybackInfo`) based on incoming service states and UI events (`playRecording`, `pauseRecording`, `seekRecording`).
+    *   [ ] Verify correct service methods are called *with correct arguments* (`filePath`!).
+    *   [ ] Simplify mocking; focus on mocking the `AudioPlaybackService` interface.
+*   [ ] **Review Mapper Tests (`playback_state_mapper_impl_test.dart`):**
+    *   [ ] Test the mapping logic: Given input streams (player state, position, duration, completion), does it output the correct combined `PlaybackState`?
+    *   [ ] Verify the stream filtering/debouncing logic works as intended (e.g., position updates during playback, state changes).
+*   [ ] **Review Adapter Tests (`audio_player_adapter_impl_test.dart`):**
+    *   [ ] Ensure tests verify the adapter correctly calls the underlying `just_audio` player methods. Mock the `AudioPlayer` instance.
+    *   [ ] Verify stream transformations (e.g., mapping `PlayerState` to `DomainPlayerState`) are correct.
+*   [ ] **Review Widget Tests (`audio_player_widget_test.dart`):**
+    *   [ ] Test UI reactions to different `AudioListState` scenarios (e.g., button icons change, slider updates).
+    *   [ ] Test UI interactions (tapping play/pause, dragging slider) trigger the correct Cubit method calls *with correct arguments* (`filePath`!).
+    *   [ ] Mock the `AudioListCubit`.
+*   [ ] **Run Tests:** Execute `flutter test test/features/audio_recorder/` again. Goal: All existing, relevant tests pass.
+
+## Phase 3: Implement Integration Tests
+
+*   [ ] **Adapter -> Mapper -> Service Integration:**
+    *   [ ] Create a test file (e.g., `audio_playback_integration_test.dart`).
+    *   [ ] Instantiate real `AudioPlayerAdapterImpl`, `PlaybackStateMapperImpl`, `AudioPlaybackServiceImpl`.
+    *   [ ] Mock the underlying `just_audio.AudioPlayer`.
+    *   [ ] Simulate events on the mock `AudioPlayer` streams (player state changes, position updates, duration changes).
+    *   [ ] Assert that the `AudioPlaybackService.playbackStateStream` emits the correctly mapped and combined `PlaybackState`.
+    *   [ ] Explicitly verify the PlaybackStateMapperImpl.initialize() method is called correctly with the adapter's streams during the test setup (simulating DI container behavior).
+    *   [ ] Verify the DI wiring logic (`initialize` call connecting mapper to adapter streams) is implicitly tested.
+*   [ ] **Service -> Cubit Integration:**
+    *   [ ] Use the *real* `AudioPlaybackServiceImpl` from the previous step (or a controlled mock emitting realistic states).
+    *   [ ] Instantiate a real `AudioListCubit`.
+    *   [ ] Drive state changes from the Service's stream.
+    *   [ ] Assert that the `AudioListCubit` emits the correct `AudioListState` with accurate `PlaybackInfo` (isPlaying, currentPosition, totalDuration, filePath).
+*   [ ] **(Optional but Recommended) Widget -> Cubit -> Service (Full Flow):**
+    *   [ ] Consider using `flutter_test`'s `integration_test` package.
+    *   [ ] Set up the relevant part of the widget tree (`AudioPlayerWidget`).
+    *   [ ] Provide a real `AudioListCubit` connected to a Service (potentially with a mocked Adapter/Player).
+    *   [ ] Simulate user interactions (`tester.tap`, `tester.drag`).
+    *   [ ] Verify both the UI updates *and* the underlying state changes/method calls.
+*   [ ] **Run Tests:** Execute *all* tests (`flutter test`). Goal: Everything passes.
+
+## Phase 4: Final Review & Cleanup
+
+*   [x] **Review Test Coverage:** Ensure all public APIs of services, cubits, mappers, adapters are reasonably covered by unit or integration tests focused on behavior. *(Self-note: Addressed by prior steps)*
+*   [ ] **Review Test Philosophy:** Double-check that tests prioritize behavior over implementation details.
+*   [ ] **Cleanup:** Remove any dead/commented-out test code.
+*   [ ] **Documentation:** Update `README.md` or other docs if testing strategy significantly changed. 
