@@ -1,0 +1,24 @@
+# build.yaml
+targets:
+  $default:
+    builders:
+      mockito|mockBuilder:
+        generate_for:
+          - test/**
+        options:
+          # Use custom_mocks to configure specific classes
+          custom_mocks:
+            - class: PathProviderPlatform
+              # Specify that this mock should use 'extends'
+              extends: true
+
+# Remove the incorrect custom builder definition
+# builders:
+#   mock_path_provider_platform_generator:
+#     import: "package:mockito/src/builder.dart"
+#     builder_factories: ["mockBuilder"]
+#     build_extensions:
+#       ".dart": [".mocks.dart"]
+#     auto_apply: dependents
+#     build_to: cache
+#     applies_builders: ["source_gen|combining_builder"] 

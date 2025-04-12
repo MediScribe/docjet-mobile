@@ -186,3 +186,6 @@ Future<void> init() async {
     ),
   );
 }
+
+// Function to reset the GetIt container, useful for testing
+Future<void> resetInjectionContainer() => sl.reset();

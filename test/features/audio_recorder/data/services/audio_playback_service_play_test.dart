@@ -1,6 +1,5 @@
 // Imports
 import 'dart:async';
-import 'dart:developer';
 
 // Import logger
 import 'package:docjet_mobile/core/utils/logger.dart'; // Import logger explicitly
@@ -280,55 +279,76 @@ void main() {
           totalDuration: Duration.zero,
         );
 
-        // Use containsAllInOrder for more flexibility if needed, but emitsInOrder is strict
-        final stateExpectation = expectLater(
-          service.playbackStateStream,
-          emitsInOrder([
-            initialPlayingState,
-            playingState1, // First play playing
-            loadingState2, // Second play loading
-            playingState2, // Second play playing
-          ]),
-        );
+        // Setup state collection
+        final emittedStates = <entity.PlaybackState>[];
+        final subscription = service.playbackStateStream.listen((state) {
+          logger.d('TEST [diff file restart]: State received: $state');
+          emittedStates.add(state);
+        });
 
-        // Simulate initial state
-        mockPlaybackStateController.add(initialPlayingState);
-        await Future.delayed(Duration.zero);
+        try {
+          // Simulate initial state
+          mockPlaybackStateController.add(initialPlayingState);
+          await Future.delayed(Duration.zero);
 
-        // Act 1: First play
-        await service.play(tFilePathDevice);
-        mockPlaybackStateController.add(playingState1);
-        await Future.delayed(Duration.zero); // Process state 1
+          // Act 1: First play
+          await service.play(tFilePathDevice);
+          mockPlaybackStateController.add(playingState1);
+          await Future.delayed(Duration.zero); // Process state 1
 
-        // Verify first play interactions
-        verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 1
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1); // Resume for play 1
+          // Verify first play interactions
+          verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 1
+          verify(
+            mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice),
+          ).called(1);
+          verify(
+            mockAudioPlayerAdapter.resume(),
+          ).called(1); // Resume for play 1
 
-        // Clear interactions before second play for cleaner verification
-        clearInteractions(mockAudioPlayerAdapter);
-        clearInteractions(mockPlaybackStateMapper);
-        // Re-stub the essential mapper stream getter
-        when(
-          mockPlaybackStateMapper.playbackStateStream,
-        ).thenAnswer((_) => mockPlaybackStateController.stream);
+          // Clear interactions before second play for cleaner verification
+          clearInteractions(mockAudioPlayerAdapter);
+          clearInteractions(mockPlaybackStateMapper);
+          // Re-stub the essential mapper stream getter
+          when(
+            mockPlaybackStateMapper.playbackStateStream,
+          ).thenAnswer((_) => mockPlaybackStateController.stream);
 
-        // Act 2: Second play (different file)
-        await service.play(tFilePathDevice2);
+          // Act 2: Second play (different file)
+          await service.play(tFilePathDevice2);
 
-        // Assert Interactions for second play (relative to clearInteractions)
-        verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 2
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice2)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1); // Resume for play 2
+          // Simulate second play loading/playing states from mapper
+          mockPlaybackStateController.add(loadingState2);
+          await Future.delayed(Duration.zero);
+          mockPlaybackStateController.add(playingState2);
+          await Future.delayed(Duration.zero);
 
-        // Simulate second play loading/playing states from mapper
-        mockPlaybackStateController.add(loadingState2);
-        await Future.delayed(Duration.zero);
-        mockPlaybackStateController.add(playingState2);
-        await Future.delayed(Duration.zero);
+          // Give the stream time to propagate the state
+          await Future.delayed(Duration(milliseconds: 50));
 
-        // Await the expectLater future
-        await stateExpectation;
+          // Assert Interactions for second play (relative to clearInteractions)
+          verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 2
+          verify(
+            mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice2),
+          ).called(1);
+          verify(
+            mockAudioPlayerAdapter.resume(),
+          ).called(1); // Resume for play 2
+
+          // Assert the full sequence of collected states
+          expect(
+            emittedStates,
+            equals([
+              initialPlayingState,
+              playingState1, // First play playing
+              loadingState2, // Second play loading
+              playingState2, // Second play playing
+            ]),
+            reason: 'Should emit the correct sequence of states for restart',
+          );
+        } finally {
+          // Always clean up the subscription
+          await subscription.cancel();
+        }
       },
     );
 
@@ -394,59 +414,75 @@ void main() {
           totalDuration: Duration.zero, // Restarted
         );
 
-        final stateExpectation = expectLater(
-          service.playbackStateStream,
-          emitsInOrder([
-            initialPlayingState,
-            playingState1,
-            loadingState2, // Loading for restart
-            playingState2, // Playing after restart
-          ]),
-        );
+        // Setup state collection
+        final emittedStates = <entity.PlaybackState>[];
+        final subscription = service.playbackStateStream.listen((state) {
+          logger.d('TEST [same file restart]: State received: $state');
+          emittedStates.add(state);
+        });
 
-        mockPlaybackStateController.add(initialPlayingState);
-        await Future.delayed(Duration.zero);
+        try {
+          mockPlaybackStateController.add(initialPlayingState);
+          await Future.delayed(Duration.zero);
 
-        // Simulate first play
-        await service.play(tFilePathDevice);
-        mockPlaybackStateController.add(playingState1);
-        await Future.delayed(Duration.zero); // Process state 1
+          // Simulate first play
+          await service.play(tFilePathDevice);
+          mockPlaybackStateController.add(playingState1);
+          await Future.delayed(Duration.zero); // Process state 1
 
-        // Verify first play interactions
-        verify(mockAudioPlayerAdapter.stop()).called(1);
-        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
-        verify(mockAudioPlayerAdapter.resume()).called(1);
+          // Verify first play interactions
+          verify(mockAudioPlayerAdapter.stop()).called(1);
+          verify(
+            mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice),
+          ).called(1);
+          verify(mockAudioPlayerAdapter.resume()).called(1);
 
-        // Clear interactions before second play for cleaner verification
-        clearInteractions(mockAudioPlayerAdapter);
-        clearInteractions(mockPlaybackStateMapper);
-        // Re-stub the essential mapper stream getter
-        when(
-          mockPlaybackStateMapper.playbackStateStream,
-        ).thenAnswer((_) => mockPlaybackStateController.stream);
+          // Clear interactions before second play for cleaner verification
+          clearInteractions(mockAudioPlayerAdapter);
+          clearInteractions(mockPlaybackStateMapper);
+          // Re-stub the essential mapper stream getter
+          when(
+            mockPlaybackStateMapper.playbackStateStream,
+          ).thenAnswer((_) => mockPlaybackStateController.stream);
 
-        // Act: Call play again with the SAME file
-        await service.play(tFilePathDevice);
+          // Act: Call play again with the SAME file
+          await service.play(tFilePathDevice);
 
-        // Assert interactions for second play (relative to clearInteractions)
-        verify(
-          mockAudioPlayerAdapter.stop(),
-        ).called(1); // Stop called for second play
-        verify(
-          mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice),
-        ).called(1); // SetSourceUrl called for second play
-        verify(
-          mockAudioPlayerAdapter.resume(),
-        ).called(1); // Resume called for second play
+          // Simulate restart loading/playing states
+          mockPlaybackStateController.add(loadingState2);
+          await Future.delayed(Duration.zero);
+          mockPlaybackStateController.add(playingState2);
+          await Future.delayed(Duration.zero);
 
-        // Simulate restart loading/playing states
-        mockPlaybackStateController.add(loadingState2);
-        await Future.delayed(Duration.zero);
-        mockPlaybackStateController.add(playingState2);
-        await Future.delayed(Duration.zero);
+          // Give the stream time to propagate the state
+          await Future.delayed(Duration(milliseconds: 50));
 
-        // Await the expectLater future
-        await stateExpectation;
+          // Assert interactions for second play (relative to clearInteractions)
+          verify(
+            mockAudioPlayerAdapter.stop(),
+          ).called(1); // Stop called for second play
+          verify(
+            mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice),
+          ).called(1); // SetSourceUrl called for second play
+          verify(
+            mockAudioPlayerAdapter.resume(),
+          ).called(1); // Resume called for second play
+
+          // Assert the full sequence of collected states
+          expect(
+            emittedStates,
+            equals([
+              initialPlayingState,
+              playingState1,
+              loadingState2, // Loading for restart
+              playingState2, // Playing after restart
+            ]),
+            reason: 'Should emit the correct sequence of states for restart',
+          );
+        } finally {
+          // Always clean up the subscription
+          await subscription.cancel();
+        }
       },
     );
 
