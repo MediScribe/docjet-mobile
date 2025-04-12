@@ -15,12 +15,12 @@ import 'package:mockito/mockito.dart';
 // Import the generated mocks
 import 'audio_playback_service_pause_seek_stop_test.mocks.dart';
 
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = Logger(level: Level.debug);
+
 // Annotation to generate mocks for Adapter and Mapper ONLY
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 void main() {
-  // Set logger level to off for tests
-  setLogLevel(Level.off);
-
   // Remove old mock player
   // late MockAudioPlayer mockAudioPlayer;
   // Add new mocks
@@ -66,8 +66,6 @@ void main() {
       mockPlaybackStateMapper.playbackStateStream,
     ).thenAnswer((_) => mockPlaybackStateController.stream);
 
-    when(mockPlaybackStateMapper.setCurrentFilePath(any)).thenReturn(null);
-
     // Stub adapter methods using Future.value() for void returns
     when(mockAudioPlayerAdapter.stop()).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.dispose()).thenAnswer((_) => Future.value());
@@ -76,7 +74,9 @@ void main() {
     ).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.resume()).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.pause()).thenAnswer((_) => Future.value());
-    when(mockAudioPlayerAdapter.seek(any)).thenAnswer((_) => Future.value());
+    when(
+      mockAudioPlayerAdapter.seek(any, any),
+    ).thenAnswer((_) => Future.value());
 
     // Stub adapter streams (return empty streams for these tests)
     when(
@@ -227,15 +227,16 @@ void main() {
 
       // Arrange
       const seekPosition = Duration(seconds: 15);
+      const testFilePath = 'some/path.mp3'; // Provide a dummy path
 
-      // Act - call seek with position
-      await service.seek(seekPosition);
+      // Act - call seek with position AND path
+      await service.seek(testFilePath, seekPosition);
 
       // Allow time for any potential state updates
       await Future.delayed(Duration(milliseconds: 50));
 
       // Assert: Verify adapter interaction
-      verify(mockAudioPlayerAdapter.seek(seekPosition)).called(1);
+      verify(mockAudioPlayerAdapter.seek(testFilePath, seekPosition)).called(1);
 
       // Assert: Check we received the initial state
       expect(

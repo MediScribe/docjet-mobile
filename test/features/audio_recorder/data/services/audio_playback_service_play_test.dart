@@ -16,6 +16,9 @@ import 'package:docjet_mobile/core/utils/logger.dart'; // Import logger explicit
 // Import the generated mocks
 import 'audio_playback_service_play_test.mocks.dart';
 
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = Logger(level: Level.debug);
+
 // Annotation to generate mocks for Adapter and Mapper ONLY
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 // Define a common test exception
@@ -23,7 +26,7 @@ final testException = Exception('Test Exception: Something went boom!');
 
 void main() {
   // Set logger level to off for tests
-  setLogLevel(Level.off);
+  // setLogLevel(Level.off);
 
   // Add new mocks
   late MockAudioPlayerAdapter mockAudioPlayerAdapter;
@@ -114,11 +117,22 @@ void main() {
           totalDuration: Duration.zero, // Assume initial
         );
 
-        // Expect initial -> loading -> playing (Stream from mapper)
+        // **DEBUG: Log all emitted states**
+        final emittedStatesForDebug = <entity.PlaybackState>[];
+        final debugSubscription = service.playbackStateStream.listen((state) {
+          logger.d('*** DEBUG: State Emitted: $state');
+          emittedStatesForDebug.add(state);
+        });
+
+        // Expect loading (from service.play) -> playing (from controller)
         logger.d('TEST [initial play]: Setting up expectLater...');
         final stateExpectation = expectLater(
           service.playbackStateStream, // This comes from the mock mapper
-          emitsInOrder([expectedLoadingState, expectedPlayingState]),
+          emitsInOrder([
+            // Removed initial state from expectation
+            expectedLoadingState,
+            expectedPlayingState,
+          ]),
         );
         logger.d('TEST [initial play]: expectLater set up.');
 
@@ -126,33 +140,32 @@ void main() {
         logger.d('TEST [initial play]: Calling service.play (awaiting)...');
         await service.play(tFilePathDevice);
         logger.d('TEST [initial play]: service.play called (awaiting).');
+        // Yield to allow stream processing after service call completes
+        await Future.delayed(Duration.zero);
+        logger.d('TEST [initial play]: >> After delay post-play');
 
         // Assert Interactions AFTER await
         logger.d('TEST [initial play]: Verifying adapter calls...');
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1);
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1);
         logger.d('TEST [initial play]: Adapter calls verified.');
 
-        // Act 2: Simulate mapper emitting states
-        logger.d('TEST [initial play]: Adding loading state to controller...');
-        mockPlaybackStateController.add(expectedLoadingState);
-        // Yield to allow stream processing
-        await Future.delayed(Duration.zero);
-
+        // Act 2: Simulate mapper emitting the final state
         logger.d('TEST [initial play]: Adding playing state to controller...');
         mockPlaybackStateController.add(expectedPlayingState);
-        // Yield to allow stream processing
+        logger.d('TEST [initial play]: >> After adding PLAYING state');
+        // Yield AGAIN immediately after adding to controller
         await Future.delayed(Duration.zero);
+        logger.d('TEST [initial play]: >> After SECOND delay post-PLAYING');
 
         // Await the expectLater future
         logger.d('TEST [initial play]: Awaiting expectLater...');
         await stateExpectation;
         logger.d('TEST [initial play]: expectLater completed.');
 
+        // **DEBUG: Cancel subscription**
+        await debugSubscription.cancel();
         logger.d('TEST [initial play]: END');
       },
     );

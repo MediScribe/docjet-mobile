@@ -12,8 +12,8 @@ abstract class AudioPlayerAdapter {
   /// Resumes the paused audio.
   Future<void> resume();
 
-  /// Seeks to the specified [position] in the audio.
-  Future<void> seek(Duration position);
+  /// Seeks to the specified [position] in the audio file identified by [filePath].
+  Future<void> seek(String filePath, Duration position);
 
   /// Stops the currently playing audio.
   Future<void> stop();

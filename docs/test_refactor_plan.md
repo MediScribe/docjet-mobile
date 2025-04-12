@@ -7,9 +7,9 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 ## Phase 1: Fix Compilation Errors & Basic Functionality
 
 *   [ ] **Identify All Compilation Errors:** Review the `flutter test` output thoroughly to list all files failing to compile. *(Self-note: Already done, primarily `setCurrentFilePath` and `seek`/`seekRecording` signature mismatches)*
-*   [ ] **Fix `setCurrentFilePath` Errors:**
-    *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../mappers/playback_state_mapper_impl_test.dart`.
-    *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_orchestration_test.dart`.
+*   [x] **Fix `setCurrentFilePath` Errors:**
+    *   [x] Remove `setCurrentFilePath` calls/mocks from `test/.../mappers/playback_state_mapper_impl_test.dart`. *(No-op, file was clean)*
+    *   [x] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_orchestration_test.dart`. *(Done)*
     *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_pause_seek_stop_test.dart`.
     *   [ ] Remove `setCurrentFilePath` calls/mocks from `test/.../services/audio_playback_service_play_test.dart`.
     *   [ ] Briefly review test *logic* after removal – did `setCurrentFilePath` mocks establish any implicit preconditions that now need explicit setup?

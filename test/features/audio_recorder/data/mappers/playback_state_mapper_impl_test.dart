@@ -374,25 +374,6 @@ void main() {
     // ... (rest of test)
   });
 
-  test('should reset to stopped when current file path is cleared', () async {
-    // ... (rest of test setup, ensure playerStateController adds DomainPlayerState.playing)
-    playerStateController.add(DomainPlayerState.playing); // Changed value
-    await Future.delayed(Duration.zero); // Allow stream to process
-    mapper.setCurrentFilePath('some/path.mp3');
-    await Future.delayed(
-      Duration.zero,
-    ); // Allow stream to process potential state change if any
-
-    // ... (rest of test setup for expectLater)
-
-    // Act
-    mapper.setCurrentFilePath(null); // Reset file path
-    // Optionally push another state to see if it resets correctly
-    playerStateController.add(DomainPlayerState.stopped); // Changed value
-
-    // ... (rest of test)
-  });
-
   test('should handle errors from the playerStateStream', () async {
     // Arrange
     final testError = Exception('Test stream error');

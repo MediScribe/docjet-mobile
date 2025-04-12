@@ -107,6 +107,10 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         logger.d(
           '[SERVICE PLAY $pathOrUrl] Action: Full restart needed (different file or not paused)...',
         );
+        // **Emit Loading State**
+        _playbackStateSubject.add(const PlaybackState.loading());
+        logger.d('[SERVICE PLAY $pathOrUrl] Emitted loading state.');
+
         logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
         await _audioPlayerAdapter.stop();
         logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.');
@@ -188,85 +192,89 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   }
 
   @override
-  Future<void> seek(String pathOrUrl, Duration position) async {
+  Future<void> seek(String filePath, Duration position) async {
     final trace = StackTrace.current;
-    logger.d(
-      '[SERVICE SEEK $pathOrUrl ${position.inMilliseconds}ms] START',
-      stackTrace: trace,
-    );
+    // logger.d(
+    //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] START', // Update log
+    //   stackTrace: trace,
+    // );
     try {
-      final isSameFile = pathOrUrl == _currentFilePath;
-      // Determine if the player is ready for this file
-      // We consider it "ready" if it's the same file and not in an initial/stopped/error state.
-      // A simple check for matching _currentFilePath is a good proxy, assuming play/stop manages it.
-      final bool isReady =
-          isSameFile &&
-          !_lastKnownState.maybeWhen(
-            initial: () => true,
-            stopped: () => true,
-            error: (_, __, ___) => true,
-            orElse: () => false,
-          );
+      final isCurrentlyPlaying = _lastKnownState.maybeWhen(
+        playing: (_, __) => true,
+        orElse: () => false,
+      );
+
+      final isTargetSameAsCurrent = filePath == _currentFilePath;
 
       // logger.d(
-      //   '[SERVICE SEEK $pathOrUrl] State Check: isSameFile: $isSameFile, isReady: $isReady',
-      // ); // Keep DEBUG
+      //   '[SERVICE SEEK $filePath] State Check: isCurrentlyPlaying: $isCurrentlyPlaying, isTargetSameAsCurrent: $isTargetSameAsCurrent, _lastKnownState: $_lastKnownState',
+      // );
 
-      if (!isReady) {
-        // --- Prime the Pump: Load the file first ---
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Action: Not ready. Priming the pump...',
-        );
-        logger.d('[SERVICE SEEK $pathOrUrl] Action: Calling adapter.stop()...');
-        await _audioPlayerAdapter.stop(); // Stop previous playback
+      // Scenario 1: Seeking within the currently playing/paused file
+      if (isTargetSameAsCurrent && _currentFilePath != null) {
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Action: Seeking within current file. Calling adapter.seek...',
+        // );
+        await _audioPlayerAdapter.seek(_currentFilePath!, position);
+        // logger.d('[SERVICE SEEK $filePath] Adapter seek() call complete.');
 
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Action: Updating file path for mapper & service...',
-        );
-        _currentFilePath = pathOrUrl; // Update service state
+        // If seeking while paused, adapter might emit paused. If seeking while playing,
+        // it should continue playing from new position (adapter handles state).
+        // We don't need to explicitly pause/resume here.
+      }
+      // Scenario 2: Seeking to a new file or seeking when player is stopped/initial
+      else {
+        // --- Prime the Pump --- Needs explicit pause after seek
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Action: Priming the pump (new file or stopped state)...',
+        // );
 
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
-        );
-        // setSourceUrl implicitly loads the audio
-        await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Adapter setSourceUrl() call complete (loaded).',
-        );
+        // 1. Stop any current playback
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Priming: Calling adapter.stop()...',
+        // );
+        await _audioPlayerAdapter.stop();
 
-        // Now seek on the loaded file
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Action: Calling adapter.seek($position)...',
-        );
-        await _audioPlayerAdapter.seek(position);
-        logger.d('[SERVICE SEEK $pathOrUrl] Adapter seek() call complete.');
+        // 2. Update internal state and load new source
+        _currentFilePath = filePath;
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Priming: Updated _currentFilePath. Calling adapter.setSourceUrl()...',
+        // );
+        await _audioPlayerAdapter.setSourceUrl(filePath);
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Priming: adapter.setSourceUrl() complete.',
+        // );
 
-        // CRITICAL: Immediately pause to prevent auto-play and set state correctly
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Action: Calling adapter.pause()...',
-        );
+        // 3. Seek to the desired position
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Priming: Calling adapter.seek($position)...',
+        // );
+        await _audioPlayerAdapter.seek(filePath, position);
+        // logger.d('[SERVICE SEEK $filePath] Priming: adapter.seek() complete.');
+
+        // 4. CRITICAL: Pause immediately after seek when priming
+        // This prevents auto-play and ensures the state reflects a seek-to-paused state.
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Priming: Calling adapter.pause()...',
+        // );
         await _audioPlayerAdapter.pause();
-        logger.d('[SERVICE SEEK $pathOrUrl] Adapter pause() call complete.');
-        // No need to manually emit state here, the adapter+mapper should handle it.
-        // Set a flag maybe? No, let's rely on natural state flow for now.
-        logger.d('[SERVICE SEEK $pathOrUrl] Priming complete.');
-      } else {
-        // --- Already Loaded: Just Seek ---
-        logger.d(
-          '[SERVICE SEEK $pathOrUrl] Action: Already loaded. Calling adapter.seek($position)...',
-        );
-        await _audioPlayerAdapter.seek(position);
-        logger.d('[SERVICE SEEK $pathOrUrl] Adapter seek() call complete.');
-        // If it was playing, seek might pause it, or might keep playing depending on player.
-        // If it was paused, it should remain paused at the new position.
-        // We rely on the adapter/mapper stream to report the correct state after seek.
+        _seekPerformedWhileNotPlaying = true; // Set flag
+        // logger.d(
+        //   '[SERVICE SEEK $filePath] Priming: adapter.pause() complete. _seekPerformedWhileNotPlaying=true.',
+        // );
       }
     } catch (e, s) {
-      logger.e('[SERVICE SEEK $pathOrUrl] FAILED', error: e, stackTrace: s);
+      // logger.e(
+      //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] FAILED',
+      //   error: e,
+      //   stackTrace: s,
+      // );
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
       rethrow;
     }
-    logger.d('[SERVICE SEEK $pathOrUrl ${position.inMilliseconds}ms] END');
+    // logger.d(
+    //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] END (Success)',
+    // );
   }
 
   @override

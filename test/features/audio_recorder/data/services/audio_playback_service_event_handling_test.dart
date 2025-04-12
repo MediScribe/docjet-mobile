@@ -11,11 +11,14 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 
 import 'audio_playback_service_event_handling_test.mocks.dart';
 
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = Logger(level: Level.debug);
+
 // Generate mock classes
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 void main() {
   // Set logger level to off for tests
-  setLogLevel(Level.off);
+  // setLogLevel(Level.off);
 
   late MockAudioPlayerAdapter mockAudioPlayerAdapter;
   late MockPlaybackStateMapper mockPlaybackStateMapper;

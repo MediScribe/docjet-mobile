@@ -33,10 +33,9 @@ void main() {
       when(mockAdapter.setSourceUrl(any)).thenAnswer((_) async {});
       when(mockAdapter.resume()).thenAnswer((_) async {});
       when(mockAdapter.pause()).thenAnswer((_) async {});
-      when(mockAdapter.seek(any)).thenAnswer((_) async {});
+      when(mockAdapter.seek(any, any)).thenAnswer((_) async {});
       when(mockAdapter.dispose()).thenAnswer((_) async {});
 
-      when(mockMapper.setCurrentFilePath(any)).thenReturn(null);
       when(mockMapper.dispose()).thenReturn(null);
 
       service = AudioPlaybackServiceImpl(
@@ -62,45 +61,36 @@ void main() {
         verify(mockAdapter.stop()).called(1);
         verify(mockAdapter.setSourceUrl(testFilePath)).called(1);
         verify(mockAdapter.resume()).called(1);
-        verify(mockMapper.setCurrentFilePath(testFilePath)).called(1);
       },
     );
 
-    test(
-      'play() on paused file should restart with stop, setSourceUrl, resume',
-      () async {
-        const testFilePath = 'test/file/path.mp3';
-        const pausedState = PlaybackState.paused(
-          currentPosition: Duration(seconds: 10),
-          totalDuration: Duration(seconds: 30),
-        );
+    test('play() on paused file should ONLY call resume()', () async {
+      const testFilePath = 'test/file/path.mp3';
+      const pausedState = PlaybackState.paused(
+        currentPosition: Duration(seconds: 10),
+        totalDuration: Duration(seconds: 30),
+      );
 
-        // First play to set initial state
-        await service.play(testFilePath);
-        mapperStateController.add(pausedState);
-        await Future.delayed(Duration.zero);
+      // First play to set initial state and _currentFilePath
+      await service.play(testFilePath);
+      mapperStateController.add(pausedState); // Simulate paused state
+      await Future.delayed(Duration.zero);
 
-        // Clear interactions from the initial setup
-        clearInteractions(mockAdapter);
-        clearInteractions(mockMapper);
+      // Clear interactions from the initial setup
+      clearInteractions(mockAdapter);
+      clearInteractions(mockMapper);
 
-        // Set up expectations for next play call
-        when(mockAdapter.stop()).thenAnswer((_) async {});
-        when(mockAdapter.setSourceUrl(testFilePath)).thenAnswer((_) async {});
-        when(mockAdapter.resume()).thenAnswer((_) async {});
+      // Set up expectations ONLY for resume
+      when(mockAdapter.resume()).thenAnswer((_) async {});
 
-        // Play the same file again
-        await service.play(testFilePath);
+      // Play the same file again while paused
+      await service.play(testFilePath);
 
-        // Verify we properly restart playback
-        verify(mockAdapter.stop()).called(1);
-        verify(mockAdapter.setSourceUrl(testFilePath)).called(1);
-        verify(mockAdapter.resume()).called(1);
-
-        // We should NOT call setCurrentFilePath for the same file
-        verifyNever(mockMapper.setCurrentFilePath(any));
-      },
-    );
+      // Verify ONLY resume was called
+      verify(mockAdapter.resume()).called(1);
+      verifyNever(mockAdapter.stop());
+      verifyNever(mockAdapter.setSourceUrl(any));
+    });
 
     test('pause() should call adapter.pause()', () async {
       await service.pause();
@@ -108,12 +98,24 @@ void main() {
       verify(mockAdapter.pause()).called(1);
     });
 
-    test('seek() should call adapter.seek()', () async {
+    test('seek() should call adapter.seek() with internally stored path', () async {
+      const testFilePath = 'test/seek/path.mp3'; // Path to be stored internally
       const testPosition = Duration(seconds: 10);
 
-      await service.seek(testPosition);
+      // Arrange: Play a file first to set the internal state (_currentFilePath)
+      await service.play(testFilePath);
 
-      verify(mockAdapter.seek(testPosition)).called(1);
+      // Arrange: Reset interactions from the 'play' call
+      clearInteractions(mockAdapter);
+
+      // Arrange: Ensure the adapter mock expects two arguments for seek
+      when(mockAdapter.seek(any, any)).thenAnswer((_) async {});
+
+      // Act: Call service seek with BOTH the path and position
+      await service.seek(testFilePath, testPosition);
+
+      // Assert: Verify the adapter was called with the path from 'play' and the position
+      verify(mockAdapter.seek(testFilePath, testPosition)).called(1);
     });
 
     test('stop() should call adapter.stop()', () async {

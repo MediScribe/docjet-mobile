@@ -94,10 +94,17 @@ class MockAudioPlayerAdapter extends _i1.Mock
       ) as _i3.Future<void>);
 
   @override
-  _i3.Future<void> seek(Duration? position) => (super.noSuchMethod(
+  _i3.Future<void> seek(
+    String? filePath,
+    Duration? position,
+  ) =>
+      (super.noSuchMethod(
         Invocation.method(
           #seek,
-          [position],
+          [
+            filePath,
+            position,
+          ],
         ),
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
@@ -156,15 +163,6 @@ class MockPlaybackStateMapper extends _i1.Mock
             #completeStream: completeStream,
             #playerStateStream: playerStateStream,
           },
-        ),
-        returnValueForMissingStub: null,
-      );
-
-  @override
-  void setCurrentFilePath(String? filePath) => super.noSuchMethod(
-        Invocation.method(
-          #setCurrentFilePath,
-          [filePath],
         ),
         returnValueForMissingStub: null,
       );
