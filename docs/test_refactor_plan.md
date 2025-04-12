@@ -92,8 +92,8 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [ ] Create test file (e.g., `audio_playback_integration_test.dart`).
     *   [ ] Instantiate real `AudioPlayerAdapterImpl`, `PlaybackStateMapperImpl`, `AudioPlaybackServiceImpl`.
     *   [ ] Mock the underlying `just_audio.AudioPlayer`.
-    *   [ ] *Verify DI Setup:* Include assertion verifying `PlaybackStateMapperImpl.initialize` was called with adapter streams.
-    *   [ ] Simulate `AudioPlayer` events -> Assert correct `PlaybackState` from service stream.
+    *   [x] *Verify DI Setup:* Include assertion verifying `PlaybackStateMapperImpl.initialize` was called with adapter streams. (DONE - Basic wiring verified in `audio_playback_integration_test.dart`)
+    *   [x] Simulate `AudioPlayer` events -> Assert correct `PlaybackState` from service stream. (DONE - Basic event flow verified in `audio_playback_integration_test.dart`)
 *   [ ] **Service -> Cubit Integration (PRIORITY 2):**
     *   *Focus:* Ensure Cubit state reflects Service state accurately.
     *   [ ] Use a real `AudioListCubit` and a real `AudioPlaybackServiceImpl` (with mocked adapter/player).
