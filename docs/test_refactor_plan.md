@@ -1,5 +1,7 @@
 # Audio Player Test Refactor Plan
 
+**Status Update:** While the test suite currently passes, several key verification and cleanup steps remain incomplete. Focus should be on tackling TODOs, implementing the Service->Cubit integration test, confirming individual test logic, and ensuring consistency.
+
 This plan outlines the steps to fix the failing tests after the audio player refactor and improve the overall testing strategy based on the analysis in `audio_player_analysis.md`.
 
 **General Note:** Ensure log levels are appropriately managed within test setups (e.g., `setLogLevel(Level.off)` or similar) to keep test output clean, unless logs are actively being used for debugging a specific failing test.
@@ -69,8 +71,8 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 *   [x] **Refactor Adapter Tests (`audio_player_adapter_impl_test.dart`):**
     *   [x] **Fix Compilation Errors:** Correct mock syntax and remove incorrect use of Mocktail/Function() syntax in Mockito-based tests. (Verified fix implemented)
     *   [x] **Fix Streaming Tests:** Use Completer pattern to prevent tests from hanging indefinitely while waiting for events. Add timeout handling to fail gracefully if events don't arrive. (Verified fix implemented)
-    *   [ ] **Test Stream Mappings:** Verify that events emitted by the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) correctly reflect the input events from the mocked `AudioPlayer` streams. (Passed in suite, not individually confirmed)
-    *   [ ] **Test Method Calls:** Verify that adapter methods (`play`, `pause`, `seek`, etc.) call the corresponding methods on the underlying `just_audio` player. (Passed in suite, not individually confirmed)
+    *   [ ] **Test Stream Mappings:** Verify that events emitted by the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) correctly reflect the input events from the mocked `AudioPlayer` streams. **(NEEDS INDIVIDUAL REVIEW - Passed in suite, but logic/assertions require manual confirmation).**
+    *   [ ] **Test Method Calls:** Verify that adapter methods (`play`, `pause`, `seek`, etc.) call the corresponding methods on the underlying `just_audio` player. **(NEEDS INDIVIDUAL REVIEW - Passed in suite, but logic/assertions require manual confirmation).**
     *   [x] **Run Adapter Tests:** `flutter test test/features/audio_recorder/data/adapters/` - All tests pass.
 *   [x] **Refactor Mapper Tests (`playback_state_mapper_impl_test.dart`):** (Explicitly debugged and fixed earlier)
     *   [x] **Test basic state mappings:** Ensure `DomainPlayerState.playing/paused/stopped/loading/completed` input results in the correct output `PlaybackState`.
@@ -85,7 +87,7 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] **Test seek interaction:** Verify dragging the slider calls `cubit.seekRecording(filePath, position)` with the correct path and final slider position. (DONE - Verified)
     *   [x] **Run Widget Tests:** `flutter test test/features/audio_recorder/presentation/widgets/` - Fix failures. (DONE - Passed initially)
 *   [ ] **Review Scenario/Edge Case Coverage (Unit Tests):**
-    *   [ ] Review and add tests for relevant edge cases and error handling scenarios identified during refactoring.
+    *   [ ] Review and add tests for relevant edge cases and error handling scenarios identified during refactoring. **(CRITICAL - Address the `TODO` comments scattered throughout the test files).**
 *   [x] **Run All Unit Tests:** Execute `flutter test test/features/audio_recorder/` again. Goal: All refactored unit tests pass.
 
 ## Phase 3: Implement Integration Tests
@@ -102,7 +104,7 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] Verify proper mock property setup (including properties like `processingState` for complete mocking)
     *   [x] Ensure error handling with proper log levels and timeout strategies
 *   [ ] **Service -> Cubit Integration (PRIORITY 2):**
-    *   *Focus:* Ensure Cubit state reflects Service state accurately.
+    *   *Focus:* Ensure Cubit state reflects Service state accurately. **(IMPORTANT - Implement this test).**
     *   [ ] Use a real `AudioListCubit` and a real `AudioPlaybackServiceImpl` (with mocked adapter/player).
     *   [ ] Drive state changes from the Service -> Assert correct `AudioListState` / `PlaybackInfo` from Cubit.
 *   [ ] **(Optional but Recommended) Widget -> Cubit -> Service (Full Flow):**
