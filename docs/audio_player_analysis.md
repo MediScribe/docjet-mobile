@@ -1,598 +1,548 @@
-# Audio Player Pause/Resume Functionality Analysis
+# Audio Player Analysis - Fixed Issues and Lessons Learned
 
-## Critical Issue
-**The audio player plays/pauses only the first time, then subsequent play button presses restart the audio instead of resuming from the paused position. In addition, seek doesnt work at all.**
+## Critical Issues Addressed
 
-## Progress Update (As of Recent Changes)
+### 1. Play/Pause/Resume Bug
+**Issue:** The audio player played/paused only the first time, then subsequent play button presses restarted the audio instead of resuming from the paused position.
 
-1.  **Play/Pause/Resume Bug Fixed:** The core issue where playing a paused track restarted it has been addressed following a TDD approach.
-    *   A new test case (`'play called on the same file while paused should RESUME playback, not restart'`) was added to `test/.../audio_playback_service_play_test.dart` to specifically assert the correct resume behavior. This test initially failed, confirming the bug.
-    *   The `play` method in `lib/.../audio_playback_service_impl.dart` was modified. It now checks if the player `_lastKnownState` is `paused` and if the requested `pathOrUrl` is the `_currentFilePath`. If both are true, it correctly calls only `_audioPlayerAdapter.resume()` instead of the full `stop`/`setSourceUrl`/`resume` sequence.
-    *   The old test case (`'play called on the same file while paused should properly restart playback from beginning'`) that validated the incorrect restart behavior was removed after the fix was implemented and the new test passed.
-    *   All tests in `audio_playback_service_play_test.dart` now pass, confirming the fix for the play/pause/resume logic within the service.
-2.  **Extensive Logging Added:** To aid in debugging the remaining issues (specifically the non-functional seek), detailed logging (`logger.d`, `logger.e`) has been added throughout:
-    *   `lib/features/audio_recorder/data/services/audio_playback_service_impl.dart`
-    *   `lib/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart`
-    *   `lib/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart`
-    These logs include method entry/exit points, key state variables, stream events, and error details with stack traces.
-3.  **Remaining Issue:** The problem with **seek functionality not working** as described in the original critical issue is **still outstanding** and requires investigation, now aided by the new logging.
+**Root Cause:** The `AudioPlaybackServiceImpl.play()` method always performed a full stop/setSourceUrl/resume sequence, even when the requested file was already loaded and paused. Instead of simply resuming from the current position, it restarted playback from the beginning.
 
-## Root Cause Analysis
-
-The fundamental issue is in `AudioPlaybackServiceImpl.play()` method:
+**Fix:** 
+- Modified the `play()` method to check if the player state is paused and if the requested file path matches the current file
+- If both conditions are true, only `_audioPlayerAdapter.resume()` is called
+- Otherwise, the full stop/setSourceUrl/resume sequence is performed
 
 ```dart
 Future<void> play(String pathOrUrl) async {
-  logger.d('SERVICE PLAY [$pathOrUrl]: START');
-  try {
-    final isSameFile = pathOrUrl == _currentFilePath;
-
-    // Always perform a full stop/load/play
-    logger.d('SERVICE PLAY [$pathOrUrl]: Playing file from beginning...');
-    logger.d('SERVICE PLAY [$pathOrUrl]: Calling stop...');
-    await _audioPlayerAdapter.stop();
-    logger.d('SERVICE PLAY [$pathOrUrl]: Stop complete.');
-
-    // Update current path only if it's different
-    if (!isSameFile) {
-      logger.d('SERVICE PLAY [$pathOrUrl]: Setting mapper path...');
-      // Let the mapper know the context
-      _playbackStateMapper.setCurrentFilePath(pathOrUrl);
-      _currentFilePath = pathOrUrl; // Update current file path
-      logger.d('SERVICE PLAY [$pathOrUrl]: Mapper path set.');
-    }
-
-    logger.d('SERVICE PLAY [$pathOrUrl]: Calling setSourceUrl...');
-    await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-    logger.d('SERVICE PLAY [$pathOrUrl]: setSourceUrl complete.');
-
-    logger.d('SERVICE PLAY [$pathOrUrl]: Calling resume...');
-    await _audioPlayerAdapter.resume();
-    logger.d('SERVICE PLAY [$pathOrUrl]: Resume complete.');
-
-    logger.d('SERVICE PLAY [$pathOrUrl]: END (Success)');
-  } catch (e, s) {
-    logger.e('SERVICE PLAY [$pathOrUrl]: FAILED', error: e, stackTrace: s);
-    _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
-    // Rethrow or handle as needed
-    rethrow;
-  }
-}
-```
-
-The critical flaw is the comment: **"Always perform a full stop/load/play"** and the implementation below it. When the user presses play after pausing, rather than resuming from the current position, the service:
-
-1. Stops the player completely (resetting position)
-2. Sets the source URL again (reinitializing the player)
-3. Calls resume() on a freshly initialized player (starting from the beginning)
-
-## What Went Wrong in Our Approach
-
-This issue reveals several critical flaws in our development approach:
-
-1. **Misunderstanding of Audio Player Behavior**: The implementation ignores that `just_audio`'s `play()` method automatically handles resuming from the current position when paused.
-
-2. **Testing Implementation Details Instead of Behavior**: Our tests verify that methods get called in expected sequences rather than verifying that the player behaves correctly from a user perspective. 
-
-3. **Explicitly Testing for Wrong Behavior**: We have tests that actively validate the wrong behavior with names like `'play called on paused file should restart with stop, setSourceUrl, resume'`.
-
-4. **Missing User-Centric Testing**: None of our tests model the basic user interaction pattern of play → pause → play with an expectation of resuming from the same position.
-
-5. **Abstraction Overload**: Our layered architecture (cubits, services, adapters, mappers) obscured the core user requirements in implementation details.
-
-6. **Comment-Driven Development**: The faulty comment "Always perform a full stop/load/play" shows we documented our assumptions without validating them.
-
-## Fix Strategy: Preserving Architecture, Fixing Approach
-
-We don't need to burn down our architecture; we need to realign our implementation and tests with actual user needs:
-
-### 1. Start with Integration Tests for User Flows
-
-Add a test that verifies the entire user flow works correctly:
-
-```dart
-test('User flow: play, pause, then play again should resume from pause position', () async {
-  // Arrange - Setup player with a file
-  // Act - play, pause, then play again
-  // Assert - verify position is maintained after the second play
-});
-```
-
-### 2. Correct the Implementation
-
-Fix the `play()` method to check the player state before deciding whether to restart or resume:
-
-```dart
-Future<void> play(String pathOrUrl) async {
-  logger.d('SERVICE PLAY [$pathOrUrl]: START');
   try {
     final isSameFile = pathOrUrl == _currentFilePath;
     final isPaused = _lastKnownState.maybeWhen(
       paused: (_, __) => true,
-      orElse: () => false
+      orElse: () => false,
     );
-    
+
     if (isSameFile && isPaused) {
-      // Same file and paused - just resume
-      logger.d('SERVICE PLAY [$pathOrUrl]: Resuming paused file...');
-      await _audioPlayerAdapter.resume(); // This calls just_audio's play()
-      logger.d('SERVICE PLAY [$pathOrUrl]: Resume complete.');
+      // If paused on the same file, just resume
+      await _audioPlayerAdapter.resume();
     } else {
       // Different file or not paused - perform full restart
-      logger.d('SERVICE PLAY [$pathOrUrl]: Full initialization needed...');
-      
-      // Always stop first to clean up resources
-      logger.d('SERVICE PLAY [$pathOrUrl]: Calling stop...');
       await _audioPlayerAdapter.stop();
-      logger.d('SERVICE PLAY [$pathOrUrl]: Stop complete.');
-
-      // Update path and tell mapper if different file
+      
       if (!isSameFile) {
-        logger.d('SERVICE PLAY [$pathOrUrl]: Setting mapper path...');
-        _playbackStateMapper.setCurrentFilePath(pathOrUrl);
         _currentFilePath = pathOrUrl;
-        logger.d('SERVICE PLAY [$pathOrUrl]: Mapper path set.');
+        // Update mapper context if needed
       }
-
-      // Set source and start playback
-      logger.d('SERVICE PLAY [$pathOrUrl]: Calling setSourceUrl...');
+      
       await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-      logger.d('SERVICE PLAY [$pathOrUrl]: setSourceUrl complete.');
-
-      logger.d('SERVICE PLAY [$pathOrUrl]: Calling resume...');
       await _audioPlayerAdapter.resume();
-      logger.d('SERVICE PLAY [$pathOrUrl]: Resume complete.');
     }
-
-    logger.d('SERVICE PLAY [$pathOrUrl]: END (Success)');
   } catch (e, s) {
-    logger.e('SERVICE PLAY [$pathOrUrl]: FAILED', error: e, stackTrace: s);
     _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
     rethrow;
   }
 }
 ```
 
-### 3. Fix Tests with Wrong Expectations
+### 2. Seek Functionality Bug
+**Issue:** Seek functionality wasn't working, particularly when seeking a file before its first play.
 
-Update tests that enforce the wrong behavior to expect the correct behavior instead.
+**Root Cause:** The `just_audio` player ignores seek calls if the audio source has not been loaded via `setSourceUrl()`. Additionally, the `AudioListCubit` lacked the necessary context (filePath) in its `seekRecording` method.
 
-### 4. Add Position Verification Tests 
-
-Add tests that explicitly verify position is maintained when resuming from pause.
-
-## Files That Need Modification
-
-### Core Implementation Files
-
-1. **lib/features/audio_recorder/data/services/audio_playback_service_impl.dart**
-   - **Primary Bug Fix**: Modify the `play()` method to check if the audio is paused and it's the same file, and if so, just call `resume()` without stopping/reloading
-   - Lines to change: ~50-90
-   - Complexity: Medium (requires checking current state)
-
-### Test Files That Validate Incorrect Behavior
-
-1. **test/features/audio_recorder/data/services/audio_playback_service_play_test.dart**
-   - **Test Update**: Modify the test `'play called on paused file should restart with stop, setSourceUrl, resume'` to validate the correct resume behavior
-   - Lines to change: ~440-520
-   - Complexity: Medium (requires rewriting assertions)
-
-2. **test/features/audio_recorder/data/services/audio_playback_service_pause_seek_stop_test.dart**
-   - No specific test for the paused scenario, but should be checked carefully for any assumptions about state transitions
-   - Potentially add a test for proper paused state handling if missing
-
-3. **test/features/audio_recorder/presentation/cubit/audio_list_cubit_test.dart**
-   - **Test Update**: Check and update the `'Play -> Pause -> Play Again Sequence'` test group 
-   - Specifically update the position expectations after the "play again" step
-   - Lines to change: ~520-630
-   - Complexity: Medium (needs verification of position expectations)
-
-### New Tests To Add
-
-1. **Integration test that verifies the entire flow**
-   - Add: `'play-pause-play flow should maintain position'`
-   - Complexity: Medium (needs setup with position tracking)
-
-2. **Widget test that verifies user interaction**  
-   - Add: UI test that verifies the full play→pause→play cycle with position checking
-   - Complexity: High (requires mocking full widget tree and state)
-
-### Files That Don't Need Changes
-
-1. **lib/features/audio_recorder/domain/adapters/audio_player_adapter.dart**
-   - The interface is correct as-is with separate `pause()` and `resume()` methods
-
-2. **lib/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart** 
-   - The implementation is already correct, mapping `resume()` to `_audioPlayer.play()`
-
-3. **lib/features/audio_recorder/presentation/cubit/audio_list_cubit.dart**
-   - The cubit is calling the correct service methods; the bug is in the service implementation
-
-## Detailed Implementation and Testing
-
-### 1. Fix for audio_playback_service_impl.dart
-
-The implementation is provided above in the "Correct the Implementation" section.
-
-### 2. Update to audio_playback_service_play_test.dart
-
-Update test case name and expectations:
+**Fix:** 
+- Modified `AudioPlaybackServiceImpl.seek()` to "prime the pump" for fresh seeks:
+  - If file not already loaded, call `stop()`, `setSourceUrl()`, `seek()`, and `pause()`
+  - This ensures the audio is loaded and positioned correctly
+- Updated `AudioListCubit.seekRecording()` to accept both `filePath` and `position`
+- Updated `AudioPlayerWidget` to pass the correct `filePath` to the cubit's `seekRecording` method
 
 ```dart
-test(
-  'play called on paused file should resume from current position without stop/setSourceUrl',
-  () async {
-    logger.d('TEST [resume paused]: Starting');
-    const testFilePath = '/path/to/paused_file.mp3';
-    const testDuration = Duration(seconds: 60);
-    const pausePosition = Duration(seconds: 15);
-    
-    // Arrange: Simulate initial play and pause sequence
-    // (setup code remains largely the same)
-    
-    // Act: Call play again with the SAME file path
-    logger.d('TEST [resume paused]: Calling play again...');
-    await service.play(testFilePath);
-    logger.d('TEST [resume paused]: Second play call complete.');
-    
-    // Assert: Verify resume was called directly without stop/setSourceUrl
-    logger.d('TEST [resume paused]: Verifying interactions...');
-    verifyNever(mockAudioPlayerAdapter.stop());        // Should NOT call stop
-    verifyNever(mockAudioPlayerAdapter.setSourceUrl(any)); // Should NOT call setSourceUrl
-    verify(mockAudioPlayerAdapter.resume()).called(1); // Should call resume
-    
-    logger.d('TEST [resume paused]: Interactions verified. Test END.');
-  },
-);
+Future<void> seek(String filePath, Duration position) async {
+  try {
+    final isTargetSameAsCurrent = filePath == _currentFilePath;
+
+    // Scenario 1: Seeking within the currently playing/paused file
+    if (isTargetSameAsCurrent && _currentFilePath != null) {
+      await _audioPlayerAdapter.seek(_currentFilePath!, position);
+    }
+    // Scenario 2: Seeking to a new file or seeking when player is stopped/initial
+    else {
+      // --- Prime the Pump --- Needs explicit pause after seek
+      await _audioPlayerAdapter.stop();
+      _currentFilePath = filePath;
+      await _audioPlayerAdapter.setSourceUrl(filePath);
+      await _audioPlayerAdapter.seek(filePath, position);
+      await _audioPlayerAdapter.pause();
+    }
+  } catch (e) {
+    _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
+    rethrow;
+  }
+}
 ```
 
-## Changing Our Testing Philosophy
+### 3. Dependency Injection Issue
+**Issue:** State updates weren't properly propagating through the system, causing UI inconsistencies.
 
-To prevent similar issues in the future, we need to adopt a test-from-usage philosophy:
+**Root Cause:** The mapper was not being properly initialized with the adapter's streams in the dependency injection setup.
 
-1. **Start with User Needs**: Write tests from the user's perspective first
-2. **Focus on Outcomes, Not Implementation**: Test that the correct thing happens, not just that methods get called
-3. **Question Implementation Details**: Don't document assumptions, validate them
-4. **Balance Unit and Integration Tests**: Unit tests give precision, integration tests give confidence in real-world usage
-
-## Implementation Steps
-
-1. **Write the Integration Test First**: This sets the expectation for the system as a whole
-2. **Fix the Implementation**: Add the state check to the `play()` method
-3. **Update Existing Tests**: Fix the tests that expect the wrong behavior 
-4. **Run Manual Testing**: Verify the fix works in all scenarios:
-   - Play → Pause → Play (should resume from paused position)
-   - Play → Pause → Play other file (should start new file from beginning)
-   - Play → Complete → Play same file (should restart from beginning)
-   - Play → Stop → Play same file (should restart from beginning)
-   - Test with both local and remote audio sources
-
-## Conclusion
-
-This issue demonstrates how a technically correct implementation can still fail to meet user needs. Clean Architecture is valuable, but it must be guided by clear user-focused requirements and tests.
-
-The path forward isn't to abandon our architecture, but to realign our implementation and tests with what users actually need. By fixing the tests to validate correct behavior and updating the implementation to check player state, we can resolve this issue while strengthening our development approach for the future. 
-
-## Update: Service Logic Fixed, Focus Shifted to State Propagation
-
-Following the TDD approach outlined above:
-
-1.  **New Test Added:** A test case (`'play called on the same file while paused should RESUME playback, not restart'`) was added to `test/features/audio_recorder/data/services/audio_playback_service_play_test.dart`. This test specifically asserts the correct resume behavior (calling `resume()` only, without `stop()` or `setSourceUrl()`). It initially failed, confirming the bug in the service implementation.
-2.  **Service Implementation Fixed:** The `play` method in `lib/features/audio_recorder/data/services/audio_playback_service_impl.dart` was modified. It now correctly checks `_lastKnownState` using `maybeWhen`. If the state is `paused` and the `pathOrUrl` matches `_currentFilePath`, it only calls `_audioPlayerAdapter.resume()`. Otherwise, it performs the full stop/setSourceUrl/resume sequence.
-3.  **Obsolete Test Removed:** The old test case (`'play called on the same file while paused should properly restart playback from beginning'`) that validated the incorrect restart behavior was removed after the fix was implemented and the new test passed.
-4.  **Service Tests Pass:** All tests in `audio_playback_service_play_test.dart` now pass, confirming the fix for the play/pause/resume logic *within the service itself*.
-
-### New Problem: UI State Synchronization
-
-Despite the service logic being fixed and verified by unit tests, the observed behavior in the UI remained incorrect: pressing the play button on an already playing track *still* restarted it instead of pausing.
-
-**Root Cause Analysis (Current Issue):**
-
-Logs revealed the following sequence:
-1.  User taps play. Service starts playing.
-2.  Service reports `PlaybackState.playing` back up the chain (via Mapper to Cubit).
-3.  User taps the play button *again*.
-4.  **Crucially**, the `AudioPlayerWidget` instance handling the button tap still has `isPlaying = false` in its state when the `onPressed` handler executes.
-5.  Because `isPlaying` is perceived as `false`, the widget's `onPressed` handler incorrectly calls `cubit.playRecording()` *again*, instead of `cubit.pauseRecording()`.
-6.  The service receives a second `play` command while its internal state might still be `playing` (or potentially reset by the rapid second call), leading it to execute the "full restart" path.
-
-**Conclusion (Current Issue):**
-
-The problem is **NOT** in the `AudioPlaybackServiceImpl.play()` method's core logic anymore. The issue lies in the **state propagation and synchronization** between the `AudioListCubit` and the `AudioPlayerWidget`. The UI is not receiving or rebuilding with the updated `isPlaying = true` state quickly enough, or there's a flaw in how the state comparison or emission works in the Cubit (`_onPlaybackStateChanged`).
-
-**Next Steps (Debugging State Propagation):**
-
-1.  **Verify Cubit Emission:** Added detailed logging in `AudioListCubit._onPlaybackStateChanged` to confirm:
-    *   That it correctly calculates `PlaybackInfo` with `isPlaying = true` when receiving `PlaybackState.playing`.
-    *   Whether the `Equatable` comparison (`currentState.playbackInfo != newPlaybackInfo`) evaluates to `true`, triggering an `emit`.
-2.  **Verify UI Reception:** If the Cubit *is* emitting the correct state, the next step is to add logging to the `BlocBuilder<AudioListCubit, AudioListState>` that builds the `AudioPlayerWidget` list, logging the received `state.playbackInfo` on each rebuild to see when/if the UI receives the update.
-
-The investigation continues, focusing now on the Cubit's state management and the UI's reaction to it. 
-
-## Update 2: Play/Pause/Resume Fixed - Root Cause: Missing DI Wiring & State Propagation
-
-The plot thickened. While the previous update correctly identified a state synchronization issue, the *true* root cause was deeper:
-
-1.  **Dependency Injection Failure:** The core issue was discovered in `lib/core/di/injection_container.dart`. While the `AudioPlayerAdapterImpl`, `PlaybackStateMapperImpl`, and `AudioPlaybackServiceImpl` were registered, the crucial step of **connecting the mapper to the adapter's streams was missing**. The `PlaybackStateMapperImpl.initialize()` method, which subscribes the mapper to the adapter's `onPlayerStateChanged`, `onPositionChanged`, etc., was never called.
-    *   **Impact:** The mapper remained deaf to adapter events. The service, listening only to the mapper's stream, never received accurate state updates (`playing`, `paused`), causing its internal `_lastKnownState` to be incorrect. This forced the service's `play()` method down the restart path (`stop`/`setSourceUrl`/`resume`) even when a resume was intended.
-    *   **Fix:** Modified the `AudioPlaybackService` registration in `injection_container.dart` to explicitly call `(mapper as PlaybackStateMapperImpl).initialize(...)` with the adapter's streams after resolving both dependencies.
-
-2.  **Log Spam & Filtering:** After fixing the DI, state updates flowed correctly, but revealed excessive logging due to high-frequency position updates (~60Hz) from `just_audio` propagating through the chain. The RxDart `.distinct()` operator in the mapper was initially too simple.
-    *   **Fix 1 (Filtering):** Implemented a custom comparison function for `.distinct()` in `PlaybackStateMapperImpl` to ignore `currentPosition` changes unless the state type (playing/paused) or `totalDuration` (within a tolerance) also changed. This successfully filtered the *state* spam.
-    *   **Fix 2 (Logging):** Silenced the verbose `DEBUG` level logs related to stream propagation (`Pre-Distinct`, internal `distinct` comparison, `Post-Distinct`, `SERVICE_RX`, `CUBIT_onPlaybackStateChanged`, etc.) across the Adapter, Mapper, Service, and Cubit layers, as they were obscuring analysis during normal operation.
-
-**Outcome:**
-With the DI wiring fixed and the state stream filtering/logging refined, the play/pause/resume functionality now **works correctly** in the UI. The button icon updates appropriately, and the audio pauses and resumes as expected.
-
-## Why Didn't Our Tests Catch This?
-
-This painful debugging journey highlights critical gaps in our testing strategy:
-
-1.  **Unit Test Isolation:** Our unit tests for `AudioPlaybackServiceImpl` were highly effective at verifying its *internal logic* based on controlled inputs (mocked mapper stream). However, they were completely blind to the interaction *between* components and the dependency injection setup. The service logic was correct (after the first fix), but it never received the right inputs in the real app.
-2.  **Missing Integration Tests:** We lacked tests covering the crucial link between the `AudioPlayerAdapter`, `PlaybackStateMapper`, and `AudioPlaybackService`. A test verifying that events from the adapter stream *actually result* in state changes on the service's output stream would have caught the missing `mapper.initialize()` call.
-3.  **Over-Reliance on Mocking Behavior:** We mocked the *output* of the mapper (`mockMapper.playbackStateStream`) in the service tests, rather than mocking the *input* streams from the adapter and verifying the mapper's output. This hid the internal wiring problem.
-4.  **Insufficient UI/Widget Testing:** While widget tests might exist, they likely mocked the Cubit state directly. A widget test interacting with a less-mocked Cubit (connected to a service with the DI issue) *might* have shown the button state never updating, hinting at the underlying problem.
-
-**In short, we tested the units in isolation but failed to test the fucking plumbing connecting them.**
-
-## Next Steps: Fixing Seek & Improving Tests
-
-With play/pause/resume working, the remaining known issue is the non-functional seek.
-
-**Debugging Seek:**
-1.  **Isolate & Log:** Capture logs specifically generated during a seek attempt (dragging the slider).
-2.  **Trace Path:** Follow the call stack: `AudioPlayerWidget.Slider.onChanged` -> `AudioListCubit.seekRecording` -> `AudioPlaybackService.seek` -> `AudioPlayerAdapter.seek` -> `just_audio.seek`.
-3.  **Analyze Behavior:** Observe what happens visually (slider jump? audio change?) and correlate with logs to find the failure point.
-4.  **Review Logic:** Check slider value calculation, duration conversion, and any state checks within the seek methods.
-
-**Improving Test Strategy:**
-1.  **Add Mapper Integration Tests:** Test `PlaybackStateMapperImpl` by providing mock input streams (adapter outputs) and verifying the emitted `PlaybackState` stream.
-2.  **Add Service Integration Tests:** Test `AudioPlaybackServiceImpl` by connecting it to a *real* `PlaybackStateMapperImpl` (which in turn gets mock input streams) and verifying the service's output stream and state transitions.
-3.  **Add Cubit Integration Tests:** Test `AudioListCubit` with a less-mocked `AudioPlaybackService` to ensure it handles service state updates correctly.
-4.  **Enhance Widget Tests:** Ensure `AudioPlayerWidget` tests cover UI updates based on various `PlaybackInfo` states received from a mocked Cubit.
-5.  **Consider End-to-End:** Evaluate adding integration_test for the full play/pause/seek/stop user flow.
-
-## Update 3: Playhead Updates Fixed, Seek Still Broken
-
-Progress! We've slain several dragons:
-
-1.  **State Stream Filtering Fixed:** The overly aggressive `.distinct()` filter in `PlaybackStateMapperImpl` was corrected. It now allows `currentPosition` updates through during playback by comparing positions within a tolerance, not just the state type.
-2.  **Slider Precision Fixed:** The `AudioPlayerWidget`'s `Slider` calculations (`sliderMax`, `sliderValue`) were updated to use milliseconds instead of seconds, matching the precision of the incoming `currentPosition` updates.
-3.  **Seek Trigger Optimized:** The seek command (`context.read<AudioListCubit>().seekRecording`) was moved from the `Slider`'s `onChanged` callback to `onChangeEnd`, preventing excessive seek commands during dragging.
-
-**Outcome:**
-The playhead (slider thumb and position text) now updates **smoothly and correctly** during audio playback.
-
-**Remaining Issue:**
-Despite the `onChangeEnd` callback successfully triggering the `seekRecording` call with the correct target `Duration` (verified by logs), the **seek action itself still fails visually.** When the user drags the slider and releases, the slider thumb **does not jump** to the target position, even though the underlying audio player *might* be seeking correctly (needs confirmation).
-
-**Current Hypothesis:**
-The issue likely lies in how the state is updated *after* the seek command is sent. Possible causes:
-*   The `just_audio` player might not emit a position update immediately after a `seek()` call, especially if paused. Updates might only resume upon playback.
-*   The `PlaybackStateMapper` or `AudioListCubit` might still be inadvertently filtering or mishandling the state update that *should* reflect the new position post-seek.
-*   The UI (`AudioPlayerWidget`) isn't receiving or reacting to the post-seek state update correctly.
-
-**Next Steps:**
-1.  **Detailed Seek Testing:** Need to determine *exactly* what happens visually and audibly after `onChangeEnd` fires in different scenarios (seeking while playing vs. seeking while paused).
-2.  **Trace Post-Seek State:** Analyze logs from the Mapper and Cubit immediately following the `onChangeEnd` event to see if the expected position update is generated and propagated.
-3.  **Implement Fix:** Based on findings, potentially manually update the Cubit state in `seekRecording` for immediate visual feedback, or fix any propagation issues found.
-
-## Update 4: Seek Interaction Bugs & Lessons Learned
-
-We've made progress, but encountered subtle state synchronization issues related to seeking:
-
-**Current State:**
-1.  **Play/Pause/Resume:** Functional.
-2.  **Playback Position Update:** Playhead (slider, text) updates smoothly during playback.
-3.  **Seek Drag Visuals:** Slider thumb follows finger drag correctly (using local `StatefulWidget` state).
-4.  **Seek Action (Click/Release):**
-    *   Slider thumb jumps visually to the correct position upon release (local state update).
-    *   The underlying seek command *is* sent correctly to the service/adapter.
-
-**Remaining Critical Bugs:**
-1.  **First Seek Resets to Zero:** Immediately after the *first* seek action (drag/release) on a file, the playhead visually resets to zero. This occurs because the first state update propagated back from the service/cubit reports position zero, likely due to timing issues where the position stream hasn't updated yet post-seek.
-2.  **Subsequent Seeks Work (Post-Play):** After hitting the Play button *once* (on any file), subsequent seek actions on *that same file* work correctly – the playhead stays put after release, and playback resumes from the seeked position.
-3.  **Cross-File Interference:** Seeking in one file *after* the initial Play may cause incorrect position/duration state to appear when interacting with *other* files before playing them explicitly.
-4.  **Pause After Seek Unresponsive:** Clicking the Pause button immediately after a seek action (when the button correctly shows Pause) often does nothing, suggesting the underlying player state is paused, but the UI state (`isPlaying=true`) isn't corrected until later.
-
-**Lessons Learned:**
-*   **DI & Integration Testing:** Unit tests are insufficient for catching issues related to dependency injection wiring and inter-component communication (Mapper not initialized, Service stream not connected properly).
-*   **State Stream Filtering:** Reactive stream operators like `.distinct()` must be carefully designed. Overly aggressive filtering can block necessary state updates (e.g., position updates during playback, play/pause transitions).
-*   **UI Responsiveness vs. State Consistency:** Achieving immediate UI feedback (like slider dragging/jumping) often requires temporary local state management (`StatefulWidget`). However, this local state must be carefully synchronized with the authoritative state flowing from the service/cubit to avoid inconsistencies.
-    *   Relying *only* on the natural state stream post-action can feel laggy.
-    *   Emitting state *manually* from higher layers (Cubit optimistic updates, Service immediate emissions post-seek) can fix lag but introduces significant risks of race conditions and inconsistencies if not perfectly aligned with the *actual* state changes happening deeper down (e.g., causing the Pause button issue).
-*   **State Initialization:** The initial state of the player/service/cubit upon app start or after stopping playback significantly impacts the behavior of the first interaction (like the first seek resetting).
-*   **Context Management:** Ensuring the correct context (current file path, duration) is available and used consistently across layers (Widget, Cubit, Service) during actions like seek is crucial, especially when playback might be stopped.
-
-**Next Steps:**
-Focus on fixing the "First Seek Resets to Zero" and "Pause After Seek Unresponsive" bugs by ensuring the state propagation after a seek is both timely *and* accurate, likely by having the Service emit a definitive `paused` state with the correct position *and duration* immediately after a seek action completes. 
-
-## Update 5: "Fresh Seek" Reset Bug FIXED
-
-After much bullshit and chasing our tails, the "Fresh Seek" bug (seeking on a file before its first play causes position reset on subsequent play) and the related UI flickering are **fixed**.
-
-**Root Cause Confirmed:**
-*   **`just_audio` Behavior:** The core issue was exactly as suspected. The `just_audio` player **ignores `seek()` calls if the audio source has not been loaded** via `setSourceUrl()` or `load()`. Seeking before the first play did nothing to the player's internal state.
-*   **Cubit Context:** The `AudioListCubit` initially lacked the necessary context (`filePath`) in its `seekRecording` method to know *which* file the user intended to seek, preventing it from informing the service correctly.
-
-**The Goddamn Fix:**
-
-1.  **Service-Level Priming:** The `AudioPlaybackServiceImpl.seek()` method was modified.
-    *   It now accepts the `pathOrUrl` of the file to seek.
-    *   It checks if the requested file is the currently loaded one and if the player is in a "ready" state.
-    *   **Crucially**, if the file is *not* ready (i.e., it's a "fresh seek"), the service now "primes the pump":
-        *   Calls `adapter.stop()` to clear any previous state.
-        *   Updates its internal `_currentFilePath` and informs the `PlaybackStateMapper`.
-        *   Calls `adapter.setSourceUrl(pathOrUrl)` which **implicitly loads the audio**.
-        *   *Then* calls `adapter.seek(position)` on the now-loaded audio.
-        *   Finally, calls `adapter.pause()` immediately to prevent auto-play and ensure the player is left in a paused state at the correct seeked position.
-    *   If the file was already loaded, it simply calls `adapter.seek(position)`.
-
-2.  **Cubit Context Fixed:**
-    *   The `AudioListCubit.seekRecording()` method signature was corrected to accept both `filePath` and `position`.
-    *   The `AudioPlayerWidget` was updated to call the Cubit's `seekRecording` with the correct `filePath` from its `widget.filePath`.
-    *   The Cubit now correctly sets its internal `_currentPlayingFilePath` when `seekRecording` is called, ensuring subsequent `playRecording` or `resumeRecording` calls target the correct, primed file.
-
-**Outcome:**
-*   Seeking a file *before* its first play now correctly loads the audio source, seeks to the desired position, and leaves the player paused at that position.
-*   Pressing Play/Resume after a "fresh seek" correctly starts playback from the seeked position, not from zero.
-*   The UI flickering on the first play action is resolved because the audio metadata (like `totalDuration`) is loaded during the priming step in the seek logic, preventing unexpected state changes during the subsequent play action.
-
-**Final Lessons Learned (Reiteration):**
-*   **Know Your Dependencies:** Don't assume library behavior. `just_audio`'s `seek` requirement was the core problem. RTFM or test in isolation.
-*   **Context is King:** Ensure all layers (Widget -> Cubit -> Service) have the necessary context (like `filePath`) to perform actions correctly, especially when dealing with multiple items.
-*   **Trust, but Verify (with Logs):** Logging was essential to trace the state flow and identify that the Cubit was missing context and the Service wasn't priming the player.
-*   **Test the Plumbing:** Integration tests covering the interaction between Widget -> Cubit -> Service -> Adapter would have likely caught the missing context or the ignored seek much earlier. Unit tests for isolated components were insufficient.
-
-This concludes the saga of the shitty audio player seek functionality. It should now work as expected. 
-
-## Final Resolution Summary (Post-Verification)
-
-Following extensive debugging and verification against the codebase:
-
-1.  **Play/Pause/Resume Functionality:** **FIXED.** The core issue where playing a paused track restarted it is resolved.
-    *   **Primary Fix Mechanism:** The `AudioListCubit` was verified to correctly call the `AudioPlaybackService.resume()` method when the user attempts to play an already paused track. This ensures the playback resumes from the paused position.
-    *   **Service `play()` Method:** While the Cubit handles the standard resume flow, the `AudioPlaybackService.play()` method *was* updated as a safeguard. It now correctly checks the player state (`_lastKnownState`) and the file path. If called for the same file while paused, it will execute `_audioPlayerAdapter.resume()`; otherwise, it performs a full restart. This makes the service's `play()` method robust, although it's not the primary path for resuming in the verified user flow.
-
-2.  **Seek Functionality ('Fresh Seek' Bug):** **FIXED.** The issue where seeking on a file *before* its first play caused the position to reset upon starting playback is resolved.
-    *   **Fix Mechanism:** The `AudioPlaybackService.seek()` method now correctly "primes the pump". When seeking a file that isn't loaded/ready, it first calls `stop()`, then `setSourceUrl(pathOrUrl)` (which loads the audio), then `seek(position)`, and finally `pause()` to leave the player in the correct state at the seeked position. This ensures the player is ready and at the correct position when playback is subsequently initiated.
-
-3.  **Code Alignment:** The implementations in `AudioPlaybackServiceImpl` (for both `play` and `seek`) and `AudioListCubit` (for `seekRecording` and calling `resumeRecording`) now align with this final state.
-
-## Test Reliability and Async Testing Best Practices
-
-A key challenge in this refactor was reliably testing asynchronous behaviors, particularly with streaming APIs. Some tests that correctly validated behavior in principle were failing inconsistently due to timing issues and race conditions. Here are the key lessons learned:
-
-### 1. Direct State Collection vs. Stream Matchers
-
-The original tests used Dart's `expectLater` with `emits`/`emitsInOrder` to verify stream emissions:
+**Fix:** Updated the `AudioPlaybackService` registration in `injection_container.dart` to explicitly call `(mapper as PlaybackStateMapperImpl).initialize(...)` with the adapter's streams after resolving both dependencies.
 
 ```dart
-final stateExpectation = expectLater(
-  service.playbackStateStream.skip(2), // Skip initial states 
-  emits(resumedPlayingState), // Expect exactly the resumed state
-);
+// In injection_container.dart
+sl.registerLazySingleton<AudioPlaybackService>(() {
+  // Resolve dependencies first
+  final adapter = sl<AudioPlayerAdapter>();
+  final mapper = sl<PlaybackStateMapper>();
 
-// Perform actions...
+  // Initialize the mapper with the adapter's streams
+  (mapper as PlaybackStateMapperImpl).initialize(
+    positionStream: adapter.onPositionChanged,
+    durationStream: adapter.onDurationChanged,
+    completeStream: adapter.onPlayerComplete,
+    playerStateStream: adapter.onPlayerStateChanged,
+  );
 
-await stateExpectation; // Wait for expected state
+  // Create the service with wired dependencies
+  return AudioPlaybackServiceImpl(
+    audioPlayerAdapter: adapter,
+    playbackStateMapper: mapper,
+  );
+});
 ```
 
-This approach is concise but fails in complex scenarios with multiple state transitions because:
-- It's sensitive to timing issues between emissions
-- It provides poor diagnostics when expectations fail
-- Filtering with `.skip(N)` becomes brittle if the state sequence changes
+### 4. State Stream Filtering Issues
+**Issue:** Excessive state updates causing UI flickering and performance issues.
 
-The more reliable approach is collecting states manually:
+**Root Cause:** The RxDart `.distinct()` operator in the mapper was too simplistic, causing either too many or too few state updates to propagate.
+
+**Fix:** Implemented custom comparison function for `.distinct()` in `PlaybackStateMapperImpl` to handle position changes correctly.
 
 ```dart
+bool _areStatesEquivalent(PlaybackState prev, PlaybackState next) {
+  final bool sameType = prev.runtimeType == next.runtimeType;
+  if (!sameType) return false;
+
+  // Extract position and duration data
+  Duration prevDuration = Duration.zero;
+  Duration nextDuration = Duration.zero;
+  Duration prevPosition = Duration.zero;
+  Duration nextPosition = Duration.zero;
+  const Duration tolerance = Duration(milliseconds: 100);
+
+  // Extract data using mapOrNull for each state type
+  prev.mapOrNull(
+    playing: (s) { 
+      prevDuration = s.totalDuration;
+      prevPosition = s.currentPosition;
+    },
+    paused: (s) {
+      prevDuration = s.totalDuration;
+      prevPosition = s.currentPosition;
+    },
+    // Handle other states...
+  );
+  // Similar extraction for next state...
+
+  // Compare with tolerance
+  final bool durationWithinTolerance = 
+    (prevDuration - nextDuration).abs() <= tolerance;
+  final bool positionWithinTolerance = 
+    (prevPosition - nextPosition).abs() <= tolerance;
+
+  return durationWithinTolerance && positionWithinTolerance;
+}
+```
+
+## Key Lessons Learned
+
+### Architecture and Testing Lessons
+
+1. **Test the Plumbing, Not Just Components**
+   - Unit tests for isolated components missed critical integration issues
+   - We tested individual units perfectly but missed how they connected
+   - Testing the connection between AudioPlayerAdapter, PlaybackStateMapper, and AudioPlaybackService would have caught the missing `initialize()` call
+
+2. **Integration Tests are Essential**
+   - End-to-end tests covering the full play/pause/seek flows are necessary
+   - Should trace state propagation through all layers of the architecture
+
+3. **Dependency Injection Verification**
+   - Verify that DI container properly initializes and connects components
+   - Explicit initialization steps in DI need special attention in tests
+   - Consider factory methods that ensure proper wiring
+
+4. **Test from User Perspective**
+   - Write tests that model actual user behavior
+   - Focus on verifying outcomes, not just that methods are called
+   - Test for "play → pause → play should resume from same position" instead of "resume() should be called"
+
+### Implementation Lessons
+
+1. **Understand Underlying Libraries**
+   - The `just_audio` player requires loading audio before seeking
+   - Incorrect assumptions about library behavior caused multiple bugs
+   - Always read documentation or test libraries in isolation
+
+2. **State Management Principles**
+   - Maintain clear ownership of state across layers
+   - Ensure proper context (like filePath) is available at every layer
+   - Handle state transitions carefully, especially with multiple audio files
+
+3. **Stream Processing Best Practices**
+   - Be careful with filtering operators like `.distinct()`
+   - Implement custom comparators for complex state objects
+   - Consider performance impact of high-frequency events (position updates)
+   - Use debouncing/throttling for UI-bound streams when appropriate
+
+4. **UI State Synchronization**
+   - Rapid state transitions need special handling to prevent flickering
+   - Consider local state for immediate feedback with authoritative state as source of truth
+   - Use animations to smooth visual transitions between states
+
+### Testing Strategy Improvements
+
+1. **Add Mapper Integration Tests**
+   - Test `PlaybackStateMapperImpl` by providing mock input streams
+   - Verify the correct `PlaybackState` events are emitted
+
+2. **Add Service Integration Tests**
+   - Test with real mapper and mock adapter
+   - Verify full state transition sequences work correctly
+
+3. **Add UI Widget Tests**
+   - Ensure UI correctly updates based on state changes
+   - Test edge cases like rapid button presses and seeks
+
+4. **Reliable Async Testing Patterns**
+   - Collect stream emissions manually rather than using complex matchers
+   - Add explicit delays for complex async scenarios
+   - Clear mocks between test phases to prevent interference
+   - Phase tests clearly: setup, actions, verification
+
+```dart
+// Better pattern for testing streams
 final emittedStates = <PlaybackState>[];
 final subscription = service.playbackStateStream.listen((state) {
-  logger.d('State received: $state'); // Debug logging
   emittedStates.add(state);
 });
 
 try {
   // Perform actions...
-  
-  // Allow time for processing
   await Future.delayed(Duration(milliseconds: 50));
   
-  // Verify specific state or sequence
-  expect(
-    emittedStates.last, 
-    equals(resumedPlayingState),
-    reason: 'Service should emit the resumed playing state',
-  );
+  // Verify results
+  expect(emittedStates.last, equals(expectedState));
 } finally {
-  // Always clean up subscription
+  // Always clean up
   await subscription.cancel();
 }
 ```
 
-This pattern provides:
-- Better visibility into all emitted states (aids debugging)
-- Reliable verification of complex state sequences
-- Freedom to make multiple assertions on the collected states
-- Explicit cleanup via try/finally
+## Conclusion
 
-### 2. Preventing Stream Processing Race Conditions
+The audio player functionality issues were resolved through careful analysis and systematic fixes. The core problems stemmed from:
 
-When testing async code, especially streams:
+1. Misunderstanding the behavior of the underlying audio player library
+2. Missing connections in dependency injection
+3. Improper state propagation and filtering
+4. Inadequate testing of integration points
 
-1. **Use `await Future.delayed(Duration.zero)`** after adding items to controllers:
+By addressing these issues and applying the lessons learned, we've not only fixed the immediate bugs but also established better patterns for future development. The revised implementation properly handles play/pause/resume and seeking functionality, providing a much-improved user experience.
+
+## TODOs: Remaining UI Flickering Issues
+
+After fixing the core functionality, we still have remaining UI flickering issues to address.
+
+### UI Flickering Analysis (Current Issues)
+
+We've identified several scenarios where the UI experiences unwanted flickering:
+
+1. When pressing play for the first time after launch
+2. When pressing play on a different audio file than the currently active one
+3. When performing a seek operation
+
+### Root Causes Analysis
+
+All three scenarios share a common characteristic: they involve state transitions through multiple intermediate states in a short time period. These rapid state transitions cause the `AudioPlayerWidget` to rebuild multiple times, resulting in visible flickering. Let's break down each scenario:
+
+#### 1. First Play After Launch
+
+When playing an audio file for the first time, the following sequence occurs:
+
+1. User taps play → `AudioListCubit.playRecording(filePath)` is called
+2. Cubit immediately sets `_currentPlayingFilePath` = filePath
+3. `AudioPlaybackService.play(filePath)` is called which:
+   - Calls `_audioPlayerAdapter.stop()` (redundant on first play)
+   - Updates `_currentFilePath` 
+   - Calls `_audioPlayerAdapter.setSourceUrl(filePath)`
+   - Calls `_audioPlayerAdapter.resume()`
+4. During this sequence, the adapter emits multiple state changes:
+   - `DomainPlayerState.loading` during source loading
+   - `DomainPlayerState.playing` after playback starts
+5. These state changes propagate through the mapper, service, and cubit
+6. The UI rebuilds for each state change, causing flickering
+
+The specific intermediate UI states causing flickering are:
+- CircularProgressIndicator appearing briefly during loading
+- Play button transitioning to pause
+- Duration changing from local metadata to actual audio file duration
+
+#### 2. Play on Different Audio File
+
+When switching to play a different audio file:
+
+1. User taps play → `AudioListCubit.playRecording(newFilePath)` is called
+2. Cubit sets `_currentPlayingFilePath` = newFilePath
+3. Service performs full restart sequence (stop, setSourceUrl, resume)
+4. Multiple state transitions occur:
+   - `activeFilePath` changes from old file to new file
+   - `isLoading` transitions from false → true → false
+   - `isPlaying` transitions from false → true
+   - `totalDuration` might change when new file metadata loads
+
+The display flickering is compounded by the `isActiveItem` logic in `audio_recorder_list_page.dart` which causes visual changes across both the previously active and newly active audio widgets simultaneously.
+
+#### 3. Seeking
+
+The seek operation experiences flickering because:
+
+1. User drags slider → `AudioListCubit.seekRecording(filePath, position)` is called
+2. For "fresh seek" (seeking before first play), service "primes the pump":
+   - Calls stop, setSourceUrl, seek, and pause
+3. This causes multiple state transitions through mapper and cubit
+4. Local state in `_AudioPlayerWidgetState._isDragging` and `_dragValue` 
+   interact with incoming state updates, creating visual inconsistencies
+5. The seek position might momentarily reset to zero before settling at the correct position
+
+### Key Implementation Insights
+
+Several implementation patterns contribute to the flickering issue:
+
+1. **Excessive State Rebuilds:**
+   - The entire list view rebuilds for every playback state change
+   - Each AudioPlayerWidget receives new props and rebuilds
+
+2. **StatefulWidget + External State:**
+   - AudioPlayerWidget is a StatefulWidget with local slider drag state
+   - It also receives state props from the parent (isPlaying, position, etc.)
+   - These two state sources can conflict during transitions
+
+3. **One-to-Many State Mapping:**
+   - A single global `PlaybackInfo` state in AudioListCubit is mapped to multiple AudioPlayerWidget instances
+   - The `isActiveItem` check determines which widget receives active state props
+
+4. **State Cleanup Timing:**
+   - When switching between files, the "deactivation" of the previous file's state and "activation" of the new file's state aren't synchronized
+
+### Potential Solutions
+
+Based on the analysis, here are recommended approaches to fix the flickering:
+
+1. **Reduce Rebuild Scope:**
+   - Use `BlocSelector` or `context.select` in the list view to only rebuild the affected AudioPlayerWidget
+   - Consider splitting PlaybackInfo into separate BLoCs for global state vs. individual item state
+
+2. **State Transition Optimization:**
+   - Add transition debouncing in the mapper using techniques like:
+     - Throttling rapid state changes 
+     - Using RxDart operators like `debounce()` or `bufferTime()` to coalesce multiple updates
+   - Implement optimistic UI updates for known sequences
+
+3. **Intermediate Loading State Design:**
+   - Improve loading state UI to minimize jarring transitions
+   - Consider cross-fade animations between states
+
+4. **Slider Interactions:**
+   - Only update position during actual playback, not during loading states
+   - Enhance local state handling during drag operations to prevent position resetting
+
+5. **Loading Performance:**
+   - Optimize file loading operations
+   - Pre-load audio file metadata when possible
+   - Consider parallel processing for audio loading and UI state updates
+
+### Implementation Priorities
+
+To address the flickering issues, we should focus on these improvements in order:
+
+1. Reduce rebuild frequency in the mapper by optimizing the `.distinct()` comparator and adding debounce/throttle
+2. Implement a UI state optimization layer in the Cubit to prevent propagating intermediate states
+3. Refine the AudioPlayerWidget to handle transitions more gracefully using local state
+4. Consider UI animations like cross-fades to smooth visual transitions
+
+The root issue is a classic challenge in reactive systems: balancing accurate state representation with smooth user experience. The current implementation prioritizes the former at the expense of the latter.
+
+## Systematic Debugging Plan
+
+To avoid endless trial and error in fixing the UI flickering issues, we need a methodical approach to identify the exact causes and implement targeted solutions. This plan outlines a systematic debugging strategy to address the issues identified above.
+
+### 1. Instrumentation of State Flow
+
+First, we'll add precise instrumentation to track state transitions through the system:
+
+```dart
+// Add timestamps and sequence IDs to track transition chains
+final sequenceId = DateTime.now().millisecondsSinceEpoch;
+logger.d('[STATE_FLOW #$sequenceId] Mapper emitting state: $state');
+```
+
+Key instrumentation points:
+- `PlaybackStateMapperImpl._constructState` (output)
+- `PlaybackStateMapperImpl.distinct` comparison logic
+- `AudioPlaybackServiceImpl` stream subscription
+- `AudioListCubit._onPlaybackStateChanged` (input/output)
+- `AudioPlayerWidget.build` with detailed property logging
+
+### 2. Visual Timeline Capture
+
+Implement a comprehensive logging system that captures all state transitions in a format that can be visualized:
+
+```dart
+void logStateTimeline(String source, String operation, Map<String, dynamic> props) {
+  logger.d('TIMELINE|${DateTime.now().millisecondsSinceEpoch}|$source|$operation|${jsonEncode(props)}');
+}
+```
+
+This standardized logging format will allow us to:
+1. Process logs with a simple script that generates a visual timeline
+2. Identify clusters of rapid rebuilds
+3. Visualize how state changes propagate through the system
+4. Measure time delays between state transitions
+
+### 3. Targeted Test Scenarios
+
+Create isolated test scenarios for each reported issue:
+
+1. **First Play Test:**
+   - Launch app
+   - Immediately press play on first file
+   - Log sequence of state transitions and UI rebuilds
+
+2. **File Switching Test:**
+   - Play File A
+   - Play File B without pausing File A
+   - Log state transitions in both widgets
+
+3. **Seek Operation Test:**
+   - Perform seek before first play ("fresh seek")
+   - Perform seek during playback
+   - Perform seek while paused
+   - Log all state and position updates
+
+Each test should collect complete timeline data and be run in a consistent environment.
+
+### 4. Widget Rebuild Analysis
+
+Use Flutter's built-in performance tools to objectively measure UI performance:
+
+1. **Enable Performance Overlay:**
    ```dart
-   mockPlaybackStateController.add(pausedState);
-   await Future.delayed(Duration.zero); // Process stream
+   MaterialApp(
+     showPerformanceOverlay: true,
+     // ... rest of app
+   )
    ```
-   This allows the event loop to complete one iteration, ensuring stream events are processed.
 
-2. **Add explicit delays for complex scenarios**:
+2. **Use Flutter DevTools:**
+   - Enable "Track widget rebuilds" in DevTools
+   - Run app with `flutter run --profile`
+   - Record and analyze rebuild patterns during problematic interactions
+
+3. **Implement Rebuild Counter:**
    ```dart
-   // For complex state synchronization:
-   await Future.delayed(Duration(milliseconds: 50));
+   int _buildCount = 0;
+   
+   @override
+   Widget build(BuildContext context) {
+     _buildCount++;
+     logger.d('[WIDGET ${widget.filePath.split('/').last}] Build #$_buildCount');
+     // Rest of build method
+   }
    ```
 
-3. **Phase your tests** with clear demarcation between setup, actions, and verification:
+### 5. Targeted Hypothesis Testing
+
+Based on our analysis, test specific hypotheses in isolation:
+
+1. **Hypothesis: Mapper State Emission Frequency**
    ```dart
-   // -- First Play --
-   await service.play(tFilePath);
-   mockPlaybackStateController.add(initialPlayingState);
-   await Future.delayed(Duration.zero);
-   
-   // -- Pause --
-   await service.pause();
-   mockPlaybackStateController.add(pausedState);
-   await Future.delayed(Duration.zero);
-   
-   // -- Second Play (Resume) --
-   await service.play(tFilePath);
-   // Verify only resume was called...
+   // Add to mapper stream creation in PlaybackStateMapperImpl
+   .debounce((_) => TimerStream(true, Duration(milliseconds: 50)))
    ```
 
-### 3. Mocktail/Mockito Best Practices
-
-Several test issues stemmed from improper use of mocking frameworks:
-
-1. **Separate verification phases** with `clearInteractions`:
+2. **Hypothesis: BlocBuilder Rebuild Scope**
    ```dart
-   // Verify first play
-   verify(mockAdapter.stop()).called(1);
-   verify(mockAdapter.setSourceUrl(tPath)).called(1);
-   verify(mockAdapter.resume()).called(1);
-   
-   // Clear before second phase
-   clearInteractions(mockAdapter);
-   
-   // Act and verify second phase separately
-   await service.play(tPath);
-   verifyNever(mockAdapter.stop()); // Should NOT call stop
-   verify(mockAdapter.resume()).called(1); // Should ONLY resume
+   // Replace BlocBuilder with BlocSelector in list view
+   BlocSelector<AudioListCubit, AudioListState, PlaybackInfo?>(
+     selector: (state) {
+       if (state is AudioListLoaded && 
+           state.playbackInfo.activeFilePath == transcription.localFilePath) {
+         return state.playbackInfo;
+       }
+       return null;
+     },
+     builder: (context, playbackInfo) {
+       // Only rebuild this widget when its specific file's playback info changes
+       // ...
+     }
+   )
    ```
 
-2. **Don't mix `verifyInOrder` with individual verifies** for the same calls:
+3. **Hypothesis: Optimistic UI Updates**
    ```dart
-   // CORRECT: Use verifyInOrder for sequence 
-   verifyInOrder([
-     mockAdapter.stop(),
-     mockAdapter.setSourceUrl(tPath),
-     mockAdapter.resume(),
-   ]);
-   
-   // WRONG: Don't then verify these same calls individually
-   // verify(mockAdapter.stop()).called(1); // REDUNDANT - causes "No matching calls" error
+   // In AudioListCubit.playRecording()
+   // Add optimistic update before actual service call
+   if (state is AudioListLoaded) {
+     final current = state as AudioListLoaded;
+     emit(current.copyWith(
+       playbackInfo: current.playbackInfo.copyWith(
+         activeFilePath: filePath,
+         isLoading: true,
+         // Skip intermediate states
+       )
+     ));
+   }
    ```
 
-3. **Re-stub after clearing interactions** if needed:
+4. **Hypothesis: Animated Transitions**
    ```dart
-   clearInteractions(mockAdapter);
-   clearInteractions(mockMapper);
-   
-   // Re-stub essential behaviors after clearing
-   when(mockMapper.playbackStateStream)
-       .thenAnswer((_) => mockController.stream);
+   // In AudioPlayerWidget
+   AnimatedSwitcher(
+     duration: Duration(milliseconds: 300),
+     child: isLoading 
+       ? _buildLoadingIndicator()
+       : _buildPlayerControls(...)
+   )
    ```
 
-These testing patterns have significantly improved the reliability of async tests throughout the audio player codebase.
+### 6. Systematic Documentation
 
-**Conclusion:** The audio player's core playback and seek functionalities related to the initial bug report and subsequent findings are now working as expected based on code verification and log analysis. 
+For each test and hypothesis, document the results systematically:
+
+| Test | Scenario | Hypothesis | Change | Result | Metrics |
+|------|----------|------------|--------|--------|---------|
+| 1 | First Play | Debouncing | Added 50ms debounce | [Result] | Rebuilds: Before=12, After=3 |
+| 2 | Switch Files | BlocSelector | Isolated widget updates | [Result] | Time to stable UI: Before=350ms, After=120ms |
+
+### 7. Implementation Plan
+
+Based on the findings, implement solutions in this order:
+
+1. **Root Cause Fixes:**
+   - Apply the most effective solution from hypothesis testing
+   - Target the highest-impact component first (likely mapper or cubit)
+
+2. **UI Enhancement:**
+   - Implement graceful transitions for remaining state changes
+   - Add animations to mask any unavoidable intermediate states
+
+3. **Architecture Refinements:**
+   - Refactor state management for cleaner separation of concerns
+   - Document the optimal patterns for future development
+
+4. **Performance Validation:**
+   - Re-run all test scenarios
+   - Verify improvements with objective metrics
+   - Ensure no regressions in functionality
+
+This systematic approach will enable us to identify and fix the flickering issues without relying on trial and error, while providing valuable insights into reactive UI performance optimization. 
