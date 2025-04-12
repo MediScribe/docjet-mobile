@@ -8,8 +8,8 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 // Import for Platform check if needed later, or Uri directly
 
-// RE-ENABLE DEBUG LOGGING FOR ADAPTER
-final logger = Logger(level: Level.debug);
+// Set Logger Level HIGH to silence most logs by default
+final logger = Logger(level: Level.warning);
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
@@ -27,9 +27,10 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     // Log player state changes immediately upon creation for debugging
     _audioPlayer.playerStateStream.listen(
       (state) {
-        logger.d(
-          '[ADAPTER_INTERNAL] Player state changed: ${state.processingState}, playing: ${state.playing}',
-        );
+        // TEMPORARY FLICKER DEBUG - COMMENTED OUT
+        // logger.d(
+        //   '[ADAPTER_RAW_STATE] Time: ${DateTime.now().millisecondsSinceEpoch}ms - State: ${state.processingState}, playing: ${state.playing}',
+        // );
       },
       onError: (e, s) {
         logger.e(
@@ -41,7 +42,10 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     );
     _audioPlayer.positionStream.listen(
       (pos) {
-        // Limit logging frequency if needed
+        // TEMPORARY FLICKER DEBUG - COMMENTED OUT DUE TO SPAM
+        // logger.d(
+        //   '[ADAPTER_RAW_POS] Time: ${DateTime.now().millisecondsSinceEpoch}ms - Position: ${pos.inMilliseconds}ms',
+        // );
         // COMMENT OUT HIGH-FREQUENCY POSITION LOG
         // logger.d('[ADAPTER_INTERNAL] Position changed: ${pos.inMilliseconds}ms');
       },
@@ -55,9 +59,10 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     );
     _audioPlayer.durationStream.listen(
       (dur) {
-        logger.d(
-          '[ADAPTER_INTERNAL] Duration changed: ${dur?.inMilliseconds}ms',
-        );
+        // TEMPORARY FLICKER DEBUG - COMMENTED OUT
+        // logger.d(
+        //   '[ADAPTER_RAW_DUR] Time: ${DateTime.now().millisecondsSinceEpoch}ms - Duration: ${dur?.inMilliseconds}ms',
+        // );
       },
       onError: (e, s) {
         logger.e(

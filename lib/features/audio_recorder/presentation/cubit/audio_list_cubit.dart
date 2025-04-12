@@ -59,8 +59,9 @@ class AudioListCubit extends Cubit<AudioListState> {
   void _onPlaybackStateChanged(PlaybackState playbackState) {
     // Use more verbose logging temporarily
     final logPrefix = '[CUBIT_onPlaybackStateChanged]';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
     logger.d(
-      '$logPrefix Received PlaybackState update: ${playbackState.runtimeType}',
+      '$logPrefix Time: ${timestamp}ms - Received PlaybackState update: ${playbackState.runtimeType} ($playbackState)',
     );
 
     if (state is! AudioListLoaded) {

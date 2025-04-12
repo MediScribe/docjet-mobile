@@ -64,14 +64,13 @@ class MockAudioPlayerAdapter extends _i1.Mock
       ) as _i3.Stream<void>);
 
   @override
-  _i3.Future<void> setSourceUrl(String? url) => (super.noSuchMethod(
+  _i3.Future<Duration?> setSourceUrl(String? url) => (super.noSuchMethod(
         Invocation.method(
           #setSourceUrl,
           [url],
         ),
-        returnValue: _i3.Future<void>.value(),
-        returnValueForMissingStub: _i3.Future<void>.value(),
-      ) as _i3.Future<void>);
+        returnValue: _i3.Future<Duration?>.value(),
+      ) as _i3.Future<Duration?>);
 
   @override
   _i3.Future<void> pause() => (super.noSuchMethod(

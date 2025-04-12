@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/core/utils/logger.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart'
+    hide logger;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -44,6 +45,12 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // TEMPORARY FLICKER DEBUG
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    logger.d(
+      '[WIDGET_BUILD ${widget.filePath.split('/').last}] Time: ${timestamp}ms - Props: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, pos=${widget.currentPosition.inMilliseconds}ms, dur=${widget.totalDuration.inMilliseconds}ms, error=${widget.error}',
+    );
+
     final bool canPlayPause = !widget.isLoading && widget.error == null;
     final bool canSeek =
         !widget.isLoading &&

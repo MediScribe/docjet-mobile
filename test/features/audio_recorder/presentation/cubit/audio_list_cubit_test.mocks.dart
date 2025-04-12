@@ -287,10 +287,17 @@ class MockAudioPlaybackService extends _i1.Mock
       ) as _i4.Future<void>);
 
   @override
-  _i4.Future<void> seek(Duration? position) => (super.noSuchMethod(
+  _i4.Future<void> seek(
+    String? pathOrUrl,
+    Duration? position,
+  ) =>
+      (super.noSuchMethod(
         Invocation.method(
           #seek,
-          [position],
+          [
+            pathOrUrl,
+            position,
+          ],
         ),
         returnValue: _i4.Future<void>.value(),
         returnValueForMissingStub: _i4.Future<void>.value(),

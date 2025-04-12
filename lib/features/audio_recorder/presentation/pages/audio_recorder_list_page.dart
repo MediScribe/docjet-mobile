@@ -121,9 +121,12 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           // as they belong to the recording cubit, not the list cubit.
         },
         builder: (context, state) {
-          logger.d(
-            "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
-          );
+          // COMMENT OUT logger.d(
+          //   "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
+          // );
+          // COMMENT OUT // logger.d(
+          // COMMENT OUT //   "[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${(state as AudioListLoaded).playbackInfo.isPlaying}, path=${(state as AudioListLoaded).playbackInfo.activeFilePath?.split('/').last ?? 'null'}",
+          // COMMENT OUT // );
 
           // Handle Loading state
           if (state is AudioListLoading) {
@@ -165,10 +168,10 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
             // logger.d(
             //   "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
             // ); // Comment out general loaded log
-            logger.i(
-              // Change to INFO, log key fields only
-              '[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${state.playbackInfo.isPlaying}, path=${state.playbackInfo.activeFilePath?.split('/').last ?? 'null'}',
-            );
+            // COMMENT OUT logger.i(
+            //   // Change to INFO, log key fields only
+            //   '[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${state.playbackInfo.isPlaying}, path=${state.playbackInfo.activeFilePath?.split('/').last ?? 'null'}',
+            // );
             if (state.transcriptions.isEmpty) {
               // logger.i("[AudioRecorderListView] Builder: ListLoaded is empty."); // Comment out
               return const Center(
