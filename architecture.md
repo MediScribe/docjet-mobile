@@ -120,13 +120,15 @@ This architecture treats local files as opaque handles/payloads. The primary sou
 3.  **Backend Integration (Interface + Fake Implementation):**
     *   **`TranscriptionRemoteDataSource` Interface (Domain - Implemented):** Defines contract (`
 
-## 3. Audio Playback Architecture (Refactored & Standardized - DATE)
+## 3. Audio Playback Architecture (Refactored & Standardized)
 
-**UPDATE (DATE - Please fill in):** The audio playback system has been **standardized on `just_audio`**. Phase 1 (Interface Decoupling) and Phase 2 (Standardize on `just_audio`) are complete. The `AudioPlayerAdapterImpl` now uses `just_audio` exclusively, and the `audioplayers` dependency has been removed.
+**UPDATE:** The audio playback system has been **standardized on `just_audio`**. Phase 1 (Interface Decoupling) and Phase 2 (Standardize on `just_audio`) are complete. The `AudioPlayerAdapterImpl` now uses `just_audio` exclusively, and the `audioplayers` dependency has been removed.
+
+**NOTE:** While this architecture promotes decoupling, real-world implementation revealed critical dependencies and potential pitfalls, particularly around dependency injection, state synchronization, and the specific behaviors of the `just_audio` library. See the "Implementation Notes & Gotchas" and updated File Responsibilities below, and refer to `docs/audio_player_analysis.md` for a detailed breakdown of debugging these issues. **Integration testing covering the interactions between the Adapter, Mapper, and Service is crucial to prevent regressions.**
 
 **REVISED PLAN (Completed):**
 1.  **Phase 1 (Interface Decoupling - COMPLETE):** Defined `DomainPlayerState` enum. Updated `AudioPlayerAdapter` interface to use `DomainPlayerState`. Updated the `audioplayers`-based `AudioPlayerAdapterImpl` and the `PlaybackStateMapper` implementation & tests to conform to the new interface contract.
-2.  **Phase 2 (Standardize on `just_audio` - COMPLETE):** Rewrote the `AudioPlayerAdapterImpl` to use `just_audio` instead of `audioplayers`. Updated the adapter tests accordingly. Removed the `audioplayers` dependency entirely.
+2.  **Phase 2 (Standardize on `just_audio` - COMPLETE):** Rewritten the `AudioPlayerAdapterImpl` to use `just_audio` instead of `audioplayers`. Updated the adapter tests accordingly. Removed the `audioplayers` dependency entirely.
 
 The following description reflects the current state *after* standardization on `just_audio`.
 
@@ -258,13 +260,22 @@ lib/features/audio_recorder/
 ### 3.3. File Responsibilities (Updated)
 
 *   **Domain Layer:**
-    *   `domain/adapters/audio_player_adapter.dart`: Defines the *contract* for interacting with *any* audio player. Uses `DomainPlayerState`.
+    *   `domain/adapters/audio_player_adapter.dart`: Defines the *contract* for interacting with *any* audio player. Uses `DomainPlayerState`. Exposes the necessary raw streams (player state, position, duration, completion, etc.) required by the `PlaybackStateMapper`.
     *   `domain/entities/domain_player_state.dart`: Defines the library-agnostic player states.
     *   `domain/entities/playback_state.dart`: Defines the core *business state* (`initial`, `loading`, `playing`, etc.).
     *   `domain/mappers/playback_state_mapper.dart`: Defines the *contract* for transforming event streams into `Stream<PlaybackState>`. Consumes `Stream<DomainPlayerState>`.
     *   `domain/services/audio_playback_service.dart`: Defines the high-level playback use cases. Exposes `Stream<PlaybackState>`.
 *   **Data Layer:**
     *   `data/adapters/audio_player_adapter_impl.dart`: *Implements* `AudioPlayerAdapter` using **`just_audio`**. Maps internal `just_audio` states to `DomainPlayerState`.
-    *   `data/mappers/playback_state_mapper_impl.dart`: *Implements* `PlaybackStateMapper`. **Crucially, this implementation uses RxDart (`Rx.merge`, `BehaviorSubject`, etc.) to combine the various input streams (`positionStream`, `durationStream`, `playerStateStream`, `completeStream`) provided by the `AudioPlayerAdapter` via the `initialize` method. It maintains internal state (`_currentPlayerState`, `_currentDuration`, `_currentPosition`) and constructs the final `PlaybackState` based on the latest events from all input streams. It exposes the resulting combined and mapped `Stream<PlaybackState>`.**
+    *   `data/mappers/playback_state_mapper_impl.dart`: *Implements* `PlaybackStateMapper`. **Crucially, this implementation uses RxDart (`Rx.merge`, `BehaviorSubject`, etc.) to combine the various input streams (`positionStream`, `durationStream`, `playerStateStream`, `completeStream`) provided by the `AudioPlayerAdapter` via the `initialize` method. It maintains internal state (`_currentPlayerState`, `_currentDuration`, `_currentPosition`) and constructs the final `PlaybackState` based on the latest events from all input streams. It exposes the resulting combined and mapped `Stream<PlaybackState>`. Note that filtering logic (e.g., using `.distinct()` with custom comparators) might be needed here to manage high-frequency streams like position updates.**
     *   `data/services/audio_duration_retriever_impl.dart`: (**NOTE:** Still uses `just_audio`. Could potentially be merged or simplified now that the main player uses `just_audio`, but kept separate for now.)
-    *   `data/services/audio_playback_service_impl.dart`: Orchestrates the playback lifecycle by calling methods on the `AudioPlayerAdapter` (e.g., `play`, `pause`, `stop`, `setSourceUrl`). **It initializes the `PlaybackStateMapper` by passing the necessary streams from the adapter. It then simply exposes the `playbackStateStream` provided by the mapper, acting as a pass-through for the combined state rather than performing the stream combination itself.**
+    *   `data/services/audio_playback_service_impl.dart`: Orchestrates the playback lifecycle by calling methods on the `AudioPlayerAdapter` (e.g., `play`, `pause`, `stop`, `setSourceUrl`). **!! CRITICAL WARNING !!: This service (or the Dependency Injection container constructing it) is responsible for initializing the `PlaybackStateMapper` by passing the necessary streams obtained from the `AudioPlayerAdapter`. Failure to wire this correctly means the Mapper will NOT receive player events, the Service's `playbackStateStream` will remain stale, and the UI will not update correctly (e.g., play/pause buttons unresponsive, position not advancing). This silent failure mode is NOT caught by simple unit tests mocking the Mapper's output. See `docs/audio_player_analysis.md` Update 2.** It exposes the `playbackStateStream` provided by the *correctly initialized* mapper.
+
+### 3.4. Implementation Notes & Gotchas (NEW SECTION)
+
+Implementing this architecture with `just_audio` surfaced several important points:
+
+*   **`just_audio`: `seek()` Before Load:** The `just_audio` player **ignores** `seek()` commands if the audio source has not been loaded via `setSourceUrl()` or `load()`. To handle seeking *before* the first playback ("fresh seek"), a "prime the pump" pattern is necessary: `stop()` any existing player, `setSourceUrl()` to load the target audio, `seek()` to the desired position, and immediately `pause()` to prevent auto-play and leave the player in the correct state. This logic resides in `AudioPlaybackServiceImpl.seek()`. See `docs/audio_player_analysis.md` Update 5.
+*   **`just_audio`: Stream Frequency & Filtering:** `just_audio` streams, particularly `positionStream`, can emit events very frequently (e.g., 60Hz). The `PlaybackStateMapperImpl` needs to handle this, potentially filtering events (e.g., using RxDart's `.distinct()` with custom comparison logic) to avoid unnecessary state calculations and UI rebuilds while still allowing essential updates (like position changes during playback or state changes). See `docs/audio_player_analysis.md` Update 2/3.
+*   **State Synchronization & UI Responsiveness:** Achieving immediate UI feedback (e.g., slider thumb tracking user drag) often requires temporary local state within the widget (`StatefulWidget`). This local state must be carefully reconciled with the authoritative `PlaybackState` flowing from the Cubit/Service to avoid visual inconsistencies or flickering, especially after actions like seeking. Relying solely on the state stream can feel laggy, but manual/optimistic updates introduce risks if not perfectly aligned with the actual player state changes. See `docs/audio_player_analysis.md` Update 4.
+*   **Integration Testing:** Given the critical dependency wiring between the Adapter, Mapper, and Service, **integration tests** are highly recommended. These tests should verify that events emitted by a (mocked) Adapter correctly propagate through a real Mapper and Service to produce the expected `PlaybackState` output, catching DI or initialization errors that unit tests miss.

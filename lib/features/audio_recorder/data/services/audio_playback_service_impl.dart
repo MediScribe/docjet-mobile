@@ -84,42 +84,71 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     logger.d('[SERVICE PLAY $pathOrUrl] START', stackTrace: trace);
     try {
       final isSameFile = pathOrUrl == _currentFilePath;
-      // logger.d(
-      //   '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile. Forcing full restart.',
-      // ); // Keep DEBUG
+      // Use maybeWhen for concise state checking
+      final isPaused = _lastKnownState.maybeWhen(
+        paused: (_, __) => true, // Check if the state is paused
+        orElse: () => false, // Default to false for all other states
+      );
 
-      // Always performing full stop/load/play sequence
-      logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
-      await _audioPlayerAdapter.stop();
-      // logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.'); // Keep DEBUG
+      logger.d(
+        '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile, isPaused: $isPaused, _lastKnownState: $_lastKnownState',
+      );
 
-      // Update current path ONLY if it's a different file
-      if (!isSameFile) {
-        logger.d('[SERVICE PLAY $pathOrUrl] Action: Updating file path...');
-        _currentFilePath = pathOrUrl;
-        // logger.d('[SERVICE PLAY $pathOrUrl] File path updated.'); // Keep DEBUG
-      } else {
+      // --- Resume Logic ---
+      if (isSameFile && isPaused) {
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Skipping file path update (same file).',
+          '[SERVICE PLAY $pathOrUrl] Action: Resuming paused file ($pathOrUrl)...',
+        );
+        await _audioPlayerAdapter.resume(); // Just call resume
+        logger.d('[SERVICE PLAY $pathOrUrl] Adapter resume() call complete.');
+      }
+      // --- Full Restart Logic ---
+      else {
+        logger.d(
+          '[SERVICE PLAY $pathOrUrl] Action: Full restart needed (different file or not paused)...',
+        );
+        logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
+        await _audioPlayerAdapter.stop();
+        logger.d('[SERVICE PLAY $pathOrUrl] Adapter stop() call complete.');
+
+        // Update current path ONLY if it's a different file
+        // Also update the mapper context if the file changes
+        if (!isSameFile) {
+          logger.d(
+            '[SERVICE PLAY $pathOrUrl] Action: Updating file path & mapper context...',
+          );
+          _currentFilePath = pathOrUrl;
+          // Let the mapper know the context for accurate duration mapping etc.
+          // This might not be strictly necessary if duration comes from adapter
+          // events, but good practice to keep mapper informed.
+          // Consider if _playbackStateMapper needs setCurrentFilePath method
+          // If it does, call it: _playbackStateMapper.setCurrentFilePath(pathOrUrl);
+          logger.d(
+            '[SERVICE PLAY $pathOrUrl] File path updated, mapper context set (if applicable).',
+          );
+        } else {
+          logger.d(
+            '[SERVICE PLAY $pathOrUrl] Action: Skipping file path update (same file).',
+          );
+        }
+
+        logger.d(
+          '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
+        );
+        await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
+        logger.d(
+          '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
+        );
+
+        logger.d(
+          '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
+        );
+        await _audioPlayerAdapter
+            .resume(); // resume() starts playback after setSourceUrl
+        logger.d(
+          '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
         );
       }
-
-      logger.d(
-        '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
-      );
-      await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-      // logger.d(
-      //   '[SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
-      // ); // Keep DEBUG
-
-      logger.d(
-        '[SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
-      );
-      await _audioPlayerAdapter
-          .resume(); // resume() starts playback after setSourceUrl
-      // logger.d(
-      //   '[SERVICE PLAY $pathOrUrl] Adapter resume() (for start) call complete.',
-      // ); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE PLAY $pathOrUrl] FAILED', error: e, stackTrace: s);
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));

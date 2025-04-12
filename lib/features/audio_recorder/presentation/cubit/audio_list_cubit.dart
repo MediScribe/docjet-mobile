@@ -5,7 +5,6 @@ import 'package:equatable/equatable.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 import 'package:docjet_mobile/core/utils/logger.dart';

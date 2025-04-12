@@ -44,6 +44,7 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
 
   // --- Interface Implementation ---
 
+  @override
   Stream<PlaybackState> get playbackStateStream => _playbackStateStream;
 
   @override
