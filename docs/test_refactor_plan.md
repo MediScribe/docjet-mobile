@@ -40,7 +40,7 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   **State Updates via Stream**: Methods like `stopRecording` rely on the playback state stream from the service to update state rather than directly emitting state changes. Tests must simulate stream events to properly test state transitions.
     *   **Error Message Formatting**: There appears to be a format change in how `FileSystemFailure` is rendered in error messages. The test expects `FileSystemFailure(Failed to list files)` but the implementation now renders it as `File System Error: Failed to list files`.
 
-*   [ ] **Evaluate Test Timing Control:** Evaluate the use of `fake_async` vs. standard `async`/`await` mechanisms for controlling time in tests. Strive for consistency where appropriate, but choose the best tool for each test.
+*   [x] **Evaluate Test Timing Control:** Evaluate the use of `fake_async` vs. standard `async`/`await` mechanisms for controlling time in tests. Strive for consistency where appropriate, but choose the best tool for each test. **(Verified: Tests consistently use standard `async`/`await` with `Future.delayed` where necessary; `fake_async` is not used).**
 *   [ ] **Refactor Service Tests (`audio_playback_service_*_test.dart`):**
     *   [x] **Test `play()` logic:** Verify correct adapter interactions (`stop`, `setSourceUrl`, `resume`) and output stream states (`loading`, then state from mapper) for initial play. (Verified in `play_test.dart`)
     *   [x] **Test `play()` resume logic:** Verify only `resume` is called on the adapter when `play` is called on the same file while paused. (Passed in suite, individually confirmed)
@@ -58,21 +58,21 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] **Test `loadAudioRecordings`:** Update the expected error message format in tests to match the actual implementation: "File System Error: Failed to list files" instead of "FileSystemFailure(Failed to list files)". (Verified implementation/test match)
     *   [x] **Test `stopRecording`**: Update the test to simulate the playback state stream emitting a stopped event, rather than expecting direct state emission from the method call. (Verified fix implemented)
     *   [x] **Test `seekRecording` error handling:** Fixed to verify state changes with error messages, rather than expecting exceptions to be thrown. (Verified fix implemented)
-    *   [ ] **Test `playRecording` interaction:** Verify `service.play(filePath)` is called. (Passed in suite, not individually confirmed)
+    *   [x] **Test `playRecording` interaction:** Verify `service.play(filePath)` is called. (Passed in suite, individually confirmed)
         *   [x] **FIXED:** Fixed the "handles race condition where stop event arrives during second play call" test failure by preserving the `_currentPlayingFilePath` while clearing the `activeFilePath` in UI state when receiving a stopped state. This allows the second play call to work correctly even if a stop event arrives after it. (Specific fix verified)
         *   [x] **KEY ARCHITECTURAL PATTERN:** Maintain a clear separation between internal tracking (`_currentPlayingFilePath`) and UI state (`activeFilePath`). Internal tracking persists through state changes from the audio service, while UI state reflects what the user should see. This prevents race conditions during asynchronous playback operations.
-    *   [ ] **Test `pauseRecording` interaction:** Verify `service.pause()` is called. (Passed in suite, not individually confirmed)
+    *   [x] **Test `pauseRecording` interaction:** Verify `service.pause()` is called. (Passed in suite, individually confirmed)
         *   [x] **FIXED:** Fixed the "preserves activeFilePath when paused" test failure by updating the `pauseRecording` method to capture the activeFilePath from the current state when needed and by ensuring the UI state correctly preserves this path when paused. (Specific fix verified)
-    *   [ ] **Test `resumeRecording` interaction:** Verify `service.resume()` is called. (Passed in suite, not individually confirmed)
-    *   [ ] **Test `seekRecording` interaction:** Verify `service.seek(filePath, position)` is called. (Passed in suite, not individually confirmed)
-    *   [ ] **Test `stopRecording` interaction:** Verify `service.stop()` is called. (Passed in suite, not individually confirmed)
-    *   [ ] **Test state updates from service stream:** Simulate `PlaybackState` events from the mocked service stream and verify the `AudioListCubit` emits the correct `AudioListState` with updated `PlaybackInfo` (filePath, isPlaying, isLoading, position, duration, error). (Passed in suite, not individually confirmed)
+    *   [x] **Test `resumeRecording` interaction:** Verify `service.resume()` is called. (Passed in suite, individually confirmed)
+    *   [x] **Test `seekRecording` interaction:** Verify `service.seek(filePath, position)` is called. (Passed in suite, individually confirmed)
+    *   [x] **Test `stopRecording` interaction:** Verify `service.stop()` is called. (Passed in suite, individually confirmed)
+    *   [x] **Test state updates from service stream:** Simulate `PlaybackState` events from the mocked service stream and verify the `AudioListCubit` emits the correct `AudioListState` with updated `PlaybackInfo` (filePath, isPlaying, isLoading, position, duration, error). (Passed in suite, individually confirmed)
     *   [x] **Run Cubit Tests:** `flutter test test/features/audio_recorder/presentation/cubit/audio_list_cubit_test.dart` - **PASSING** (All tests pass now).
 *   [x] **Refactor Adapter Tests (`audio_player_adapter_impl_test.dart`):**
     *   [x] **Fix Compilation Errors:** Correct mock syntax and remove incorrect use of Mocktail/Function() syntax in Mockito-based tests. (Verified fix implemented)
     *   [x] **Fix Streaming Tests:** Use Completer pattern to prevent tests from hanging indefinitely while waiting for events. Add timeout handling to fail gracefully if events don't arrive. (Verified fix implemented)
-    *   [ ] **Test Stream Mappings:** Verify that events emitted by the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) correctly reflect the input events from the mocked `AudioPlayer` streams. **(NEEDS INDIVIDUAL REVIEW - Passed in suite, but logic/assertions require manual confirmation).**
-    *   [ ] **Test Method Calls:** Verify that adapter methods (`play`, `pause`, `seek`, etc.) call the corresponding methods on the underlying `just_audio` player. **(NEEDS INDIVIDUAL REVIEW - Passed in suite, but logic/assertions require manual confirmation).**
+    *   [x] **Test Stream Mappings:** Verify that events emitted by the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) correctly reflect the input events from the mocked `AudioPlayer` streams. (Passed in suite, individually confirmed)
+    *   [x] **Test Method Calls:** Verify that adapter methods (`play`, `pause`, `seek`, etc.) call the corresponding methods on the underlying `just_audio` player. (Passed in suite, individually confirmed)
     *   [x] **Run Adapter Tests:** `flutter test test/features/audio_recorder/data/adapters/` - All tests pass.
 *   [x] **Refactor Mapper Tests (`playback_state_mapper_impl_test.dart`):** (Explicitly debugged and fixed earlier)
     *   [x] **Test basic state mappings:** Ensure `DomainPlayerState.playing/paused/stopped/loading/completed` input results in the correct output `PlaybackState`.
@@ -88,6 +88,11 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] **Run Widget Tests:** `flutter test test/features/audio_recorder/presentation/widgets/` - Fix failures. (DONE - Passed initially)
 *   [ ] **Review Scenario/Edge Case Coverage (Unit Tests):**
     *   [ ] Review and add tests for relevant edge cases and error handling scenarios identified during refactoring. **(CRITICAL - Address the `TODO` comments scattered throughout the test files).**
+        *   **Finding:** Main gaps identified via TODO search (relevant to Playback Service/Cubit unit tests):
+            *   `audio_list_cubit_test.dart`: Test `deleteRecording` behavior.
+            *   `audio_playback_service_play_test.dart`: Test `service.play()` when `adapter.stop()` throws (initial & restart cases).
+            *   `audio_playback_service_pause_seek_stop_test.dart`: Test `service.dispose()` calls `adapter.dispose()`. Potentially enhance `service.resume()` test with state verification if needed.
+        *   **Action:** These specific TODOs need implementation before Phase 2 unit testing is fully complete.
 *   [x] **Run All Unit Tests:** Execute `flutter test test/features/audio_recorder/` again. Goal: All refactored unit tests pass.
 
 ## Phase 3: Implement Integration Tests
@@ -104,9 +109,11 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] Verify proper mock property setup (including properties like `processingState` for complete mocking)
     *   [x] Ensure error handling with proper log levels and timeout strategies
 *   [ ] **Service -> Cubit Integration (PRIORITY 2):**
-    *   *Focus:* Ensure Cubit state reflects Service state accurately. **(IMPORTANT - Implement this test).**
+    *   *Focus:* Ensure Cubit state reflects Service state accurately. **(IMPORTANT - Needs implementation).**
     *   [ ] Use a real `AudioListCubit` and a real `AudioPlaybackServiceImpl` (with mocked adapter/player).
     *   [ ] Drive state changes from the Service -> Assert correct `AudioListState` / `PlaybackInfo` from Cubit.
+    *   **Approach:** Instantiate real Cubit & Service. Mock Service's adapter dependency. Provide real Service to Cubit via DI/manual injection. Simulate adapter stream events. Trigger Service actions. Verify Cubit state emissions.
+    *   **Status:** Test file `audio_list_cubit_integration_test.dart` exists but is currently empty (contains only a TODO).
 *   [ ] **(Optional but Recommended) Widget -> Cubit -> Service (Full Flow):**
     *   *Focus:* End-to-end user flow verification.
     *   [ ] Use `integration_test` package.
@@ -123,7 +130,7 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 *   [x] **Review Test Coverage:** Ensure all public APIs are reasonably covered. *(Self-note: Addressed by prior steps, assuming passing suites cover APIs)*
 *   [x] **Review Test Philosophy:** Double-check tests prioritize behavior over implementation details.
 *   [x] **Review Test Descriptions:** Ensure names clearly state the behavior verified.
-*   [ ] **Audit Mocking Consistency:** Review all feature tests (`test/features/audio_recorder/`) to ensure consistent use of `mockito` generation for class/interface mocks, removing any other libraries (`mocktail`) or manual mocks.
+*   [x] **Audit Mocking Consistency:** Review all feature tests (`test/features/audio_recorder/`) to ensure consistent use of `mockito` generation for class/interface mocks, removing any other libraries (`mocktail`) or manual mocks. (Verified consistent use of mockito generation).
 *   [x] **Cleanup:** Remove print statements and replace with structured logging.
 *   [x] **Documentation:** Update test_refactor_plan.md with lessons learned from debugging and fixing integration tests.
 
