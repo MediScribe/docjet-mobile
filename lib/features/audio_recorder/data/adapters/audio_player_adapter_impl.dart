@@ -94,8 +94,9 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   }
 
   @override
-  Future<void> seek(Duration position) async {
-    logger.d('[ADAPTER SEEK ${position.inMilliseconds}ms] START');
+  Future<void> seek(String filePath, Duration position) async {
+    // Note: filePath is required by the interface, but just_audio's seek only uses position.
+    logger.d('[ADAPTER SEEK $filePath @ ${position.inMilliseconds}ms] START');
     try {
       await _audioPlayer.seek(position);
       logger.d('[ADAPTER SEEK] Call complete.');
@@ -103,7 +104,7 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
       logger.e('[ADAPTER SEEK] FAILED', error: e, stackTrace: s);
       rethrow;
     }
-    logger.d('[ADAPTER SEEK ${position.inMilliseconds}ms] END');
+    logger.d('[ADAPTER SEEK $filePath @ ${position.inMilliseconds}ms] END');
   }
 
   @override

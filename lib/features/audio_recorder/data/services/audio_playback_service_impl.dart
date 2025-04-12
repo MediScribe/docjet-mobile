@@ -94,22 +94,18 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         '[SERVICE PLAY $pathOrUrl] State Check: isSameFile: $isSameFile, isPaused: $isPaused, _lastKnownState: $_lastKnownState',
       );
 
-      // --- Resume Logic ---
+      // --- Restore Resume Logic ---
       if (isSameFile && isPaused) {
-        logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Resuming paused file ($pathOrUrl)...',
-        );
-        await _audioPlayerAdapter.resume(); // Just call resume
+        // If paused on the same file, just resume
+        logger.d('[SERVICE PLAY $pathOrUrl] Action: Resuming playback.');
+        await _audioPlayerAdapter.resume();
         logger.d('[SERVICE PLAY $pathOrUrl] Adapter resume() call complete.');
-      }
-      // --- Full Restart Logic ---
-      else {
+        // No explicit state emission here; rely on adapter events via mapper
+      } else {
+        // --- Full Restart Logic ---
         logger.d(
-          '[SERVICE PLAY $pathOrUrl] Action: Full restart needed (different file or not paused)...',
+          '[SERVICE PLAY $pathOrUrl] Action: Full restart needed (different file or not paused).',
         );
-        // **Emit Loading State**
-        _playbackStateSubject.add(const PlaybackState.loading());
-        logger.d('[SERVICE PLAY $pathOrUrl] Emitted loading state.');
 
         logger.d('[SERVICE PLAY $pathOrUrl] Action: Calling adapter.stop()...');
         await _audioPlayerAdapter.stop();
@@ -117,6 +113,8 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
 
         // Update current path ONLY if it's a different file
         // Also update the mapper context if the file changes
+        // This logic remains within the 'else' (full restart) block implicitly
+        // because it only needs to happen when not resuming.
         if (!isSameFile) {
           logger.d(
             '[SERVICE PLAY $pathOrUrl] Action: Updating file path & mapper context...',

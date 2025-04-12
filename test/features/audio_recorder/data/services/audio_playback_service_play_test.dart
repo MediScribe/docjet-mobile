@@ -151,13 +151,21 @@ void main() {
         verify(mockAudioPlayerAdapter.resume()).called(1);
         logger.d('TEST [initial play]: Adapter calls verified.');
 
-        // Act 2: Simulate mapper emitting the final state
+        // Act 2: Simulate mapper emitting the loading state FIRST
+        logger.d('TEST [initial play]: Adding loading state to controller...');
+        mockPlaybackStateController.add(expectedLoadingState);
+        logger.d('TEST [initial play]: >> After adding LOADING state');
+        // Yield AGAIN immediately after adding to controller
+        await Future.delayed(Duration.zero);
+        logger.d('TEST [initial play]: >> After SECOND delay post-LOADING');
+
+        // Act 3: Simulate mapper emitting the final state
         logger.d('TEST [initial play]: Adding playing state to controller...');
         mockPlaybackStateController.add(expectedPlayingState);
         logger.d('TEST [initial play]: >> After adding PLAYING state');
         // Yield AGAIN immediately after adding to controller
         await Future.delayed(Duration.zero);
-        logger.d('TEST [initial play]: >> After SECOND delay post-PLAYING');
+        logger.d('TEST [initial play]: >> After THIRD delay post-PLAYING');
 
         // Await the expectLater future
         logger.d('TEST [initial play]: Awaiting expectLater...');

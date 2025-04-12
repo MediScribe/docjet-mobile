@@ -12,7 +12,7 @@ This plan outlines the steps to fix the failing tests after the audio player ref
 *   [x] **Fix `setCurrentFilePath` Errors (DONE):**
     *   [x] Remove `setCurrentFilePath` calls/mocks from relevant test files.
     *   [x] **Sanity Check:** Briefly review test *logic* where `setCurrentFilePath` was removed – did its removal break any test setup assumptions? Adapt setup if needed.
-*   [x] **Fix `seek`/`seekRecording` Signature Errors:**
+*   [x] **Fix `seek`/`seekRecording` Signature Errors (DONE):**
     *   **Context:** The `seek` method in the `AudioPlaybackService` and the `seekRecording` method in the `AudioListCubit` now require both the `filePath` and the `position`. Calls in tests need to be updated.
     *   **Correct Service Signature:** `Future<void> seek(String pathOrUrl, Duration position);`
     *   **Example Signature Change:**
