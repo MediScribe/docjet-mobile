@@ -263,7 +263,7 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         //   '[SERVICE SEEK $filePath] Priming: adapter.pause() complete. _seekPerformedWhileNotPlaying=true.',
         // );
       }
-    } catch (e, s) {
+    } catch (e) {
       // logger.e(
       //   '[SERVICE SEEK $filePath ${position.inMilliseconds}ms] FAILED',
       //   error: e,

@@ -53,8 +53,6 @@ void main() {
     ).thenAnswer((_) => mockPlaybackStateController.stream);
 
     when(mockPlaybackStateMapper.dispose()).thenReturn(null);
-    // Stub setCurrentFilePath as it might be called by the service
-    when(mockPlaybackStateMapper.setCurrentFilePath(any)).thenReturn(null);
 
     // Stub adapter methods using Future.value() for void returns
     when(mockAudioPlayerAdapter.stop()).thenAnswer((_) => Future.value());
@@ -64,7 +62,9 @@ void main() {
     ).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.resume()).thenAnswer((_) => Future.value());
     when(mockAudioPlayerAdapter.pause()).thenAnswer((_) => Future.value());
-    when(mockAudioPlayerAdapter.seek(any)).thenAnswer((_) => Future.value());
+    when(
+      mockAudioPlayerAdapter.seek(any, any),
+    ).thenAnswer((_) => Future.value());
 
     // Stub adapter streams (return empty streams for these tests)
     when(
@@ -206,9 +206,6 @@ void main() {
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1);
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1);
 
         // Act 3: Simulate mapper emitting playing state & process
         mockPlaybackStateController.add(expectedPlayingState);
@@ -255,9 +252,6 @@ void main() {
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathAsset)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1);
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathAsset),
-        ).called(1);
 
         // Await the expectLater future
         await stateExpectation;
@@ -303,9 +297,6 @@ void main() {
         verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 1
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1); // Resume for play 1
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1); // Set path for play 1
 
         // Clear interactions before second play for cleaner verification
         clearInteractions(mockAudioPlayerAdapter);
@@ -320,13 +311,8 @@ void main() {
 
         // Assert Interactions for second play (relative to clearInteractions)
         verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 2
-        verify(
-          mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice2),
-        ).called(1); // Set source for play 2
+        verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice2)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1); // Resume for play 2
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice2),
-        ).called(1); // Set path for play 2
 
         // Simulate second play loading/playing states from mapper
         mockPlaybackStateController.add(loadingState2);
@@ -349,7 +335,6 @@ void main() {
           mockAudioPlayerAdapter.setSourceUrl(any),
         ).thenAnswer((_) => Future.value());
         when(mockAudioPlayerAdapter.resume()).thenThrow(testError);
-        when(mockPlaybackStateMapper.setCurrentFilePath(any)).thenReturn(null);
 
         // Act & Assert: Expect the service.play call itself to throw
         expect(
@@ -366,9 +351,6 @@ void main() {
         verify(
           mockAudioPlayerAdapter.resume(),
         ).called(1); // Resume was attempted
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1);
       });
     });
 
@@ -379,8 +361,6 @@ void main() {
         // Stub stop to succeed, but setSourceUrl to throw
         when(mockAudioPlayerAdapter.stop()).thenAnswer((_) => Future.value());
         when(mockAudioPlayerAdapter.setSourceUrl(any)).thenThrow(testError);
-        when(mockPlaybackStateMapper.setCurrentFilePath(any)).thenReturn(null);
-        // Resume should not be called
 
         // Act & Assert: Expect the service.play call itself to throw
         expect(
@@ -397,9 +377,6 @@ void main() {
         verifyNever(
           mockAudioPlayerAdapter.resume(),
         ); // Resume should NOT be called
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1);
       });
     });
 
@@ -440,9 +417,6 @@ void main() {
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePathDevice)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1);
-        verify(
-          mockPlaybackStateMapper.setCurrentFilePath(tFilePathDevice),
-        ).called(1);
 
         // Clear interactions before second play for cleaner verification
         clearInteractions(mockAudioPlayerAdapter);
@@ -465,9 +439,6 @@ void main() {
         verify(
           mockAudioPlayerAdapter.resume(),
         ).called(1); // Resume called for second play
-
-        // With new implementation we do NOT call setCurrentFilePath for same file
-        verifyNever(mockPlaybackStateMapper.setCurrentFilePath(any));
 
         // Simulate restart loading/playing states
         mockPlaybackStateController.add(loadingState2);
@@ -509,7 +480,6 @@ void main() {
         // Verify initial interactions
         verify(mockAudioPlayerAdapter.stop()).called(1);
         verify(mockAudioPlayerAdapter.setSourceUrl(tFilePath)).called(1);
-        verify(mockPlaybackStateMapper.setCurrentFilePath(tFilePath)).called(1);
         verify(mockAudioPlayerAdapter.resume()).called(1); // First resume
 
         // -- Pause --
@@ -543,19 +513,6 @@ void main() {
           mockAudioPlayerAdapter.setSourceUrl(any),
         ); // Should NOT set source again
         verify(mockAudioPlayerAdapter.resume()).called(1); // SHOULD call resume
-        verifyNever(
-          mockPlaybackStateMapper.setCurrentFilePath(any),
-        ); // Should NOT set path again
-
-        // Optionally: Simulate mapper emitting playing state again after resume
-        final resumingState = entity.PlaybackState.playing(
-          currentPosition: pausedPosition, // Should resume near here
-          totalDuration: initialDuration,
-        );
-        mockPlaybackStateController.add(resumingState);
-        await Future.delayed(Duration.zero);
-
-        logger.d('TEST [resume paused]: Interactions verified. Test END.');
       },
     );
 

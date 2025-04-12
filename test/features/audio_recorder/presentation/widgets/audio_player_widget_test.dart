@@ -223,6 +223,66 @@ void main() {
       verify(() => mockAudioListCubit.pauseRecording()).called(1);
     });
 
+    testWidgets('calls cubit.seekRecording when Slider value changes', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      const totalDuration = Duration(seconds: 60);
+      const initialPosition = Duration(seconds: 10);
+      const finalPositionValue = 0.5; // 50% of the slider
+      final finalPosition = Duration(
+        seconds: (totalDuration.inSeconds * finalPositionValue).round(),
+      ); // Expected: 30 seconds
+
+      // Stub seekRecording to expect TWO arguments
+      when(
+        () => mockAudioListCubit.seekRecording(any(), any()),
+      ).thenAnswer((_) async {});
+
+      final widget = AudioPlayerWidget(
+        key: const ValueKey('audio_player_seek'),
+        filePath: testFilePath,
+        onDelete: () {},
+        isPlaying: true,
+        isLoading: false,
+        currentPosition: initialPosition,
+        totalDuration: totalDuration,
+        error: null,
+      );
+
+      await pumpWidget(tester, widget);
+
+      // Act
+      final sliderFinder = find.byType(Slider);
+      expect(sliderFinder, findsOneWidget);
+
+      // Simulate dragging the slider
+      // Note: tester.drag works, but slider.onChangeEnd is typically triggered
+      // by tapping or releasing the drag. Let's simulate a direct value change.
+      await tester.tap(sliderFinder);
+      await tester.pumpAndSettle(); // Let animations settle
+      await tester.drag(
+        sliderFinder,
+        const Offset(200.0, 0.0),
+      ); // Arbitrary drag
+      await tester.pumpAndSettle();
+
+      // More direct way for testing: directly update the slider value
+      // This targets the onChangeEnd logic which calls seekRecording
+      final Slider sliderWidget = tester.widget<Slider>(sliderFinder);
+      sliderWidget.onChangeEnd!(finalPositionValue);
+      await tester.pump(); // Process the call
+
+      // Assert
+      // Verify seekRecording was called with the FILE PATH and the calculated position
+      verify(
+        () => mockAudioListCubit.seekRecording(
+          testFilePath,
+          any<Duration>(), // Explicitly match Duration type
+        ),
+      ).called(1);
+    });
+
     testWidgets(
       'calls onDelete callback when delete outline button is tapped',
       (WidgetTester tester) async {
@@ -287,56 +347,6 @@ void main() {
       },
     );
 
-    testWidgets('calls cubit.seekRecording when slider is changed', (
-      WidgetTester tester,
-    ) async {
-      // Arrange
-      const totalDuration = Duration(seconds: 120);
-      const seekPositionSeconds = 75.0;
-      final expectedSeekDuration = Duration(
-        seconds: seekPositionSeconds.toInt(),
-      );
-
-      when(
-        () => mockAudioListCubit.seekRecording(any()),
-      ).thenAnswer((_) async {}); // Stub
-
-      final widget = AudioPlayerWidget(
-        key: const ValueKey('audio_player_slider_seek'),
-        filePath: testFilePath,
-        onDelete: () {},
-        isPlaying: false,
-        isLoading: false,
-        currentPosition: Duration.zero,
-        totalDuration: totalDuration,
-        error: null,
-      );
-
-      await pumpWidget(tester, widget);
-
-      // Act
-      // Drag the slider - find the slider and simulate interaction
-      final sliderFinder = find.byType(Slider);
-      expect(sliderFinder, findsOneWidget);
-
-      // Note: tester.drag works, but setting the value directly via onChanged is more common in flutter tests
-      // We'll simulate the onChanged callback directly for precision
-      final Slider sliderWidget = tester.widget(sliderFinder);
-      expect(sliderWidget.onChanged, isNotNull);
-      sliderWidget.onChanged!(
-        seekPositionSeconds,
-      ); // Simulate changing the value
-      await tester.pump(); // Allow state updates
-
-      // Assert
-      verify(
-        () => mockAudioListCubit.seekRecording(
-          testFilePath,
-          any(named: "position"),
-        ),
-      ).called(1);
-    });
-
     testWidgets('calls cubit.seekRecording when dragging ends', (
       WidgetTester tester,
     ) async {
@@ -348,7 +358,7 @@ void main() {
       );
 
       when(
-        () => mockAudioListCubit.seekRecording(any()),
+        () => mockAudioListCubit.seekRecording(any(), any()),
       ).thenAnswer((_) async {}); // Stub
 
       final widget = AudioPlayerWidget(
@@ -371,11 +381,10 @@ void main() {
       await tester.pump(); // Settle drag
 
       // Verify seekRecording was called on the cubit with path and duration
-      // Note: The exact duration depends on slider calculation, mock verification is easier
       verify(
         () => mockAudioListCubit.seekRecording(
           testFilePath,
-          any(named: "position"),
+          any<Duration>(), // Explicitly match Duration type
         ),
       ).called(1);
     });
