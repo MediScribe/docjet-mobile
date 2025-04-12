@@ -78,11 +78,11 @@ This plan outlines the steps to fix the failing tests after the audio player ref
     *   [x] **Test Stream Mappings:** Verify that events emitted by the adapter's output streams (`onPlayerStateChanged`, `onPositionChanged`, etc.) correctly reflect the input events from the mocked `AudioPlayer` streams.
     *   [x] **Test Method Calls:** Verify that adapter methods (`play`, `pause`, `seek`, etc.) call the corresponding methods on the underlying `just_audio` player.
     *   [x] **Run Adapter Tests:** `flutter test test/features/audio_recorder/data/adapters/` - All tests pass.
-*   [ ] **Refactor Mapper Tests (`playback_state_mapper_impl_test.dart`):**
-    *   [ ] **Test basic state mappings:** Ensure `DomainPlayerState.playing/paused/stopped/loading/completed` input results in the correct output `PlaybackState`.
-    *   [ ] **Test position/duration updates:** Ensure position/duration changes on input streams correctly update the `currentPosition`/`totalDuration` in the output `PlaybackState`.
-    *   [ ] **Test filtering/distinct logic:** Ensure redundant/unnecessary states aren't emitted (e.g., multiple position updates shouldn't emit identical states if nothing else changed).
-    *   [ ] **Test error handling:** Simulate errors on input streams and verify `PlaybackState.error` is emitted.
+*   [x] **Refactor Mapper Tests (`playback_state_mapper_impl_test.dart`):**
+    *   [x] **Test basic state mappings:** Ensure `DomainPlayerState.playing/paused/stopped/loading/completed` input results in the correct output `PlaybackState`.
+    *   [x] **Test position/duration updates:** Ensure position/duration changes on input streams correctly update the `currentPosition`/`totalDuration` in the output `PlaybackState`.
+    *   [x] **Test filtering/distinct logic:** Ensure redundant/unnecessary states aren't emitted (e.g., multiple position updates shouldn't emit identical states if nothing else changed).
+    *   [x] **Test error handling:** Simulate errors on input streams and verify `PlaybackState.error` is emitted.
     *   [ ] **Test edge cases:** Check behavior with simultaneous events, initial state, stream completion.
     *   [x] **Run Mapper Tests:** `flutter test test/features/audio_recorder/data/mappers/` - Fix failures. (DONE)
 *   [x] **Refactor Widget Tests (`audio_player_widget_test.dart`):** (DONE - Reviewed, tests seem adequate post-refactor)
