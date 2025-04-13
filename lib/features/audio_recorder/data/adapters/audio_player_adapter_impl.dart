@@ -18,12 +18,6 @@ const bool _debugStateTransitions = true;
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   final AudioPlayer _audioPlayer; // REMOVED ALIAS
 
-  // Keep track of pending play requests to handle transitional states
-  bool _playRequested = false;
-  int _playRequestTime = 0;
-  static const int _playRequestTimeoutMs =
-      1000; // 1 second timeout for play request
-
   // Create a timestamp counter to track event sequences
   int _eventSequence = 0;
 
@@ -84,9 +78,6 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
       '[ADAPTER PAUSE #$seqId] START - Before: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
     );
     try {
-      // Clear play requested flag since we're explicitly pausing
-      _playRequested = false;
-
       await _audioPlayer.pause();
       logger.d(
         '[ADAPTER PAUSE #$seqId] Call complete - After: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
@@ -106,17 +97,12 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
       '[ADAPTER RESUME #$seqId] START - Before: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
     );
     try {
-      // Set flag to indicate we've requested playing
-      _playRequested = true;
-      _playRequestTime = DateTime.now().millisecondsSinceEpoch;
-
       await _audioPlayer.play();
       logger.d(
         '[ADAPTER RESUME #$seqId] play() call complete - After: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
       );
     } catch (e, s) {
       logger.e('[ADAPTER RESUME #$seqId] FAILED', error: e, stackTrace: s);
-      _playRequested = false; // Reset flag on error
       rethrow;
     }
     logger.d('[ADAPTER RESUME #$seqId] END');
@@ -140,9 +126,6 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   Future<void> stop() async {
     logger.d('[ADAPTER STOP] START');
     try {
-      // Clear play requested flag since we're explicitly stopping
-      _playRequested = false;
-
       await _audioPlayer.stop();
       logger.d('[ADAPTER STOP] Call complete.');
     } catch (e, s) {
@@ -186,51 +169,24 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
           DomainPlayerState domainState;
 
-          // Check if we have a recent play request
-          final currentTime = DateTime.now().millisecondsSinceEpoch;
-          final playRequestActive =
-              _playRequested &&
-              (currentTime - _playRequestTime < _playRequestTimeoutMs);
-
-          // Handle loading state during active play request
-          if (playRequestActive &&
-              (state.processingState == ProcessingState.loading ||
-                  state.processingState == ProcessingState.buffering ||
-                  (state.processingState == ProcessingState.ready &&
-                      !state.playing))) {
-            // Override intermediate states during play request to avoid UI flicker
-            domainState = DomainPlayerState.playing;
-
-            if (_debugStateTransitions) {
-              logger.d(
-                '[STATE_TRANSITION #$seqId] OVERRIDE: Mapping ${state.processingState}, playing=${state.playing} to DomainPlayerState.playing due to active play request',
-              );
-            }
-          } else {
-            // Normal state mapping logic
-            switch (state.processingState) {
-              case ProcessingState.idle:
-                domainState = DomainPlayerState.stopped;
-                break;
-              case ProcessingState.loading:
-              case ProcessingState.buffering:
-                domainState = DomainPlayerState.loading;
-                break;
-              case ProcessingState.ready:
-                domainState =
-                    state.playing
-                        ? DomainPlayerState.playing
-                        : DomainPlayerState.paused;
-                break;
-              case ProcessingState.completed:
-                domainState = DomainPlayerState.completed;
-                break;
-            }
-          }
-
-          // If we see actual playing state, clear the play requested flag
-          if (state.playing) {
-            _playRequested = false;
+          // Normal state mapping logic
+          switch (state.processingState) {
+            case ProcessingState.idle:
+              domainState = DomainPlayerState.stopped;
+              break;
+            case ProcessingState.loading:
+            case ProcessingState.buffering:
+              domainState = DomainPlayerState.loading;
+              break;
+            case ProcessingState.ready:
+              domainState =
+                  state.playing
+                      ? DomainPlayerState.playing
+                      : DomainPlayerState.paused;
+              break;
+            case ProcessingState.completed:
+              domainState = DomainPlayerState.completed;
+              break;
           }
 
           logger.t(
