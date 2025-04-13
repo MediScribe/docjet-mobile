@@ -13,6 +13,9 @@ import 'package:mockito/mockito.dart';
 // Import the generated mocks file
 import 'audio_player_adapter_impl_test.mocks.dart';
 
+// Import the new logging test utilities package
+// import 'package:docjet_test/docjet_test.dart';
+
 // Generate mocks for the AudioPlayer class from just_audio
 @GenerateMocks([AudioPlayer])
 void main() {

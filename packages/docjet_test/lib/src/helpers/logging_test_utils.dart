@@ -39,8 +39,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// A class that mimics the API of the DocJet LoggerFactory
 /// This is a placeholder until proper package dependencies are established
 class LoggerFactory {
-  static Level getCurrentLevel(Type type) => Level.info;
-  static void setLogLevel(Type type, Level level) {}
+  static Level getCurrentLevel(dynamic target) => Level.info;
+  static void setLogLevel(dynamic target, Level level) {}
   static void resetLogLevels() {}
   static void setDefaultLogLevel(Level level) {}
 }
@@ -90,36 +90,47 @@ void resetLogLevels() {
 ///
 /// Usage:
 /// ```dart
+/// // With Type (class):
 /// await withDebugLogging(MyComponent, () async {
 ///   // Test code here
 /// });
+///
+/// // With String identifier:
+/// await withDebugLogging("MyLoggerIdentifier", () async {
+///   // Test code here
+/// });
 /// ```
-Future<void> withDebugLogging(Type type, Future<void> Function() testFn) async {
-  final originalLevel = LoggerFactory.getCurrentLevel(type);
+Future<void> withDebugLogging(
+    dynamic target, Future<void> Function() testFn) async {
+  final originalLevel = LoggerFactory.getCurrentLevel(target);
   try {
-    LoggerFactory.setLogLevel(type, Level.debug);
+    LoggerFactory.setLogLevel(target, Level.debug);
     await testFn();
   } finally {
-    // Reset to original level specifically for this type,
+    // Reset to original level specifically for this target,
     // or could use resetLogLevels() if that's the desired behavior.
     // Resetting to original is safer if multiple levels are manipulated.
-    LoggerFactory.setLogLevel(type, originalLevel);
+    LoggerFactory.setLogLevel(target, originalLevel);
   }
 }
 
 /// Enable logs of a specific level or higher for a component during a test run.
 /// Automatically resets the log level afterwards.
+///
+/// Accepts either:
+/// - A Type (class): withLogLevel(MyClass, Level.debug, () async {...})
+/// - A String: withLogLevel("MyLogger", Level.debug, () async {...})
 Future<void> withLogLevel(
-  Type type,
+  dynamic target,
   Level level,
   Future<void> Function() testFn,
 ) async {
-  final originalLevel = LoggerFactory.getCurrentLevel(type);
+  final originalLevel = LoggerFactory.getCurrentLevel(target);
   try {
-    LoggerFactory.setLogLevel(type, level);
+    LoggerFactory.setLogLevel(target, level);
     await testFn();
   } finally {
-    LoggerFactory.setLogLevel(type, originalLevel);
+    LoggerFactory.setLogLevel(target, originalLevel);
   }
 }
 
@@ -146,24 +157,29 @@ void expectNoLogsAboveLevel(TestLogOutput output, Level level,
 /// Executes the test function ensuring no logs of the specified level (or higher)
 /// are emitted by the given component type during its execution.
 /// Fails the test if such logs are detected.
+///
+/// Works with both Type and String identifiers.
 Future<void> expectNoLogsFrom(
-  Type type,
+  dynamic target,
   Level level,
   TestLogOutput output,
   Future<void> Function() testFn,
 ) async {
   output.clear(); // Clear previous logs
-  final originalLevel = LoggerFactory.getCurrentLevel(type);
+  final originalLevel = LoggerFactory.getCurrentLevel(target);
   try {
     // Set level temporarily to allow capturing all logs
-    LoggerFactory.setLogLevel(type, Level.trace);
+    LoggerFactory.setLogLevel(target, Level.trace);
     await testFn();
+
+    // Get the tag for log message filtering
+    final tagValue = target is Type ? target.toString() : target.toString();
 
     final offendingLogs = output.buffer.where(
       (event) =>
           event.level.index >= level.index &&
-          // This check assumes the logger tag includes the type name. Adjust if needed.
-          event.lines.any((line) => line.contains(type.toString())),
+          // Check if log lines contain the tag (assuming proper tag usage)
+          event.lines.any((line) => line.contains(tagValue)),
     );
 
     if (offendingLogs.isNotEmpty) {
@@ -171,12 +187,12 @@ Future<void> expectNoLogsFrom(
           .map((e) => e.lines.join('\n')) // Join lines of a single event
           .join('\n\n'); // Separate different events with double newline
       throw TestFailure(
-        'Expected no logs at level ${level.name} or higher from ${type.toString()}, '
+        'Expected no logs at level ${level.name} or higher from $tagValue, '
         'but found:\n$logMessages',
       );
     }
   } finally {
-    LoggerFactory.setLogLevel(type, originalLevel);
+    LoggerFactory.setLogLevel(target, originalLevel);
     output.clear(); // Clean up after check
   }
 }

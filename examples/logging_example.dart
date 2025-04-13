@@ -8,6 +8,7 @@
 /// - Setting log levels per component
 /// - Using log tags consistently
 /// - Enabling/disabling debug for specific classes
+/// - Using string-based loggers (for testing and special cases)
 ///
 /// For tests, import test utilities from:
 /// import 'package:docjet_test/docjet_test.dart';
@@ -82,6 +83,32 @@ class AnotherComponent {
   }
 }
 
+// Example of string-based logger (useful for testing or specific modules)
+class StringBasedLoggerExample {
+  // Fixed string identifier - good for tests and special modules
+  static const String identifier = "FeatureX.Logger";
+
+  // Get a logger using string identifier
+  final Logger _logger = LoggerFactory.getLogger(identifier);
+  static final String _tag = logTag(identifier); // Use logTag for consistency
+
+  void runExample() {
+    _logger.i('$_tag Starting string-based logger example...');
+    _logger.d('$_tag This is a debug message from string-based logger.');
+    _logger.i('$_tag String-based logger example completed.');
+  }
+
+  static void enableDebug() {
+    LoggerFactory.setLogLevel(identifier, Level.debug);
+    debugPrint('--> Debug logs ENABLED for string logger: $identifier');
+  }
+
+  static void disableDebug() {
+    LoggerFactory.setLogLevel(identifier, Level.info);
+    debugPrint('--> Debug logs DISABLED for string logger: $identifier');
+  }
+}
+
 void main() {
   debugPrint('--- Running Logging Example ---');
 
@@ -126,6 +153,22 @@ void main() {
   LoggerFactory.setLogLevel(ExampleService, Level.off);
   service1.doSomethingImportant(); // Shows nothing
   component1.doLessImportantThing(); // Still shows nothing (Default Warning)
+
+  // Demonstrate string-based logger
+  debugPrint('\n[String-Based Logger Example]');
+  final stringLogger = StringBasedLoggerExample();
+  // First with default level (Info)
+  stringLogger.runExample(); // Debug won't show
+
+  // Then with debug enabled
+  debugPrint('\n[Enabling Debug for String Logger]');
+  StringBasedLoggerExample.enableDebug();
+  stringLogger.runExample(); // Now shows debug logs
+
+  // Disable debug
+  debugPrint('\n[Disabling Debug for String Logger]');
+  StringBasedLoggerExample.disableDebug();
+  stringLogger.runExample(); // Debug won't show again
 
   debugPrint('\n--- Logging Example Complete ---');
 }

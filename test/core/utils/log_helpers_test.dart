@@ -43,8 +43,8 @@ class TestLogOutput extends LogOutput {
 }
 
 // Helper to create a logger with a test output
-Logger _createTestLogger(Type type, TestLogOutput output, {Level? level}) {
-  final effectiveLevel = level ?? LoggerFactory.getCurrentLevel(type);
+Logger _createTestLogger(dynamic target, TestLogOutput output, {Level? level}) {
+  final effectiveLevel = level ?? LoggerFactory.getCurrentLevel(target);
 
   return Logger(
     output: output,
@@ -74,6 +74,9 @@ void main() {
     test('logTag generates correct tag', () {
       expect(logTag(TestClass), 'TestClass');
       expect(logTag(AnotherTestClass), 'AnotherTestClass');
+      // Test string-based logTag
+      expect(logTag("StringLogger"), 'StringLogger');
+      expect(logTag("TestIdentifier"), 'TestIdentifier');
     });
 
     test('LoggerFactory returns a logger', () {
@@ -229,6 +232,74 @@ void main() {
         'completed',
       );
       expect(formatPlaybackState(PlaybackStatePlaceholder.error), 'error');
+    });
+
+    // Add tests for string-based loggers
+    group('String-based loggers', () {
+      test('LoggerFactory returns a logger for string identifiers', () {
+        final logger = LoggerFactory.getLogger("StringLogger");
+        expect(logger, isA<Logger>());
+      });
+
+      test(
+        'LoggerFactory allows setting specific level for string identifiers',
+        () {
+          LoggerFactory.setLogLevel("StringLogger", Level.warning);
+          final logger = _createTestLogger("StringLogger", testOutput);
+
+          logger.i('Info message'); // Should NOT log
+          logger.w('Warning message'); // Should log
+          logger.e('Error message'); // Should log
+
+          expect(testOutput.buffer.length, 2);
+          expect(
+            testOutput.containsMessage(Level.info, 'Info message'),
+            isFalse,
+          );
+          expect(
+            testOutput.containsMessage(Level.warning, 'Warning message'),
+            isTrue,
+          );
+          expect(
+            testOutput.containsMessage(Level.error, 'Error message'),
+            isTrue,
+          );
+
+          // Other identifiers should still use the default (trace)
+          final otherLogger = _createTestLogger("OtherLogger", testOutput);
+          otherLogger.d('Other debug'); // Should log
+          expect(
+            testOutput.containsMessage(Level.debug, 'Other debug'),
+            isTrue,
+          );
+        },
+      );
+
+      test('LoggerFactory.getCurrentLevel works with string identifiers', () {
+        expect(
+          LoggerFactory.getCurrentLevel("TestStringId"),
+          Level.trace, // Default from setUp
+        );
+        LoggerFactory.setLogLevel("TestStringId", Level.error);
+        expect(LoggerFactory.getCurrentLevel("TestStringId"), Level.error);
+        LoggerFactory.resetLogLevels();
+        expect(
+          LoggerFactory.getCurrentLevel("TestStringId"),
+          Level.trace, // Back to default
+        );
+      });
+
+      test('String and Type loggers with same name share log level', () {
+        LoggerFactory.setLogLevel(TestClass, Level.warning);
+        LoggerFactory.setLogLevel(
+          "TestClass",
+          Level.debug,
+        ); // Same name, last setting wins
+
+        // Both loggers now use the debug level because the last setting wins
+        expect(LoggerFactory.getCurrentLevel(TestClass), Level.debug);
+        expect(LoggerFactory.getCurrentLevel("TestClass"), Level.debug);
+      });
     });
   });
 }

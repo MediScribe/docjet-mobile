@@ -1,7 +1,7 @@
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/services/app_seeder.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart' as app_logging;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +19,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 ])
 import 'app_seeder_test.mocks.dart';
 
+// Test class to use with the LoggerFactory
+class AppSeederTest {}
+
 void main() {
   late MockLocalJobStore mockLocalJobStore;
   late MockPathProvider mockPathProvider;
@@ -27,12 +30,22 @@ void main() {
   late MockSharedPreferences mockSharedPreferences;
   late AppSeeder appSeeder;
 
+  // Test logger - using string identifier
+  final testLogger = app_logging.LoggerFactory.getLogger("AppSeederTest");
+  final testTag = app_logging.logTag("AppSeederTest");
+
   // --- Test Constants ---
   const seedingDoneKey = 'app_seeding_done_v1';
 
   setUp(() {
-    // Set logger level to off for tests
-    setLogLevel(Level.off);
+    // Turn off SUT logging
+    app_logging.LoggerFactory.setLogLevel(AppSeeder, app_logging.Level.off);
+
+    // But keep test logging at info level
+    app_logging.LoggerFactory.setLogLevel(
+      "AppSeederTest",
+      app_logging.Level.info,
+    );
 
     // Create fresh mocks for each test
     mockLocalJobStore = MockLocalJobStore();
@@ -49,6 +62,16 @@ void main() {
       audioDurationRetriever: mockAudioDurationRetriever,
       sharedPreferences: mockSharedPreferences,
     );
+
+    // Test-specific debug output using the proper logger
+    testLogger.i(
+      '$testTag Setup complete: AppSeeder instance created with mocks',
+    );
+  });
+
+  tearDown(() {
+    // Reset log levels after each test
+    app_logging.LoggerFactory.resetLogLevels();
   });
 
   group('AppSeeder', () {
@@ -57,9 +80,13 @@ void main() {
       () async {
         // Arrange: Configure SharedPreferences mock to indicate seeding is done
         when(mockSharedPreferences.getBool(seedingDoneKey)).thenReturn(true);
+        testLogger.i(
+          '$testTag SharedPreferences mock configured to return true for seeding done',
+        );
 
         // Act: Call the method under test
         await appSeeder.seedInitialDataIfNeeded();
+        testLogger.i('$testTag seedInitialDataIfNeeded() called successfully');
 
         // Assert: Verify that no other dependencies were interacted with
         verify(mockSharedPreferences.getBool(seedingDoneKey)).called(1);
@@ -68,6 +95,9 @@ void main() {
         verifyZeroInteractions(mockPathProvider);
         verifyZeroInteractions(mockFileSystem);
         verifyZeroInteractions(mockAudioDurationRetriever);
+        testLogger.i(
+          '$testTag All verifications passed - no unexpected interactions',
+        );
       },
     );
 

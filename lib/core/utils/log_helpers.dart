@@ -31,6 +31,16 @@
 /// }
 /// ```
 ///
+/// For testing:
+/// ```dart
+/// // In tests, you can use string identifiers directly:
+/// final testLogger = LoggerFactory.getLogger("MyTestLogger");
+/// final testTag = logTag("MyTestLogger");
+///
+/// // Set log level for test logs
+/// LoggerFactory.setLogLevel("MyTestLogger", Level.info);
+/// ```
+///
 /// For testing utilities, use the docjet_test package:
 /// import 'package:docjet_test/docjet_test.dart';
 ///
@@ -70,11 +80,27 @@ Level _defaultDebugLevel = Level.info;
 /// Map to store file-specific log levels
 final Map<String, Level> _logLevels = {};
 
+/// Converts a Type or String to a consistent string identifier
+String _getLogId(dynamic target) {
+  if (target is Type) {
+    return target.toString();
+  } else if (target is String) {
+    return target;
+  }
+  throw ArgumentError(
+    'Logger target must be Type or String, but was ${target.runtimeType}',
+  );
+}
+
 /// LoggerFactory for creating loggers with appropriate tags and levels
 class LoggerFactory {
-  /// Get a logger for a specific class with optional custom level
-  static Logger getLogger(Type type, {Level? level}) {
-    final tag = type.toString();
+  /// Get a logger for a specific class or string identifier with optional custom level
+  ///
+  /// Accepts either:
+  /// - A Type (class): LoggerFactory.getLogger(MyClass)
+  /// - A String: LoggerFactory.getLogger("TestLogger")
+  static Logger getLogger(dynamic target, {Level? level}) {
+    final tag = _getLogId(target);
     final logLevel =
         level ??
         _logLevels[tag] ??
@@ -93,9 +119,9 @@ class LoggerFactory {
     );
   }
 
-  /// Set log level for a specific class
-  static void setLogLevel(Type type, Level level) {
-    _logLevels[type.toString()] = level;
+  /// Set log level for a specific class or string identifier
+  static void setLogLevel(dynamic target, Level level) {
+    _logLevels[_getLogId(target)] = level;
   }
 
   /// Reset all custom log levels
@@ -119,9 +145,9 @@ class LoggerFactory {
     }
   }
 
-  /// Get the current effective log level for a type
-  static Level getCurrentLevel(Type type) {
-    final tag = type.toString();
+  /// Get the current effective log level for a type or string identifier
+  static Level getCurrentLevel(dynamic target) {
+    final tag = _getLogId(target);
     return _logLevels[tag] ??
         (kReleaseMode ? _defaultReleaseLevel : _defaultDebugLevel);
   }
@@ -145,8 +171,12 @@ class CustomLogFilter extends LogFilter {
   }
 }
 
-/// Generate a consistent tag for a class
-String logTag(Type type) => type.toString();
+/// Generate a consistent tag for a class or string identifier
+///
+/// Accepts either:
+/// - A Type (class): logTag(MyClass)
+/// - A String: logTag("TestLogger")
+String logTag(dynamic target) => _getLogId(target);
 
 /// Format PlaybackState for logging - USING PLACEHOLDER
 /// TODO: Update this function when the actual PlaybackState is available

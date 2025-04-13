@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
@@ -12,12 +12,12 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p; // For path joining
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Instantiates a file-specific logger instance.
-// Correct and intended way to use the logger. Do not remove!
-final logger = Logger(level: Level.off);
-
 /// Handles seeding initial data, like sample recordings, on first app launch.
 class AppSeeder {
+  // New logging pattern
+  final Logger _logger = LoggerFactory.getLogger(AppSeeder);
+  static final String _tag = logTag(AppSeeder);
+
   final LocalJobStore _localJobStore;
   final PathProvider _pathProvider;
   final FileSystem _fileSystem;
@@ -44,32 +44,35 @@ class AppSeeder {
        _audioDurationRetriever = audioDurationRetriever,
        _prefs = sharedPreferences;
 
+  /// Enable debug logs for this component
+  static void enableDebugLogs() {
+    LoggerFactory.setLogLevel(AppSeeder, Level.debug);
+  }
+
   /// Copies sample assets and creates corresponding local jobs if not already done.
   Future<void> seedInitialDataIfNeeded() async {
-    logger.i('[AppSeeder] Checking if initial data seeding is required...');
+    _logger.i('$_tag Checking if initial data seeding is required...');
 
     final bool alreadySeeded = _prefs.getBool(_seedingDonePrefsKey) ?? false;
 
     if (alreadySeeded) {
-      logger.i('[AppSeeder] Seeding already completed. Skipping.');
+      _logger.i('$_tag Seeding already completed. Skipping.');
       return;
     }
 
-    logger.i(
-      '[AppSeeder] Seeding not done yet. Proceeding with sample data setup.',
-    );
+    _logger.i('$_tag Seeding not done yet. Proceeding with sample data setup.');
 
     try {
       final Directory docsDir =
           await _pathProvider.getApplicationDocumentsDirectory();
       final String targetPath = p.join(docsDir.path, _sampleTargetFilename);
-      logger.d('[AppSeeder] Target path for sample: $targetPath');
+      _logger.d('$_tag Target path for sample: $targetPath');
 
       // 1. Check if the specific sample LocalJob already exists (e.g., partial past attempt)
       final existingJob = await _localJobStore.getJob(targetPath);
       if (existingJob != null) {
-        logger.w(
-          '[AppSeeder] Sample LocalJob already exists for $targetPath. Assuming seeding done for this item.',
+        _logger.w(
+          '$_tag Sample LocalJob already exists for $targetPath. Assuming seeding done for this item.',
         );
         // Mark as done generally, even if only one part was done before
         await _markSeedingAsDone();
@@ -79,27 +82,25 @@ class AppSeeder {
       // 2. Check if the target *file* already exists (e.g., copied but job not created)
       // We overwrite if it exists to ensure consistency with the expected asset.
       if (await _fileSystem.fileExists(targetPath)) {
-        logger.w(
-          '[AppSeeder] Target file $targetPath already exists. Overwriting.',
-        );
+        _logger.w('$_tag Target file $targetPath already exists. Overwriting.');
         // No need to delete explicitly, writeFile will overwrite.
       }
 
       // 3. Copy the asset file
-      logger.d('[AppSeeder] Loading asset: $_sampleAssetPath');
+      _logger.d('$_tag Loading asset: $_sampleAssetPath');
       final ByteData byteData = await rootBundle.load(_sampleAssetPath);
-      logger.d('[AppSeeder] Writing asset to: $targetPath');
+      _logger.d('$_tag Writing asset to: $targetPath');
       await _fileSystem.writeFile(targetPath, byteData.buffer.asUint8List());
-      logger.i('[AppSeeder] Successfully copied sample asset to $targetPath');
+      _logger.i('$_tag Successfully copied sample asset to $targetPath');
 
       // 4. Get duration of the *copied* file
-      logger.d('[AppSeeder] Getting duration for: $targetPath');
+      _logger.d('$_tag Getting duration for: $targetPath');
       // IMPORTANT: Ensure the duration retriever works correctly here.
       // If it fails, the LocalJob won't be created, and seeding won't be marked done.
       final Duration duration = await _audioDurationRetriever.getDuration(
         targetPath,
       );
-      logger.d('[AppSeeder] Duration retrieved: ${duration.inMilliseconds} ms');
+      _logger.d('$_tag Duration retrieved: ${duration.inMilliseconds} ms');
 
       // 5. Create and save the LocalJob
       final sampleJob = LocalJob(
@@ -111,17 +112,15 @@ class AppSeeder {
         // isSample: true, // TODO: Add this flag later if needed by adding bool field to LocalJob
       );
 
-      logger.d(
-        '[AppSeeder] Saving LocalJob for sample: ${sampleJob.localFilePath}',
-      );
+      _logger.d('$_tag Saving LocalJob for sample: ${sampleJob.localFilePath}');
       await _localJobStore.saveJob(sampleJob);
-      logger.i('[AppSeeder] Successfully saved LocalJob for sample.');
+      _logger.i('$_tag Successfully saved LocalJob for sample.');
 
       // 6. Mark seeding as done
       await _markSeedingAsDone();
     } catch (e, s) {
-      logger.e(
-        '[AppSeeder] CRITICAL ERROR during initial data seeding!',
+      _logger.e(
+        '$_tag CRITICAL ERROR during initial data seeding!',
         error: e,
         stackTrace: s,
       );
@@ -132,6 +131,6 @@ class AppSeeder {
 
   Future<void> _markSeedingAsDone() async {
     await _prefs.setBool(_seedingDonePrefsKey, true);
-    logger.i('[AppSeeder] Marked seeding as done in SharedPreferences.');
+    _logger.i('$_tag Marked seeding as done in SharedPreferences.');
   }
 }
