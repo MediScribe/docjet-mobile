@@ -7,8 +7,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_st
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 import 'package:rxdart/rxdart.dart';
 
-// Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+// Set Logger Level to OFF to disable logging in this file
+final logger = Logger(level: Level.off);
 
 /// Concrete implementation of [AudioPlaybackService] using the adapter and mapper pattern.
 /// This service orchestrates the interactions between the [AudioPlayerAdapter] and

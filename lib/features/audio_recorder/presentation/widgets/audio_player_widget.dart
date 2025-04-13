@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:async';
 
-// Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+// Set Logger Level to OFF to disable logging in this file
+final logger = Logger(level: Level.off);
 
 // Helper function (keep global or move to utils)
 String _formatDuration(Duration duration) {

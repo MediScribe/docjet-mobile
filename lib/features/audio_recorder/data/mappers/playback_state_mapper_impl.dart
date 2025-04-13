@@ -9,8 +9,8 @@ import 'package:flutter/foundation.dart'; // For @visibleForTesting
 import 'package:rxdart/rxdart.dart' as rx;
 import 'package:meta/meta.dart';
 
-// Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+// Set Logger Level to OFF to disable logging in this file
+final logger = Logger(level: Level.off);
 
 // Special debug flag for state transition tracking - set to true to enable detailed transition logs
 const bool _debugStateTransitions = true;

@@ -11,8 +11,8 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 
 part 'audio_list_state.dart';
 
-// Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+// Set Logger Level to OFF to disable logging in this file
+final logger = Logger(level: Level.off);
 
 // Special debug flag for state transition tracking - set to true to enable detailed transition logs
 const bool _debugStateTransitions = true;
