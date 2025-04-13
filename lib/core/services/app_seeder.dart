@@ -15,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Handles seeding initial data, like sample recordings, on first app launch.
 class AppSeeder {
   // New logging pattern
-  final Logger _logger = LoggerFactory.getLogger(AppSeeder);
+  final Logger logger = LoggerFactory.getLogger(AppSeeder);
   static final String _tag = logTag(AppSeeder);
 
   final LocalJobStore _localJobStore;
@@ -51,27 +51,27 @@ class AppSeeder {
 
   /// Copies sample assets and creates corresponding local jobs if not already done.
   Future<void> seedInitialDataIfNeeded() async {
-    _logger.i('$_tag Checking if initial data seeding is required...');
+    logger.i('$_tag Checking if initial data seeding is required...');
 
     final bool alreadySeeded = _prefs.getBool(_seedingDonePrefsKey) ?? false;
 
     if (alreadySeeded) {
-      _logger.i('$_tag Seeding already completed. Skipping.');
+      logger.i('$_tag Seeding already completed. Skipping.');
       return;
     }
 
-    _logger.i('$_tag Seeding not done yet. Proceeding with sample data setup.');
+    logger.i('$_tag Seeding not done yet. Proceeding with sample data setup.');
 
     try {
       final Directory docsDir =
           await _pathProvider.getApplicationDocumentsDirectory();
       final String targetPath = p.join(docsDir.path, _sampleTargetFilename);
-      _logger.d('$_tag Target path for sample: $targetPath');
+      logger.d('$_tag Target path for sample: $targetPath');
 
       // 1. Check if the specific sample LocalJob already exists (e.g., partial past attempt)
       final existingJob = await _localJobStore.getJob(targetPath);
       if (existingJob != null) {
-        _logger.w(
+        logger.w(
           '$_tag Sample LocalJob already exists for $targetPath. Assuming seeding done for this item.',
         );
         // Mark as done generally, even if only one part was done before
@@ -82,25 +82,25 @@ class AppSeeder {
       // 2. Check if the target *file* already exists (e.g., copied but job not created)
       // We overwrite if it exists to ensure consistency with the expected asset.
       if (await _fileSystem.fileExists(targetPath)) {
-        _logger.w('$_tag Target file $targetPath already exists. Overwriting.');
+        logger.w('$_tag Target file $targetPath already exists. Overwriting.');
         // No need to delete explicitly, writeFile will overwrite.
       }
 
       // 3. Copy the asset file
-      _logger.d('$_tag Loading asset: $_sampleAssetPath');
+      logger.d('$_tag Loading asset: $_sampleAssetPath');
       final ByteData byteData = await rootBundle.load(_sampleAssetPath);
-      _logger.d('$_tag Writing asset to: $targetPath');
+      logger.d('$_tag Writing asset to: $targetPath');
       await _fileSystem.writeFile(targetPath, byteData.buffer.asUint8List());
-      _logger.i('$_tag Successfully copied sample asset to $targetPath');
+      logger.i('$_tag Successfully copied sample asset to $targetPath');
 
       // 4. Get duration of the *copied* file
-      _logger.d('$_tag Getting duration for: $targetPath');
+      logger.d('$_tag Getting duration for: $targetPath');
       // IMPORTANT: Ensure the duration retriever works correctly here.
       // If it fails, the LocalJob won't be created, and seeding won't be marked done.
       final Duration duration = await _audioDurationRetriever.getDuration(
         targetPath,
       );
-      _logger.d('$_tag Duration retrieved: ${duration.inMilliseconds} ms');
+      logger.d('$_tag Duration retrieved: ${duration.inMilliseconds} ms');
 
       // 5. Create and save the LocalJob
       final sampleJob = LocalJob(
@@ -112,14 +112,14 @@ class AppSeeder {
         // isSample: true, // TODO: Add this flag later if needed by adding bool field to LocalJob
       );
 
-      _logger.d('$_tag Saving LocalJob for sample: ${sampleJob.localFilePath}');
+      logger.d('$_tag Saving LocalJob for sample: ${sampleJob.localFilePath}');
       await _localJobStore.saveJob(sampleJob);
-      _logger.i('$_tag Successfully saved LocalJob for sample.');
+      logger.i('$_tag Successfully saved LocalJob for sample.');
 
       // 6. Mark seeding as done
       await _markSeedingAsDone();
     } catch (e, s) {
-      _logger.e(
+      logger.e(
         '$_tag CRITICAL ERROR during initial data seeding!',
         error: e,
         stackTrace: s,
@@ -131,6 +131,6 @@ class AppSeeder {
 
   Future<void> _markSeedingAsDone() async {
     await _prefs.setBool(_seedingDonePrefsKey, true);
-    _logger.i('$_tag Marked seeding as done in SharedPreferences.');
+    logger.i('$_tag Marked seeding as done in SharedPreferences.');
   }
 }

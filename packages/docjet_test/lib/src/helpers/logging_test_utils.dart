@@ -39,10 +39,36 @@ import 'package:flutter_test/flutter_test.dart';
 /// A class that mimics the API of the DocJet LoggerFactory
 /// This is a placeholder until proper package dependencies are established
 class LoggerFactory {
-  static Level getCurrentLevel(dynamic target) => Level.info;
-  static void setLogLevel(dynamic target, Level level) {}
-  static void resetLogLevels() {}
-  static void setDefaultLogLevel(Level level) {}
+  static final Map<String, Level> _logLevels = {};
+  static Level _defaultLevel = Level.info;
+
+  static String _getLogId(dynamic target) {
+    if (target is Type) {
+      return target.toString();
+    } else if (target is String) {
+      return target;
+    }
+    throw ArgumentError(
+        'Logger target must be Type or String, but was ${target.runtimeType}');
+  }
+
+  static Level getCurrentLevel(dynamic target) {
+    final id = _getLogId(target);
+    return _logLevels[id] ?? _defaultLevel;
+  }
+
+  static void setLogLevel(dynamic target, Level level) {
+    final id = _getLogId(target);
+    _logLevels[id] = level;
+  }
+
+  static void resetLogLevels() {
+    _logLevels.clear();
+  }
+
+  static void setDefaultLogLevel(Level level) {
+    _defaultLevel = level;
+  }
 }
 
 /// Memory output to capture logs during tests

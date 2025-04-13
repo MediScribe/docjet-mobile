@@ -21,31 +21,29 @@ import 'package:flutter/foundation.dart'; // Import for debugPrint
 // Example class 1
 class ExampleService {
   // Get a logger specific to this class
-  final Logger _logger = LoggerFactory.getLogger(ExampleService);
+  final Logger logger = LoggerFactory.getLogger(ExampleService);
   static final String _tag = logTag(
     ExampleService,
   ); // Use logTag for consistency
 
   void doSomethingImportant() {
-    _logger.i('$_tag Starting important operation...');
+    logger.i('$_tag Starting important operation...');
     try {
       // Simulate work
       _performWork();
-      _logger.i('$_tag Important operation completed successfully.');
+      logger.i('$_tag Important operation completed successfully.');
     } catch (e, s) {
-      _logger.e('$_tag Important operation failed!', error: e, stackTrace: s);
+      logger.e('$_tag Important operation failed!', error: e, stackTrace: s);
     }
   }
 
   void _performWork() {
-    _logger.d('$_tag Performing sub-step 1.');
+    logger.d('$_tag Performing sub-step 1.');
     // Simulate potential issue
     if (DateTime.now().second % 2 == 0) {
-      _logger.w(
-        '$_tag Potential issue detected in sub-step 1, but continuing.',
-      );
+      logger.w('$_tag Potential issue detected in sub-step 1, but continuing.');
     }
-    _logger.d('$_tag Performing sub-step 2.');
+    logger.d('$_tag Performing sub-step 2.');
     // Simulate a failure sometimes
     if (DateTime.now().millisecond % 5 == 0) {
       throw Exception('Something went wrong in sub-step 2');

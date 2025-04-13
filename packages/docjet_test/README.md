@@ -37,13 +37,13 @@ void main() {
     final output = captureLogOutput();
     
     // Run test with debug logging enabled for a Class
-    await withDebugLogging(MyComponent, () async {
+    await withDebugLogsFor(MyComponent, () async {
       // Test code that should produce logs
       myComponent.doSomething();
     });
     
     // Assert log content
-    expectLogContains(output, Level.debug, 'Expected message');
+    expect(output.containsMessage(Level.debug, 'Expected message'), isTrue);
     expectNoLogsAboveLevel(output, Level.warning);
   });
   
@@ -52,20 +52,20 @@ void main() {
     final output = captureLogOutput();
     
     // Run test with debug logging enabled for a string identifier
-    await withDebugLogging("MyFeature.Logger", () async {
+    await withDebugLogsFor("MyFeature.Logger", () async {
       // Test code that should produce logs
       featureLogger.doSomething();
     });
     
     // Assert log content
-    expectLogContains(output, Level.debug, 'Expected message');
+    expect(output.containsMessage(Level.debug, 'Expected message'), isTrue);
   });
   
   test('logs nothing when disabled', () async {
     final output = captureLogOutput();
     
     // Run with a specific log level
-    await withLogLevel(MyComponent, Level.error, () async {
+    await withLogLevelFor(MyComponent, Level.error, () async {
       myComponent.doSomething();
     });
     
@@ -81,11 +81,11 @@ void main() {
 
 - `captureLogOutput()` - Creates a test log output
 - `resetLogLevels()` - Resets all log levels to default
-- `withDebugLogging(target, Function)` - Runs code with debug logging enabled
+- `withDebugLogsFor(target, Function)` - Runs code with debug logging enabled
   - `target` can be a Type (class) or String identifier
-- `withLogLevel(target, Level, Function)` - Runs code with specific log level
+- `withLogLevelFor(target, Level, Function)` - Runs code with specific log level
   - `target` can be a Type (class) or String identifier
-- `expectLogContains(output, level, substring)` - Asserts log content
+- `TestLogOutput.containsMessage(level, substring)` - Asserts log content
 - `expectNoLogsAboveLevel(output, level)` - Asserts no high-level logs
 - `expectNoLogsFrom(target, level, output, testFn)` - Asserts no logs from component
   - `target` can be a Type (class) or String identifier

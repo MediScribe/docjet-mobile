@@ -11,36 +11,12 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-// NOTE: TestLogOutput moved to test/helpers/log_test_helpers.dart
+import '../../helpers/log_test_helpers.dart';
 
 // Mock class for testing
 class TestClass {}
 
 class AnotherTestClass {}
-
-// Memory output to capture logs during tests
-class TestLogOutput extends LogOutput {
-  final List<OutputEvent> buffer = [];
-
-  @override
-  void output(OutputEvent event) {
-    buffer.add(event);
-  }
-
-  void clear() {
-    buffer.clear();
-  }
-
-  bool containsMessage(Level level, String messageSubstring) {
-    return buffer.any(
-      (event) =>
-          event.level == level &&
-          event.lines.any((line) => line.contains(messageSubstring)),
-    );
-  }
-
-  bool isEmpty() => buffer.isEmpty;
-}
 
 // Helper to create a logger with a test output
 Logger _createTestLogger(dynamic target, TestLogOutput output, {Level? level}) {
@@ -63,7 +39,7 @@ void main() {
     // Reset default levels to known state (assuming default behavior)
     // Set default to trace (previously verbose) for testing most levels
     LoggerFactory.setDefaultLogLevel(Level.trace);
-    testOutput = TestLogOutput();
+    testOutput = captureLogOutput();
   });
 
   tearDown(() {

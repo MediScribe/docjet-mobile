@@ -19,6 +19,9 @@
 - [x] Implement `CustomLogFilter` class
 - [x] Implement helper functions
 - [x] Run tests to verify implementation
+- [x] Add support for string-based loggers
+- [x] Update tests for string-based loggers
+- [x] Document string-based logger behavior
 
 ## 2. Update Components
 
@@ -96,12 +99,17 @@
 
 ## 4. Update Tests for Component-Specific Logging
 
-- [x] Create `test/helpers/log_helpers.dart`
+- [x] Create `test/helpers/log_test_helpers.dart`
 - [x] Implement `TestLogOutput` class in helper file
 - [x] Implement `resetLogLevels()` function
 - [x] Implement `withDebugLogsFor()` function
 - [x] Implement `withLogLevelFor()` function
 - [x] Implement `expectNoLogsFrom()` function
+- [x] Add support for string-based loggers in test helpers
+- [x] Create tests for test helpers in `log_test_helpers_test.dart`
+- [x] Implement `expectLogContains()` function
+- [x] Implement `expectNoLogsAboveLevel()` function
+- [x] Implement `captureLogOutput()` function
 - [ ] Update existing tests to use new helpers
 - [ ] Add test for each component with debug logs enabled
 - [ ] Verify tests pass with different log levels
@@ -110,12 +118,14 @@
 
 - [x] Create `examples/logging_example.dart`
 - [x] Create `test/examples/logging_example_test.dart`
+- [x] Add string-based logger examples
 
 ## 6. Final Verification and Documentation
 
 - [ ] Run full test suite
 - [ ] Perform manual testing with different log levels
 - [ ] Remove any remaining legacy logging code
+- [x] Document string-based logger behavior
 - [ ] Document the logging system in README
 - [ ] Create usage examples for each component
 - [ ] Test in release mode to verify log level restrictions 
