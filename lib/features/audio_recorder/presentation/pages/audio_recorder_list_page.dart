@@ -226,8 +226,8 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                     '[PARENT_WIDGET] Props for $fileId: '
                     'isActiveItem=$isActiveItem '
                     '(playbackInfo.activeFilePath=${playbackInfo.activeFilePath?.split('/').last}), '
-                    'isPlaying=${itemIsPlaying} (playbackInfo.isPlaying=${playbackInfo.isPlaying}), '
-                    'isLoading=${itemIsLoading}, position=${itemPosition.inMilliseconds}ms, '
+                    'isPlaying=$itemIsPlaying (playbackInfo.isPlaying=${playbackInfo.isPlaying}), '
+                    'isLoading=$itemIsLoading, position=${itemPosition.inMilliseconds}ms, '
                     'displayDuration=${displayDuration.inMilliseconds}ms',
                   );
                 }

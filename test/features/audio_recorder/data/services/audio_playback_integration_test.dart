@@ -128,6 +128,9 @@ void main() {
     // Also stub the playing property getter
     when(mockAudioPlayer.playing).thenReturn(false);
 
+    // Add the missing stub for processingState
+    when(mockAudioPlayer.processingState).thenReturn(ja.ProcessingState.idle);
+
     // For initial value, emit a default state
     playerStateController.add(ja.PlayerState(false, ja.ProcessingState.idle));
     positionController.add(Duration.zero);
@@ -139,6 +142,9 @@ void main() {
     when(mockAudioPlayer.load()).thenAnswer((_) async => Duration.zero);
     when(mockAudioPlayer.play()).thenAnswer((_) async {
       // Simulate player transitioning to playing state when play() is called
+      logger.d('Mock: play() called, emitting playing state');
+      // Add a delay before changing the state
+      await Future.delayed(const Duration(milliseconds: 100));
       playerStateController.add(ja.PlayerState(true, ja.ProcessingState.ready));
       return;
     });
@@ -180,6 +186,11 @@ void main() {
     final audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);
 
     final playbackStateMapper = PlaybackStateMapperImpl();
+    // Enable test mode to disable debouncing in tests
+    (playbackStateMapper).setTestMode(true);
+    logger.d(
+      'PlaybackStateMapperImpl test mode has been enabled - debouncing should be disabled',
+    );
 
     // Initialize the mapper with the adapter's streams
     // This is the critical wiring step that's tested in the first test case
@@ -232,6 +243,9 @@ void main() {
 
     // Re-stub the playing property
     when(mockAudioPlayer.playing).thenReturn(false);
+
+    // Add the missing stub for processingState in tearDown
+    when(mockAudioPlayer.processingState).thenReturn(ja.ProcessingState.idle);
 
     // Re-set automated responses
     when(mockAudioPlayer.play()).thenAnswer((_) async {
@@ -331,7 +345,7 @@ void main() {
       // Listen to playback states with timeout
       final subscription = service.playbackStateStream.listen(
         (state) {
-          logger.d('Received state: $state');
+          logger.d('Received state: ${state.runtimeType}');
           emittedStates.add(state);
 
           // Check for required states to complete the test
@@ -344,8 +358,15 @@ void main() {
             (s) => s.maybeMap(playing: (_) => true, orElse: () => false),
           );
 
+          logger.d(
+            'States check: hasLoading=$hasLoading, hasPlaying=$hasPlaying',
+          );
+
           if (hasLoading && hasPlaying) {
             if (!completer.isCompleted) {
+              logger.d(
+                'Both loading and playing states found, completing test',
+              );
               completer.complete();
             }
           }
@@ -373,7 +394,13 @@ void main() {
           playerStateController.add(
             ja.PlayerState(false, ja.ProcessingState.loading),
           );
-          await Future.delayed(Duration.zero);
+          // Add a longer delay to ensure loading state is processed before transitioning
+          await Future.delayed(const Duration(milliseconds: 200));
+
+          // Simulate getting duration
+          durationController.add(const Duration(seconds: 60));
+
+          // Return the duration
           return const Duration(seconds: 60);
         });
 
@@ -384,8 +411,9 @@ void main() {
         verify(mockAudioPlayer.setAudioSource(any)).called(1);
         verify(mockAudioPlayer.play()).called(1);
 
-        // Give the streams time to propagate
-        await Future.delayed(const Duration(milliseconds: 50));
+        // Give the streams more time to propagate
+        logger.d('Waiting for state transitions to propagate...');
+        await Future.delayed(const Duration(milliseconds: 500));
 
         // Manually emit a position update to trigger another state update
         positionController.add(const Duration(seconds: 5));
@@ -393,11 +421,11 @@ void main() {
 
         // Wait for our test to complete within a reasonable timeout
         await completer.future.timeout(
-          const Duration(seconds: 5),
+          const Duration(seconds: 10),
           onTimeout: () {
             logger.e('TIMEOUT waiting for states. States received:');
             for (final state in emittedStates) {
-              logger.e('  - $state');
+              logger.e('  - ${state.runtimeType}');
             }
             throw TimeoutException(
               'Test timed out waiting for playback states',

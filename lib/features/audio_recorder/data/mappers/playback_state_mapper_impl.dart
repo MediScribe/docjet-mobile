@@ -6,7 +6,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_pla
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:flutter/foundation.dart'; // For @visibleForTesting
-import 'package:rxdart/rxdart.dart';
+import 'package:rxdart/rxdart.dart' as rx;
+import 'package:meta/meta.dart';
 
 // Set Logger Level to DEBUG for active development/debugging in this file
 final logger = Logger(level: Level.debug);
@@ -32,6 +33,12 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   // The merged and mapped output stream
   late final Stream<PlaybackState> _playbackStateStream;
 
+  // Flag to disable debouncing in test mode
+  bool _testMode = false;
+
+  // Debounce duration in milliseconds
+  static const int _debounceDurationMs = 80;
+
   // Subscriptions to input streams (held for potential cleanup)
   final List<StreamSubscription<dynamic>> _subscriptions = [];
 
@@ -56,6 +63,7 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     required Stream<Duration> durationStream,
     required Stream<void> completeStream,
     required Stream<DomainPlayerState> playerStateStream,
+    Stream<String>? errorStream,
   }) {
     logger.d(
       '[MAPPER_INIT] Initializing and subscribing to adapter streams...',
@@ -119,6 +127,22 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
         },
       ),
     );
+
+    // Subscribe to error stream if provided
+    if (errorStream != null) {
+      _subscriptions.add(
+        errorStream.listen(
+          errorController.add,
+          onError:
+              (e, s) => logger.e(
+                '[MAPPER_INIT] Error in error stream (meta-error)',
+                error: e,
+                stackTrace: s,
+              ),
+        ),
+      );
+    }
+
     logger.d('[MAPPER_INIT] Subscriptions complete.');
   }
 
@@ -139,10 +163,19 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     logger.d('[MAPPER_DISPOSE] Dispose complete.');
   }
 
+  /// Sets test mode which disables debouncing for more predictable test behavior
+  @visibleForTesting
+  void setTestMode(bool enabled) {
+    _testMode = enabled;
+    logger.d(
+      '[MAPPER_CONFIG] Test mode ${enabled ? 'enabled' : 'disabled'} - debouncing will be ${enabled ? 'skipped' : 'applied'}',
+    );
+  }
+
   // --- Internal Stream Combination Logic ---
 
   Stream<PlaybackState> _createCombinedStream() {
-    return Rx.merge([
+    var stream = rx.Rx.merge([
           positionController.stream.map((pos) {
             _currentPosition = pos;
             if (_currentPlayerState != DomainPlayerState.stopped &&
@@ -192,14 +225,34 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
           // Demoted from DEBUG to TRACE due to high frequency
           (state) => logger.t('[MAPPER_PRE_DISTINCT] State: $state'),
         )
-        .distinct(_areStatesEquivalent)
-        // Add debouncing to prevent rapid state changes from causing UI flicker
-        .debounceTime(const Duration(milliseconds: 80))
-        .doOnData(
-          // Demoted from DEBUG to TRACE due to high frequency
-          (state) =>
-              logger.t('[MAPPER_POST_DISTINCT] State (Emitting): $state'),
-        );
+        .distinct(_areStatesEquivalent);
+
+    // Apply debouncing only in production mode (not in tests)
+    if (!_testMode) {
+      logger.d(
+        '[MAPPER_CONFIG] Production mode - applying ${_debounceDurationMs}ms debounce to prevent UI flicker',
+      );
+      // Wrap debounce in doOnData to log before and after
+      stream = stream
+          .doOnData(
+            (state) => logger.t(
+              '[MAPPER_DEBOUNCE_IN] State: $state',
+            ), // Log state entering debounce
+          )
+          .debounceTime(Duration(milliseconds: _debounceDurationMs))
+          .doOnData(
+            (state) => logger.t(
+              '[MAPPER_DEBOUNCE_OUT] State: $state',
+            ), // Log state exiting debounce
+          );
+    } else {
+      logger.d('[MAPPER_CONFIG] Test mode - no debouncing applied');
+    }
+
+    return stream.doOnData(
+      // Demoted from DEBUG to TRACE due to high frequency
+      (state) => logger.t('[MAPPER_POST_DISTINCT] State (Emitting): $state'),
+    );
   }
 
   /// Clears the internal error state if it's currently set.
@@ -263,7 +316,8 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     }
 
     if (_debugStateTransitions) {
-      logger.d(
+      // Demote this transition log as it can be noisy
+      logger.t(
         '[STATE_TRANSITION] MAPPER: DomainPlayerState = $_currentPlayerState → PlaybackState = ${newState.runtimeType}',
       );
     }

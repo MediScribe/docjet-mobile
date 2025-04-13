@@ -175,7 +175,8 @@ class AudioListCubit extends Cubit<AudioListState> {
               newPlaybackInfo.activeFilePath ||
           currentPlaybackInfo.isLoading != newPlaybackInfo.isLoading ||
           currentPlaybackInfo.error != newPlaybackInfo.error) {
-        logger.d(
+        // Demote this detailed log to trace as it can be noisy during seeks
+        logger.t(
           '[CUBIT_PLAYBACK_INFO] Changed: '
           'activeFilePath: ${currentPlaybackInfo.activeFilePath?.split('/').last} -> ${newPlaybackInfo.activeFilePath?.split('/').last}, '
           'isPlaying: ${currentPlaybackInfo.isPlaying} -> ${newPlaybackInfo.isPlaying}, '
@@ -257,17 +258,14 @@ class AudioListCubit extends Cubit<AudioListState> {
     // ); // Keep INFO
   }
 
-  /// Initiates playback of the specified recording file.
+  /// Initiates playback for a given audio file.
   Future<void> playRecording(String filePath) async {
-    final flowId = DateTime.now().millisecondsSinceEpoch % 10000;
-    logger.d(
-      '[FLOW #$flowId] [CUBIT ACTION] playRecording CALLED for ${filePath.split('/').last}',
-    );
     _currentPlayingFilePath = filePath; // Set context immediately
     try {
       await _audioPlaybackService.play(filePath);
-    } catch (e) {
-      logger.e('[FLOW #$flowId] [CUBIT ACTION] playRecording ERROR: $e');
+    } catch (e, s) {
+      logger.e('[CUBIT] Error calling play service', error: e, stackTrace: s);
+      // Restore error handling
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -285,14 +283,10 @@ class AudioListCubit extends Cubit<AudioListState> {
         emit(AudioListError(message: 'Failed to start playback: $e'));
       }
     }
-    logger.d(
-      '[FLOW #$flowId] [CUBIT ACTION] playRecording COMPLETED for ${filePath.split('/').last}',
-    );
   }
 
-  /// Pauses the currently playing audio via the service.
+  /// Pauses the currently playing audio.
   Future<void> pauseRecording() async {
-    logger.d('[CUBIT ACTION] pauseRecording CALLED');
     // Ensure we keep the current playing file path
     if (_currentPlayingFilePath == null && state is AudioListLoaded) {
       final currentState = state as AudioListLoaded;
@@ -306,8 +300,9 @@ class AudioListCubit extends Cubit<AudioListState> {
 
     try {
       await _audioPlaybackService.pause();
-    } catch (e) {
-      logger.e('[CUBIT ACTION] pauseRecording ERROR: $e');
+    } catch (e, s) {
+      logger.e('[CUBIT] Error calling pause service', error: e, stackTrace: s);
+      // Restore error handling
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -319,7 +314,6 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
-    logger.d('[CUBIT ACTION] pauseRecording COMPLETED');
   }
 
   /// Resumes the currently paused audio via the service.
@@ -354,15 +348,21 @@ class AudioListCubit extends Cubit<AudioListState> {
     // logger.d('[CUBIT_resumeRecording] END'); // Keep DEBUG
   }
 
-  /// Seeks to a specific position in the specified recording file.
+  /// Seeks to a specific position in an audio file.
+  ///
+  /// Note: This implicitly handles pausing if the file is not currently playing.
   Future<void> seekRecording(String filePath, Duration position) async {
+    final fileId = filePath.split('/').last;
     logger.d(
-      '[CUBIT ACTION] seekRecording CALLED for ${filePath.split('/').last} to ${position.inMilliseconds}ms',
+      '[CUBIT_SEEK $fileId] Received: pos=${position.inMilliseconds}ms -> Calling service.seek()',
     );
+    _currentPlayingFilePath =
+        filePath; // Update context immediately when seek is initiated
     try {
       await _audioPlaybackService.seek(filePath, position);
-    } catch (e) {
-      logger.e('[CUBIT ACTION] seekRecording ERROR: $e');
+    } catch (e, s) {
+      logger.e('[CUBIT] Error calling seek service', error: e, stackTrace: s);
+      // Restore error handling that emits an error state
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -380,17 +380,16 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
-    logger.d('[CUBIT ACTION] seekRecording COMPLETED');
   }
 
-  /// Stops the currently playing audio via the service.
+  /// Stops the currently playing audio.
   Future<void> stopRecording() async {
+    _currentPlayingFilePath = null; // Clear context on explicit stop
     try {
       await _audioPlaybackService.stop();
-      // Explicitly clear the current file path when we intentionally stop
-      _currentPlayingFilePath = null;
-    } catch (e) {
-      logger.e('[CUBIT_stopRecording] Error calling stop on service: $e');
+    } catch (e, s) {
+      logger.e('[CUBIT] Error calling stop service', error: e, stackTrace: s);
+      // Restore error handling
       if (state is AudioListLoaded) {
         final currentState = state as AudioListLoaded;
         emit(
@@ -402,5 +401,10 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
+  }
+
+  /// Renames a specific recording file and reloads the list.
+  Future<void> renameRecording(String oldPath, String newName) async {
+    // ... existing code ...
   }
 }

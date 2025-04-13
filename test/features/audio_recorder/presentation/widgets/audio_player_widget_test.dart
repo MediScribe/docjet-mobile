@@ -199,6 +199,22 @@ void main() {
         () => mockAudioListCubit.pauseRecording(),
       ).thenAnswer((_) async {}); // Stub the method
 
+      // Make the cubit state consistent with the desired widget state *before* pumping
+      final playingState = AudioListLoaded(
+        transcriptions: [], // Provide necessary dummy data
+        playbackInfo: PlaybackInfo(
+          activeFilePath: testFilePath,
+          isPlaying: true, // <-- Match the prop
+          isLoading: false,
+          currentPosition: const Duration(seconds: 30), // Match prop
+          totalDuration: const Duration(seconds: 60), // Match prop
+          error: null,
+        ),
+      );
+      when(
+        () => mockAudioListCubit.state,
+      ).thenReturn(playingState); // Stub the state
+
       final widget = AudioPlayerWidget(
         key: const ValueKey('audio_player_pause_tap'),
         filePath: testFilePath,

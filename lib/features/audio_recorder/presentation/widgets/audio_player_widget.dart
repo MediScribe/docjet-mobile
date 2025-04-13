@@ -2,6 +2,7 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'dart:async';
 
 // Set Logger Level to DEBUG for active development/debugging in this file
 final logger = Logger(level: Level.debug);
@@ -42,6 +43,15 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   bool _isDragging = false;
   double _dragValue = 0.0;
 
+  // --- Fix for Seek Jump-Back ---
+  // Flag to keep UI locked briefly after seek ends
+  bool _waitingForSeekConfirm = false;
+  // Store the final value the user dragged to
+  double _finalDragValue = 0.0;
+  // Timer to reset the flag
+  Timer? _seekConfirmTimer;
+  // --- End Fix ---
+
   // Timing variables for rebuild tracking
   static int _lastBuildTime = 0;
   static int _buildCount = 0;
@@ -79,7 +89,13 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
         .clamp(0.0, sliderMax); // Ensure value stays within bounds
 
     // Determine the actual value to display on the slider and text
-    final displayValueMillis = _isDragging ? _dragValue : currentPositionValue;
+    final double displayValueMillis;
+    if (_waitingForSeekConfirm) {
+      displayValueMillis =
+          _finalDragValue; // Use final drag value while waiting
+    } else {
+      displayValueMillis = _isDragging ? _dragValue : currentPositionValue;
+    }
     final displayPosition = Duration(
       milliseconds: displayValueMillis.round(),
     ); // Use round()
@@ -87,15 +103,10 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     final String positionText = _formatDuration(displayPosition);
     final String durationText = _formatDuration(widget.totalDuration);
 
-    // Commented out redundant debug logs
-    // logger.d(
-    //   "AudioPlayerWidget: isPlaying=${widget.isPlaying}, path=${widget.filePath.split('/').last}",
-    // );
-    // logger.d("AudioPlayerWidget: canPlayPause=$canPlayPause");
-    // logger.d(
-    //   "AudioPlayerWidget: canSeek=$canSeek, totalDuration=$widget.totalDuration",
-    // );
-    // logger.d("AudioPlayerWidget: sliderValue=$currentPositionValue / $sliderMax");
+    // Refined build log
+    logger.t(
+      '[WIDGET_BUILD $fileId] Props: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, pos=${widget.currentPosition.inMilliseconds}ms, dur=${widget.totalDuration.inMilliseconds}ms | State: isDragging=$_isDragging, dragValue=$_dragValue | Error: ${widget.error}',
+    );
 
     if (widget.isLoading) {
       return _buildLoadingIndicator();
@@ -197,7 +208,13 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     onChanged:
                         canSeek
                             ? (value) {
-                              _handleDragStart(value);
+                              // Log only on drag start
+                              if (!_isDragging) {
+                                final fileId = widget.filePath.split('/').last;
+                                logger.d(
+                                  '[WIDGET_SEEK $fileId] onChangeStart: value=${value.round()}ms',
+                                );
+                              }
                               setState(() {
                                 _isDragging = true;
                                 _dragValue = value;
@@ -207,13 +224,35 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
                     onChangeEnd:
                         canSeek
                             ? (value) {
-                              _handleDragEnd(value);
-                              setState(() {
-                                _isDragging = false;
-                              });
+                              // Log on drag end
+                              final fileId = widget.filePath.split('/').last;
                               final seekPosition = Duration(
                                 milliseconds: value.round(), // Use round()
                               );
+                              logger.d(
+                                '[WIDGET_SEEK $fileId] onChangeEnd: value=${value.round()}ms -> Calling seekRecording',
+                              );
+                              // --- Fix for Seek Jump-Back ---
+                              setState(() {
+                                _isDragging = false;
+                                _waitingForSeekConfirm = true; // Lock UI
+                                _finalDragValue = value; // Store final value
+                              });
+                              // Cancel any previous timer
+                              _seekConfirmTimer?.cancel();
+                              // Start timer to unlock UI after debounce+buffer
+                              _seekConfirmTimer = Timer(
+                                const Duration(milliseconds: 150),
+                                () {
+                                  if (mounted) {
+                                    // Check if widget is still mounted
+                                    setState(
+                                      () => _waitingForSeekConfirm = false,
+                                    );
+                                  }
+                                },
+                              );
+                              // --- End Fix ---
                               context.read<AudioListCubit>().seekRecording(
                                 widget.filePath,
                                 seekPosition,
@@ -258,7 +297,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     final fileId = widget.filePath.split('/').last;
     final flowId =
         DateTime.now().millisecondsSinceEpoch % 10000; // Generate a flow ID
-    logger.d('[FLOW #$flowId] Play/Pause button pressed for $fileId');
+    // Demote flow start log to trace
+    logger.t('[FLOW #$flowId] Play/Pause button pressed for $fileId');
     logger.d('[UI EVENT] Play/Pause button pressed for $fileId');
 
     // Get the current active file from the PlaybackInfo to see if it matches this widget
@@ -272,8 +312,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
             ? currentState.playbackInfo.isPlaying
             : false;
 
-    // Log critical context information
-    logger.d(
+    // Demote context check log to trace
+    logger.t(
       '[FLOW #$flowId] [UI DECISION] $fileId - Context check: '
       'activeFilePath=${activeFilePath?.split('/').last}, '
       'isActiveFilePlaying=$isActiveFilePlaying, '
@@ -281,8 +321,8 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       'widgetIsPlaying=${widget.isPlaying}',
     );
 
-    // Log the current state BEFORE any decisions are made
-    logger.d(
+    // Demote before action log to trace
+    logger.t(
       '[FLOW #$flowId] [UI DECISION] $fileId - Before action: isPlaying=${widget.isPlaying}, isLoading=${widget.isLoading}, position=${widget.currentPosition.inMilliseconds}ms, duration=${widget.totalDuration.inMilliseconds}ms',
     );
 
@@ -291,19 +331,22 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
     if (widget.isPlaying && isThisWidgetTheActiveFile) {
       // Only pause if THIS widget represents the currently active file
-      logger.d(
+      // Demote decision log to trace
+      logger.t(
         '[FLOW #$flowId] [UI DECISION] $fileId - Widget is active and playing, calling pauseRecording()',
       );
       context.read<AudioListCubit>().pauseRecording();
     } else {
       // For all other cases, we want to play/resume this file
       if (widget.currentPosition > Duration.zero) {
-        logger.d(
+        // Demote decision log to trace
+        logger.t(
           '[FLOW #$flowId] [UI DECISION] $fileId - Widget reports position ${widget.currentPosition.inMilliseconds}ms, calling resumeRecording()',
         );
         context.read<AudioListCubit>().resumeRecording();
       } else {
-        logger.d(
+        // Demote decision log to trace
+        logger.t(
           '[FLOW #$flowId] [UI DECISION] $fileId - Widget reports zero position, calling playRecording()',
         );
         context.read<AudioListCubit>().playRecording(widget.filePath);
@@ -312,18 +355,27 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
 
   void _handleDragStart(double value) {
-    logger.d(
+    // Demote drag start log to trace
+    logger.t(
       '[UI EVENT] Seek drag started at position ${value.round()}ms for ${widget.filePath.split('/').last}',
     );
   }
 
+  // ignore: unused_element
   void _handleDragUpdate(double value) {
     // No DEBUG log here - too frequent
   }
 
   void _handleDragEnd(double value) {
-    logger.d(
+    // Demote drag end log to trace
+    logger.t(
       '[UI EVENT] Seek drag ended at position ${value.round()}ms for ${widget.filePath.split('/').last}',
     );
+  }
+
+  @override
+  void dispose() {
+    _seekConfirmTimer?.cancel(); // Cancel timer if widget is disposed
+    super.dispose();
   }
 }
