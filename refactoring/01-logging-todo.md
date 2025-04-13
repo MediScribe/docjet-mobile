@@ -2,14 +2,14 @@
 
 ## 1. Create Logging Utilities
 
-- [ ] Create test file for log formatting helpers
-- [ ] Write test for `logTag()` function
-- [ ] Write test for `formatPlaybackState()` function
-- [ ] Write test for log level configuration
-- [ ] Implement `LoggerFactory` class
-- [ ] Implement `CustomLogFilter` class
-- [ ] Implement helper functions
-- [ ] Run tests to verify implementation
+- [x] Create test file for log formatting helpers
+- [x] Write test for `logTag()` function
+- [x] Write test for `formatPlaybackState()` function
+- [x] Write test for log level configuration
+- [x] Implement `LoggerFactory` class
+- [x] Implement `CustomLogFilter` class
+- [x] Implement helper functions
+- [x] Run tests to verify implementation
 
 ## 2. Update Components
 
@@ -87,9 +87,9 @@
 
 ## 4. Update Tests for Component-Specific Logging
 
-- [ ] Create `test/helpers/log_helpers.dart`
-- [ ] Implement `resetLogLevels()` function
-- [ ] Implement `withDebugLogsFor()` function
+- [x] Create `test/helpers/log_helpers.dart`
+- [x] Implement `resetLogLevels()` function
+- [x] Implement `withDebugLogsFor()` function
 - [ ] Update existing tests to use new helpers
 - [ ] Add test for each component with debug logs enabled
 - [ ] Verify tests pass with different log levels
