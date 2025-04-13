@@ -1,12 +1,30 @@
 /// DEPRECATED LOGGING SYSTEM
 ///
 /// ⚠️ WARNING: This file is being phased out!
-/// ⚠️ Do not use for new code. Use log_helpers.dart instead.
+/// ⚠️ DO NOT USE for new code! Use log_helpers.dart instead.
 ///
 /// This will be removed once all components are migrated
 /// to the new logging system.
 ///
-/// See logging_example.dart for examples of the new system.
+/// Migration Instructions:
+///
+/// 1. Replace imports:
+///    - Remove: import 'package:docjet_mobile/core/utils/logger.dart';
+///    - Add: import 'package:docjet_mobile/core/utils/log_helpers.dart';
+///
+/// 2. Replace global logger with class-specific logger:
+///    - Old: logger.d('Some message');
+///    - New:
+///      final Logger _logger = LoggerFactory.getLogger(YourClass);
+///      static final String _tag = logTag(YourClass);
+///      _logger.d('$_tag Some message');
+///
+/// 3. Add debug helper (optional):
+///    static void enableDebugLogs() {
+///      LoggerFactory.setLogLevel(YourClass, Level.debug);
+///    }
+///
+/// See examples/logging_example.dart for a complete migration example
 
 library;
 
@@ -14,7 +32,7 @@ import 'package:flutter/foundation.dart'; // For kReleaseMode
 import 'package:docjet_mobile/core/utils/logger.dart';
 export 'package:logger/logger.dart'; // Export the Logger class
 
-// How to use:
+// DEPRECATED USAGE (DO NOT USE FOR NEW CODE):
 // 1. Import this file and set the logger level to debug for detailed tracing
 // import 'package:docjet_mobile/core/utils/logger.dart';
 // final logger = Logger(level: Level.debug);

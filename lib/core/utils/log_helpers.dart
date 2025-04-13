@@ -1,24 +1,49 @@
 /// DOCJET LOGGING SYSTEM
 ///
-/// This is the primary logging implementation.
-/// Use this for all application logging needs.
+/// This is the primary logging implementation for the application.
+/// Use this file for all application logging needs.
 ///
 /// Features:
-/// - Per-class log levels
+/// - Per-class log levels (can enable debug for just one component)
 /// - Consistent log tag formatting
-/// - Release mode safety
+/// - Release mode safety (prevents debug logs in production)
 /// - Factory pattern for logger instantiation
 ///
 /// Basic usage:
-/// final Logger _logger = LoggerFactory.getLogger(YourClass);
-/// static final String _tag = logTag(YourClass);
+/// ```dart
+/// class MyClass {
+///   // Get a logger for this specific class
+///   final Logger _logger = LoggerFactory.getLogger(MyClass);
 ///
-/// _logger.i('$_tag Your message here');
+///   // Create a tag for consistent log messages
+///   static final String _tag = logTag(MyClass);
+///
+///   void someMethod() {
+///     _logger.i('$_tag Starting operation...');
+///     // ... code ...
+///     _logger.d('$_tag Debug details: $details');
+///   }
+///
+///   // Optional: Add a static method to enable debug logging
+///   static void enableDebugLogs() {
+///     LoggerFactory.setLogLevel(MyClass, Level.debug);
+///   }
+/// }
+/// ```
+///
+/// For testing utilities, use the docjet_test package:
+/// import 'package:docjet_test/docjet_test.dart';
+///
+/// See examples/logging_example.dart for a complete example
 
 library;
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:logger/logger.dart';
+
+// Export the necessary Logger classes so consumers only need to import this file
+export 'package:logger/logger.dart'
+    show Logger, Level, LogFilter, LogEvent, LogOutput;
 
 // NEW CENTRAL LOGGING SYSTEM
 // Use this file for all logging needs

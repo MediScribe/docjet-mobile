@@ -2,10 +2,12 @@
 
 **Note on File Structure:**
 
-*   **New System:** `lib/core/utils/log_helpers.dart` (Implementation)
+*   **Main Implementation:** `lib/core/utils/log_helpers.dart`
 *   **Old System (To Remove):** `lib/core/utils/logger.dart`
-*   **New System Tests:** `test/core/utils/log_helpers_test.dart`
-*   **General Test Helpers:** `test/helpers/log_test_helpers.dart` (For use in *other* tests)
+*   **Tests for Implementation:** `test/core/utils/log_helpers_test.dart`
+*   **Test Utilities Package:** `packages/docjet_test/lib/src/helpers/logging_test_utils.dart`
+*   **Example Usage:** `examples/logging_example.dart`
+*   **Example Test:** `test/examples/logging_example_test.dart`
 
 ## 1. Create Logging Utilities
 
