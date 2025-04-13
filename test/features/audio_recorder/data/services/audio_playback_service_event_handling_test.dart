@@ -34,16 +34,16 @@ void main() {
     // Setup the streams needed by the mapper
     when(
       mockAudioPlayerAdapter.onPositionChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onDurationChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onPlayerComplete,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onPlayerStateChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
 
     // Setup the playback state stream
     when(
@@ -68,7 +68,7 @@ void main() {
     test('should delegate mapper events through playbackStateStream', () async {
       logger.d('TEST [delegate events]: Starting');
       // Arrange
-      final expectedState = PlaybackState.playing(
+      const expectedState = PlaybackState.playing(
         currentPosition: Duration(seconds: 10),
         totalDuration: Duration(minutes: 2),
       );

@@ -68,16 +68,16 @@ void main() {
     // Stub adapter streams (return empty streams for these tests)
     when(
       mockAudioPlayerAdapter.onPlayerStateChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onDurationChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onPositionChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onPlayerComplete,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
 
     // Instantiate service with NEW mocks
     service = AudioPlaybackServiceImpl(
@@ -323,7 +323,7 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Give the stream time to propagate the state
-          await Future.delayed(Duration(milliseconds: 50));
+          await Future.delayed(const Duration(milliseconds: 50));
 
           // Assert Interactions for second play (relative to clearInteractions)
           verify(mockAudioPlayerAdapter.stop()).called(1); // Stop for play 2
@@ -455,7 +455,7 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Give the stream time to propagate the state
-          await Future.delayed(Duration(milliseconds: 50));
+          await Future.delayed(const Duration(milliseconds: 50));
 
           // Assert interactions for second play (relative to clearInteractions)
           verify(
@@ -495,15 +495,15 @@ void main() {
         const pausedPosition = Duration(seconds: 25);
 
         // Create states to be emitted
-        final initialPlayingState = entity.PlaybackState.playing(
+        const initialPlayingState = entity.PlaybackState.playing(
           currentPosition: Duration.zero,
           totalDuration: initialDuration,
         );
-        final pausedState = entity.PlaybackState.paused(
+        const pausedState = entity.PlaybackState.paused(
           currentPosition: pausedPosition,
           totalDuration: initialDuration,
         );
-        final resumedPlayingState = entity.PlaybackState.playing(
+        const resumedPlayingState = entity.PlaybackState.playing(
           currentPosition: pausedPosition, // Resume from paused position
           totalDuration: initialDuration,
         );
@@ -555,7 +555,7 @@ void main() {
           await Future.delayed(Duration.zero); // Process stream
 
           // Give the stream time to propagate the state
-          await Future.delayed(Duration(milliseconds: 50));
+          await Future.delayed(const Duration(milliseconds: 50));
 
           // Verify we received the resumed state
           expect(

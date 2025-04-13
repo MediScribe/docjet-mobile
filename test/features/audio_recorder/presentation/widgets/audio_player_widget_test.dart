@@ -200,14 +200,14 @@ void main() {
       ).thenAnswer((_) async {}); // Stub the method
 
       // Make the cubit state consistent with the desired widget state *before* pumping
-      final playingState = AudioListLoaded(
+      const playingState = AudioListLoaded(
         transcriptions: [], // Provide necessary dummy data
         playbackInfo: PlaybackInfo(
           activeFilePath: testFilePath,
           isPlaying: true, // <-- Match the prop
           isLoading: false,
-          currentPosition: const Duration(seconds: 30), // Match prop
-          totalDuration: const Duration(seconds: 60), // Match prop
+          currentPosition: Duration(seconds: 30), // Match prop
+          totalDuration: Duration(seconds: 60), // Match prop
           error: null,
         ),
       );
@@ -372,7 +372,7 @@ void main() {
 
       // Act
       // Simulate user interaction: drag slider and release
-      await tester.drag(find.byType(Slider), Offset(50.0, 0.0)); // Drag
+      await tester.drag(find.byType(Slider), const Offset(50.0, 0.0)); // Drag
       await tester.pump(); // Settle drag
 
       // Verify seekRecording was called on the cubit with path and duration

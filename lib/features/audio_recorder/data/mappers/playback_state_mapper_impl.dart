@@ -239,7 +239,7 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
               '[MAPPER_DEBOUNCE_IN] State: $state',
             ), // Log state entering debounce
           )
-          .debounceTime(Duration(milliseconds: _debounceDurationMs))
+          .debounceTime(const Duration(milliseconds: _debounceDurationMs))
           .doOnData(
             (state) => logger.t(
               '[MAPPER_DEBOUNCE_OUT] State: $state',

@@ -85,16 +85,16 @@ void main() {
     // Stub adapter streams (return empty streams for these tests)
     when(
       mockAudioPlayerAdapter.onPlayerStateChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onDurationChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onPositionChanged,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
     when(
       mockAudioPlayerAdapter.onPlayerComplete,
-    ).thenAnswer((_) => Stream.empty());
+    ).thenAnswer((_) => const Stream.empty());
 
     // Instantiate service with NEW mocks
     service = AudioPlaybackServiceImpl(
@@ -192,7 +192,7 @@ void main() {
         await service.pause();
 
         // Wait a moment to let any events propagate
-        await Future.delayed(Duration(milliseconds: 50));
+        await Future.delayed(const Duration(milliseconds: 50));
 
         // NOTE: The service does not check the current state before calling pause,
         // so the adapter's pause method *will* be called.
@@ -237,7 +237,7 @@ void main() {
       await service.seek(testFilePath, seekPosition);
 
       // Allow time for any potential state updates
-      await Future.delayed(Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 50));
 
       // Assert: Verify adapter interaction
       verify(mockAudioPlayerAdapter.seek(testFilePath, seekPosition)).called(1);
@@ -293,7 +293,7 @@ void main() {
       await service.stop();
 
       // Allow time for any potential updates
-      await Future.delayed(Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 50));
 
       // Assert: Verify adapter interaction - stop SHOULD be called even if already stopped
       verify(mockAudioPlayerAdapter.stop()).called(1);
@@ -380,7 +380,7 @@ void main() {
       mockPlaybackStateController.add(const entity.PlaybackState.loading());
       await Future.delayed(Duration.zero);
       mockPlaybackStateController.add(
-        entity.PlaybackState.playing(
+        const entity.PlaybackState.playing(
           currentPosition: Duration.zero,
           totalDuration: testDuration,
         ),
@@ -394,7 +394,7 @@ void main() {
 
       // 3. Simulate mapper emitting the paused state
       logger.d('TEST [resume paused]: Emitting paused state...');
-      final pausedState = entity.PlaybackState.paused(
+      const pausedState = entity.PlaybackState.paused(
         currentPosition: pausePosition,
         totalDuration: testDuration,
       );
@@ -422,7 +422,7 @@ void main() {
       // The service should directly transition to playing if it resumes
       // No loading state should occur here based on the logic observed
       mockPlaybackStateController.add(
-        entity.PlaybackState.playing(
+        const entity.PlaybackState.playing(
           currentPosition: pausePosition, // Should resume from pausePosition
           totalDuration: testDuration,
         ),

@@ -377,17 +377,17 @@ void main() {
     // No need for local controller or setUp/tearDown if using global one
     const tPath = '/path/test.m4a';
     final tInitialState = AudioListLoaded(transcriptions: [tTranscription1]);
-    final tPlayingState = PlaybackState.playing(
-      currentPosition: const Duration(seconds: 5),
-      totalDuration: const Duration(seconds: 30),
+    const tPlayingState = PlaybackState.playing(
+      currentPosition: Duration(seconds: 5),
+      totalDuration: Duration(seconds: 30),
     );
-    final tPausedState = PlaybackState.paused(
-      currentPosition: const Duration(seconds: 5),
-      totalDuration: const Duration(seconds: 30),
+    const tPausedState = PlaybackState.paused(
+      currentPosition: Duration(seconds: 5),
+      totalDuration: Duration(seconds: 30),
     );
-    final tPlayingAgainState = PlaybackState.playing(
+    const tPlayingAgainState = PlaybackState.playing(
       currentPosition: Duration.zero,
-      totalDuration: const Duration(seconds: 30),
+      totalDuration: Duration(seconds: 30),
     );
 
     blocTest<AudioListCubit, AudioListState>(
@@ -436,14 +436,14 @@ void main() {
     // No need for local controller or setUp/tearDown if using global one
     const tPath = '/path/test.m4a';
     final tInitialState = AudioListLoaded(transcriptions: [tTranscription1]);
-    final tPlayingState1 = PlaybackState.playing(
-      currentPosition: const Duration(seconds: 5),
-      totalDuration: const Duration(seconds: 30),
+    const tPlayingState1 = PlaybackState.playing(
+      currentPosition: Duration(seconds: 5),
+      totalDuration: Duration(seconds: 30),
     );
-    final tStoppedState = PlaybackState.stopped();
-    final tPlayingState2 = PlaybackState.playing(
+    const tStoppedState = PlaybackState.stopped();
+    const tPlayingState2 = PlaybackState.playing(
       currentPosition: Duration.zero,
-      totalDuration: const Duration(seconds: 30),
+      totalDuration: Duration(seconds: 30),
     );
 
     blocTest<AudioListCubit, AudioListState>(
@@ -500,9 +500,9 @@ void main() {
         totalDuration: Duration(seconds: 30),
       ),
     );
-    final tPausedState = PlaybackState.paused(
-      currentPosition: const Duration(seconds: 5),
-      totalDuration: const Duration(seconds: 30),
+    const tPausedState = PlaybackState.paused(
+      currentPosition: Duration(seconds: 5),
+      totalDuration: Duration(seconds: 30),
     );
 
     blocTest<AudioListCubit, AudioListState>(

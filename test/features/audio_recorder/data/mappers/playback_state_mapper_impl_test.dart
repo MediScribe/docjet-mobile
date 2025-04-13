@@ -51,7 +51,7 @@ void main() {
       // Arrange
       const initialDuration = Duration(seconds: 60);
       const initialPosition = Duration(seconds: 5);
-      final expectedState = PlaybackState.playing(
+      const expectedState = PlaybackState.playing(
         totalDuration: initialDuration,
         currentPosition: initialPosition,
       );
@@ -86,7 +86,7 @@ void main() {
       const tNewDuration = Duration(seconds: 120);
 
       // Only define the FINAL expected state
-      final expectedFinalState = PlaybackState.playing(
+      const expectedFinalState = PlaybackState.playing(
         currentPosition: tInitialPosition,
         totalDuration: tNewDuration, // Final duration
       );
@@ -120,7 +120,7 @@ void main() {
       const tNewPosition = Duration(seconds: 15);
 
       // Only define the FINAL expected state
-      final expectedFinalState = PlaybackState.playing(
+      const expectedFinalState = PlaybackState.playing(
         currentPosition: tNewPosition, // Final position
         totalDuration: tDuration,
       );
@@ -261,7 +261,7 @@ void main() {
     () async {
       // Arrange
       // The state includes the position/duration known at the time of the error
-      final expectedFinalState = PlaybackState.error(
+      const expectedFinalState = PlaybackState.error(
         message: 'Unknown player error',
         currentPosition: Duration.zero,
         totalDuration: Duration.zero,
@@ -320,7 +320,7 @@ void main() {
     const position3 = Duration(seconds: 30);
 
     // Only define the VERY FINAL expected state
-    final expectedFinalState = PlaybackState.completed();
+    const expectedFinalState = PlaybackState.completed();
 
     // Define expectation FIRST using emitsThrough
     final expectation = expectLater(

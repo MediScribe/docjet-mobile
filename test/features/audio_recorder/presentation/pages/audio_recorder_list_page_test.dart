@@ -60,13 +60,13 @@ void main() {
     // Setup for AudioListCubit (using Mocktail/BlocTest standards)
     EquatableConfig.stringify = true; // Optional: for easier debugging
     registerFallbackValue(AudioListInitial());
-    registerFallbackValue(AudioListLoaded(transcriptions: []));
+    registerFallbackValue(const AudioListLoaded(transcriptions: []));
     // Register fallbacks for the new mock
     registerFallbackValue(
       AudioRecordingInitial(),
     ); // Assuming this state exists
     registerFallbackValue(
-      AudioRecordingReady(),
+      const AudioRecordingReady(),
     ); // Assuming this state exists and is needed
 
     // Stub initial states and methods for mocks
@@ -74,7 +74,7 @@ void main() {
       () => mockAudioListCubit.state,
     ).thenReturn(AudioListInitial()); // Provide initial state
     when(() => mockAudioRecordingCubit.state).thenReturn(
-      AudioRecordingReady(),
+      const AudioRecordingReady(),
     ); // Provide initial state for the recording cubit
     when(
       () => mockAudioRecordingCubit.prepareRecorder(),
