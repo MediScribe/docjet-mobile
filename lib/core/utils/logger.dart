@@ -1,3 +1,15 @@
+/// DEPRECATED LOGGING SYSTEM
+///
+/// ⚠️ WARNING: This file is being phased out!
+/// ⚠️ Do not use for new code. Use log_helpers.dart instead.
+///
+/// This will be removed once all components are migrated
+/// to the new logging system.
+///
+/// See logging_example.dart for examples of the new system.
+
+library;
+
 import 'package:flutter/foundation.dart'; // For kReleaseMode
 import 'package:docjet_mobile/core/utils/logger.dart';
 export 'package:logger/logger.dart'; // Export the Logger class

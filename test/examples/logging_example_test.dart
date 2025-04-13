@@ -1,3 +1,14 @@
+/// LOGGING EXAMPLE TEST
+///
+/// This test runs the logging example to demonstrate
+/// the output of the logging system.
+///
+/// Note: This test doesn't actually assert anything
+/// beyond running the example - it's for demonstration
+/// purposes only.
+
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import '../../examples/logging_example.dart' as logging_example;
 

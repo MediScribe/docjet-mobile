@@ -1,3 +1,16 @@
+/// LOGGING SYSTEM EXAMPLE
+///
+/// This file demonstrates the proper usage of the
+/// new logging system.
+///
+/// Features demonstrated:
+/// - Getting class-specific loggers
+/// - Setting log levels per component
+/// - Using log tags consistently
+/// - Enabling/disabling debug for specific classes
+
+library;
+
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter/foundation.dart'; // Import for debugPrint

@@ -1,6 +1,17 @@
+/// LOG HELPERS UNIT TESTS
+///
+/// These tests verify the functionality of the
+/// logging system implementation.
+///
+/// Note: For reusable test helpers, see:
+/// test/helpers/log_test_helpers.dart
+
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+// NOTE: TestLogOutput moved to test/helpers/log_test_helpers.dart
 
 // Mock class for testing
 class TestClass {}

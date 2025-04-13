@@ -1,7 +1,4 @@
-/// LOGGING TEST UTILITIES - DEPRECATED
-///
-/// ⚠️ WARNING: This file is being renamed to log_test_helpers.dart
-/// ⚠️ Use test/helpers/log_test_helpers.dart instead.
+/// LOGGING TEST UTILITIES
 ///
 /// Helpers for testing logging functionality.
 /// Only use in test files, never in application code.

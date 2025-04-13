@@ -1,5 +1,28 @@
+/// DOCJET LOGGING SYSTEM
+///
+/// This is the primary logging implementation.
+/// Use this for all application logging needs.
+///
+/// Features:
+/// - Per-class log levels
+/// - Consistent log tag formatting
+/// - Release mode safety
+/// - Factory pattern for logger instantiation
+///
+/// Basic usage:
+/// final Logger _logger = LoggerFactory.getLogger(YourClass);
+/// static final String _tag = logTag(YourClass);
+///
+/// _logger.i('$_tag Your message here');
+
+library;
+
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:logger/logger.dart';
+
+// NEW CENTRAL LOGGING SYSTEM
+// Use this file for all logging needs
+// test/helpers/log_helpers.dart is for testing
 
 // Define PlaybackState - Placeholder needed for formatPlaybackState
 // TODO: Replace with actual PlaybackState import once available

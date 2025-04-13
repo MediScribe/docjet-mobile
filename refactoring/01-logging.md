@@ -6,6 +6,13 @@ This step focuses on standardizing logging without changing any functional behav
 
 **Estimated time:** 7-10 days
 
+**Key Files & Roles Clarification:**
+
+*   **`lib/core/utils/log_helpers.dart`**: Contains the **new `LoggerFactory`** system. This is the target implementation.
+*   **`lib/core/utils/logger.dart`**: The **old logger** implementation (often just re-exporting). This will be removed after refactoring.
+*   **`test/core/utils/log_helpers_test.dart`**: Contains **unit tests** specifically for `lib/core/utils/log_helpers.dart`.
+*   **`test/helpers/log_helpers.dart`**: Contains **test utilities** (e.g., `TestLogOutput`, `withDebugLogsFor`) to help verify logging *within other component tests*.
+
 ## Implementation Steps
 
 ### 1.1 Create Logging Utilities (1 day)    

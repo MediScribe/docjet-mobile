@@ -1,5 +1,12 @@
 # Logging Refactoring Todo List
 
+**Note on File Structure:**
+
+*   **New System:** `lib/core/utils/log_helpers.dart` (Implementation)
+*   **Old System (To Remove):** `lib/core/utils/logger.dart`
+*   **New System Tests:** `test/core/utils/log_helpers_test.dart`
+*   **General Test Helpers:** `test/helpers/log_test_helpers.dart` (For use in *other* tests)
+
 ## 1. Create Logging Utilities
 
 - [x] Create test file for log formatting helpers
@@ -88,13 +95,21 @@
 ## 4. Update Tests for Component-Specific Logging
 
 - [x] Create `test/helpers/log_helpers.dart`
+- [x] Implement `TestLogOutput` class in helper file
 - [x] Implement `resetLogLevels()` function
 - [x] Implement `withDebugLogsFor()` function
+- [x] Implement `withLogLevelFor()` function
+- [x] Implement `expectNoLogsFrom()` function
 - [ ] Update existing tests to use new helpers
 - [ ] Add test for each component with debug logs enabled
 - [ ] Verify tests pass with different log levels
 
-## 5. Final Verification and Documentation
+## 5. Examples & Verification
+
+- [x] Create `examples/logging_example.dart`
+- [x] Create `test/examples/logging_example_test.dart`
+
+## 6. Final Verification and Documentation
 
 - [ ] Run full test suite
 - [ ] Perform manual testing with different log levels
