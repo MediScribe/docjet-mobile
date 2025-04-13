@@ -1,5 +1,27 @@
 # Logging Refactoring Todo List
 
+## Generic Migration Steps (Phase 1: Setup Only)
+
+For each component (`YourClassName` and `your_class_name_test.dart`):
+
+**Implementation File (`your_class_name.dart`):**
+
+*   [ ] Remove old import: `package:docjet_mobile/core/utils/logger.dart`.
+*   [ ] Remove any `hide Logger` directives from other imports.
+*   [ ] Add new import: `package:docjet_mobile/core/utils/log_helpers.dart`.
+*   [ ] Add logger instance field: `final logger = LoggerFactory.getLogger(YourClassName);`.
+*   [ ] Add static debug enable method: `static void enableDebugLogs() => LoggerFactory.setLogLevel(YourClassName, Level.debug);`.
+*   **DO NOT** modify existing `logger.x(...)` lines.
+*   **DO NOT** add a static `_tag` field yet.
+
+**Test File (`your_class_name_test.dart`):**
+
+*   [ ] Remove old import: `package:docjet_mobile/core/utils/logger.dart`.
+*   [ ] Remove any `hide Logger` directives from other imports.
+*   [ ] Remove any top-level `logger` variable definitions using the *old* `Logger(...)`.
+*   [ ] Remove any calls to the *old* global `setLogLevel` or similar setup for the old logger.
+*   *(Defer)* Add `package:docjet_test/docjet_test.dart` import and log verification tests *only when needed later*.
+
 **Note on File Structure:**
 
 *   **Main Implementation:** `lib/core/utils/log_helpers.dart`

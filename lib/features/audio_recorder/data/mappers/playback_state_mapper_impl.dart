@@ -1,16 +1,12 @@
 import 'dart:async';
 
-// import 'package:audioplayers/audioplayers.dart'; // Removed
-import 'package:docjet_mobile/core/utils/logger.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'; // Added
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
-import 'package:flutter/foundation.dart'; // For @visibleForTesting
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart' as rx;
 import 'package:meta/meta.dart';
-
-// Set Logger Level to OFF to disable logging in this file
-final logger = Logger(level: Level.off);
 
 // Special debug flag for state transition tracking - set to true to enable detailed transition logs
 const bool _debugStateTransitions = true;
@@ -18,6 +14,8 @@ const bool _debugStateTransitions = true;
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
+  final logger = LoggerFactory.getLogger(PlaybackStateMapperImpl);
+
   // Stream Controllers for input streams from the Adapter
   @visibleForTesting
   final positionController = StreamController<Duration>.broadcast();
@@ -397,5 +395,9 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     // ); // Demoted
 
     return areSame;
+  }
+
+  static void enableDebugLogs() {
+    LoggerFactory.setLogLevel(PlaybackStateMapperImpl, Level.debug);
   }
 }
