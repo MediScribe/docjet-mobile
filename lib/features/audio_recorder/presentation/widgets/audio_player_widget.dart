@@ -354,25 +354,6 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     }
   }
 
-  void _handleDragStart(double value) {
-    // Demote drag start log to trace
-    logger.t(
-      '[UI EVENT] Seek drag started at position ${value.round()}ms for ${widget.filePath.split('/').last}',
-    );
-  }
-
-  // ignore: unused_element
-  void _handleDragUpdate(double value) {
-    // No DEBUG log here - too frequent
-  }
-
-  void _handleDragEnd(double value) {
-    // Demote drag end log to trace
-    logger.t(
-      '[UI EVENT] Seek drag ended at position ${value.round()}ms for ${widget.filePath.split('/').last}',
-    );
-  }
-
   @override
   void dispose() {
     _seekConfirmTimer?.cancel(); // Cancel timer if widget is disposed
