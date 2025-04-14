@@ -266,7 +266,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   /// Clears the internal error state if it's currently set.
   void _maybeClearError(String trigger) {
     if (_currentError != null) {
-      // logger.d('[MAPPER_LOGIC] Clearing error due to: $trigger'); // Keep DEBUG
       _currentError = null;
     }
   }
@@ -338,7 +337,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
     );
     final bool sameType = prev.runtimeType == next.runtimeType;
     if (!sameType) {
-      // logger.t('[MAPPER_DISTINCT] Different Type: $prev vs $next => DIFFERENT (Emit)'); // Demoted
       return false;
     }
 
@@ -397,10 +395,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
 
     // Consider states equivalent only if type, duration, AND position are within tolerance.
     final bool areSame = durationWithinTolerance && positionWithinTolerance;
-
-    // logger.t(
-    //   '[MAPPER_DISTINCT] Comparing ($sameType): pD=${prevDuration.inMilliseconds}, nD=${nextDuration.inMilliseconds} -> $durationWithinTolerance | pP=${prevPosition.inMilliseconds}, nP=${nextPosition.inMilliseconds} -> $positionWithinTolerance | Result: ${areSame ? \'SAME (Filter)\' : \'DIFFERENT (Emit)\'}',
-    // ); // Demoted
 
     return areSame;
   }

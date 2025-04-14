@@ -69,7 +69,7 @@ void main() {
     when(mockAudioPlayer.processingState).thenReturn(ProcessingState.ready);
 
     // 6. Set default log level *before* initializing the adapter
-    LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.off);
+    LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.debug);
 
     // 7. Initialize adapter with the fully stubbed mock
     audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);

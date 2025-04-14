@@ -24,9 +24,6 @@ class _AudioRecorderListPageState extends State<AudioRecorderListPage> {
   @override
   Widget build(BuildContext context) {
     // The BlocProvider<AudioListCubit> is now handled in main.dart
-    // logger.d(
-    //   "[AudioRecorderListPage] build: Using AudioListCubit provided from above.",
-    // );
     return const AudioRecorderListView(); // Child remains the same
   }
 }
@@ -59,7 +56,6 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
 
   // Navigation logic updated
   Future<void> _showAudioRecorderPage(BuildContext context) async {
-    // logger.d("[AudioRecorderListView] _showAudioRecorderPage() called."); // Comment out
     // Capture the Cubit instance BEFORE the await
     final listCubit = context.read<AudioListCubit>();
 
@@ -83,22 +79,15 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
       ),
     );
 
-    // logger.d(
-    //   "[AudioRecorderListView] Returned from AudioRecorderPage. shouldRefresh: $shouldRefresh",
-    // );
-
     // If the recorder page popped with 'true', refresh the list
     // Use the cubit instance captured before the await, AFTER checking mounted
     if (shouldRefresh == true && mounted) {
-      // logger.i("[AudioRecorderListView] Refreshing recordings list.");
       listCubit.loadAudioRecordings(); // Use the captured instance
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // logger.d("[AudioRecorderListView] build() called.");
-
     return Scaffold(
       appBar: AppBar(title: const Text('Recordings')),
       // Use the correct Cubit and State types
@@ -124,15 +113,9 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           logger.t(
             "[AudioRecorderListView] Builder received state: ${state.runtimeType}",
           );
-          // COMMENT OUT logger.d(
-          //   "[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${(state as AudioListLoaded).playbackInfo.isPlaying}, path=${(state as AudioListLoaded).playbackInfo.activeFilePath?.split('/').last ?? 'null'}",
-          // );
 
           // Handle Loading state
           if (state is AudioListLoading) {
-            // logger.d(
-            //   "[AudioRecorderListView] Builder: State IS AudioListLoading.",
-            // );
             return const Center(child: CircularProgressIndicator());
           }
           // Removed PermissionDenied state handling - this page doesn't manage that
@@ -141,9 +124,6 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           */
           // Handle Error state
           else if (state is AudioListError) {
-            // logger.d(
-            //   "[AudioRecorderListView] Builder: State IS AudioListError.",
-            // );
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -165,22 +145,11 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Loaded state
           else if (state is AudioListLoaded) {
-            // logger.d(
-            //   "[AudioRecorderListView] Builder: State IS AudioListLoaded.",
-            // ); // Comment out general loaded log
-            // COMMENT OUT logger.i(
-            //   // Change to INFO, log key fields only
-            //   '[BlocConsumer BUILDER] Received ${state.runtimeType} with PlaybackInfo: isPlaying=${state.playbackInfo.isPlaying}, path=${state.playbackInfo.activeFilePath?.split('/').last ?? 'null'}',
-            // );
             if (state.transcriptions.isEmpty) {
-              // logger.i("[AudioRecorderListView] Builder: ListLoaded is empty."); // Comment out
               return const Center(
                 child: Text('No recordings yet. Tap + to start recording.'),
               );
             }
-            // logger.d(
-            //   "[AudioRecorderListView] Builder: ListLoaded has ${state.transcriptions.length} items.",
-            // );
             // state.recordings is already sorted by the Cubit
             final sortedTranscriptions = state.transcriptions;
 
@@ -280,9 +249,6 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
                         trailing: IconButton(
                           icon: const Icon(Icons.more_vert),
                           onPressed: () {
-                            // logger.d(
-                            //   "[ListView] More icon tapped for ${transcription.localFilePath}",
-                            // );
                             // TODO: Update _showRecordingOptions to accept Transcription or path
                             // For now, casting to AudioRecord will fail, need to adjust options logic
                             // _showRecordingOptions(context, transcription); // This will fail
@@ -328,9 +294,6 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
           }
           // Handle Initial state or other unexpected states
           else {
-            // logger.w(
-            //   "[AudioRecorderListView] Builder: Received unexpected state: ${state.runtimeType}",
-            // ); // Comment out
             // Show loading or an empty message as a fallback
             return const Center(
               child: Text('Initializing or unexpected state...'),

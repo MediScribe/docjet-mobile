@@ -7,7 +7,10 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_pla
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
-  final logger = LoggerFactory.getLogger(AudioPlayerAdapterImpl);
+  final logger = LoggerFactory.getLogger(
+    AudioPlayerAdapterImpl,
+    level: Level.off,
+  );
 
   final AudioPlayer _audioPlayer; // REMOVED ALIAS
 
@@ -202,7 +205,6 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
   @override
   Stream<Duration> get onDurationChanged {
-    // logger.d('[ADAPTER STREAM] onDurationChanged accessed'); // Removed: Access logging is noisy
     return _audioPlayer.durationStream
         .where((d) => d != null) // Ensure non-null duration
         .map((d) {
@@ -225,7 +227,6 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
   @override
   Stream<Duration> get onPositionChanged {
-    // logger.d('[ADAPTER STREAM] onPositionChanged accessed'); // Removed: Access logging is noisy
     return _audioPlayer.positionStream
         .map((pos) {
           // Demoted from DEBUG to TRACE due to high frequency
