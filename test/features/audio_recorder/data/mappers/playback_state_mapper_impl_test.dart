@@ -23,8 +23,8 @@ void main() {
     // Creates a fresh PlaybackStateMapperImpl for each test, ENABLING test mode
     mapper = PlaybackStateMapperImpl(initialTestMode: true);
 
-    // Set Logger Level to OFF to disable logging in the SUT
-    LoggerFactory.setLogLevel(PlaybackStateMapperImpl, Level.off);
+    // Set Logger Level to DEBUG to enable logging in the SUT during tests
+    LoggerFactory.setLogLevel(PlaybackStateMapperImpl, Level.debug);
 
     // Create controllers for test inputs
     playerStateController = StreamController<DomainPlayerState>.broadcast();

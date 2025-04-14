@@ -5,13 +5,13 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_pla
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 import 'package:flutter/foundation.dart';
-import 'package:rxdart/rxdart.dart' as rx;
 import 'package:meta/meta.dart';
+import 'package:rxdart/rxdart.dart' as rx;
 
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
-  // Set Logger Level to OFF to disable logging in this file; enable if needed.
+  // Setting the log level to off; enable if needed.
   final logger = LoggerFactory.getLogger(
     PlaybackStateMapperImpl,
     level: Level.off,

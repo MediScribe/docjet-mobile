@@ -1,17 +1,17 @@
 // Imports
 import 'dart:async';
 
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'
     as entity;
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart';
 // Use fake_async
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:logger/logger.dart';
+
 // Ensure matcher is imported for isA
 // Import the generated Freezed file for type checking
 // import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.freezed.dart';
