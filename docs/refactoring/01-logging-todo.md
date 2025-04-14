@@ -123,10 +123,17 @@ For each component, follow the MINIMAL change approach:
 
 ## 3. Remove Debug Flags and Commented Logs
 
-- [ ] Search for and remove all `const bool _debug*` flags
-- [ ] Search for and remove all commented log statements
-- [ ] Convert conditional debug logs to use log levels
-- [ ] Standardize log levels across components
+- [x] Search for and remove all `const bool _debug*` flags (Completed - None found)
+- [ ] Remove commented log statements:
+    - [ ] `lib/features/audio_recorder/presentation/pages/audio_recorder_list_page.dart` (lines 27, 62, 85, 92, 99, 132, 143, 167, 175, 180, 282, 330)
+    - [ ] `lib/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart` (lines 268, 340, 400)
+    - [ ] `lib/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart` (lines 204, 227)
+- [x] Convert conditional debug logs to use log levels (Completed - None found)
+- [ ] Standardize log levels across SUT components (default to `Level.off`):
+    - [ ] `lib/features/audio_recorder/presentation/widgets/audio_player_widget.dart`: Add `level: Level.off`
+    - [ ] `lib/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart`: Add `level: Level.off`
+    - [ ] `lib/features/audio_recorder/data/services/audio_playback_service_impl.dart`: Add `level: Level.off`
+    - [ ] `lib/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart`: Add `level: Level.off`
 
 ## 4. Testing Support
 
@@ -154,4 +161,4 @@ For each component, follow the MINIMAL change approach:
 - [x] Create usage examples for components
 - [x] Test in release mode to verify log level restrictions 
 - [ ] Run full test suite with new logging system
-- [ ] Remove any remaining legacy logging code 
+- [ ] Remove any remaining legacy logging code (`lib/core/utils/logger.dart`) 
