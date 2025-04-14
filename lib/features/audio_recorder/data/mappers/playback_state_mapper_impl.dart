@@ -8,9 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart' as rx;
 import 'package:meta/meta.dart';
 
-// Special debug flag for state transition tracking - set to true to enable detailed transition logs
-// const bool _debugStateTransitions = true;
-
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
@@ -326,9 +323,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
       }
     }
 
-    // REMOVE IF CHECK
-    // if (_debugStateTransitions) {
-    // Demote this transition log as it can be noisy
     logger.t(
       '[STATE_TRANSITION] MAPPER: DomainPlayerState = $_currentPlayerState → PlaybackState = ${newState.runtimeType}',
     );
