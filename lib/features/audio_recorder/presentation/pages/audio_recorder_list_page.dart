@@ -1,26 +1,25 @@
-// Import the DI container for sl
-// Import the specific Cubits and States needed
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_state.dart';
 
-// ADD THIS IMPORT
-import 'package:docjet_mobile/core/utils/logger.dart';
-
-// Remove old imports
-// import '../cubit/audio_recorder_cubit.dart';
-// import '../cubit/audio_recorder_state.dart';
 import '../widgets/audio_player_widget.dart';
 import 'audio_recorder_page.dart';
 
-// TEMPORARILY ENABLE DEBUG LOGGING FOR LIST PAGE
-// SET BACK TO OFF - Only Cubit needs debug for now
-final logger = Logger(level: Level.debug);
-
 // This outer widget can remain StatelessWidget, it just provides the context
-class AudioRecorderListPage extends StatelessWidget {
+final class AudioRecorderListPage extends StatefulWidget {
   const AudioRecorderListPage({super.key});
+
+  @override
+  State<AudioRecorderListPage> createState() => _AudioRecorderListPageState();
+}
+
+// Define the logger at the class level for SUT
+class _AudioRecorderListPageState extends State<AudioRecorderListPage> {
+  final logger = LoggerFactory.getLogger(
+    _AudioRecorderListPageState,
+    level: Level.off,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +59,8 @@ class _AudioRecorderListViewState extends State<AudioRecorderListView> {
 
   // Navigation logic updated
   Future<void> _showAudioRecorderPage(BuildContext context) async {
-    // logger.i("[AudioRecorderListView] _showAudioRecorderPage called.");
+    // logger.d("[AudioRecorderListView] _showAudioRecorderPage() called."); // Comment out
+    // Capture the Cubit instance BEFORE the await
     final listCubit = context.read<AudioListCubit>();
 
     final bool? shouldRefresh = await Navigator.push<bool>(
