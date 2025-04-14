@@ -1,18 +1,15 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:equatable/equatable.dart';
 
 part 'audio_list_state.dart';
-
-// Special debug flag for state transition tracking - set to true to enable detailed transition logs
-const bool _debugStateTransitions = true;
 
 class AudioListCubit extends Cubit<AudioListState> {
   // Set Logger Level to OFF to disable logging in this file
@@ -74,9 +71,7 @@ class AudioListCubit extends Cubit<AudioListState> {
           );
         }
       },
-      // onDone: () => logger.d('[CUBIT] Playback service stream closed.'), // Optional
     );
-    // logger.d('[CUBIT] Subscribed to AudioPlaybackService stream.'); // Redundant
   }
 
   void _onPlaybackStateChanged(PlaybackState playbackState) {
@@ -92,11 +87,9 @@ class AudioListCubit extends Cubit<AudioListState> {
     final currentPlaybackInfo = currentState.playbackInfo;
 
     // Log how the current PlaybackInfo would map to each widget if there were multiple items
-    if (_debugStateTransitions) {
-      logger.d(
-        '[STATE_TRANSITION] CUBIT: PlaybackState (in) = ${playbackState.runtimeType}',
-      );
-    }
+    logger.d(
+      '[STATE_TRANSITION] CUBIT: PlaybackState (in) = ${playbackState.runtimeType}',
+    );
 
     // Map the freezed PlaybackState to PlaybackInfo properties
     String? activeFilePath =
@@ -161,11 +154,9 @@ class AudioListCubit extends Cubit<AudioListState> {
       error: error,
     );
 
-    if (_debugStateTransitions) {
-      logger.d(
-        '[STATE_TRANSITION] CUBIT: PlaybackInfo (out) = activeFilePath:${activeFilePath?.split('/').last}, isPlaying:$isPlaying, isLoading:$isLoading',
-      );
-    }
+    logger.d(
+      '[STATE_TRANSITION] CUBIT: PlaybackInfo (out) = activeFilePath:${activeFilePath?.split('/').last}, isPlaying:$isPlaying, isLoading:$isLoading',
+    );
 
     // Only emit if the playback info actually changed
     if (currentPlaybackInfo != newPlaybackInfo) {
@@ -199,7 +190,6 @@ class AudioListCubit extends Cubit<AudioListState> {
   /// Loads the list of existing recordings from the repository.
   Future<void> loadAudioRecordings() async {
     emit(AudioListLoading());
-    // logger.d('[CUBIT] Loading audio recordings...'); // Keep DEBUG
     final failureOrRecordings = await repository.loadTranscriptions();
 
     failureOrRecordings.fold(
@@ -208,9 +198,6 @@ class AudioListCubit extends Cubit<AudioListState> {
         emit(AudioListError(message: mapFailureToMessage(failure)));
       },
       (transcriptions) {
-        // logger.i(
-        //   '[CUBIT] Loaded ${transcriptions.length} recordings successfully.',
-        // ); // Keep INFO
         final mutableRecordings = List<Transcription>.from(transcriptions);
         // Sort by creation date, newest first
         mutableRecordings.sort((a, b) {
@@ -228,10 +215,7 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Deletes a specific recording file and reloads the list.
   Future<void> deleteRecording(String filePath) async {
-    // logger.i("[LIST_CUBIT] deleteRecording() called for path: $filePath"); // Keep INFO
-    // logger.d("[LIST_CUBIT] Calling repository.deleteRecording('$filePath')..."); // Keep DEBUG
     final result = await repository.deleteRecording(filePath);
-    // logger.d("[LIST_CUBIT] repository.deleteRecording('$filePath') completed."); // Keep DEBUG
 
     result.fold(
       (failure) {
@@ -246,16 +230,9 @@ class AudioListCubit extends Cubit<AudioListState> {
         // Consider reloading list even on failure to reflect FS state?
       },
       (_) async {
-        // logger.i(
-        //   "[LIST_CUBIT] deleteRecording successful for path: $filePath. Reloading list.",
-        // ); // Keep INFO
         await loadAudioRecordings(); // Reload to update UI
-        // logger.d("[LIST_CUBIT] Finished reloading list after deletion."); // Keep DEBUG
       },
     );
-    // logger.i(
-    //   "[LIST_CUBIT] deleteRecording method finished for path: $filePath",
-    // ); // Keep INFO
   }
 
   /// Initiates playback for a given audio file.
@@ -318,7 +295,6 @@ class AudioListCubit extends Cubit<AudioListState> {
 
   /// Resumes the currently paused audio via the service.
   Future<void> resumeRecording() async {
-    // logger.i('[CUBIT_resumeRecording] START'); // Keep INFO
     if (_currentPlayingFilePath == null) {
       logger.w('[CUBIT_resumeRecording] Cannot resume, no active file path.');
       // TODO: Maybe try to play the first file instead?
@@ -326,11 +302,7 @@ class AudioListCubit extends Cubit<AudioListState> {
     }
     // No need to check state, service handles it
     try {
-      // logger.d(
-      //   '[CUBIT_resumeRecording] Calling _audioPlaybackService.resume()...',
-      // ); // Keep DEBUG
       await _audioPlaybackService.resume();
-      // logger.d('  -> Service resume call complete.'); // Keep DEBUG
     } catch (e) {
       logger.e('[CUBIT_resumeRecording] Error calling resume on service: $e');
       if (state is AudioListLoaded) {
@@ -345,7 +317,6 @@ class AudioListCubit extends Cubit<AudioListState> {
         );
       }
     }
-    // logger.d('[CUBIT_resumeRecording] END'); // Keep DEBUG
   }
 
   /// Seeks to a specific position in an audio file.
