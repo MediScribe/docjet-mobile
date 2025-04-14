@@ -6,7 +6,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_play
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'
     as entity;
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 // Use fake_async
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -20,11 +20,17 @@ import 'package:logger/logger.dart';
 import 'audio_playback_service_pause_seek_stop_test.mocks.dart';
 
 // Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+final logger = LoggerFactory.getLogger(
+  'AudioPlaybackServicePauseSeekStopTest',
+  level: Level.debug,
+);
 
 // Annotation to generate mocks for Adapter and Mapper ONLY
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 void main() {
+  // Set SUT logger to debug level for testing
+  LoggerFactory.setLogLevel(AudioPlaybackServiceImpl, Level.debug);
+
   // Remove old mock player
   // late MockAudioPlayer mockAudioPlayer;
   // Add new mocks

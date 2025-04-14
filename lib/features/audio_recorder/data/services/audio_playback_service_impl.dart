@@ -64,7 +64,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
 
   @override
   Stream<PlaybackState> get playbackStateStream {
-    // logger.d('[SERVICE_STREAM] playbackStateStream accessed.'); // Removed: Noisy
     return _playbackStateSubject.stream;
   }
 
@@ -114,7 +113,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         // Only update _currentFilePath if the path is actually changing
         if (pathOrUrl != _currentFilePath) {
           _currentFilePath = pathOrUrl;
-          // logger.d('  -> _currentFilePath SET to: $pathOrUrl');
         }
 
         logger.t(
@@ -158,7 +156,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     logger.d('[SERVICE PAUSE] START', stackTrace: trace);
     try {
       await _audioPlayerAdapter.pause();
-      // logger.d('[SERVICE PAUSE] Adapter pause() call complete.'); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE PAUSE DECISION] ERROR', error: e, stackTrace: s);
       rethrow;
@@ -174,7 +171,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       // Just resume from current position, no seeking needed
       logger.t('[SERVICE RESUME] Action: Calling adapter.resume()');
       await _audioPlayerAdapter.resume();
-      // logger.d('[SERVICE RESUME] Adapter resume() call complete.'); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE RESUME] FAILED', error: e, stackTrace: s);
       rethrow;
@@ -193,15 +189,10 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
       // Scenario 1: Seeking within the currently playing/paused file
       if (isTargetSameAsCurrent && _currentFilePath != null) {
         logger.t('[SERVICE SEEK DECISION] Same file, seeking within current');
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Action: Seeking within current file. Calling adapter.seek...',
-        // );
         await _audioPlayerAdapter.seek(_currentFilePath!, position);
-        // logger.d('[SERVICE SEEK $filePath] Adapter seek() call complete.');
 
         // If seeking while paused, adapter might emit paused. If seeking while playing,
         // it should continue playing from new position (adapter handles state).
-        // We don't need to explicitly pause/resume here.
       }
       // Scenario 2: Seeking to a new file or seeking when player is stopped/initial
       else {
@@ -209,37 +200,18 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
           '[SERVICE SEEK DECISION] New file or null current, priming the pump',
         );
         // 1. Stop any current playback
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Priming: Calling adapter.stop()...',
-        // );
         await _audioPlayerAdapter.stop();
 
         // 2. Update internal state and load new source
         _currentFilePath = filePath;
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Priming: Updated _currentFilePath. Calling adapter.setSourceUrl()...',
-        // );
         await _audioPlayerAdapter.setSourceUrl(filePath);
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Priming: adapter.setSourceUrl() complete.',
-        // );
 
         // 3. Seek to the desired position
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Priming: Calling adapter.seek($position)...',
-        // );
         await _audioPlayerAdapter.seek(filePath, position);
-        // logger.d('[SERVICE SEEK $filePath] Priming: adapter.seek() complete.');
 
         // 4. CRITICAL: Pause immediately after seek when priming
         // This prevents auto-play and ensures the state reflects a seek-to-paused state.
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Priming: Calling adapter.pause()...',
-        // );
         await _audioPlayerAdapter.pause();
-        // logger.d(
-        //   '[SERVICE SEEK $filePath] Priming: adapter.pause() complete. _seekPerformedWhileNotPlaying=true.',
-        // );
       }
     } catch (e, s) {
       logger.e('[SERVICE SEEK DECISION] ERROR', error: e, stackTrace: s);
@@ -256,7 +228,6 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     try {
       logger.d('[SERVICE STOP] Action: Calling adapter.stop()');
       await _audioPlayerAdapter.stop();
-      // logger.d('[SERVICE STOP] Adapter stop() call complete.'); // Keep DEBUG
     } catch (e, s) {
       logger.e('[SERVICE STOP] FAILED', error: e, stackTrace: s);
       rethrow;
@@ -272,11 +243,8 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
     try {
       logger.d('[SERVICE DISPOSE] Action: Calling adapter.dispose()');
       await _audioPlayerAdapter.dispose();
-      // logger.d('[SERVICE DISPOSE] Action: Calling mapper.dispose()'); // Keep DEBUG
       _playbackStateMapper.dispose(); // Ensure mapper is disposed
-      // logger.d('[SERVICE DISPOSE] Action: Cancelling mapper subscription'); // Keep DEBUG
       await _mapperSubscription.cancel();
-      // logger.d('[SERVICE DISPOSE] Action: Closing playback state subject'); // Keep DEBUG
       await _playbackStateSubject.close();
     } catch (e, s) {
       logger.e(

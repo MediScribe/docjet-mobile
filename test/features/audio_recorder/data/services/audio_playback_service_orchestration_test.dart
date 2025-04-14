@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
@@ -6,13 +7,19 @@ import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_st
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
 
 import 'audio_playback_service_orchestration_test.mocks.dart';
 
+// Set Logger Level to DEBUG for active development/debugging in this file
+final logger = LoggerFactory.getLogger(
+  'AudioPlaybackServiceOrchestrationTest',
+  level: Level.debug,
+);
+
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
 void main() {
-  setLogLevel(Level.off);
+  // Set SUT logger to debug level for testing
+  LoggerFactory.setLogLevel(AudioPlaybackServiceImpl, Level.debug);
 
   group('AudioPlaybackServiceImpl Orchestration', () {
     late MockAudioPlayerAdapter mockAdapter;
