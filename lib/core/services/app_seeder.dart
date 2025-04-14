@@ -44,11 +44,6 @@ class AppSeeder {
        _audioDurationRetriever = audioDurationRetriever,
        _prefs = sharedPreferences;
 
-  /// Enable debug logs for this component
-  static void enableDebugLogs() {
-    LoggerFactory.setLogLevel(AppSeeder, Level.debug);
-  }
-
   /// Copies sample assets and creates corresponding local jobs if not already done.
   Future<void> seedInitialDataIfNeeded() async {
     logger.i('$_tag Checking if initial data seeding is required...');

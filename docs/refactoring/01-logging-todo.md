@@ -1,35 +1,40 @@
 # Logging Refactoring Todo List
 
-## Generic Migration Steps (Phase 1: Setup Only)
+## Status Update - April 2024
 
-For each component (`YourClassName` and `your_class_name_test.dart`):
+**Completed**: The core logging system has been completely refactored. The new implementation:
 
-**Implementation File (`your_class_name.dart`):**
+1. Provides a centralized `LoggerFactory` with dynamic log level control
+2. Supports fully testable logging without dependency injection
+3. Includes a comprehensive testing API built directly into `LoggerFactory`
+4. Allows controlling log levels per component at runtime
 
-*   [ ] Remove old import: `package:docjet_mobile/core/utils/logger.dart`.
-*   [ ] Remove any `hide Logger` directives from other imports.
-*   [ ] Add new import: `package:docjet_mobile/core/utils/log_helpers.dart`. No need to import import 'package:logger/logger.dart'.
-*   [ ] Add logger instance field: `final logger = LoggerFactory.getLogger(YourClassName);`.
-*   [ ] Add static debug enable method: `static void enableDebugLogs() => LoggerFactory.setLogLevel(YourClassName, Level.debug);`.
-*   **DO NOT** modify existing `logger.x(...)` lines.
-*   **DO NOT** add a static `_tag` field yet.
+**Key Changes**:
+- ✅ Deprecated `lib/core/utils/logger.dart` (can be safely removed)
+- ✅ Implemented new system in `lib/core/utils/log_helpers.dart`
+- ✅ Created documentation in `docs/logging_guide.md`
+- ✅ Removed redundant `docjet_test` package (testing built into core)
 
-**Test File (`your_class_name_test.dart`):**
+**Next Steps**: Individual components still need to be updated to use the new logger format. The minimal change approach is:
 
-*   [ ] Remove old import: `package:docjet_mobile/core/utils/logger.dart`.
-*   [ ] Remove any `hide Logger` directives from other imports.
-*   [ ] Remove any top-level `logger` variable definitions using the *old* `Logger(...)`.
-*   [ ] Remove any calls to the *old* global `setLogLevel` or similar setup for the old logger.
-*   *(Defer)* Add `package:docjet_test/docjet_test.dart` import and log verification tests *only when needed later*.
+```dart
+class MyComponent {
+  // Create a logger for this class - keep the existing 'logger' naming
+  final logger = LoggerFactory.getLogger(MyComponent);
+  
+  void doSomething() {
+    // Keep existing log lines as-is - no need to add tags to every line
+    logger.i('Starting operation');
+    // ...
+  }
+}
+```
 
-**Note on File Structure:**
+**Optional Enhancements** (do only if improving a specific component):
+- Add tags for better log readability: `static final String _tag = logTag(MyComponent);`
+- Add debug log enabler: `static void enableDebugLogs() => LoggerFactory.setLogLevel(MyComponent, Level.debug);`
 
-*   **Main Implementation:** `lib/core/utils/log_helpers.dart`
-*   **Old System (To Remove):** `lib/core/utils/logger.dart`
-*   **Tests for Implementation:** `test/core/utils/log_helpers_test.dart`
-*   **Test Utilities Package:** `packages/docjet_test/lib/src/helpers/logging_test_utils.dart`
-*   **Example Usage:** `examples/logging_example.dart`
-*   **Example Test:** `test/examples/logging_example_test.dart`
+For full documentation, see [Logging Guide](../logging_guide.md).
 
 ## 1. Create Logging Utilities
 
@@ -47,68 +52,36 @@ For each component (`YourClassName` and `your_class_name_test.dart`):
 
 ## 2. Update Components
 
+For each component, follow the MINIMAL change approach:
+
 ### 2.1 AudioPlayerAdapter
 
-- [ ] Create test that mocks logger and verifies logging calls
-- [ ] Update import statements to use new logging utilities
-- [ ] Add static `_tag` field
-- [ ] Add logger initialization in constructor
-- [ ] Add `enableDebugLogs()` static method
-- [ ] Update `resume()` method with new logging pattern
-- [ ] Update `pause()` method with new logging pattern
-- [ ] Update `seek()` method with new logging pattern
-- [ ] Update `setSourceUrl()` method with new logging pattern
-- [ ] Update `stop()` method with new logging pattern
+- [ ] Update import statements (remove old logger, add new log_helpers)
+- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioPlayerAdapter)`
 - [ ] Run adapter tests to verify no behavior change
 
 ### 2.2 PlaybackStateMapper
 
-- [ ] Update import statements to use new logging utilities
-- [ ] Add static `_tag` field
-- [ ] Add logger initialization in constructor
-- [ ] Add `enableDebugLogs()` static method
-- [ ] Update stream initialization logging
-- [ ] Update subscription handling logging
-- [ ] Update state transformation logging
-- [ ] Update error handling logging
+- [ ] Update import statements (remove old logger, add new log_helpers)
+- [ ] Replace logger initialization with `LoggerFactory.getLogger(PlaybackStateMapper)`
 - [ ] Run mapper tests to verify no behavior change
 
 ### 2.3 AudioPlaybackService
 
-- [ ] Update import statements to use new logging utilities
-- [ ] Add static `_tag` field
-- [ ] Add logger initialization in constructor
-- [ ] Add `enableDebugLogs()` static method
-- [ ] Update `play()` method with new logging pattern
-- [ ] Update `pause()` method with new logging pattern
-- [ ] Update `resume()` method with new logging pattern
-- [ ] Update `seek()` method with new logging pattern
-- [ ] Update `stop()` method with new logging pattern
-- [ ] Update state handling logging
+- [ ] Update import statements (remove old logger, add new log_helpers)
+- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioPlaybackService)`
 - [ ] Run service tests to verify no behavior change
 
 ### 2.4 AudioListCubit
 
-- [ ] Update import statements to use new logging utilities
-- [ ] Add static `_tag` field
-- [ ] Add logger initialization in constructor
-- [ ] Add `enableDebugLogs()` static method
-- [ ] Update state subscription logging
-- [ ] Update `playRecording()` method with new logging pattern
-- [ ] Update `pausePlayback()` method with new logging pattern
-- [ ] Update `resumePlayback()` method with new logging pattern
-- [ ] Update `stopPlayback()` method with new logging pattern
-- [ ] Update `seekRecording()` method with new logging pattern
+- [ ] Update import statements (remove old logger, add new log_helpers)
+- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioListCubit)`
 - [ ] Run cubit tests to verify no behavior change
 
 ### 2.5 AudioPlayerWidget
 
-- [ ] Update import statements to use new logging utilities
-- [ ] Add static `_tag` field
-- [ ] Add logger initialization in constructor
-- [ ] Update widget lifecycle method logging
-- [ ] Update UI interaction logging
-- [ ] Update state handling logging
+- [ ] Update import statements (remove old logger, add new log_helpers)
+- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioPlayerWidget)`
 - [ ] Run widget tests to verify no behavior change
 
 ## 3. Remove Debug Flags and Commented Logs
@@ -117,37 +90,29 @@ For each component (`YourClassName` and `your_class_name_test.dart`):
 - [ ] Search for and remove all commented log statements
 - [ ] Convert conditional debug logs to use log levels
 - [ ] Standardize log levels across components
-- [ ] Run tests to verify behavior remains unchanged
 
-## 4. Update Tests for Component-Specific Logging
+## 4. Testing Support
 
-- [x] Create `test/helpers/log_test_helpers.dart`
-- [x] Implement `TestLogOutput` class in helper file
-- [x] Implement `resetLogLevels()` function
-- [x] Implement `withDebugLogsFor()` function
-- [x] Implement `withLogLevelFor()` function
-- [x] Implement `expectNoLogsFrom()` function
-- [x] Add support for string-based loggers in test helpers
-- [x] Create tests for test helpers in `log_test_helpers_test.dart`
-- [x] Implement `expectLogContains()` function
-- [x] Implement `expectNoLogsAboveLevel()` function
-- [x] Implement `captureLogOutput()` function
-- [ ] Update existing tests to use new helpers
+- [x] ~~Create `test/helpers/log_test_helpers.dart`~~ (Obsolete - now built into LoggerFactory)
+- [x] ~~Implement `TestLogOutput` class in helper file~~ (Obsolete - now built into LoggerFactory)
+- [x] ~~Implement `resetLogLevels()` function~~ (Now available as LoggerFactory.resetLogLevels())
+- [x] ~~Implement test helper functions~~ (Now available through LoggerFactory APIs)
+- [x] ~~Add support for string-based loggers in test helpers~~ (Built into core)
+- [x] ~~Create tests for test helpers~~ (Core testing is validated)
+- [ ] Update existing component tests to use new logging test APIs
 - [ ] Add test for each component with debug logs enabled
 - [ ] Verify tests pass with different log levels
 
 ## 5. Examples & Verification
 
-- [x] Create `examples/logging_example.dart`
-- [x] Create `test/examples/logging_example_test.dart`
+- [x] Create example implementation
+- [x] Create comprehensive tests for examples
 - [x] Add string-based logger examples
 
 ## 6. Final Verification and Documentation
 
-- [ ] Run full test suite
-- [ ] Perform manual testing with different log levels
-- [ ] Remove any remaining legacy logging code
-- [x] Document string-based logger behavior
-- [ ] Document the logging system in README
-- [ ] Create usage examples for each component
-- [ ] Test in release mode to verify log level restrictions 
+- [x] Document logging system (complete in `docs/logging_guide.md`)
+- [x] Create usage examples for components
+- [x] Test in release mode to verify log level restrictions 
+- [ ] Run full test suite with new logging system
+- [ ] Remove any remaining legacy logging code 

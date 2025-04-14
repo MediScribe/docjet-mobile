@@ -1,7 +1,7 @@
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/services/app_seeder.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart' as app_logging;
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,21 +31,18 @@ void main() {
   late AppSeeder appSeeder;
 
   // Test logger - using string identifier
-  final testLogger = app_logging.LoggerFactory.getLogger("AppSeederTest");
-  final testTag = app_logging.logTag("AppSeederTest");
+  final testLogger = LoggerFactory.getLogger("AppSeederTest");
+  final testTag = logTag("AppSeederTest");
 
   // --- Test Constants ---
   const seedingDoneKey = 'app_seeding_done_v1';
 
   setUp(() {
     // Turn off SUT logging
-    app_logging.LoggerFactory.setLogLevel(AppSeeder, app_logging.Level.off);
+    LoggerFactory.setLogLevel(AppSeeder, Level.off);
 
     // But keep test logging at info level
-    app_logging.LoggerFactory.setLogLevel(
-      "AppSeederTest",
-      app_logging.Level.info,
-    );
+    LoggerFactory.setLogLevel("AppSeederTest", Level.info);
 
     // Create fresh mocks for each test
     mockLocalJobStore = MockLocalJobStore();
@@ -71,7 +68,7 @@ void main() {
 
   tearDown(() {
     // Reset log levels after each test
-    app_logging.LoggerFactory.resetLogLevels();
+    LoggerFactory.resetLogLevels();
   });
 
   group('AppSeeder', () {
