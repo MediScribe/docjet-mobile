@@ -2,17 +2,23 @@ import 'dart:async';
 
 import 'package:just_audio/just_audio.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 
-// Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+// Define logger at the top level
+final logger = LoggerFactory.getLogger(AudioPlayerAdapterImpl);
 
 // Special debug flag for state transition tracking - set to true to enable detailed transition logs
 const bool _debugStateTransitions = true;
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
+  // REMOVED LOGGER INSTANCE FROM HERE
+
+  // Add static debug enable method
+  static void enableDebugLogs() =>
+      LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.debug);
+
   final AudioPlayer _audioPlayer; // REMOVED ALIAS
 
   // Create a timestamp counter to track event sequences

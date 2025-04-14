@@ -44,7 +44,9 @@ void main() {
     when(
       mockAudioPlayer.positionStream,
     ).thenAnswer((_) => positionController.stream);
-    when(mockAudioPlayer.playbackEventStream).thenAnswer((_) => const Stream.empty());
+    when(
+      mockAudioPlayer.playbackEventStream,
+    ).thenAnswer((_) => const Stream.empty());
 
     // 4. Stub basic methods needed by implementation
     when(mockAudioPlayer.pause()).thenAnswer((_) async {});

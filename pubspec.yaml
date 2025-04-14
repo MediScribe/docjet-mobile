@@ -81,14 +81,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  mockito: ^5.4.3
-  build_runner: ^2.4.8
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
+  mockito: ^5.4.0
+  build_runner: ^2.3.3
   flutter_lints: ^2.0.0
   bloc_test: ^10.0.0
   mocktail: ^1.0.3
@@ -98,8 +92,6 @@ dev_dependencies:
   freezed: ^2.5.2 # Reverted due to hive_generator conflict
   record_platform_interface: ^1.2.0 # Replacing 'any', using constraint from 'record'
   collection: ^1.18.0 # Replacing 'any'
-  docjet_test:
-    path: packages/docjet_test
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

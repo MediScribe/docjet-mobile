@@ -8,7 +8,7 @@ For each component (`YourClassName` and `your_class_name_test.dart`):
 
 *   [ ] Remove old import: `package:docjet_mobile/core/utils/logger.dart`.
 *   [ ] Remove any `hide Logger` directives from other imports.
-*   [ ] Add new import: `package:docjet_mobile/core/utils/log_helpers.dart`.
+*   [ ] Add new import: `package:docjet_mobile/core/utils/log_helpers.dart`. No need to import import 'package:logger/logger.dart'.
 *   [ ] Add logger instance field: `final logger = LoggerFactory.getLogger(YourClassName);`.
 *   [ ] Add static debug enable method: `static void enableDebugLogs() => LoggerFactory.setLogLevel(YourClassName, Level.debug);`.
 *   **DO NOT** modify existing `logger.x(...)` lines.

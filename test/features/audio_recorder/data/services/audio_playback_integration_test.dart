@@ -1,13 +1,10 @@
 import 'dart:async'; // Add async import
 import 'dart:io';
 
-import 'package:docjet_mobile/core/utils/logger.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart'
-    hide logger;
-import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart'
-    hide logger;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart'
-    hide logger;
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
@@ -26,6 +23,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // Import the generated mocks file (will be created by build_runner)
 import 'audio_playback_integration_test.mocks.dart';
+
+final Logger logger = LoggerFactory.getLogger("AudioPlaybackIntegrationTest");
 
 // Create a proper mock for PathProviderPlatform by extending it
 class MockPathProviderPlatform extends PathProviderPlatform
@@ -46,9 +45,6 @@ class MockPathProviderPlatform extends PathProviderPlatform
 void main() {
   // Ensure Flutter test bindings are initialized for platform channels
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  // Set logger level for tests
-  setLogLevel(Level.debug);
 
   // Keep track of the original path provider instance
   final PathProviderPlatform originalPathProviderInstance =
@@ -299,7 +295,7 @@ void main() {
     }
 
     // Reset log level after tests
-    setLogLevel(Level.warning);
+    LoggerFactory.setLogLevel("AudioPlaybackIntegrationTest", Level.warning);
   });
 
   test('DI wiring check: Mapper should be initialized with Adapter streams', () {

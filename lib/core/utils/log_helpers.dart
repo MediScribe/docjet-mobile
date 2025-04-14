@@ -41,8 +41,8 @@
 /// LoggerFactory.setLogLevel("MyTestLogger", Level.info);
 /// ```
 ///
-/// For testing utilities, use the docjet_test package:
-/// import 'package:docjet_test/docjet_test.dart';
+/// For testing utilities and advanced logging info, see:
+/// docs/logging_guide.md
 ///
 /// See examples/logging_example.dart for a complete example
 
@@ -53,7 +53,14 @@ import 'package:logger/logger.dart';
 
 // Export the necessary Logger classes so consumers only need to import this file
 export 'package:logger/logger.dart'
-    show Logger, Level, LogFilter, LogEvent, LogOutput;
+    show
+        Logger,
+        Level,
+        LogFilter,
+        LogEvent,
+        LogOutput,
+        ConsoleOutput,
+        MultiOutput;
 
 // NEW CENTRAL LOGGING SYSTEM
 // Use this file for all logging needs
@@ -71,112 +78,154 @@ enum PlaybackStatePlaceholder {
   error,
 }
 
-/// Default release mode level
-Level _defaultReleaseLevel = Level.warning;
-
-/// Default debug mode level
-Level _defaultDebugLevel = Level.info;
-
-/// Map to store file-specific log levels
-final Map<String, Level> _logLevels = {};
-
-/// Converts a Type or String to a consistent string identifier
-String _getLogId(dynamic target) {
-  if (target is Type) {
-    return target.toString();
-  } else if (target is String) {
-    return target;
-  }
-  throw ArgumentError(
-    'Logger target must be Type or String, but was ${target.runtimeType}',
-  );
+/// Helper function to create a standardized log tag
+String logTag(dynamic context) {
+  return '[${_getLoggerId(context)}]';
 }
 
-/// LoggerFactory for creating loggers with appropriate tags and levels
+/// Factory for creating loggers with consistent configuration
 class LoggerFactory {
-  /// Get a logger for a specific class or string identifier with optional custom level
-  ///
-  /// Accepts either:
-  /// - A Type (class): LoggerFactory.getLogger(MyClass)
-  /// - A String: LoggerFactory.getLogger("TestLogger")
-  static Logger getLogger(dynamic target, {Level? level}) {
-    final tag = _getLogId(target);
-    final logLevel =
-        level ??
-        _logLevels[tag] ??
-        (kReleaseMode ? _defaultReleaseLevel : _defaultDebugLevel);
+  // Private constructor to prevent instantiation
+  LoggerFactory._();
+
+  // Default log levels
+  static const Level _defaultReleaseLevel = Level.info;
+  static const Level _defaultDebugLevel = Level.debug;
+
+  // Get the default log level based on build mode
+  static Level get _defaultLevel =>
+      kReleaseMode ? _defaultReleaseLevel : _defaultDebugLevel;
+
+  // Map of component types to their log levels
+  static final Map<String, Level> _logLevels = {};
+
+  // Global shared memory output that captures ALL logs
+  static final _sharedMemoryOutput = MemoryOutput();
+  static bool _outputsInitialized = false;
+
+  // Initialize outputs only once
+  static void _ensureOutputsInitialized() {
+    if (!_outputsInitialized) {
+      // Hook into the Logger to capture all output events
+      Logger.addOutputListener((event) {
+        _sharedMemoryOutput.output(event);
+      });
+      _outputsInitialized = true;
+    }
+  }
+
+  /// Creates a logger for the specified type
+  static Logger getLogger(dynamic type, {Level? level}) {
+    _ensureOutputsInitialized();
+
+    final id = _getLoggerId(type);
+
+    // Set initial log level if provided
+    if (level != null) {
+      _logLevels[id] = level;
+    }
 
     return Logger(
-      filter: CustomLogFilter(logLevel),
-      printer: PrettyPrinter(
-        methodCount: 1,
-        errorMethodCount: 8,
-        lineLength: 120,
-        colors: true,
-        printEmojis: true,
-        dateTimeFormat: DateTimeFormat.none,
+      filter: CustomLogFilter(
+        id,
+        _logLevels[id] ?? _defaultLevel,
+        _logLevels,
+        _defaultLevel,
       ),
+      printer: PrettyPrinter(
+        methodCount: 0,
+        printEmojis: false,
+        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
+        colors: !kReleaseMode,
+      ),
+      output: ConsoleOutput(),
     );
   }
 
-  /// Set log level for a specific class or string identifier
-  static void setLogLevel(dynamic target, Level level) {
-    _logLevels[_getLogId(target)] = level;
+  /// Sets the log level for a specific type
+  static void setLogLevel(dynamic type, Level level) {
+    final id = _getLoggerId(type);
+    _logLevels[id] = level;
   }
 
-  /// Reset all custom log levels
+  /// Gets the current log level for a specific type
+  static Level getCurrentLevel(dynamic type) {
+    final id = _getLoggerId(type);
+    return _logLevels[id] ?? _defaultLevel;
+  }
+
+  /// Resets all log levels to the default
   static void resetLogLevels() {
     _logLevels.clear();
   }
 
-  /// Set global default log level
-  static void setDefaultLogLevel(Level level) {
-    if (kReleaseMode) {
-      // Prevent setting levels below warning in release mode
-      if (level.index < Level.warning.index) {
-        level = Level.warning;
-      }
-    }
-
-    if (!kReleaseMode) {
-      _defaultDebugLevel = level;
-    } else {
-      _defaultReleaseLevel = level;
-    }
+  /// Gets all captured logs
+  static List<OutputEvent> getAllLogs() {
+    return _sharedMemoryOutput.logs;
   }
 
-  /// Get the current effective log level for a type or string identifier
-  static Level getCurrentLevel(dynamic target) {
-    final tag = _getLogId(target);
-    return _logLevels[tag] ??
-        (kReleaseMode ? _defaultReleaseLevel : _defaultDebugLevel);
+  /// Gets logs for a specific type
+  static List<OutputEvent> getLogsFor(dynamic type) {
+    final id = _getLoggerId(type);
+    return _sharedMemoryOutput.logs
+        .where((log) => log.lines.any((line) => line.contains('[$id]')))
+        .toList();
+  }
+
+  /// Clears all captured logs
+  static void clearLogs() {
+    _sharedMemoryOutput.clear();
+  }
+
+  /// Checks if logs contain a specific text
+  static bool containsLog(String text, {dynamic forType}) {
+    final logs = forType != null ? getLogsFor(forType) : getAllLogs();
+
+    return logs.any((event) => event.lines.any((line) => line.contains(text)));
   }
 }
 
-/// Custom log filter with per-instance level control
-class CustomLogFilter extends LogFilter {
-  @override
-  final Level level;
+/// Gets a standardized ID for a logger
+String _getLoggerId(dynamic type) {
+  if (type is String) return type;
+  if (type is Type) return type.toString();
+  return type.runtimeType.toString();
+}
 
-  CustomLogFilter(this.level);
+/// Custom log filter that filters based on log level
+class CustomLogFilter extends LogFilter {
+  final String id;
+  final Map<String, Level> _logLevels;
+  final Level _defaultLevel;
+
+  CustomLogFilter(
+    this.id,
+    Level initialLevel,
+    this._logLevels,
+    this._defaultLevel,
+  );
 
   @override
   bool shouldLog(LogEvent event) {
-    // Handle Level.off explicitly
-    if (level == Level.off) {
-      return false;
-    }
-    // Original logic for other levels
-    return event.level.index >= level.index;
+    // Get the current log level (dynamic lookup, not cached)
+    final currentLevel = _logLevels[id] ?? _defaultLevel;
+    return event.level.index >= currentLevel.index;
   }
 }
 
-/// Generate a consistent tag for a class or string identifier
-///
-/// Accepts either:
-/// - A Type (class): logTag(MyClass)
-/// - A String: logTag("TestLogger")
-String logTag(dynamic target) => _getLogId(target);
+/// Memory output that captures logs
+class MemoryOutput extends LogOutput {
+  final List<OutputEvent> logs = [];
+
+  @override
+  void output(OutputEvent event) {
+    logs.add(event);
+  }
+
+  void clear() {
+    logs.clear();
+  }
+}
 
 /// Format PlaybackState for logging - USING PLACEHOLDER
 /// TODO: Update this function when the actual PlaybackState is available

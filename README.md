@@ -6,30 +6,25 @@ A mobile app for the DocJet platform.
 
 ### Logging System
 
-DocJet uses a standardized logging approach with consistent formatting and controllable log levels.
+DocJet uses a standardized logging approach with consistent formatting and controllable log levels. Unlike most half-assed logging systems, ours is both simple to use AND fully testable.
 
 #### Basic Usage
 
 ```dart
 class MyComponent {
   // Create a logger for this class
-  final Logger logger = LoggerFactory.getLogger(MyComponent);
+  static final Logger _logger = LoggerFactory.getLogger(MyComponent);
   static final String _tag = logTag(MyComponent);
 
   void doSomething() {
-    logger.i('$_tag Starting operation');
+    _logger.i('$_tag Starting operation');
     try {
       // ... code ...
-      logger.d('$_tag Operation details: $details');
+      _logger.d('$_tag Operation details: $details');
     } catch (e, s) {
-      logger.e('$_tag Operation failed', error: e, stackTrace: s);
+      _logger.e('$_tag Operation failed', error: e, stackTrace: s);
       rethrow;
     }
-  }
-  
-  // Add a static method to enable debug logs
-  static void enableDebugLogs() {
-    LoggerFactory.setLogLevel(MyComponent, Level.debug);
   }
 }
 ```
@@ -46,11 +41,6 @@ void processSomething() {
   
   logger.i('$tag Starting process');
   // ... code ...
-}
-
-// Enable debug logs for this module
-void enableProcessingDebugLogs() {
-  LoggerFactory.setLogLevel("Utils.Processing", Level.debug);
 }
 ```
 
@@ -69,10 +59,49 @@ In release mode, logs below `warning` level are automatically filtered out,
 regardless of the configured level. This ensures production performance
 is not impacted by debug logging.
 
+#### Controlling Log Levels
+
+You can dynamically control log levels for any component:
+
+```dart
+// Set component to debug level
+LoggerFactory.setLogLevel(MyComponent, Level.debug);
+
+// Set string logger to error level
+LoggerFactory.setLogLevel("Utils.Processing", Level.error);
+
+// Get current level
+Level currentLevel = LoggerFactory.getCurrentLevel(MyComponent);
+
+// Reset all to defaults
+LoggerFactory.resetLogLevels();
+```
+
 #### Testing with Logs
 
-See the [DocJet Test Utilities](packages/docjet_test/README.md) for information on
-testing components that use the logging system.
+Our logging system allows full testing without dependency injection. You can:
+
+1. Control log levels of any component from tests
+2. Capture and verify logs from components
+3. Use test-specific loggers that don't interfere with component logs
+
+```dart
+test('logs error when processing fails', () {
+  // Clear logs before test
+  LoggerFactory.clearLogs();
+  
+  // Run code that should log
+  processor.process("invalid task");
+  
+  // Verify logs
+  expect(
+    LoggerFactory.containsLog("Failed to process task", forType: TaskProcessor),
+    isTrue,
+  );
+});
+```
+
+See [Logging Guide](docs/logging_guide.md) for comprehensive examples and implementation details.
 
 ## Development
 
