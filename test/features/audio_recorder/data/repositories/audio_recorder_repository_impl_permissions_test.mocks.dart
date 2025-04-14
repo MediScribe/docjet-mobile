@@ -831,6 +831,54 @@ class MockFileSystem extends _i1.Mock implements _i19.FileSystem {
         returnValue: _i7.Future<void>.value(),
         returnValueForMissingStub: _i7.Future<void>.value(),
       ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<_i5.Directory> getApplicationDocumentsDirectory() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getApplicationDocumentsDirectory,
+          [],
+        ),
+        returnValue: _i7.Future<_i5.Directory>.value(_FakeDirectory_4(
+          this,
+          Invocation.method(
+            #getApplicationDocumentsDirectory,
+            [],
+          ),
+        )),
+        returnValueForMissingStub:
+            _i7.Future<_i5.Directory>.value(_FakeDirectory_4(
+          this,
+          Invocation.method(
+            #getApplicationDocumentsDirectory,
+            [],
+          ),
+        )),
+      ) as _i7.Future<_i5.Directory>);
+
+  @override
+  _i7.Future<String> getAbsolutePath(String? relativePath) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getAbsolutePath,
+          [relativePath],
+        ),
+        returnValue: _i7.Future<String>.value(_i8.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getAbsolutePath,
+            [relativePath],
+          ),
+        )),
+        returnValueForMissingStub:
+            _i7.Future<String>.value(_i8.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getAbsolutePath,
+            [relativePath],
+          ),
+        )),
+      ) as _i7.Future<String>);
 }
 
 /// A class which mocks [PathProvider].

@@ -457,6 +457,38 @@ class MockFileSystem extends _i1.Mock implements _i12.FileSystem {
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<_i3.Directory> getApplicationDocumentsDirectory() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getApplicationDocumentsDirectory,
+          [],
+        ),
+        returnValue: _i5.Future<_i3.Directory>.value(_FakeDirectory_1(
+          this,
+          Invocation.method(
+            #getApplicationDocumentsDirectory,
+            [],
+          ),
+        )),
+      ) as _i5.Future<_i3.Directory>);
+
+  @override
+  _i5.Future<String> getAbsolutePath(String? relativePath) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getAbsolutePath,
+          [relativePath],
+        ),
+        returnValue: _i5.Future<String>.value(_i11.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getAbsolutePath,
+            [relativePath],
+          ),
+        )),
+      ) as _i5.Future<String>);
 }
 
 /// A class which mocks [LocalJobStore].

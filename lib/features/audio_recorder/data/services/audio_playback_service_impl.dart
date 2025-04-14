@@ -14,7 +14,7 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
   // Set Logger Level to OFF to disable logging in this file
   final logger = LoggerFactory.getLogger(
     AudioPlaybackServiceImpl,
-    level: Level.off,
+    level: Level.debug,
   );
 
   final AudioPlayerAdapter _audioPlayerAdapter;
@@ -118,10 +118,44 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         logger.t(
           '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Action: Calling adapter.setSourceUrl()...',
         );
-        await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
-        logger.t(
-          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
-        );
+        try {
+          await _audioPlayerAdapter.setSourceUrl(pathOrUrl);
+          logger.t(
+            '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Adapter setSourceUrl() call complete.',
+          );
+        } catch (e, s) {
+          logger.e(
+            '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] ERROR setting source URL. This may be a file not found error.',
+            error: e,
+            stackTrace: s,
+          );
+
+          // Add specific file existence check
+          try {
+            // Try to access the full stack trace and error message
+            final errorString = e.toString();
+            logger.e(
+              '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Detailed error: $errorString',
+            );
+
+            // Check if it's an access or file not found error
+            if (errorString.contains('No such file') ||
+                errorString.contains('FileNotFoundException') ||
+                errorString.contains('not found') ||
+                errorString.contains('access') ||
+                errorString.contains('permission')) {
+              logger.e(
+                '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Appears to be a file access or not found error. Please verify path exists and is accessible.',
+              );
+            }
+          } catch (innerError) {
+            logger.e(
+              '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Failed to analyze error details: $innerError',
+            );
+          }
+
+          rethrow;
+        }
 
         logger.t(
           '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Action: Calling adapter.resume() (for start)...',
@@ -137,6 +171,27 @@ class AudioPlaybackServiceImpl implements AudioPlaybackService {
         error: e,
         stackTrace: s,
       );
+
+      // Additional error details
+      try {
+        final errorString = e.toString();
+        logger.e(
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Error details: $errorString',
+        );
+
+        // Check if it's an iOS-specific file not found error which may have a truncated message
+        if (errorString.contains('Operation couldn\'t be completed')) {
+          logger.e(
+            '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] iOS error detected. This may be a file access or not found error. The file at $pathOrUrl may not exist or is inaccessible.',
+          );
+        }
+      } catch (innerError) {
+        // Just in case error analysis itself fails
+        logger.e(
+          '[FLOW #$flowId] [SERVICE PLAY $pathOrUrl] Failed to analyze error details: $innerError',
+        );
+      }
+
       _playbackStateSubject.add(PlaybackState.error(message: e.toString()));
       rethrow;
     }

@@ -186,6 +186,8 @@ void main() {
       () async {
         // Arrange
         const tFinalPath = 'test/path/final_recording.m4a';
+        const tExpectedRelativePath =
+            'final_recording.m4a'; // Now expects just the filename
         const tDuration = Duration(seconds: 30);
         when(mockRecorder.stop()).thenAnswer((_) async => tFinalPath);
         when(
@@ -206,7 +208,7 @@ void main() {
         expect(
           result,
           equals(tFinalPath),
-        ); // Ensure it still returns the correct path
+        ); // Ensure it still returns the correct FULL path
         // Verify duration retrieval
         verify(mockAudioDurationRetriever.getDuration(tFinalPath));
         // Verify job saving
@@ -216,7 +218,10 @@ void main() {
         verificationResult.called(1);
         // Check the captured job details
         final capturedJob = verificationResult.captured.single as LocalJob;
-        expect(capturedJob.localFilePath, tFinalPath);
+        expect(
+          capturedJob.localFilePath,
+          tExpectedRelativePath,
+        ); // Now checks for the FILENAME only
         expect(capturedJob.durationMillis, tDuration.inMilliseconds);
         expect(capturedJob.status, TranscriptionStatus.created);
         expect(capturedJob.backendId, isNull);

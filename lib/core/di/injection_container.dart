@@ -108,8 +108,8 @@ Future<void> init() async {
 
   // --- Core Platform Implementations ---
   // Register concrete implementations for the platform interfaces
-  sl.registerLazySingleton<FileSystem>(() => IoFileSystem());
   sl.registerLazySingleton<PathProvider>(() => AppPathProvider());
+  sl.registerLazySingleton<FileSystem>(() => IoFileSystem(sl<PathProvider>()));
   sl.registerLazySingleton<PermissionHandler>(() => AppPermissionHandler());
 
   // --- Core ---
@@ -138,7 +138,11 @@ Future<void> init() async {
 
   // Add adapter registration
   sl.registerLazySingleton<AudioPlayerAdapter>(
-    () => AudioPlayerAdapterImpl(sl<just_audio.AudioPlayer>()),
+    () => AudioPlayerAdapterImpl(
+      sl<just_audio.AudioPlayer>(),
+      pathProvider: sl<PathProvider>(),
+      fileSystem: sl<FileSystem>(),
+    ),
   );
 
   // Add mapper registration
@@ -179,10 +183,9 @@ Future<void> init() async {
   sl.registerLazySingleton<AppSeeder>(
     () => AppSeeder(
       localJobStore: sl(),
-      pathProvider: sl(),
       fileSystem: sl(),
       audioDurationRetriever: sl(),
-      sharedPreferences: sl(), // Use the registered instance
+      prefs: sl(), // Use the registered instance
     ),
   );
 }

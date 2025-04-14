@@ -119,8 +119,10 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
       }
 
       final duration = await audioDurationRetriever.getDuration(stoppedPath);
+      final String relativeFilePath =
+          stoppedPath.contains('/') ? stoppedPath.split('/').last : stoppedPath;
       final job = LocalJob(
-        localFilePath: stoppedPath,
+        localFilePath: relativeFilePath,
         durationMillis: duration.inMilliseconds,
         status: TranscriptionStatus.created,
         localCreatedAt: DateTime.now(),

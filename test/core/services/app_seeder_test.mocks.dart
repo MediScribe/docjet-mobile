@@ -10,7 +10,7 @@ import 'dart:typed_data' as _i9;
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i8;
 import 'package:docjet_mobile/core/platform/path_provider.dart' as _i7;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
-    as _i10;
+    as _i11;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
     as _i5;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
@@ -18,7 +18,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcript
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart'
     as _i3;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:shared_preferences/src/shared_preferences_legacy.dart' as _i11;
+import 'package:mockito/src/dummies.dart' as _i10;
+import 'package:shared_preferences/src/shared_preferences_legacy.dart' as _i12;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -267,13 +268,45 @@ class MockFileSystem extends _i1.Mock implements _i8.FileSystem {
         returnValue: _i4.Future<void>.value(),
         returnValueForMissingStub: _i4.Future<void>.value(),
       ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getApplicationDocumentsDirectory,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Directory>.value(_FakeDirectory_0(
+          this,
+          Invocation.method(
+            #getApplicationDocumentsDirectory,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Directory>);
+
+  @override
+  _i4.Future<String> getAbsolutePath(String? relativePath) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getAbsolutePath,
+          [relativePath],
+        ),
+        returnValue: _i4.Future<String>.value(_i10.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getAbsolutePath,
+            [relativePath],
+          ),
+        )),
+      ) as _i4.Future<String>);
 }
 
 /// A class which mocks [AudioDurationRetriever].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioDurationRetriever extends _i1.Mock
-    implements _i10.AudioDurationRetriever {
+    implements _i11.AudioDurationRetriever {
   MockAudioDurationRetriever() {
     _i1.throwOnMissingStub(this);
   }
@@ -297,7 +330,7 @@ class MockAudioDurationRetriever extends _i1.Mock
 /// A class which mocks [SharedPreferences].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSharedPreferences extends _i1.Mock implements _i11.SharedPreferences {
+class MockSharedPreferences extends _i1.Mock implements _i12.SharedPreferences {
   MockSharedPreferences() {
     _i1.throwOnMissingStub(this);
   }

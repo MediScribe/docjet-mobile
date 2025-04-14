@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show FileSystemEntity, FileSystemEntityType, FileStat;
+import 'dart:io' show FileSystemEntity, FileSystemEntityType, FileStat, File;
 
 // ADD THIS IMPORT
 
@@ -32,11 +32,54 @@ class AudioFileManagerImpl implements AudioFileManager {
   Future<void> deleteRecording(String filePath) async {
     logger.d('Attempting to delete recording: $filePath');
     try {
-      final exists = await fileSystem.fileExists(filePath);
+      // First check if the file exists as provided
+      bool exists = await fileSystem.fileExists(filePath);
+
+      // If the path contains a directory separator, it might be an absolute path
+      // In that case, also try treating as a relative path
+      if (!exists && filePath.contains('/')) {
+        // Try with filename only
+        final filename = filePath.split('/').last;
+        logger.d(
+          'File not found at path, trying with filename only: $filename',
+        );
+        exists = await fileSystem.fileExists(filename);
+
+        if (exists) {
+          // Use the relative path for deletion instead
+          logger.d('Found file using relative path: $filename');
+          filePath = filename;
+        }
+      }
+
+      // If still doesn't exist, try a last resort check from docs dir
+      if (!exists) {
+        try {
+          final appDir = await pathProvider.getApplicationDocumentsDirectory();
+          final filename = filePath.split('/').last;
+          final absolutePath = '${appDir.path}/$filename';
+
+          logger.d('Checking file exists at absolute path: $absolutePath');
+          final fileExists = await File(absolutePath).exists();
+
+          if (fileExists) {
+            logger.d('File found at absolute path, using direct File.delete()');
+            await File(absolutePath).delete();
+            logger.i('Successfully deleted file via File API: $absolutePath');
+            return;
+          }
+        } catch (innerError) {
+          logger.e('Error during last resort file check', error: innerError);
+          // Continue with normal flow - we'll throw the appropriate error below
+        }
+      }
+
       if (!exists) {
         logger.w('Attempted to delete non-existent file: $filePath');
         throw RecordingFileNotFoundException('File not found: $filePath');
       }
+
+      // Delete through the FileSystem abstraction
       await fileSystem.deleteFile(filePath);
       logger.i('Successfully deleted file: $filePath');
     } on RecordingFileNotFoundException {

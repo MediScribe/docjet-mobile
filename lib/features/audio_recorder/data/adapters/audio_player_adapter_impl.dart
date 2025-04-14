@@ -1,25 +1,47 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:path/path.dart' as p;
 
 import 'package:just_audio/just_audio.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
+import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
 
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   final logger = LoggerFactory.getLogger(
     AudioPlayerAdapterImpl,
-    level: Level.off,
+    level: Level.debug,
   );
+  final String _tag = logTag(AudioPlayerAdapterImpl);
 
-  final AudioPlayer _audioPlayer; // REMOVED ALIAS
+  // Core just_audio player instance
+  final AudioPlayer _audioPlayer;
 
-  // Create a timestamp counter to track event sequences
+  // Optional path provider for normalization support
+  final PathProvider? _pathProvider;
+
+  // File system dependency for consistent path handling
+  final FileSystem? _fileSystem;
+
+  // Counter to help track and correlate log messages for specific operations
   int _eventSequence = 0;
 
   // Constructor no longer needs to listen immediately
-  AudioPlayerAdapterImpl(this._audioPlayer) {
-    logger.d('[ADAPTER_INIT] Creating AudioPlayerAdapterImpl instance.');
+  AudioPlayerAdapterImpl(
+    this._audioPlayer, {
+    PathProvider? pathProvider,
+    FileSystem? fileSystem,
+  }) : _pathProvider = pathProvider,
+       _fileSystem = fileSystem {
+    logger.d('$_tag Creating AudioPlayerAdapterImpl instance.');
+    // Internal listeners primarily for logging/debugging if needed
+    _setupInternalListeners();
+  }
+
+  void _setupInternalListeners() {
     // Internal listeners primarily for logging/debugging if needed
     _audioPlayer.playerStateStream.listen(
       (state) {
@@ -65,6 +87,59 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
         );
       },
     );
+  }
+
+  /// Normalizes a file path if we have access to the PathProvider.
+  /// If we don't have that dependency, it returns the original path.
+  Future<String> _normalizePath(String path) async {
+    if (path.isEmpty) {
+      return path;
+    }
+
+    // If this doesn't look like an absolute path, it's likely relative already
+    if (!p.isAbsolute(path)) {
+      logger.d('[ADAPTER NORMALIZE PATH] Path appears to be relative: $path');
+      // Get the absolute path
+      if (_pathProvider != null) {
+        final docsDir = await _pathProvider.getApplicationDocumentsDirectory();
+        final absolutePath = p.join(docsDir.path, path);
+        logger.d(
+          '[ADAPTER NORMALIZE PATH] Converted to absolute: $absolutePath',
+        );
+        return absolutePath;
+      }
+      return path;
+    }
+
+    // Handle absolute paths (for backward compatibility)
+    if (path.contains('/var/mobile/Containers/Data/Application/')) {
+      logger.d('[ADAPTER NORMALIZE PATH] Detected iOS container path: $path');
+      try {
+        // Check if the path exists as is first
+        if (await File(path).exists()) {
+          logger.d('[ADAPTER NORMALIZE PATH] Path exists as is');
+          return path;
+        }
+
+        // Extract the filename (everything after the last slash)
+        final filename = path.split('/').last;
+
+        // Get current documents directory
+        if (_pathProvider != null) {
+          final docsDir =
+              await _pathProvider.getApplicationDocumentsDirectory();
+          final normalizedPath = p.join(docsDir.path, filename);
+
+          logger.d(
+            '[ADAPTER NORMALIZE PATH] Normalized path: $path → $normalizedPath',
+          );
+          return normalizedPath;
+        }
+      } catch (e) {
+        logger.e('[ADAPTER NORMALIZE PATH] Error normalizing path: $e');
+      }
+    }
+    return path; // Return original path if no normalization needed or available
   }
 
   @override
@@ -208,11 +283,14 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
     return _audioPlayer.durationStream
         .where((d) => d != null) // Ensure non-null duration
         .map((d) {
+          // Since we filtered nulls above, we know d is non-null here
+          final duration =
+              d!; // Use non-null assertion here to satisfy static analysis
           // Demoted from DEBUG to TRACE
           logger.t(
-            '[ADAPTER STREAM MAP] Input Duration: ${d!.inMilliseconds}ms',
+            '[ADAPTER STREAM MAP] Input Duration: ${duration.inMilliseconds}ms',
           );
-          return d;
+          return duration;
         })
         .cast<Duration>()
         .handleError((error, stackTrace) {
@@ -271,50 +349,109 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   Future<void> setSourceUrl(String url) async {
     final seqId = _eventSequence++;
     final startLoadTime = DateTime.now().millisecondsSinceEpoch;
-    logger.d(
-      '[ADAPTER SET_SOURCE_URL #$seqId] START: $url - Before: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
-    );
+    logger.d('[ADAPTER SET_SOURCE_URL #$seqId] START: $url');
     try {
-      // Determine if it's a local file or a remote URL
-      Uri uri = Uri.parse(url);
-      AudioSource source;
-      if (uri.isScheme('file')) {
-        logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Detected local file path.');
-        source = AudioSource.uri(uri);
-      } else if (uri.isScheme('http') || uri.isScheme('https')) {
-        logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Detected remote URL.');
-        source = AudioSource.uri(uri);
+      // Extract just the filename if it's a path
+      final filename = url.contains('/') ? url.split('/').last : url;
+      String absoluteUrl;
+      bool fileExists = false;
+
+      // STRATEGY 1: Try using the FileSystem's getAbsolutePath first (most efficient)
+      if (_fileSystem != null) {
+        try {
+          // Check if file exists as a relative path
+          fileExists = await _fileSystem!.fileExists(filename);
+          if (fileExists) {
+            // Get the absolute path from FileSystem
+            absoluteUrl = await _fileSystem!.getAbsolutePath(filename);
+            logger.d(
+              '[ADAPTER SET_SOURCE_URL #$seqId] Found via FileSystem (relative path): $absoluteUrl',
+            );
+          } else {
+            // Try with original path
+            fileExists = await _fileSystem!.fileExists(url);
+            if (fileExists) {
+              absoluteUrl = await _fileSystem!.getAbsolutePath(url);
+              logger.d(
+                '[ADAPTER SET_SOURCE_URL #$seqId] Found via FileSystem (original path): $absoluteUrl',
+              );
+            } else {
+              // Fall back to direct check
+              absoluteUrl = url;
+            }
+          }
+        } catch (e) {
+          logger.e('[ADAPTER SET_SOURCE_URL #$seqId] FileSystem error: $e');
+          absoluteUrl = url; // Fall back to input
+        }
       } else {
-        logger.d(
-          '[ADAPTER SET_SOURCE_URL #$seqId] Unrecognized scheme: ${uri.scheme}. Assuming local file path.',
-        );
-        // Assume it's a local path if no scheme or unrecognized scheme
-        source = AudioSource.uri(Uri.file(url));
+        // No FileSystem, use direct path
+        absoluteUrl = url;
       }
-      logger.d(
-        '[ADAPTER SET_SOURCE_URL #$seqId] Calling _audioPlayer.setAudioSource...',
-      );
-      // Use setAudioSource which returns Future<Duration?> (duration)
-      final duration = await _audioPlayer.setAudioSource(
-        source,
-        // Consider initialPosition and preload if needed
-        // initialPosition: Duration.zero,
-        // preload: true,
-      );
+
+      // STRATEGY 2: If not found yet, try checking if the file exists directly
+      if (!fileExists) {
+        try {
+          fileExists = await File(absoluteUrl).exists();
+          logger.d(
+            '[ADAPTER SET_SOURCE_URL #$seqId] Found via direct File check: $absoluteUrl',
+          );
+        } catch (e) {
+          logger.e(
+            '[ADAPTER SET_SOURCE_URL #$seqId] Direct file check error: $e',
+          );
+        }
+      }
+
+      // STRATEGY 3: Last resort - try in app documents directory with just filename
+      if (!fileExists && _pathProvider != null) {
+        try {
+          final docsDir =
+              await _pathProvider!.getApplicationDocumentsDirectory();
+          final docDirPath = '${docsDir.path}/$filename';
+
+          fileExists = await File(docDirPath).exists();
+          if (fileExists) {
+            absoluteUrl = docDirPath;
+            logger.d(
+              '[ADAPTER SET_SOURCE_URL #$seqId] Found in docs dir: $absoluteUrl',
+            );
+          }
+        } catch (e) {
+          logger.e('[ADAPTER SET_SOURCE_URL #$seqId] Docs dir check error: $e');
+        }
+      }
+
+      // Log whether file was found
+      if (!fileExists) {
+        logger.w(
+          '[ADAPTER SET_SOURCE_URL #$seqId] File not found but continuing anyway',
+        );
+      }
+
+      // Create URI and audio source
+      Uri uri = Uri.file(absoluteUrl);
+      logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Using URI: $uri');
+      final source = AudioSource.uri(uri);
+
+      // Set the audio source
+      logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Setting audio source...');
+      final duration = await _audioPlayer.setAudioSource(source);
+
       final loadDuration =
           DateTime.now().millisecondsSinceEpoch - startLoadTime;
       logger.d(
-        '[ADAPTER SET_SOURCE_URL #$seqId] Call complete - Returned duration: ${duration?.inMilliseconds}ms, After: playing=${_audioPlayer.playing}, processingState=${_audioPlayer.processingState}',
+        '[ADAPTER SET_SOURCE_URL #$seqId] Success! Duration: ${duration?.inMilliseconds}ms, Loading took: ${loadDuration}ms',
       );
-      logger.d('[ADAPTER TIMING] Audio source loading took ${loadDuration}ms');
     } catch (e, s) {
+      final loadDuration =
+          DateTime.now().millisecondsSinceEpoch - startLoadTime;
       logger.e(
-        '[ADAPTER SET_SOURCE_URL #$seqId] FAILED',
+        '[ADAPTER SET_SOURCE_URL #$seqId] FAILED after ${loadDuration}ms',
         error: e,
         stackTrace: s,
       );
       rethrow;
     }
-    logger.d('[ADAPTER SET_SOURCE_URL #$seqId] END');
   }
 }

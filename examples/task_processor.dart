@@ -5,6 +5,7 @@
 /// - Using the logger consistently with appropriate levels
 /// - Controlling its default log level
 /// - Using log tags correctly
+library;
 
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
