@@ -6,6 +6,12 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_s
 import 'package:flutter_test/flutter_test.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
+// File-level logger for the test suite
+final logger = LoggerFactory.getLogger(
+  'PlaybackStateMapperImplTest',
+  level: Level.debug,
+);
+
 void main() {
   late PlaybackStateMapperImpl mapper;
   late StreamController<DomainPlayerState> playerStateController;
@@ -17,11 +23,7 @@ void main() {
     // Creates a fresh PlaybackStateMapperImpl for each test, ENABLING test mode
     mapper = PlaybackStateMapperImpl(initialTestMode: true);
 
-    // REMOVE EXPLICIT CALL TO setTestMode
-    // Enable test mode to disable debouncing for predictable test behavior
-    // mapper.setTestMode(true);
-
-    // SET LOG LEVEL TO OFF BEFORE INITIALIZE - THIS STILL WON'T SILENCE CONSTRUCTOR LOGS
+    // Set Logger Level to OFF to disable logging in the SUT
     LoggerFactory.setLogLevel(PlaybackStateMapperImpl, Level.off);
 
     // Create controllers for test inputs

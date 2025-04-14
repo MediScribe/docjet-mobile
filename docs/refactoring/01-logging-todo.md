@@ -21,6 +21,7 @@
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 class MyComponent {
+  // Setting the log level to off; enable if needed.
   final logger = LoggerFactory.getLogger(MyComponent, level: Level.off);
   
   void doSomething() {

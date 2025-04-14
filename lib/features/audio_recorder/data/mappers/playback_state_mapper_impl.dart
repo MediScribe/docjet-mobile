@@ -14,7 +14,11 @@ import 'package:meta/meta.dart';
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
 class PlaybackStateMapperImpl implements PlaybackStateMapper {
-  final logger = LoggerFactory.getLogger(PlaybackStateMapperImpl);
+  // Set Logger Level to OFF to disable logging in this file; enable if needed.
+  final logger = LoggerFactory.getLogger(
+    PlaybackStateMapperImpl,
+    level: Level.off,
+  );
 
   // Stream Controllers for input streams from the Adapter
   @visibleForTesting
