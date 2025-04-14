@@ -4,6 +4,7 @@ import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_stat
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'; // Import Domain state
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 void main() {
   late PlaybackStateMapperImpl mapper;
@@ -13,11 +14,15 @@ void main() {
   late StreamController<void> completeController;
 
   setUp(() {
-    // Creates a fresh PlaybackStateMapperImpl for each test
-    mapper = PlaybackStateMapperImpl();
+    // Creates a fresh PlaybackStateMapperImpl for each test, ENABLING test mode
+    mapper = PlaybackStateMapperImpl(initialTestMode: true);
 
+    // REMOVE EXPLICIT CALL TO setTestMode
     // Enable test mode to disable debouncing for predictable test behavior
-    mapper.setTestMode(true);
+    // mapper.setTestMode(true);
+
+    // SET LOG LEVEL TO OFF BEFORE INITIALIZE - THIS STILL WON'T SILENCE CONSTRUCTOR LOGS
+    LoggerFactory.setLogLevel(PlaybackStateMapperImpl, Level.off);
 
     // Create controllers for test inputs
     playerStateController = StreamController<DomainPlayerState>.broadcast();
@@ -43,6 +48,9 @@ void main() {
     positionController.close();
     completeController.close();
     mapper.dispose(); // Ensure mapper resources are cleaned up
+
+    // RESET LOG LEVELS
+    LoggerFactory.resetLogLevels();
   });
 
   test(

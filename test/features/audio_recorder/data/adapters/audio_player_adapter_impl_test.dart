@@ -1,8 +1,6 @@
 import 'dart:async';
 
-// import 'package:audioplayers/audioplayers.dart' as audioplayers; // REMOVED
-// import 'package:just_audio/just_audio.dart'; // REMOVED
-import 'package:just_audio/just_audio.dart'; // REMOVED ALIAS
+import 'package:just_audio/just_audio.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
@@ -13,8 +11,11 @@ import 'package:mockito/mockito.dart';
 // Import the generated mocks file
 import 'audio_player_adapter_impl_test.mocks.dart';
 
+// Import the new logging helpers
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+
 // Import the new logging test utilities package
-// import 'package:docjet_test/docjet_test.dart';
+// import 'package:docjet_test/docjet_test.dart'; // Obsolete
 
 // Generate mocks for the AudioPlayer class from just_audio
 @GenerateMocks([AudioPlayer])
@@ -67,10 +68,13 @@ void main() {
     when(mockAudioPlayer.playing).thenReturn(false);
     when(mockAudioPlayer.processingState).thenReturn(ProcessingState.ready);
 
-    // 6. Initialize adapter with the fully stubbed mock
+    // 6. Set default log level *before* initializing the adapter
+    LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.off);
+
+    // 7. Initialize adapter with the fully stubbed mock
     audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);
 
-    // 7. Add initial events to get things moving
+    // 8. Add initial events to get things moving
     playerStateController.add(PlayerState(false, ProcessingState.ready));
   });
 
@@ -78,6 +82,9 @@ void main() {
     playerStateController.close();
     durationController.close();
     positionController.close();
+
+    // Reset log levels after each test
+    LoggerFactory.resetLogLevels();
   });
 
   // Basic functional tests

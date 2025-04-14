@@ -7,12 +7,15 @@ import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playba
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 import 'audio_playback_service_event_handling_test.mocks.dart';
 
 // Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+final logger = LoggerFactory.getLogger(
+  'AudioPlaybackServiceEventHandlingTest',
+  level: Level.debug,
+);
 
 // Generate mock classes
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])

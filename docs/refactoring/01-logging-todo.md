@@ -30,10 +30,37 @@ class MyComponent {
 }
 ```
 
-**Testing Practice**: In your `setUp` or specific tests, explicitly set the desired level:
+**IMPORTANT - Logger Usage Pattern**:
+1. **SUT (System Under Test)**: Logger MUST be defined as a class member inside the SUT class.
+   ```dart
+   class MyImplementation {
+     final logger = LoggerFactory.getLogger(MyImplementation, level: Level.off);
+     // ...
+   }
+   ```
+
+2. **Test Files**: Logger SHOULD REMAIN as file-level variable in test files.
+   ```dart
+   // Top of test file
+   final logger = LoggerFactory.getLogger('MyComponentTest', level: Level.debug);
+   ```
+
+3. **Setting Debug Levels in Tests**: 
+   - In test files, set the SUT class's logger level to debug in setUp or at the top of main():
+   ```dart
+   void main() {
+     // Enable debug logs for the SUT component
+     LoggerFactory.setLogLevel(MyImplementation, Level.debug);
+     
+     // ...test code...
+   }
+   ```
+
+**Testing Practice**:
 
 ```dart
 setUp(() {
+  // Set SUT component's logger to debug level for better test visibility
   LoggerFactory.setLogLevel(MyComponent, Level.debug);
   // ... other setup ...
 });
@@ -65,21 +92,21 @@ For each component, follow the MINIMAL change approach:
 
 ### 2.1 AudioPlayerAdapter
 
-- [ ] Update import statements (remove old logger, add new log_helpers)
-- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioPlayerAdapter)`
-- [ ] Run adapter tests to verify no behavior change
+- [x] Update import statements (remove old logger, add new log_helpers)
+- [x] Replace logger initialization with `LoggerFactory.getLogger(AudioPlayerAdapter)`
+- [x] Run adapter tests to verify no behavior change
 
 ### 2.2 PlaybackStateMapper
 
-- [ ] Update import statements (remove old logger, add new log_helpers)
-- [ ] Replace logger initialization with `LoggerFactory.getLogger(PlaybackStateMapper)`
-- [ ] Run mapper tests to verify no behavior change
+- [x] Update import statements (remove old logger, add new log_helpers)
+- [x] Replace logger initialization with `LoggerFactory.getLogger(PlaybackStateMapper)`
+- [x] Run mapper tests to verify no behavior change
 
 ### 2.3 AudioPlaybackService
 
-- [ ] Update import statements (remove old logger, add new log_helpers)
-- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioPlaybackService)`
-- [ ] Run service tests to verify no behavior change
+- [x] Update import statements (remove old logger, add new log_helpers)
+- [x] Replace logger initialization with `LoggerFactory.getLogger(AudioPlaybackService)`
+- [x] Run service tests to verify no behavior change
 
 ### 2.4 AudioListCubit
 
@@ -108,7 +135,9 @@ For each component, follow the MINIMAL change approach:
 - [x] ~~Implement test helper functions~~ (Now available through LoggerFactory APIs)
 - [x] ~~Add support for string-based loggers in test helpers~~ (Built into core)
 - [x] ~~Create tests for test helpers~~ (Core testing is validated)
-- [ ] Update existing component tests to use new logging test APIs
+- [x] Update existing component tests to use new logging test APIs
+    - [x] AudioPlayerAdapterImpl
+    - [x] PlaybackStateMapperImpl
 - [ ] Add test for each component with debug logs enabled
 - [ ] Verify tests pass with different log levels
 

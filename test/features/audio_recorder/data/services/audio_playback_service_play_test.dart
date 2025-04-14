@@ -2,7 +2,7 @@
 import 'dart:async';
 
 // Import logger
-import 'package:docjet_mobile/core/utils/logger.dart'; // Import logger explicitly
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Update to new log_helpers
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'
@@ -16,7 +16,10 @@ import 'package:mockito/mockito.dart';
 import 'audio_playback_service_play_test.mocks.dart';
 
 // Set Logger Level to DEBUG for active development/debugging in this file
-final logger = Logger(level: Level.debug);
+final logger = LoggerFactory.getLogger(
+  'AudioPlaybackServicePlayTest',
+  level: Level.debug,
+);
 
 // Annotation to generate mocks for Adapter and Mapper ONLY
 @GenerateMocks([AudioPlayerAdapter, PlaybackStateMapper])
@@ -24,8 +27,8 @@ final logger = Logger(level: Level.debug);
 final testException = Exception('Test Exception: Something went boom!');
 
 void main() {
-  // Set logger level to off for tests
-  // setLogLevel(Level.off);
+  // Set SUT logger to debug level for testing
+  LoggerFactory.setLogLevel(AudioPlaybackServiceImpl, Level.debug);
 
   // Add new mocks
   late MockAudioPlayerAdapter mockAudioPlayerAdapter;

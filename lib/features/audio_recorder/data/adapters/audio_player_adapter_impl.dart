@@ -5,19 +5,9 @@ import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_play
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 
-// Define logger at the top level
-final logger = LoggerFactory.getLogger(AudioPlayerAdapterImpl);
-
-// Special debug flag for state transition tracking - set to true to enable detailed transition logs
-const bool _debugStateTransitions = true;
-
 /// Concrete implementation of [AudioPlayerAdapter] using the `just_audio` package.
 class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
-  // REMOVED LOGGER INSTANCE FROM HERE
-
-  // Add static debug enable method
-  static void enableDebugLogs() =>
-      LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.debug);
+  final logger = LoggerFactory.getLogger(AudioPlayerAdapterImpl);
 
   final AudioPlayer _audioPlayer; // REMOVED ALIAS
 
@@ -163,12 +153,10 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
             '[ADAPTER STREAM MAP #$seqId] Input PlayerState: processingState=${state.processingState}, playing=${state.playing}',
           );
 
-          // Special debugging for state transitions
-          if (_debugStateTransitions) {
-            logger.d(
-              '[STATE_TRANSITION #$seqId] RAW: ${state.processingState}, playing=${state.playing}',
-            );
-          }
+          // Special debugging for state transitions - now just a regular debug log
+          logger.t(
+            '[STATE_TRANSITION #$seqId] RAW: ${state.processingState}, playing=${state.playing}',
+          );
 
           DomainPlayerState domainState;
 
@@ -196,10 +184,8 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
             '[ADAPTER STREAM MAP #$seqId] Translating: ${state.processingState} + playing=${state.playing} => $domainState',
           );
 
-          // Special debugging for state transitions
-          if (_debugStateTransitions) {
-            logger.d('[STATE_TRANSITION #$seqId] MAPPED: $domainState');
-          }
+          // Special debugging for state transitions - now just a regular debug log
+          logger.t('[STATE_TRANSITION #$seqId] MAPPED: $domainState');
 
           return domainState;
         })

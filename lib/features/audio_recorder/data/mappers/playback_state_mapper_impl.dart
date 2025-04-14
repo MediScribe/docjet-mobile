@@ -9,7 +9,7 @@ import 'package:rxdart/rxdart.dart' as rx;
 import 'package:meta/meta.dart';
 
 // Special debug flag for state transition tracking - set to true to enable detailed transition logs
-const bool _debugStateTransitions = true;
+// const bool _debugStateTransitions = true;
 
 /// Implementation of [PlaybackStateMapper] that uses RxDart to combine and
 /// transform audio player streams into a unified [PlaybackState] stream.
@@ -31,9 +31,6 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   // The merged and mapped output stream
   late final Stream<PlaybackState> _playbackStateStream;
 
-  // Flag to disable debouncing in test mode
-  bool _testMode = false;
-
   // Debounce duration in milliseconds
   static const int _debounceDurationMs = 80;
 
@@ -46,7 +43,16 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   Duration _currentPosition = Duration.zero;
   String? _currentError;
 
-  PlaybackStateMapperImpl() {
+  // Flag to disable debouncing, initialized by constructor
+  final bool _testMode;
+
+  // Accept initial testMode state in constructor (defaults to false)
+  PlaybackStateMapperImpl({bool initialTestMode = false})
+    : _testMode = initialTestMode {
+    // Log initial mode setting
+    logger.d(
+      '[MAPPER_CONFIG] Initializing - Test mode: ${_testMode ? 'enabled' : 'disabled'}',
+    );
     _playbackStateStream = _createCombinedStream().asBroadcastStream();
   }
 
@@ -162,11 +168,13 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
   }
 
   /// Sets test mode which disables debouncing for more predictable test behavior
+  /// NOTE: Prefer setting initialTestMode in constructor for tests
   @visibleForTesting
   void setTestMode(bool enabled) {
-    _testMode = enabled;
-    logger.d(
-      '[MAPPER_CONFIG] Test mode ${enabled ? 'enabled' : 'disabled'} - debouncing will be ${enabled ? 'skipped' : 'applied'}',
+    // THIS SHOULD NOT BE NEEDED IF CONSTRUCTOR IS USED
+    // _testMode = enabled; // Can't reassign final field
+    logger.w(
+      '[MAPPER_CONFIG] setTestMode called explicitly. Test mode is final and was initially set to: $_testMode',
     );
   }
 
@@ -225,12 +233,12 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
         )
         .distinct(_areStatesEquivalent);
 
-    // Apply debouncing only in production mode (not in tests)
+    // Apply debouncing only if not in test mode
     if (!_testMode) {
+      // Debouncing applied
       logger.d(
-        '[MAPPER_CONFIG] Production mode - applying ${_debounceDurationMs}ms debounce to prevent UI flicker',
+        '[MAPPER_CONFIG] Initial mode is Production - applying ${_debounceDurationMs}ms debounce to prevent UI flicker',
       );
-      // Wrap debounce in doOnData to log before and after
       stream = stream
           .doOnData(
             (state) => logger.t(
@@ -244,7 +252,8 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
             ), // Log state exiting debounce
           );
     } else {
-      logger.d('[MAPPER_CONFIG] Test mode - no debouncing applied');
+      // No debouncing in test mode
+      logger.d('[MAPPER_CONFIG] Initial mode is Test - no debouncing applied');
     }
 
     return stream.doOnData(
@@ -313,12 +322,13 @@ class PlaybackStateMapperImpl implements PlaybackStateMapper {
       }
     }
 
-    if (_debugStateTransitions) {
-      // Demote this transition log as it can be noisy
-      logger.t(
-        '[STATE_TRANSITION] MAPPER: DomainPlayerState = $_currentPlayerState → PlaybackState = ${newState.runtimeType}',
-      );
-    }
+    // REMOVE IF CHECK
+    // if (_debugStateTransitions) {
+    // Demote this transition log as it can be noisy
+    logger.t(
+      '[STATE_TRANSITION] MAPPER: DomainPlayerState = $_currentPlayerState → PlaybackState = ${newState.runtimeType}',
+    );
+    // }
 
     return newState;
   }
