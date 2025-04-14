@@ -116,9 +116,9 @@ For each component, follow the MINIMAL change approach:
 
 ### 2.5 AudioPlayerWidget
 
-- [ ] Update import statements (remove old logger, add new log_helpers)
-- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioPlayerWidget)`
-- [ ] Run widget tests to verify no behavior change
+- [x] Update import statements (remove old logger, add new log_helpers)
+- [x] Replace logger initialization with `LoggerFactory.getLogger(AudioPlayerWidget)`
+- [x] Run widget tests to verify no behavior change
 
 ## 3. Remove Debug Flags and Commented Logs
 

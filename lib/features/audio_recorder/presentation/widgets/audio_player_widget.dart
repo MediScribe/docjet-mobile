@@ -1,11 +1,8 @@
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:async';
-
-// Set Logger Level to OFF to disable logging in this file
-final logger = Logger(level: Level.off);
 
 // Helper function (keep global or move to utils)
 String _formatDuration(Duration duration) {
@@ -39,6 +36,12 @@ class AudioPlayerWidget extends StatefulWidget {
 }
 
 class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
+  // Set Logger Level to OFF to disable logging in this file
+  final logger = LoggerFactory.getLogger(
+    _AudioPlayerWidgetState,
+    level: Level.off,
+  );
+
   // Local state for slider dragging visual feedback
   bool _isDragging = false;
   double _dragValue = 0.0;

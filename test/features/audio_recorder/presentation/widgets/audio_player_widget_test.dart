@@ -1,9 +1,16 @@
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/presentation/widgets/audio_player_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+
+// Add file-level logger for the test file
+final logger = LoggerFactory.getLogger(
+  'AudioPlayerWidgetTest',
+  level: Level.debug,
+);
 
 // Mocks
 class MockAudioListCubit extends Mock implements AudioListCubit {}
@@ -12,6 +19,9 @@ class MockAudioListCubit extends Mock implements AudioListCubit {}
 class FakeDuration extends Fake implements Duration {}
 
 void main() {
+  // Enable debug logs for the SUT component
+  LoggerFactory.setLogLevel(AudioPlayerWidget, Level.debug);
+
   late MockAudioListCubit mockAudioListCubit;
 
   setUpAll(() {
