@@ -7,7 +7,11 @@ DocJet uses a standardized logging approach with consistent formatting and contr
 ```dart
 class MyComponent {
   // Create a logger for this class
-  static final Logger _logger = LoggerFactory.getLogger(MyComponent);
+  // Optionally provide a default level for normal operation.
+  // If not provided, it uses the global default (DEBUG in debug mode, INFO in release).
+  // IMPORTANT: This level is ONLY set if a level hasn't already been specified
+  // for MyComponent (e.g., by a test calling setLogLevel).
+  static final Logger _logger = LoggerFactory.getLogger(MyComponent, level: Level.info);
   static final String _tag = logTag(MyComponent);
 
   void doSomething() {
@@ -20,7 +24,7 @@ class MyComponent {
       rethrow;
     }
   }
-}
+}           
 ```
 
 ## String-Based Loggers
@@ -49,10 +53,11 @@ void processSomething() {
 
 ## Controlling Log Levels
 
-You can dynamically control log levels for any component:
+You can dynamically control log levels for any component. Setting a level with `setLogLevel` **overrides** any default level specified in `getLogger` or the global default.
 
 ```dart
-// Set component to debug level
+// Set component to debug level. This will be the effective level
+// regardless of what was passed to getLogger for MyComponent.
 LoggerFactory.setLogLevel(MyComponent, Level.debug);
 
 // Set string logger to error level
@@ -141,11 +146,12 @@ void main() {
 
 ### Controlling Log Levels In Tests
 
-Want to enable DEBUG logs for a specific component during tests? Easy:
+Want to enable DEBUG logs (or any other level) for a specific component during tests, **regardless of its default**? Easy:
 
 ```dart
 test('logs detailed debug information', () {
-  // Set component to debug level for this test
+  // Set component to debug level FOR THIS TEST.
+  // This overrides MyComponent's default level (if any) for the duration of the test.
   LoggerFactory.setLogLevel(MyComponent, Level.debug);
   
   // Generate logs
@@ -159,7 +165,7 @@ test('logs detailed debug information', () {
 });
 ```
 
-Change log levels for any component at any time - even ones with static loggers created before your test!
+Change log levels for any component at any time, even ones with static loggers created before your test! The `setLogLevel` call takes precedence.
 
 ### Testing Log Level Filtering
 
@@ -243,11 +249,24 @@ class LoggerFactory {
     _logLevels[id] = level;
   }
   
-  // Each logger gets a filter that does live lookups
-  static Logger getLogger(dynamic type) {
+  // Creates a logger. The optional 'level' parameter is only applied
+  // if a level for 'type' hasn't already been set via setLogLevel.
+  static Logger getLogger(dynamic type, {Level? level}) {
+    final id = _getLoggerId(type);
+    
+    // Set initial log level IF PROVIDED and NOT ALREADY SET
+    if (level != null && !_logLevels.containsKey(id)) {
+      _logLevels[id] = level;
+    }
+
+    // The filter will dynamically use the level from _logLevels or the global default
+    final effectiveLevel = _logLevels[id] ?? _defaultLevel;
+
     return Logger(
-      filter: CustomLogFilter(id, _logLevels, _defaultLevel),
-      // ...
+      // Pass the dynamically determined level to the filter's constructor
+      // (though the filter itself does a live lookup anyway)
+      filter: CustomLogFilter(id, effectiveLevel, _logLevels, _defaultLevel),
+      // ... (printer, output)
     );
   }
 }
@@ -258,6 +277,15 @@ class CustomLogFilter extends LogFilter {
   final Map<String, Level> _logLevels;
   final Level _defaultLevel;
   
+  // Constructor receives initial level, but it's not strictly needed
+  // since shouldLog does a live lookup.
+  CustomLogFilter(
+    this.id,
+    Level initialLevel, 
+    this._logLevels,
+    this._defaultLevel,
+  );
+
   @override
   bool shouldLog(LogEvent event) {
     // LIVE lookup of current level - not cached!

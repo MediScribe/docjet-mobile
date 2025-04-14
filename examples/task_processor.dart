@@ -10,8 +10,11 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 /// Example component that processes tasks
 class TaskProcessor {
-  // Get a logger for this component
-  static final Logger _logger = LoggerFactory.getLogger(TaskProcessor);
+  // Get a logger for this component, specifying a default level
+  static final Logger _logger = LoggerFactory.getLogger(
+    TaskProcessor,
+    level: Level.off, // Default level for normal operation
+  );
 
   // Tag for consistent log messages
   static final String _tag = logTag(TaskProcessor);

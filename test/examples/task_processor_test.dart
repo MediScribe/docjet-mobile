@@ -22,8 +22,8 @@ void main() {
       ); // Test logger at INFO
       LoggerFactory.setLogLevel(
         TaskProcessor,
-        Level.debug,
-      ); // SUT logger at DEBUG
+        Level.trace,
+      ); // SUT logger overridden to TRACE
 
       // Log from the test
       testLogger.i('$testTag Setting up test');
@@ -55,15 +55,26 @@ void main() {
         reason: 'Test DEBUG logs should be filtered out at INFO level',
       );
 
-      // Check component logs - should all be visible at DEBUG level
+      // Check component logs - should all be visible at TRACE level
       expect(
         LoggerFactory.containsLog(
           'Starting to process task',
           forType: TaskProcessor,
         ),
         isTrue,
-        reason: 'Component DEBUG logs should be visible',
+        reason: 'Component DEBUG logs should be visible at TRACE level',
       );
+
+      // Add a check for a TRACE level message if one existed in the SUT
+      // Example (assuming TaskProcessor had a _logger.t() call):
+      // expect(
+      //   LoggerFactory.containsLog(
+      //     'Trace message from SUT', // This is a TRACE level message
+      //     forType: TaskProcessor,
+      //   ),
+      //   isTrue,
+      //   reason: 'Component TRACE logs should be visible at TRACE level',
+      // );
 
       // Change levels mid-test
       LoggerFactory.setLogLevel(
@@ -140,7 +151,7 @@ void main() {
     });
 
     test('respects log level settings', () {
-      // Set log level to WARNING - should hide DEBUG and INFO logs
+      // Set log level to WARNING - should hide TRACE, DEBUG and INFO logs
       LoggerFactory.setLogLevel(TaskProcessor, Level.warning);
 
       // Process a valid task

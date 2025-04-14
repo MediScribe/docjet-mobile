@@ -15,19 +15,28 @@
 - ✅ Created documentation in `docs/logging_guide.md`
 - ✅ Removed redundant `docjet_test` package (testing built into core)
 
-**Next Steps**: Individual components still need to be updated to use the new logger format. The minimal change approach is:
+**Next Steps**: Individual components still need to be updated to use the new logger format. The recommended minimal change approach is:
 
 ```dart
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+
 class MyComponent {
-  // Create a logger for this class - keep the existing 'logger' naming
-  final logger = LoggerFactory.getLogger(MyComponent);
+  final logger = LoggerFactory.getLogger(MyComponent, level: Level.off);
   
   void doSomething() {
-    // Keep existing log lines as-is - no need to add tags to every line
     logger.i('Starting operation');
     // ...
   }
 }
+```
+
+**Testing Practice**: In your `setUp` or specific tests, explicitly set the desired level:
+
+```dart
+setUp(() {
+  LoggerFactory.setLogLevel(MyComponent, Level.debug);
+  // ... other setup ...
+});
 ```
 
 **Optional Enhancements** (do only if improving a specific component):

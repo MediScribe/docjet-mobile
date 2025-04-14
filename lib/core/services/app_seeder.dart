@@ -14,8 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Handles seeding initial data, like sample recordings, on first app launch.
 class AppSeeder {
-  // New logging pattern
-  final Logger logger = LoggerFactory.getLogger(AppSeeder);
+  final Logger logger = LoggerFactory.getLogger(AppSeeder, level: Level.off);
   static final String _tag = logTag(AppSeeder);
 
   final LocalJobStore _localJobStore;

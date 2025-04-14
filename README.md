@@ -12,14 +12,17 @@ DocJet uses a standardized logging approach with consistent formatting and contr
 
 ```dart
 class MyComponent {
-  // Create a logger for this class
-  static final Logger _logger = LoggerFactory.getLogger(MyComponent);
+  // Create a logger for this class.
+  // BEST PRACTICE: Default to Level.off unless component logging is needed
+  // during normal operation. Tests will override this level as needed.
+  static final Logger _logger = LoggerFactory.getLogger(MyComponent, level: Level.off);
   static final String _tag = logTag(MyComponent);
 
   void doSomething() {
     _logger.i('$_tag Starting operation');
     try {
       // ... code ...
+      // This debug log will only show if the level is raised (e.g., in tests)
       _logger.d('$_tag Operation details: $details');
     } catch (e, s) {
       _logger.e('$_tag Operation failed', error: e, stackTrace: s);
@@ -61,10 +64,10 @@ is not impacted by debug logging.
 
 #### Controlling Log Levels
 
-You can dynamically control log levels for any component:
+You can dynamically control log levels for any component. Setting a level with `setLogLevel` **overrides** any default level specified in `getLogger` or the global default.
 
 ```dart
-// Set component to debug level
+// Set component to debug level. This becomes the effective level.
 LoggerFactory.setLogLevel(MyComponent, Level.debug);
 
 // Set string logger to error level
@@ -81,19 +84,23 @@ LoggerFactory.resetLogLevels();
 
 Our logging system allows full testing without dependency injection. You can:
 
-1. Control log levels of any component from tests
-2. Capture and verify logs from components
-3. Use test-specific loggers that don't interfere with component logs
+1. Control log levels of any component from tests using `setLogLevel`.
+2. Capture and verify logs from components using `containsLog` or `getLogsFor`.
+3. Use test-specific loggers that don't interfere with component logs.
 
 ```dart
 test('logs error when processing fails', () {
-  // Clear logs before test
+  // Clear logs and set desired level for the SUT
   LoggerFactory.clearLogs();
+  LoggerFactory.setLogLevel(TaskProcessor, Level.debug); // Enable SUT logs for test
   
-  // Run code that should log
+  // Arrange: Create the processor (assuming its default is Level.off)
+  final processor = TaskProcessor();
+
+  // Act: Run code that should log
   processor.process("invalid task");
   
-  // Verify logs
+  // Assert: Verify logs
   expect(
     LoggerFactory.containsLog("Failed to process task", forType: TaskProcessor),
     isTrue,

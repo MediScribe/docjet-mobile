@@ -120,15 +120,19 @@ class LoggerFactory {
 
     final id = _getLoggerId(type);
 
-    // Set initial log level if provided
-    if (level != null) {
+    // Set initial log level if provided, BUT ONLY if not already set
+    // This allows tests or other setup code to preempt the default level
+    if (level != null && !_logLevels.containsKey(id)) {
       _logLevels[id] = level;
     }
+
+    // The filter will dynamically use the level from _logLevels or the default
+    final effectiveLevel = _logLevels[id] ?? _defaultLevel;
 
     return Logger(
       filter: CustomLogFilter(
         id,
-        _logLevels[id] ?? _defaultLevel,
+        effectiveLevel, // Pass the dynamically determined level
         _logLevels,
         _defaultLevel,
       ),
