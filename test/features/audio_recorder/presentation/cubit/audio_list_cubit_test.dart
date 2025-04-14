@@ -11,11 +11,21 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'dart:async'; // For StreamController
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_state.dart'; // For PlaybackState
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 import 'audio_list_cubit_test.mocks.dart';
 
+// Logger for test file
+final logger = LoggerFactory.getLogger(
+  'AudioListCubitTest',
+  level: Level.debug,
+);
+
 @GenerateMocks([AudioRecorderRepository, AudioPlaybackService])
 void main() {
+  // Enable debug logs for the SUT component
+  LoggerFactory.setLogLevel(AudioListCubit, Level.debug);
+
   late MockAudioRecorderRepository mockRepository;
   late MockAudioPlaybackService mockAudioPlaybackService;
   late AudioListCubit cubit;

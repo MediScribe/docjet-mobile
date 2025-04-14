@@ -7,17 +7,17 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/playback_s
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 part 'audio_list_state.dart';
-
-// Set Logger Level to OFF to disable logging in this file
-final logger = Logger(level: Level.off);
 
 // Special debug flag for state transition tracking - set to true to enable detailed transition logs
 const bool _debugStateTransitions = true;
 
 class AudioListCubit extends Cubit<AudioListState> {
+  // Set Logger Level to OFF to disable logging in this file
+  final logger = LoggerFactory.getLogger(AudioListCubit, level: Level.off);
+
   final AudioRecorderRepository repository;
   final AudioPlaybackService _audioPlaybackService;
   StreamSubscription? _playbackSubscription;

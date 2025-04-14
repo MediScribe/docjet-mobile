@@ -110,9 +110,9 @@ For each component, follow the MINIMAL change approach:
 
 ### 2.4 AudioListCubit
 
-- [ ] Update import statements (remove old logger, add new log_helpers)
-- [ ] Replace logger initialization with `LoggerFactory.getLogger(AudioListCubit)`
-- [ ] Run cubit tests to verify no behavior change
+- [x] Update import statements (remove old logger, add new log_helpers)
+- [x] Replace logger initialization with `LoggerFactory.getLogger(AudioListCubit)`
+- [x] Run cubit tests to verify no behavior change
 
 ### 2.5 AudioPlayerWidget
 
