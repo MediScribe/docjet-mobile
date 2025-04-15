@@ -1,276 +1,185 @@
-# File Path Handling Fixes: The Tale of Absolute vs. Relative Hell
+# File Path Handling: The Only Way That Doesn't Suck
 
-## The Problem: Broken Seeding and Audio Playback
+Note: this is not in production yet, so no migration necessary. We can do the right thing.
 
-After refactoring our app to improve the file system handling, we ran into some unexpected issues:
+## Refactor Plan: Centralize Path Logic (2024 Update)
 
-1. **Sample audio files and recordings disappeared after app restart**
-2. **Deleting recordings failed**, particularly on real iOS devices (worked on simulator)
-3. **Audio playback was extremely slow to start** or didn't work at all
-4. **File operations that worked on simulator broke on real devices**
+1. **Inject `PathResolver` only into `IoFileSystem`.** All path wrangling is internal to `FileSystem`. No other class touches it. 
+2. **Refactor `AudioFileManagerImpl` and `AudioPlayerAdapterImpl` to use only `FileSystem` for all file and path operations.** Remove `PathResolver` from their constructors and fields.
+3. **Update dependency injection:** Only `IoFileSystem` gets `PathResolver`. Remove `PathResolver` from DI for all other classes.
+4. **Enforce DI discipline:** The DI container MUST inject `PathResolver` *only* into `IoFileSystem`. If you see `PathResolver` injected anywhere else, that's a code review fail—refactor it and tell the offender to go fuck themselves. Axe would fire you for less.
+5. **Remove all direct uses of `PathResolver` outside `IoFileSystem`.** Refactor any code (including tests) that uses `PathResolver` to use `FileSystem` instead.
+6. **Search for and clean up any manual path wrangling or references to "relative"/"absolute" outside `FileSystem`.**
+7. **Update tests to mock `FileSystem`, not `PathResolver`.**
+8. **Clarify path resolution contract:**
+    - If a client provides an **absolute path**, it is accepted **only if the file exists**. If it does not exist, throw a clear error and log the caller, path, and context for debugging. No fallback, no guessing, no silent fixes.
+    - If a client provides a **relative path** (including subdirectories), it is always resolved to the app's container directory. If the resolved file does not exist, throw a clear error and log full context.
+    - **Never attempt to "fix" or "guess" a broken path.** Fail fast and loud. This prevents silent bugs and makes upstream issues obvious.
+9. **Test the hell out of `PathResolver` and `FileSystem`.** Cover all platform edge cases, subdirectory handling, and error scenarios. If you half-ass these, you'll be chasing bugs like Mafee chasing Axe's approval.
 
-This document details how we diagnosed and fixed these issues.
+### **2024 Update: PathResolver & Testing Discipline**
+- [DONE] `PathResolver` is now **internal-only**. It is not exposed or tested outside `FileSystem` except for its own isolated edge-case tests.
+- [DONE] All file/path logic is centralized in `FileSystem`; `PathResolver` is only used internally.
+- [DONE] The test suite for `PathResolver` is **lean and focused**: it only covers iOS/Android (POSIX) and general normalization edge cases, not Windows-specific paths unless cross-platform path strings are a real use case for the app.
+- [DONE] **No public path helpers, no leaky abstractions, no retesting the Dart path package.**
+- [DONE] Platform-specific edge cases are only covered if they are relevant to the app's actual usage. If you ever need to support cross-platform path strings (e.g., for migration/import/export), add a helper and test it—otherwise, keep it DRY and focused.
+- [DONE] The plan is now **Hard Bob certified**: DRY, focused, and production-ready. If you see a path helper on the public interface, refactor it and tell the offender to go fuck themselves.
 
-## Root Cause: Path Inconsistency Between Components
+## The Problem: Path Hell and Broken Abstractions
 
-The root cause was a fundamental inconsistency in how different components handled file paths:
+After refactoring our app to improve file system handling, we ran into the usual suspects:
 
-1. **FileSystem and AudioFileManager**: Expected relative paths, stored within app documents directory
-2. **AudioPlayerAdapter**: Expected and worked with absolute paths
-3. **LocalJobStore**: Stored relative paths in the database
-4. **Post-Refactoring**: Introduced additional path handling without fully aligning all components
+1. **Files disappear after app restart** (iOS container path roulette)
+2. **Deleting or playing files fails** (works on simulator, dies on device)
+3. **Slow or broken playback** (wrong path, wrong time)
+4. **Codebase full of path-wrangling hacks**
 
-The primary source of bugs was that paths could be stored as:
-- Absolute paths (e.g., `/var/mobile/Containers/Data/Application/GUID/Documents/file.m4a`)
-- Relative paths (e.g., `file.m4a`) assumed to be in the app documents directory
+**Root Cause:**
+- Too many places in the codebase were doing their own path wrangling.
+- Some code stored absolute paths, some stored relative, some tried to "fix" paths on the fly.
+- Platform differences (iOS/Android) made it worse.
 
-**Key Insight**: iOS app container paths can change between launches, so absolute paths aren't reliable for persistence.
+## The Only Solution: One File System To Rule Them All
 
-## The Fix: Canonical Path Handling Strategy
+### Principles
+- **Store the full relative path** (including subdirectories, e.g., `meeting1/recording.m4a`) in all persistent storage (Hive, DB, prefs, etc.). Storing just the filename is NOT sufficient if you need to distinguish files in different directories.
+- **All file and path logic lives in one place:** the `FileSystem` abstraction.
+- [DONE] **PathResolver is an internal detail**—nobody outside `FileSystem` should ever touch it.
+- **All file operations go through `FileSystem`**. No exceptions. No leaky abstractions.
+- **Domain/data/UI code never cares about absolute vs. relative.**
 
-Let's cut the bullshit. There's a standard way to handle paths in Flutter/Dart:
+### Why?
+- iOS app container paths change. Absolute paths in storage are a time bomb.
+- If you let every part of your codebase do path wrangling, you guarantee bugs and tech debt.
+- Centralizing all file/path logic means you can fix platform issues in one place, forever.
+- If you only store filenames, you WILL have collisions and silent data loss if you ever allow subdirectories or user-imported files.
 
-1. **Use `path_provider` to get standard directories** - this is your stable base
-2. **Store ONLY relative paths** - preferably just filenames if all files are in one directory
-3. **Resolve dynamically when needed** - combine current base path with your stored relative path using `path.join()`
+## Implementation: The Hard Bob Way
 
-### Implementation Steps:
+### 1. `FileSystem` Abstraction (Already Exists)
+- Handles all file operations: stat, exists, delete, create, list, write, etc.
+- Internally uses `PathResolver` to convert any path (relative or absolute, including subdirectories) to the correct, current absolute path.
+- [DONE] **No other class touches `PathResolver`.**
 
-#### 1. Create a Simple `PathResolver` Class:
+### 2. PathResolver (Internal Only)
+- Handles platform weirdness, slashes, and iOS container roulette.
+- Only used by `FileSystem`.
+- Has tests to guarantee correctness, but is not injected or used anywhere else.
+- [DONE] **Tests only cover iOS/Android (POSIX) and general normalization edge cases.**
+- [DONE] **No Windows-specific path handling unless cross-platform path strings are a real use case.**
+
+### 3. Domain/Data/UI Code
+- Only ever calls `FileSystem` methods.
+- Passes in the path it got from storage (should be a full relative path, including subdirectories, but `FileSystem` will handle it regardless).
+- Never does path wrangling, never checks for "relative" or "absolute".
+
+### 4. AudioFileManager (or other domain managers)
+- If you need domain-specific logic (e.g., audio duration, format validation), create a thin manager that composes `FileSystem`.
+- Never duplicates file/path logic.
+
+## Migration: Cleaning Up the Mess
+
+1. **Migrate all stored paths to be full relative paths (including subdirectories, not just filenames).**
+2. **Update all code to use only `FileSystem` for file ops.**
+3. **Remove all direct uses of `PathResolver` outside `FileSystem`.**
+4. **Update tests to mock `FileSystem`, not `PathResolver`.**
+5. **Search for and destroy all references to "relative", "absolute", or manual path wrangling in the codebase.**
+
+## Testing: How To Not Be A Dumbass
+
+- **Test `PathResolver` in isolation** to guarantee it handles all edge cases, including subdirectory paths.
+- **Test `FileSystem` with both relative (including subdirectories) and absolute paths**—it should always do the right thing.
+- **Mock `FileSystem` in all other tests.**
+- **Never test path logic in domain/data/UI tests.**
+- [DONE] **Test suite is lean and focused: only platform-specific edge cases relevant to the app are covered.**
+
+## Best Practices: Tattoo These On Your Brain
+
+1. **Store the full relative path (including subdirectories) in persistent storage.**
+2. **All file ops go through `FileSystem`.**
+3. [DONE] **No code outside `FileSystem` ever touches `PathResolver`.**
+4. **No manual path wrangling anywhere else.**
+5. **If you need domain logic, compose, don't duplicate.**
+6. **Test on real devices, not just simulators.**
+7. **If you see code doing path wrangling, refactor it.**
+
+## Impact: Why This Makes You Rich, Not Pretty
+
+- Files persist across app restarts and device upgrades.
+- File ops work everywhere, every time.
+- No more "it works on my machine" bullshit.
+- One place to fix all future path/file bugs.
+- Codebase is DRY, SOLID, and maintainable.
+- No silent data loss or file collisions due to duplicate filenames in different directories.
+
+## Appendix: Debugging Checklist
+
+1. **Trace all file ops through `FileSystem`.**
+2. **Log resolved paths in `FileSystem` for debugging.**
+3. **Test with both relative (including subdirectories) and absolute paths.**
+4. **Check directory contents on device if things go missing.**
+5. **If a test fails, check if it's using the right abstraction.**
+
+## Path Resolution Contract: Fail Fast, Fail Loud (NEW)
+
+- **Absolute Path Provided:**
+  - If the file exists at the given absolute path, use it as-is.
+  - If the file does not exist, throw a clear error. Do not attempt to "fix" or "redirect" the path.
+- **Relative Path Provided (including subdirectories):**
+  - Always resolve the path to the app's container directory, preserving subdirectory structure.
+  - If the resolved file exists, use it.
+  - If not, throw a clear error.
+- **No Silent Fallbacks:**
+  - Never try to "guess" or "fallback" to another path if the provided one is invalid.
+  - This ensures bugs are caught early and upstream issues are not hidden.
+
+**Rationale:**
+- Explicit is better than implicit. If the client gives you a path, you either use it (if it exists) or you fail fast and loud.
+- No silent failures, no magic, no "it works on my machine."
+- If the client is broken, you want to know immediately, not after a week of debugging.
+
+---
+
+**Remember:**
+> "Path handling isn't rocket science. Store the full relative path, resolve when needed, and don't overthink it. Everything else is just covering your ass for past mistakes." — Hard Bob
+
+If you see code using `PathResolver` outside `FileSystem`, tell it to go fuck itself and refactor it. Axe would be proud.
+
+## Interface Contracts: No Bullshit Allowed (NEW)
+
+### FileSystem (Public API)
+- Only exposes file operations: stat, fileExists, deleteFile, directoryExists, createDirectory, listDirectory, listDirectorySync, writeFile, readFile.
+- **NO path-wrangling methods** (no getAbsolutePath, no getApplicationDocumentsDirectory, no helpers).
+- All path logic is internal. Clients pass in whatever path they have; FileSystem figures it out.
+- If you see a path helper on the public interface, refactor it and tell the offender to go fuck themselves.
+- Example:
 
 ```dart
-class PathResolver {
-  final PathProvider _pathProvider;
-  
-  PathResolver({required PathProvider pathProvider}) : _pathProvider = pathProvider;
-  
-  /// Converts any path to a relative path (filename only)
-  String toRelativePath(String path) {
-    return path.contains('/') ? path.split('/').last : path;
-  }
-  
-  /// Gets the current absolute path for a given relative path
-  Future<String> getAbsolutePath(String relativePath) async {
-    // Strip to just filename if it contains directory separators
-    final filename = toRelativePath(relativePath);
-    
-    // Get the current documents directory and join with filename
-    final docsDir = await _pathProvider.getApplicationDocumentsDirectory();
-    return p.join(docsDir.path, filename);
-  }
-  
-  /// Checks if a file exists (handles both relative and absolute paths)
-  Future<bool> fileExists(String path) async {
-    // If it's already absolute, check directly
-    if (p.isAbsolute(path) && await File(path).exists()) {
-      return true;
-    }
-    
-    // Otherwise, resolve to current absolute path and check
-    final absolutePath = await getAbsolutePath(toRelativePath(path));
-    return await File(absolutePath).exists();
-  }
+abstract class FileSystem {
+  Future<FileStat> stat(String path);
+  Future<bool> fileExists(String path);
+  Future<void> deleteFile(String path);
+  Future<bool> directoryExists(String path);
+  Future<void> createDirectory(String path, {bool recursive = false});
+  Stream<FileSystemEntity> listDirectory(String path);
+  List<FileSystemEntity> listDirectorySync(String path);
+  Future<void> writeFile(String path, Uint8List bytes);
+  Future<List<int>> readFile(String path);
 }
 ```
 
-#### 2. Update Storage to Use Only Relative Paths:
+### PathResolver (Internal Only)
+- **NEVER exposed outside IoFileSystem.**
+- Single method: resolves any path (absolute or relative) to a platform-correct absolute path, or fails LOUD if it can't.
+- No guessing, no fixing, no helpers. Fail fast, fail loud.
+- Example:
 
 ```dart
-class HiveLocalJobStoreImpl implements LocalJobStore {
-  final Box<LocalJob> _box;
-  final PathResolver _pathResolver;
-  
-  HiveLocalJobStoreImpl(this._box, this._pathResolver);
-  
-  @override
-  Future<void> saveJob(LocalJob job) async {
-    // Always normalize to relative path before saving
-    final normalizedJob = job.copyWith(
-      localFilePath: _pathResolver.toRelativePath(job.localFilePath),
-    );
-    
-    await _box.put(normalizedJob.localFilePath, normalizedJob);
-  }
+abstract class PathResolver {
+  /// Resolves [inputPath] to an absolute, platform-correct path.
+  /// Throws [PathResolutionException] if it can't resolve or (optionally) if the file doesn't exist.
+  Future<String> resolve(String inputPath, {bool mustExist = false});
 }
 ```
 
-#### 3. Update File Access to Always Resolve Paths:
-
-```dart
-class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
-  final just_audio.AudioPlayer _player;
-  final PathResolver _pathResolver;
-  
-  AudioPlayerAdapterImpl(this._player, this._pathResolver);
-  
-  @override
-  Future<void> setSourceUrl(String url) async {
-    // Remote URLs (http/https) can be used directly
-    if (url.startsWith('http')) {
-      await _player.setUrl(url);
-      return;
-    }
-    
-    // Local files need proper resolution
-    final absolutePath = await _pathResolver.getAbsolutePath(url);
-    await _player.setFilePath(absolutePath);
-  }
-}
-```
-
-## Temporary Migration Strategy
-
-During transition from the broken system to the clean one, we need a temporary migration process. This is **technical debt** that should be removed once all data is migrated:
-
-```dart
-class PathMigrator {
-  final LocalJobStore _jobStore;
-  final PathResolver _pathResolver;
-  
-  PathMigrator(this._jobStore, this._pathResolver);
-  
-  Future<void> migrateAbsolutePathsToRelative() async {
-    // Get all jobs
-    final allJobs = await _jobStore.getAllJobs();
-    int migratedCount = 0;
-    
-    for (final job in allJobs) {
-      if (p.isAbsolute(job.localFilePath)) {
-        // Convert to relative path
-        final relativePath = _pathResolver.toRelativePath(job.localFilePath);
-        
-        // Create migrated job and save
-        final migratedJob = job.copyWith(localFilePath: relativePath);
-        await _jobStore.deleteJob(job.localFilePath);
-        await _jobStore.saveJob(migratedJob);
-        
-        migratedCount++;
-      }
-    }
-    
-    Log.i('Path migration complete. Migrated $migratedCount jobs');
-  }
-}
-```
-
-## Dependency Injection Setup
-
-Wire everything up correctly:
-
-```dart
-sl.registerLazySingleton<PathResolver>(
-  () => PathResolver(pathProvider: sl<PathProvider>()),
-);
-
-sl.registerLazySingleton<AudioPlayerAdapter>(
-  () => AudioPlayerAdapterImpl(
-    sl<just_audio.AudioPlayer>(),
-    sl<PathResolver>(),
-  ),
-);
-
-// Run migration at app startup (temporary)
-sl<PathMigrator>().migrateAbsolutePathsToRelative();
-```
-
-## Testing Strategy
-
-Create tests that verify path handling works correctly:
-
-```dart
-void main() {
-  late PathResolver pathResolver;
-  late MockPathProvider mockPathProvider;
-  
-  setUp(() {
-    mockPathProvider = MockPathProvider();
-    pathResolver = PathResolver(pathProvider: mockPathProvider);
-    
-    // Mock the documents directory 
-    when(mockPathProvider.getApplicationDocumentsDirectory())
-        .thenAnswer((_) async => Directory('/mock/docs/dir'));
-  });
-  
-  test('toRelativePath extracts filename from absolute path', () {
-    expect(
-      pathResolver.toRelativePath('/var/mobile/Containers/Data/App/docs/file.m4a'), 
-      equals('file.m4a')
-    );
-  });
-  
-  test('getAbsolutePath joins documents directory with filename', () async {
-    final absolutePath = await pathResolver.getAbsolutePath('file.m4a');
-    expect(absolutePath, equals('/mock/docs/dir/file.m4a'));
-  });
-}
-```
-
-## Path Handling Guidelines
-
-1. **NEVER store absolute paths** in databases, preferences, or any persistent storage
-2. **ALWAYS store relative paths** (just the filename when possible)
-3. **Use `PathResolver` consistently** across all components
-4. **Resolve paths dynamically** when needed for file operations
-5. **Test on real devices**, not just simulators
-6. **Keep it simple** - avoid complex fallback strategies once migration is complete
-
-## Developer Best Practices
-
-1. **Use `path_provider` for standard directories** - Don't hardcode paths
-2. **Use the `path` package for path manipulation** - Use `p.join()` not string concatenation
-3. **Test with app restart scenarios** - Verify paths still work after relaunch
-4. **Create a clear API contract** - Document whether your methods expect relative or absolute paths
-5. **Clean up temporary migration code** - Remove fallbacks after they're no longer needed
-
-Remember, as Hard Bob would say: "Path handling isn't rocket science. Store relative, resolve when needed, and don't overthink it. Everything else is just covering your ass for past mistakes."
-
-## Impact
-
-With these changes, our app now:
-1. Correctly persists audio files between launches
-2. Can delete files reliably on both simulator and devices
-3. Starts audio playback much faster
-4. Handles the file system operations in a more consistent way
-
-## Test Fixes
-
-Two tests were failing after our changes:
-
-1. **In `audio_local_data_source_impl_test.dart`**:  
-   Test was expecting full paths to be saved in the `LocalJob`, but we now save only the filename.
-   
-   ```dart
-   // Original test expectation
-   expect(capturedJob.localFilePath, tFinalPath); // Expected full path
-   
-   // Updated test expectation
-   const tExpectedRelativePath = 'final_recording.m4a'; // Just the filename
-   expect(capturedJob.localFilePath, tExpectedRelativePath); 
-   ```
-
-2. **In `audio_player_adapter_impl_test.dart`**:  
-   Test was too specific about how URLs are handled in the adapter.
-   
-   ```dart
-   // Original test expectation
-   expect((capturedSource as UriAudioSource).uri.toString(), remoteUrl);
-   expect(capturedSource.uri.scheme, 'https');
-   
-   // Updated test expectation - more flexible
-   final uri = (capturedSource as UriAudioSource).uri;
-   expect(uri.toString(), contains('example.com/audio.mp3'));
-   ```
-
-These test fixes reflect our architectural changes to make path handling more robust while still maintaining expected behavior.
-
-## Appendix: Debugging the Issue
-
-When debugging, we used a systematic approach:
-
-1. **Trace filesystem operations** by adding log statements
-2. **Verify file existence** at multiple points
-3. **Check directory contents** to confirm files were actually written
-4. **Analyze error messages** to understand failure points
-5. **Test on both simulator and device** to expose platform-specific issues
-
-Using these approaches, we were able to identify that iOS app container paths change between launches, making absolute paths unreliable for persistence. 
+- If you see PathResolver anywhere but inside IoFileSystem, refactor and slap the offender. Axe would be proud. 
