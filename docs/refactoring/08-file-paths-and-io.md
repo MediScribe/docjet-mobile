@@ -1,21 +1,30 @@
 # File Path Handling: The Only Way That Doesn't Suck
 
-Note: this is not in production yet, so no migration necessary. We can do the right thing.
+---
+**2024-06 Update:**
+- [DONE] FileSystem is now fully async—no sync methods, no legacy code, no dead weight.
+- [DONE] All path logic is internal to FileSystem; no public path helpers, no leaky abstractions.
+- [DONE] Tests for FileSystem and PathResolver are DRY, robust, and double as developer documentation.
+- [DONE] PathResolver and FileSystem are fully covered by tests, with proper mocking and isolation.
+- [DONE] No global mutable state in tests; all tests are isolated and parallel-safe.
+- [DONE] All test and implementation code is readable, maintainable, and follows best practice.
+- [DONE] Lessons learned: test isolation, DRY, fail fast, no global state, readable tests, and always run your shit after you change it.
+---
 
 ## Refactor Plan: Centralize Path Logic (2024 Update)
 
-1. **Inject `PathResolver` only into `IoFileSystem`.** All path wrangling is internal to `FileSystem`. No other class touches it. 
-2. **Refactor `AudioFileManagerImpl` and `AudioPlayerAdapterImpl` to use only `FileSystem` for all file and path operations.** Remove `PathResolver` from their constructors and fields.
-3. **Update dependency injection:** Only `IoFileSystem` gets `PathResolver`. Remove `PathResolver` from DI for all other classes.
-4. **Enforce DI discipline:** The DI container MUST inject `PathResolver` *only* into `IoFileSystem`. If you see `PathResolver` injected anywhere else, that's a code review fail—refactor it and tell the offender to go fuck themselves. Axe would fire you for less.
-5. **Remove all direct uses of `PathResolver` outside `IoFileSystem`.** Refactor any code (including tests) that uses `PathResolver` to use `FileSystem` instead.
-6. **Search for and clean up any manual path wrangling or references to "relative"/"absolute" outside `FileSystem`.**
-7. **Update tests to mock `FileSystem`, not `PathResolver`.**
+1. **Inject `PathResolver` only into `IoFileSystem`.** All path wrangling is internal to `FileSystem`. No other class touches it. **[DONE]**
+2. **Refactor `AudioFileManagerImpl` and `AudioPlayerAdapterImpl` to use only `FileSystem` for all file and path operations.** Remove `PathResolver` from their constructors and fields. **[DONE]**
+3. **Update dependency injection:** Only `IoFileSystem` gets `PathResolver`. Remove `PathResolver` from DI for all other classes. **[DONE]**
+4. **Enforce DI discipline:** The DI container MUST inject `PathResolver` *only* into `IoFileSystem`. If you see `PathResolver` injected anywhere else, that's a code review fail—refactor it and tell the offender to go fuck themselves. Axe would fire you for less. **[DONE]**
+5. **Remove all direct uses of `PathResolver` outside `IoFileSystem`.** Refactor any code (including tests) that uses `PathResolver` to use `FileSystem` instead. **[DONE]**
+6. **Search for and clean up any manual path wrangling or references to "relative"/"absolute" outside `FileSystem`.** **[DONE]**
+7. **Update tests to mock `FileSystem`, not `PathResolver`.** **[DONE]**
 8. **Clarify path resolution contract:**
-    - If a client provides an **absolute path**, it is accepted **only if the file exists**. If it does not exist, throw a clear error and log the caller, path, and context for debugging. No fallback, no guessing, no silent fixes.
-    - If a client provides a **relative path** (including subdirectories), it is always resolved to the app's container directory. If the resolved file does not exist, throw a clear error and log full context.
-    - **Never attempt to "fix" or "guess" a broken path.** Fail fast and loud. This prevents silent bugs and makes upstream issues obvious.
-9. **Test the hell out of `PathResolver` and `FileSystem`.** Cover all platform edge cases, subdirectory handling, and error scenarios. If you half-ass these, you'll be chasing bugs like Mafee chasing Axe's approval.
+    - If a client provides an **absolute path**, it is accepted **only if the file exists**. If it does not exist, throw a clear error and log the caller, path, and context for debugging. No fallback, no guessing, no silent fixes. **[DONE]**
+    - If a client provides a **relative path** (including subdirectories), it is always resolved to the app's container directory. If the resolved file does not exist, throw a clear error and log full context. **[DONE]**
+    - **Never attempt to "fix" or "guess" a broken path.** Fail fast and loud. This prevents silent bugs and makes upstream issues obvious. **[DONE]**
+9. **Test the hell out of `PathResolver` and `FileSystem`.** Cover all platform edge cases, subdirectory handling, and error scenarios. If you half-ass these, you'll be chasing bugs like Mafee chasing Axe's approval. **[DONE]**
 
 ### **2024 Update: PathResolver & Testing Discipline**
 - [DONE] `PathResolver` is now **internal-only**. It is not exposed or tested outside `FileSystem` except for its own isolated edge-case tests.
