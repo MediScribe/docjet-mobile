@@ -146,8 +146,6 @@ Future<void> init() async {
   sl.registerLazySingleton<AudioPlayerAdapter>(
     () => AudioPlayerAdapterImpl(
       sl<just_audio.AudioPlayer>(),
-      pathProvider: sl<PathProvider>(),
-      fileSystem: sl<FileSystem>(),
       pathResolver: sl<PathResolver>(),
     ),
   );

@@ -128,6 +128,9 @@ void main() {
     // Add the missing stub for processingState
     when(mockAudioPlayer.processingState).thenReturn(ja.ProcessingState.idle);
 
+    // Add the missing stub for duration method
+    when(mockAudioPlayer.duration).thenReturn(null);
+
     // For initial value, emit a default state
     playerStateController.add(ja.PlayerState(false, ja.ProcessingState.idle));
     positionController.add(Duration.zero);
@@ -250,6 +253,9 @@ void main() {
 
     // Add the missing stub for processingState in tearDown
     when(mockAudioPlayer.processingState).thenReturn(ja.ProcessingState.idle);
+
+    // Add the missing stub for duration in tearDown
+    when(mockAudioPlayer.duration).thenReturn(null);
 
     // Re-set automated responses
     when(mockAudioPlayer.play()).thenAnswer((_) async {

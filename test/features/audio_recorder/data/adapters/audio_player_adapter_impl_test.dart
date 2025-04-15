@@ -133,6 +133,7 @@ void main() {
     ).thenReturn(PlayerState(false, ProcessingState.ready));
     when(mockAudioPlayer.playing).thenReturn(false);
     when(mockAudioPlayer.processingState).thenReturn(ProcessingState.ready);
+    when(mockAudioPlayer.duration).thenReturn(const Duration(seconds: 30));
 
     // STEP 6: Configure logging for tests
     LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.debug);
@@ -310,6 +311,11 @@ void main() {
         // Arrange: Define a local path
         const localPath = '/path/to/local/audio.mp3';
 
+        // Set up the path resolver to resolve the path
+        when(
+          mockPathResolver.resolve(localPath, mustExist: true),
+        ).thenAnswer((_) async => localPath);
+
         // Act: Set the source URL
         await audioPlayerAdapter.setSourceUrl(localPath);
 
@@ -346,24 +352,6 @@ void main() {
       },
     );
 
-    test('should throw when given a missing local file path', () async {
-      // Arrange: Mock FileSystem to return false for fileExists
-      final mockFileSystem = MockFileSystem();
-      when(mockFileSystem.fileExists(any)).thenAnswer((_) async => false);
-
-      final adapter = AudioPlayerAdapterImpl(
-        mockAudioPlayer,
-        fileSystem: mockFileSystem,
-        pathResolver: mockPathResolver,
-      );
-
-      // Act & Assert: Verify exception is thrown
-      expect(
-        () => adapter.setSourceUrl('/missing/file.mp3'),
-        throwsA(isA<Exception>()),
-      );
-    });
-
     test('should throw when given a malformed (empty string) path', () async {
       // Arrange: No specific setup needed
 
@@ -376,34 +364,15 @@ void main() {
 
     test('should throw when given an invalid URI', () async {
       // Arrange: No specific setup needed
+      // Using a truly invalid URI that will fail Uri parsing
+      const invalidUri = 'some://://invalid';
 
       // Act & Assert: Verify exception is thrown for invalid URI
       expect(
-        () => audioPlayerAdapter.setSourceUrl('::not_a_uri::'),
+        () => audioPlayerAdapter.setSourceUrl(invalidUri),
         throwsA(isA<Exception>()),
       );
     });
-
-    test(
-      'should skip file existence check and play remote URLs even if FileSystem is injected',
-      () async {
-        // Arrange: Set up FileSystem mock and adapter
-        final mockFileSystem = MockFileSystem();
-        final adapter = AudioPlayerAdapterImpl(
-          mockAudioPlayer,
-          fileSystem: mockFileSystem,
-          pathResolver: mockPathResolver,
-        );
-        const remoteUrl = 'https://example.com/audio.mp3';
-
-        // Act: Set source to remote URL
-        await adapter.setSourceUrl(remoteUrl);
-
-        // Assert: Verify FileSystem was not used and audio source was set
-        verifyNever(mockFileSystem.fileExists(any));
-        verify(mockAudioPlayer.setAudioSource(any)).called(1);
-      },
-    );
 
     test(
       'should throw if underlying player throws on setAudioSource',
@@ -432,69 +401,39 @@ void main() {
       );
     });
 
-    test('should play relative path if file exists, throw if not', () async {
-      // Arrange: Configure FileSystem mock and adapter
-      final mockFileSystem = MockFileSystem();
-      when(
-        mockFileSystem.fileExists('audio.mp3'),
-      ).thenAnswer((_) async => true);
+    test(
+      'should resolve relative paths using PathResolver before creating URI',
+      () async {
+        // Arrange: Define a relative path and its resolved absolute path
+        const relativePath = 'audio/test.m4a';
+        const absolutePath = '/resolved/path/audio/test.m4a';
 
-      final adapter = AudioPlayerAdapterImpl(
-        mockAudioPlayer,
-        fileSystem: mockFileSystem,
-        pathResolver: mockPathResolver,
-      );
+        // Setup the path resolver to return the absolute path
+        when(
+          mockPathResolver.resolve(relativePath, mustExist: true),
+        ).thenAnswer((_) async => absolutePath);
 
-      // Act: Set source to existing file
-      await adapter.setSourceUrl('audio.mp3');
+        // Act: Set the source URL with a relative path
+        await audioPlayerAdapter.setSourceUrl(relativePath);
 
-      // Assert: Verify file existence was checked and source was set
-      verify(mockFileSystem.fileExists('audio.mp3')).called(1);
-      verify(mockAudioPlayer.setAudioSource(any)).called(1);
+        // Assert:
+        // 1. Verify that PathResolver.resolve was called with the relative path
+        verify(
+          mockPathResolver.resolve(relativePath, mustExist: true),
+        ).called(1);
 
-      // Now test missing file
-      when(
-        mockFileSystem.fileExists('missing.mp3'),
-      ).thenAnswer((_) async => false);
+        // 2. Verify setAudioSource was called with a URI using the absolute path
+        final verification = verify(mockAudioPlayer.setAudioSource(captureAny));
+        verification.called(1);
 
-      // Act & Assert: Verify exception is thrown for missing file
-      expect(
-        () => adapter.setSourceUrl('missing.mp3'),
-        throwsA(isA<Exception>()),
-      );
-    });
-
-    test('should play absolute path if file exists, throw if not', () async {
-      // Arrange: Configure FileSystem mock and adapter
-      final mockFileSystem = MockFileSystem();
-      when(
-        mockFileSystem.fileExists('/abs/path/audio.mp3'),
-      ).thenAnswer((_) async => true);
-
-      final adapter = AudioPlayerAdapterImpl(
-        mockAudioPlayer,
-        fileSystem: mockFileSystem,
-        pathResolver: mockPathResolver,
-      );
-
-      // Act: Set source to existing file
-      await adapter.setSourceUrl('/abs/path/audio.mp3');
-
-      // Assert: Verify file existence was checked and source was set
-      verify(mockFileSystem.fileExists('/abs/path/audio.mp3')).called(1);
-      verify(mockAudioPlayer.setAudioSource(any)).called(1);
-
-      // Now test missing file
-      when(
-        mockFileSystem.fileExists('/abs/path/missing.mp3'),
-      ).thenAnswer((_) async => false);
-
-      // Act & Assert: Verify exception is thrown for missing file
-      expect(
-        () => adapter.setSourceUrl('/abs/path/missing.mp3'),
-        throwsA(isA<Exception>()),
-      );
-    });
+        final capturedSource = verification.captured.single as AudioSource;
+        expect(capturedSource, isA<UriAudioSource>());
+        expect(
+          (capturedSource as UriAudioSource).uri.path,
+          contains('/resolved/path/audio/test.m4a'),
+        );
+      },
+    );
   });
 
   // ==========================================================================

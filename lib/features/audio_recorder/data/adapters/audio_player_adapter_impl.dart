@@ -1,13 +1,10 @@
 import 'dart:async';
 
-import 'package:docjet_mobile/core/platform/file_system.dart';
-import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/platform/src/path_resolver.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:path/path.dart' as p;
-import 'package:docjet_mobile/core/platform/src/path_resolver.dart';
 
 /// Function type for creating AudioPlayer instances.
 /// Used for dependency injection to enable proper testing.
@@ -38,9 +35,6 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
   /// Core just_audio player instance managed by this adapter
   final AudioPlayer _audioPlayer;
-
-  /// File system dependency for checking file existence
-  final FileSystem? _fileSystem;
 
   /// Factory for creating new player instances (used for getDuration)
   final AudioPlayerFactory _audioPlayerFactory;
@@ -80,18 +74,13 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   /// Creates a new adapter instance with the provided dependencies.
   ///
   /// [_audioPlayer]: The main player instance for playback operations
-  /// [pathProvider]: Optional path provider for resolving paths (legacy)
-  /// [fileSystem]: Optional file system for checking file existence
   /// [audioPlayerFactory]: Factory for creating temporary players for getDuration
-  /// [pathResolver]: Path resolver for resolving paths
+  /// [pathResolver]: Path resolver for resolving paths for getDuration method
   AudioPlayerAdapterImpl(
     this._audioPlayer, {
-    PathProvider? pathProvider,
-    FileSystem? fileSystem,
     AudioPlayerFactory? audioPlayerFactory,
     required PathResolver pathResolver,
-  }) : _fileSystem = fileSystem,
-       _audioPlayerFactory = audioPlayerFactory ?? defaultAudioPlayerFactory,
+  }) : _audioPlayerFactory = audioPlayerFactory ?? defaultAudioPlayerFactory,
        _pathResolver = pathResolver {
     logger.d('$_tag Creating AudioPlayerAdapterImpl instance.');
 
@@ -344,103 +333,60 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   /// Sets the audio source from a URL or file path.
   ///
   /// Supports both remote URLs (http/https) and local file paths.
-  /// If FileSystem is provided, local paths are checked for existence.
+  /// The caller is responsible for providing a valid, resolved path that points
+  /// to an existing audio file. This adapter does not validate file existence.
   @override
   Future<void> setSourceUrl(String url) async {
     if (_disposed) throw StateError('Adapter is disposed');
 
-    if (url.trim().isEmpty) {
-      throw Exception('Audio file path cannot be empty');
+    if (url.isEmpty) {
+      throw Exception('Path cannot be empty');
     }
 
-    final isRemote = url.startsWith('http://') || url.startsWith('https://');
-    final seqId = _eventSequence++;
-    final startLoadTime = DateTime.now().millisecondsSinceEpoch;
-
-    logger.d('[ADAPTER SET_SOURCE_URL #$seqId] START: $url');
+    final Uri uri;
 
     try {
-      String resolvedPath = url;
-      bool fileExists = false;
-
-      // Check file existence for local paths if FileSystem is available
-      if (!isRemote && _fileSystem != null) {
-        fileExists = await _fileSystem.fileExists(url);
-        if (!fileExists) {
-          logger.e('[ADAPTER SET_SOURCE_URL #$seqId] File not found: $url');
-          throw Exception('Audio file not found: $url');
-        }
-        // No need to resolve to absolute, just use the path as is
-        // The FileSystem implementation already resolves it internally
-      } else if (!isRemote && _fileSystem == null) {
-        logger.w(
-          '[ADAPTER SET_SOURCE_URL #$seqId] No FileSystem provided, skipping existence check.',
-        );
+      // Properly handle different URL types
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Handle remote URLs
+        uri = Uri.parse(url);
+      } else {
+        // For local file paths, use PathResolver to handle both absolute and relative paths
+        final resolvedPath = await _pathResolver.resolve(url, mustExist: true);
+        // Then use URI.file to ensure proper encoding
+        uri = Uri.file(resolvedPath);
       }
 
-      // Perform stricter validation for local file paths
-      if (!isRemote) {
-        final isAbs = p.isAbsolute(url);
-        final isRel = p.isRelative(url);
-
-        // ':' is only allowed at the start for Windows drive letters, not in the middle
-        final hasIllegalColon =
-            url.contains(':') &&
-            !RegExp(r'^[a-zA-Z]:[\\/]').hasMatch(url) &&
-            !url.startsWith('/');
-
-        if ((!isAbs && !isRel) || hasIllegalColon) {
-          logger.e('[ADAPTER SET_SOURCE_URL #$seqId] Invalid file path: $url');
-          throw Exception('Invalid audio file path: $url');
-        }
+      // Additional validation - ensure we have a valid scheme
+      if (uri.scheme.isEmpty) {
+        throw FormatException('Invalid URI: missing scheme');
       }
+    } catch (e) {
+      throw Exception('Invalid URI: $e');
+    }
 
-      // Create proper URI from the path
-      Uri uri;
-      try {
-        if (isRemote) {
-          uri = Uri.parse(resolvedPath);
-        } else {
-          uri = Uri.file(resolvedPath);
-        }
-      } catch (e) {
-        logger.e(
-          '[ADAPTER SET_SOURCE_URL #$seqId] Invalid URI: $resolvedPath',
-          error: e,
-        );
-        throw Exception('Invalid audio file path or URI: $resolvedPath');
-      }
+    logger.d('[ADAPTER SET_SOURCE_URL] Using URI: $uri');
 
-      // Final validation check
-      if (!isRemote && (resolvedPath.trim().isEmpty)) {
-        logger.e(
-          '[ADAPTER SET_SOURCE_URL #$seqId] Invalid file path: $resolvedPath',
-        );
-        throw Exception('Invalid audio file path: $resolvedPath');
-      }
+    try {
+      logger.d('[ADAPTER SET_SOURCE_URL] Setting audio source...');
+      final startTime = DateTime.now();
 
-      logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Using URI: $uri');
+      // Create the audio source with the URI
       final source = AudioSource.uri(uri);
 
-      // Set the audio source
-      logger.d('[ADAPTER SET_SOURCE_URL #$seqId] Setting audio source...');
-      final duration = await _audioPlayer.setAudioSource(source);
-
-      // Log success with timing information
-      final loadDuration =
-          DateTime.now().millisecondsSinceEpoch - startLoadTime;
+      await _audioPlayer.setAudioSource(source);
+      final endTime = DateTime.now();
+      final duration = _audioPlayer.duration;
       logger.d(
-        '[ADAPTER SET_SOURCE_URL #$seqId] Success! Duration: \x1B[36m${duration?.inMilliseconds}ms\x1B[0m, Loading took: ${loadDuration}ms',
+        '[ADAPTER SET_SOURCE_URL] Success! Duration: ${duration?.inMilliseconds ?? 0}ms, Loading took: ${endTime.difference(startTime).inMilliseconds}ms',
       );
-    } catch (e, s) {
-      final loadDuration =
-          DateTime.now().millisecondsSinceEpoch - startLoadTime;
+    } catch (e) {
+      final startTime = DateTime.now();
       logger.e(
-        '[ADAPTER SET_SOURCE_URL #$seqId] FAILED after ${loadDuration}ms',
+        '[ADAPTER SET_SOURCE_URL] FAILED after ${DateTime.now().difference(startTime).inMilliseconds}ms',
         error: e,
-        stackTrace: s,
       );
-      rethrow;
+      throw Exception(e);
     }
   }
 
@@ -469,13 +415,13 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
       }
       final elapsedTime = DateTime.now().millisecondsSinceEpoch - startTime;
       logger.d(
-        '[ADAPTER GET_DURATION] Success: \\${duration.inMilliseconds}ms, took \\${elapsedTime}ms',
+        '[ADAPTER GET_DURATION] Success: ${duration.inMilliseconds}ms, took ${elapsedTime}ms',
       );
       return duration;
     } catch (e, s) {
       final elapsedTime = DateTime.now().millisecondsSinceEpoch - startTime;
       logger.e(
-        '[ADAPTER GET_DURATION] Failed after \\${elapsedTime}ms',
+        '[ADAPTER GET_DURATION] Failed after ${elapsedTime}ms',
         error: e,
         stackTrace: s,
       );
