@@ -7,6 +7,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_play
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:docjet_mobile/core/platform/src/path_resolver.dart';
 
 /// Function type for creating AudioPlayer instances.
 /// Used for dependency injection to enable proper testing.
@@ -50,6 +51,9 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   /// Internal state tracking
   bool _disposed = false;
 
+  /// Path resolver for resolving paths
+  final PathResolver _pathResolver;
+
   // ============================================================
   // Stream Controllers (for domain-specific events)
   // ============================================================
@@ -79,13 +83,16 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
   /// [pathProvider]: Optional path provider for resolving paths (legacy)
   /// [fileSystem]: Optional file system for checking file existence
   /// [audioPlayerFactory]: Factory for creating temporary players for getDuration
+  /// [pathResolver]: Path resolver for resolving paths
   AudioPlayerAdapterImpl(
     this._audioPlayer, {
     PathProvider? pathProvider,
     FileSystem? fileSystem,
     AudioPlayerFactory? audioPlayerFactory,
+    required PathResolver pathResolver,
   }) : _fileSystem = fileSystem,
-       _audioPlayerFactory = audioPlayerFactory ?? defaultAudioPlayerFactory {
+       _audioPlayerFactory = audioPlayerFactory ?? defaultAudioPlayerFactory,
+       _pathResolver = pathResolver {
     logger.d('$_tag Creating AudioPlayerAdapterImpl instance.');
 
     // Initialize stream controllers
@@ -439,48 +446,41 @@ class AudioPlayerAdapterImpl implements AudioPlayerAdapter {
 
   /// Determines the duration of an audio file without fully loading it for playback.
   ///
-  /// This method uses a temporary player instance created by the injected factory.
-  /// It disposes the player correctly regardless of success or failure.
+  /// [relativePath]: The relative path to the audio file (subdirectories allowed).
+  /// Resolves the path using PathResolver and passes the absolute path to just_audio.
   @override
-  Future<Duration> getDuration(String absolutePath) async {
-    logger.d('[ADAPTER GET_DURATION] START: $absolutePath');
+  Future<Duration> getDuration(String relativePath) async {
+    logger.d('[ADAPTER GET_DURATION] START: $relativePath');
     final startTime = DateTime.now().millisecondsSinceEpoch;
-
-    // Create a temporary player instance
     final player = _audioPlayerFactory();
     try {
-      logger.d(
-        '[ADAPTER GET_DURATION] Created temp player, setting file path...',
+      // Resolve the relative path to an absolute path
+      final absolutePath = await _pathResolver.resolve(
+        relativePath,
+        mustExist: true,
       );
-
-      // Request duration from just_audio
+      logger.d('[ADAPTER GET_DURATION] Resolved path: $absolutePath');
       final duration = await player.setFilePath(absolutePath);
-
-      // Handle null durations (just_audio returns null for invalid files)
       if (duration == null) {
         logger.e('[ADAPTER GET_DURATION] Failed to get duration (null result)');
         throw Exception(
           'Could not determine duration for file $absolutePath (possibly invalid/corrupt).',
         );
       }
-
-      // Log success with timing information
       final elapsedTime = DateTime.now().millisecondsSinceEpoch - startTime;
       logger.d(
-        '[ADAPTER GET_DURATION] Success: ${duration.inMilliseconds}ms, took ${elapsedTime}ms',
+        '[ADAPTER GET_DURATION] Success: \\${duration.inMilliseconds}ms, took \\${elapsedTime}ms',
       );
       return duration;
     } catch (e, s) {
-      // Catch and log any errors, but rethrow to notify caller
       final elapsedTime = DateTime.now().millisecondsSinceEpoch - startTime;
       logger.e(
-        '[ADAPTER GET_DURATION] Failed after ${elapsedTime}ms',
+        '[ADAPTER GET_DURATION] Failed after \\${elapsedTime}ms',
         error: e,
         stackTrace: s,
       );
       rethrow;
     } finally {
-      // Always dispose the temporary player, even on error
       logger.d('[ADAPTER GET_DURATION] Disposing temp player');
       await player.dispose();
       logger.d('[ADAPTER GET_DURATION] END');

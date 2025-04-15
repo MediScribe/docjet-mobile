@@ -33,6 +33,7 @@ abstract class AudioPlayerAdapter {
   /// Stream indicating playback completion.
   Stream<void> get onPlayerComplete;
 
-  /// Retrieves the duration of the audio file at the given absolute path.
-  Future<Duration> getDuration(String absolutePath);
+  /// Retrieves the duration of the audio file at the given relative path.
+  /// The relative path is resolved internally to an absolute path before processing.
+  Future<Duration> getDuration(String relativePath);
 }

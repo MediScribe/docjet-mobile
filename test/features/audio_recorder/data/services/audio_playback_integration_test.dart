@@ -1,6 +1,7 @@
 import 'dart:async'; // Add async import
 import 'dart:io';
 
+import 'package:docjet_mobile/core/platform/src/path_resolver.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
@@ -179,7 +180,14 @@ void main() {
 
     // Now create and register our test instances manually rather than relying on di.init()
     // This gives us better control over the initialization process
-    final audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);
+
+    // Simple PathResolver mock that just returns the input path
+    final pathResolver = MockPathResolver();
+
+    final audioPlayerAdapter = AudioPlayerAdapterImpl(
+      mockAudioPlayer,
+      pathResolver: pathResolver,
+    );
 
     final playbackStateMapper = PlaybackStateMapperImpl();
     // Enable test mode to disable debouncing in tests
@@ -588,4 +596,12 @@ void main() {
   // test('Playback completes: emits completed state')
   // test('Position updates: emits playing state with new position')
   // test('Error occurs: emits error state')
+}
+
+// Mock classes for testing
+class MockPathResolver implements PathResolver {
+  @override
+  Future<String> resolve(String inputPath, {bool mustExist = false}) async {
+    return inputPath; // Simply return the input path for testing
+  }
 }

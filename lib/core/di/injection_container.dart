@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
+import 'package:docjet_mobile/core/platform/src/path_resolver.dart';
 // Import the AppSeeder
 import 'package:docjet_mobile/core/services/app_seeder.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
@@ -105,7 +106,21 @@ Future<void> init() async {
   // --- Core Platform Implementations ---
   // Register concrete implementations for the platform interfaces
   sl.registerLazySingleton<PathProvider>(() => AppPathProvider());
-  sl.registerLazySingleton<FileSystem>(() => IoFileSystem(sl<PathProvider>()));
+
+  // Create FileSystem first with a simple path resolver
+  final pathProvider = sl<PathProvider>();
+  final tempFileSystem = IoFileSystem(pathProvider);
+
+  // Now register PathResolver using the temporary FileSystem
+  sl.registerLazySingleton<PathResolver>(
+    () => PathResolverImpl(
+      pathProvider: pathProvider,
+      fileExists: (path) => tempFileSystem.fileExists(path),
+    ),
+  );
+
+  // Register the final FileSystem
+  sl.registerLazySingleton<FileSystem>(() => tempFileSystem);
   sl.registerLazySingleton<PermissionHandler>(() => AppPermissionHandler());
 
   // --- Core ---
@@ -133,6 +148,7 @@ Future<void> init() async {
       sl<just_audio.AudioPlayer>(),
       pathProvider: sl<PathProvider>(),
       fileSystem: sl<FileSystem>(),
+      pathResolver: sl<PathResolver>(),
     ),
   );
 

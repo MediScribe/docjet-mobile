@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
+import 'package:docjet_mobile/core/platform/src/path_resolver.dart';
 
 // Import the generated mocks file
 import 'audio_player_adapter_impl_test.mocks.dart';
@@ -70,8 +71,11 @@ PlayerStreamStubs stubPlayerStreams(MockAudioPlayer mockAudioPlayer) {
 // Main Test Body
 // ==========================================================================
 
-// Generate mocks for the AudioPlayer class from just_audio and FileSystem
-@GenerateMocks([AudioPlayer, FileSystem])
+// Generate mocks for all needed classes with custom names to avoid conflicts
+@GenerateMocks(
+  [AudioPlayer, FileSystem],
+  customMocks: [MockSpec<PathResolver>(as: #GeneratedMockPathResolver)],
+)
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -81,10 +85,16 @@ void main() {
   late StreamController<PlayerState> playerStateController;
   late StreamController<Duration?> durationController;
   late StreamController<Duration> positionController;
+  late GeneratedMockPathResolver mockPathResolver;
 
   setUp(() {
     // STEP 1: Initialize the mock player
     mockAudioPlayer = MockAudioPlayer();
+    mockPathResolver = GeneratedMockPathResolver();
+    // Default stub for PathResolver - specific values for simplicity
+    when(
+      mockPathResolver.resolve("audio/test.m4a", mustExist: true),
+    ).thenAnswer((_) async => '/dummy/path.m4a');
 
     // STEP 2: Create stream controllers for event simulation
     playerStateController = StreamController<PlayerState>.broadcast();
@@ -128,7 +138,10 @@ void main() {
     LoggerFactory.setLogLevel(AudioPlayerAdapterImpl, Level.debug);
 
     // STEP 7: Create the adapter instance to test
-    audioPlayerAdapter = AudioPlayerAdapterImpl(mockAudioPlayer);
+    audioPlayerAdapter = AudioPlayerAdapterImpl(
+      mockAudioPlayer,
+      pathResolver: mockPathResolver,
+    );
 
     // STEP 8: Emit initial state to simulate a ready player
     playerStateController.add(PlayerState(false, ProcessingState.ready));
@@ -341,6 +354,7 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         fileSystem: mockFileSystem,
+        pathResolver: mockPathResolver,
       );
 
       // Act & Assert: Verify exception is thrown
@@ -378,6 +392,7 @@ void main() {
         final adapter = AudioPlayerAdapterImpl(
           mockAudioPlayer,
           fileSystem: mockFileSystem,
+          pathResolver: mockPathResolver,
         );
         const remoteUrl = 'https://example.com/audio.mp3';
 
@@ -427,6 +442,7 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         fileSystem: mockFileSystem,
+        pathResolver: mockPathResolver,
       );
 
       // Act: Set source to existing file
@@ -458,6 +474,7 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         fileSystem: mockFileSystem,
+        pathResolver: mockPathResolver,
       );
 
       // Act: Set source to existing file
@@ -652,15 +669,98 @@ void main() {
   // ==========================================================================
 
   group('getDuration', () {
+    test(
+      'resolves relative path using PathResolver and returns duration',
+      () async {
+        // Arrange
+        final mockTempPlayer = MockAudioPlayer();
+        const relativePath = 'audio/test.m4a';
+        const absolutePath = '/abs/path/audio/test.m4a';
+        const tDuration = Duration(seconds: 42);
+
+        // Stub the path resolver for this test
+        when(
+          mockPathResolver.resolve(relativePath, mustExist: true),
+        ).thenAnswer((_) async => absolutePath);
+
+        // Stub the temp player behavior
+        when(
+          mockTempPlayer.setFilePath(absolutePath),
+        ).thenAnswer((_) async => tDuration);
+        when(mockTempPlayer.dispose()).thenAnswer((_) async {});
+
+        // Factory that returns our mock player
+        AudioPlayer mockFactory() => mockTempPlayer;
+
+        // Create adapter with the mocks
+        final adapter = AudioPlayerAdapterImpl(
+          mockAudioPlayer,
+          pathResolver: mockPathResolver,
+          audioPlayerFactory: mockFactory,
+        );
+
+        // Act
+        final result = await adapter.getDuration(relativePath);
+
+        // Assert
+        expect(result, tDuration);
+        verify(
+          mockPathResolver.resolve(relativePath, mustExist: true),
+        ).called(1);
+        verify(mockTempPlayer.setFilePath(absolutePath)).called(1);
+        verify(mockTempPlayer.dispose()).called(1);
+      },
+    );
+
+    test(
+      'throws if PathResolver throws and does not call just_audio',
+      () async {
+        // Arrange
+        final mockTempPlayer = MockAudioPlayer();
+        const relativePath = 'audio/missing.m4a';
+        final exception = PathResolutionException('not found');
+
+        // Stub the path resolver to throw
+        when(
+          mockPathResolver.resolve(relativePath, mustExist: true),
+        ).thenThrow(exception);
+
+        // Factory that returns our mock
+        AudioPlayer mockFactory() => mockTempPlayer;
+
+        final adapter = AudioPlayerAdapterImpl(
+          mockAudioPlayer,
+          pathResolver: mockPathResolver,
+          audioPlayerFactory: mockFactory,
+        );
+
+        // Act & Assert
+        await expectLater(
+          adapter.getDuration(relativePath),
+          throwsA(isA<PathResolutionException>()),
+        );
+        verify(
+          mockPathResolver.resolve(relativePath, mustExist: true),
+        ).called(1);
+        verifyNever(mockTempPlayer.setFilePath(any));
+      },
+    );
+
     test('returns duration when setFilePath is successful', () async {
       // Arrange: Create a mock temporary player
       final mockTempPlayer = MockAudioPlayer();
-      const tFilePath = '/test/audio.m4a';
+      const relativePath = 'audio/test.m4a';
+      const absolutePath = '/test/audio.m4a';
       const tDuration = Duration(seconds: 42);
+
+      // First stub the path resolver to return the expected absolute path
+      when(
+        mockPathResolver.resolve(relativePath, mustExist: true),
+      ).thenAnswer((_) async => absolutePath);
 
       // Configure the mock player behavior
       when(
-        mockTempPlayer.setFilePath(tFilePath),
+        mockTempPlayer.setFilePath(absolutePath),
       ).thenAnswer((_) async => tDuration);
       when(mockTempPlayer.dispose()).thenAnswer((_) async {});
 
@@ -671,24 +771,33 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         audioPlayerFactory: mockFactory,
+        pathResolver: mockPathResolver,
       );
 
       // Act: Get duration using the adapter
-      final result = await adapter.getDuration(tFilePath);
+      final result = await adapter.getDuration(relativePath);
 
       // Assert: Verify correct duration is returned and resources are released
       expect(result, tDuration);
-      verify(mockTempPlayer.setFilePath(tFilePath)).called(1);
+      verify(mockTempPlayer.setFilePath(absolutePath)).called(1);
       verify(mockTempPlayer.dispose()).called(1);
     });
 
     test('throws when setFilePath returns null', () async {
       // Arrange: Create a mock temporary player returning null
       final mockTempPlayer = MockAudioPlayer();
-      const tFilePath = '/test/audio.m4a';
+      const relativePath = 'audio/test.m4a';
+      const absolutePath = '/test/audio.m4a';
+
+      // First stub the path resolver to return the expected absolute path
+      when(
+        mockPathResolver.resolve(relativePath, mustExist: true),
+      ).thenAnswer((_) async => absolutePath);
 
       // Configure the mock player to return null (indicating invalid file)
-      when(mockTempPlayer.setFilePath(tFilePath)).thenAnswer((_) async => null);
+      when(
+        mockTempPlayer.setFilePath(absolutePath),
+      ).thenAnswer((_) async => null);
       when(mockTempPlayer.dispose()).thenAnswer((_) async {});
 
       // Create a factory that returns our mock
@@ -698,27 +807,34 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         audioPlayerFactory: mockFactory,
+        pathResolver: mockPathResolver,
       );
 
       // Act & Assert: Verify exception is thrown for null duration
       await expectLater(
-        adapter.getDuration(tFilePath),
+        adapter.getDuration(relativePath),
         throwsA(isA<Exception>()),
       );
 
       // Verify resources are properly released
-      verify(mockTempPlayer.setFilePath(tFilePath)).called(1);
+      verify(mockTempPlayer.setFilePath(absolutePath)).called(1);
       verify(mockTempPlayer.dispose()).called(1);
     });
 
     test('throws when setFilePath throws PlayerException', () async {
       // Arrange: Create a mock temporary player that throws
       final mockTempPlayer = MockAudioPlayer();
-      const tFilePath = '/test/audio.m4a';
+      const relativePath = 'audio/test.m4a';
+      const absolutePath = '/test/audio.m4a';
       final playerException = PlayerException(404, 'File not found');
 
+      // First stub the path resolver to return the expected absolute path
+      when(
+        mockPathResolver.resolve(relativePath, mustExist: true),
+      ).thenAnswer((_) async => absolutePath);
+
       // Configure the mock player to throw an exception
-      when(mockTempPlayer.setFilePath(tFilePath)).thenThrow(playerException);
+      when(mockTempPlayer.setFilePath(absolutePath)).thenThrow(playerException);
       when(mockTempPlayer.dispose()).thenAnswer((_) async {});
 
       // Create a factory that returns our mock
@@ -728,26 +844,35 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         audioPlayerFactory: mockFactory,
+        pathResolver: mockPathResolver,
       );
 
       // Act & Assert: Verify exception is propagated
       await expectLater(
-        adapter.getDuration(tFilePath),
+        adapter.getDuration(relativePath),
         throwsA(isA<PlayerException>()),
       );
 
       // Verify resources are properly released
-      verify(mockTempPlayer.setFilePath(tFilePath)).called(1);
+      verify(mockTempPlayer.setFilePath(absolutePath)).called(1);
       verify(mockTempPlayer.dispose()).called(1);
     });
 
     test('always disposes player even on error', () async {
       // Arrange: Create a mock temporary player that throws
       final mockTempPlayer = MockAudioPlayer();
-      const tFilePath = '/test/audio.m4a';
+      const relativePath = 'audio/test.m4a';
+      const absolutePath = '/test/audio.m4a';
+
+      // First stub the path resolver to return the expected absolute path
+      when(
+        mockPathResolver.resolve(relativePath, mustExist: true),
+      ).thenAnswer((_) async => absolutePath);
 
       // Configure the mock player to throw a generic exception
-      when(mockTempPlayer.setFilePath(tFilePath)).thenThrow(Exception('fail'));
+      when(
+        mockTempPlayer.setFilePath(absolutePath),
+      ).thenThrow(Exception('fail'));
       when(mockTempPlayer.dispose()).thenAnswer((_) async {});
 
       // Create a factory that returns our mock
@@ -757,11 +882,12 @@ void main() {
       final adapter = AudioPlayerAdapterImpl(
         mockAudioPlayer,
         audioPlayerFactory: mockFactory,
+        pathResolver: mockPathResolver,
       );
 
       // Act: Call getDuration and catch the exception
       try {
-        await adapter.getDuration(tFilePath);
+        await adapter.getDuration(relativePath);
       } catch (_) {}
 
       // Assert: Verify player is disposed even after error

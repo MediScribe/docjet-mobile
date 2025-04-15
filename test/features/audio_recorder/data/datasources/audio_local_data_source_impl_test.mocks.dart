@@ -638,16 +638,16 @@ class MockAudioPlayerAdapter extends _i1.Mock
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
+  _i5.Future<Duration> getDuration(String? relativePath) => (super.noSuchMethod(
         Invocation.method(
           #getDuration,
-          [absolutePath],
+          [relativePath],
         ),
         returnValue: _i5.Future<Duration>.value(_FakeDuration_3(
           this,
           Invocation.method(
             #getDuration,
-            [absolutePath],
+            [relativePath],
           ),
         )),
       ) as _i5.Future<Duration>);

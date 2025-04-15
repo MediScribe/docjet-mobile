@@ -9,6 +9,7 @@ import 'dart:typed_data' as _i8;
 
 import 'package:audio_session/audio_session.dart' as _i6;
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i7;
+import 'package:docjet_mobile/core/platform/src/path_resolver.dart' as _i9;
 import 'package:just_audio/just_audio.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
@@ -785,4 +786,34 @@ class MockFileSystem extends _i1.Mock implements _i7.FileSystem {
         ),
         returnValue: _i4.Future<List<int>>.value(<int>[]),
       ) as _i4.Future<List<int>>);
+}
+
+/// A class which mocks [PathResolver].
+///
+/// See the documentation for Mockito's code generation for more information.
+class GeneratedMockPathResolver extends _i1.Mock implements _i9.PathResolver {
+  GeneratedMockPathResolver() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i4.Future<String> resolve(
+    String? inputPath, {
+    bool? mustExist = false,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #resolve,
+          [inputPath],
+          {#mustExist: mustExist},
+        ),
+        returnValue: _i4.Future<String>.value(_i5.dummyValue<String>(
+          this,
+          Invocation.method(
+            #resolve,
+            [inputPath],
+            {#mustExist: mustExist},
+          ),
+        )),
+      ) as _i4.Future<String>);
 }

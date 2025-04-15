@@ -12,18 +12,16 @@ import 'package:docjet_mobile/core/platform/path_provider.dart' as _i8;
 import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i9;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
     as _i11;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
-    as _i13;
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'
-    as _i17;
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
-    as _i18;
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
-    as _i15;
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
     as _i16;
-import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart'
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
+    as _i17;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
     as _i14;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
+    as _i15;
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart'
+    as _i13;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:permission_handler/permission_handler.dart' as _i10;
@@ -496,40 +494,12 @@ class MockAudioConcatenationService extends _i1.Mock
       ) as _i5.Future<String>);
 }
 
-/// A class which mocks [AudioDurationRetriever].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationRetriever extends _i1.Mock
-    implements _i13.AudioDurationRetriever {
-  @override
-  _i5.Future<Duration> getDuration(String? filePath) => (super.noSuchMethod(
-        Invocation.method(
-          #getDuration,
-          [filePath],
-        ),
-        returnValue: _i5.Future<Duration>.value(_FakeDuration_3(
-          this,
-          Invocation.method(
-            #getDuration,
-            [filePath],
-          ),
-        )),
-        returnValueForMissingStub: _i5.Future<Duration>.value(_FakeDuration_3(
-          this,
-          Invocation.method(
-            #getDuration,
-            [filePath],
-          ),
-        )),
-      ) as _i5.Future<Duration>);
-}
-
 /// A class which mocks [LocalJobStore].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockLocalJobStore extends _i1.Mock implements _i14.LocalJobStore {
+class MockLocalJobStore extends _i1.Mock implements _i13.LocalJobStore {
   @override
-  _i5.Future<void> saveJob(_i15.LocalJob? job) => (super.noSuchMethod(
+  _i5.Future<void> saveJob(_i14.LocalJob? job) => (super.noSuchMethod(
         Invocation.method(
           #saveJob,
           [job],
@@ -539,42 +509,42 @@ class MockLocalJobStore extends _i1.Mock implements _i14.LocalJobStore {
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<_i15.LocalJob?> getJob(String? localFilePath) =>
+  _i5.Future<_i14.LocalJob?> getJob(String? localFilePath) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJob,
           [localFilePath],
         ),
-        returnValue: _i5.Future<_i15.LocalJob?>.value(),
-        returnValueForMissingStub: _i5.Future<_i15.LocalJob?>.value(),
-      ) as _i5.Future<_i15.LocalJob?>);
+        returnValue: _i5.Future<_i14.LocalJob?>.value(),
+        returnValueForMissingStub: _i5.Future<_i14.LocalJob?>.value(),
+      ) as _i5.Future<_i14.LocalJob?>);
 
   @override
-  _i5.Future<List<_i15.LocalJob>> getOfflineJobs() => (super.noSuchMethod(
+  _i5.Future<List<_i14.LocalJob>> getOfflineJobs() => (super.noSuchMethod(
         Invocation.method(
           #getOfflineJobs,
           [],
         ),
-        returnValue: _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
+        returnValue: _i5.Future<List<_i14.LocalJob>>.value(<_i14.LocalJob>[]),
         returnValueForMissingStub:
-            _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
-      ) as _i5.Future<List<_i15.LocalJob>>);
+            _i5.Future<List<_i14.LocalJob>>.value(<_i14.LocalJob>[]),
+      ) as _i5.Future<List<_i14.LocalJob>>);
 
   @override
-  _i5.Future<List<_i15.LocalJob>> getAllLocalJobs() => (super.noSuchMethod(
+  _i5.Future<List<_i14.LocalJob>> getAllLocalJobs() => (super.noSuchMethod(
         Invocation.method(
           #getAllLocalJobs,
           [],
         ),
-        returnValue: _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
+        returnValue: _i5.Future<List<_i14.LocalJob>>.value(<_i14.LocalJob>[]),
         returnValueForMissingStub:
-            _i5.Future<List<_i15.LocalJob>>.value(<_i15.LocalJob>[]),
-      ) as _i5.Future<List<_i15.LocalJob>>);
+            _i5.Future<List<_i14.LocalJob>>.value(<_i14.LocalJob>[]),
+      ) as _i5.Future<List<_i14.LocalJob>>);
 
   @override
   _i5.Future<void> updateJobStatus(
     String? localFilePath,
-    _i16.TranscriptionStatus? status, {
+    _i15.TranscriptionStatus? status, {
     String? backendId,
   }) =>
       (super.noSuchMethod(
@@ -605,14 +575,14 @@ class MockLocalJobStore extends _i1.Mock implements _i14.LocalJobStore {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioPlayerAdapter extends _i1.Mock
-    implements _i17.AudioPlayerAdapter {
+    implements _i16.AudioPlayerAdapter {
   @override
-  _i5.Stream<_i18.DomainPlayerState> get onPlayerStateChanged =>
+  _i5.Stream<_i17.DomainPlayerState> get onPlayerStateChanged =>
       (super.noSuchMethod(
         Invocation.getter(#onPlayerStateChanged),
-        returnValue: _i5.Stream<_i18.DomainPlayerState>.empty(),
-        returnValueForMissingStub: _i5.Stream<_i18.DomainPlayerState>.empty(),
-      ) as _i5.Stream<_i18.DomainPlayerState>);
+        returnValue: _i5.Stream<_i17.DomainPlayerState>.empty(),
+        returnValueForMissingStub: _i5.Stream<_i17.DomainPlayerState>.empty(),
+      ) as _i5.Stream<_i17.DomainPlayerState>);
 
   @override
   _i5.Stream<Duration> get onDurationChanged => (super.noSuchMethod(
@@ -703,23 +673,23 @@ class MockAudioPlayerAdapter extends _i1.Mock
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
+  _i5.Future<Duration> getDuration(String? relativePath) => (super.noSuchMethod(
         Invocation.method(
           #getDuration,
-          [absolutePath],
+          [relativePath],
         ),
         returnValue: _i5.Future<Duration>.value(_FakeDuration_3(
           this,
           Invocation.method(
             #getDuration,
-            [absolutePath],
+            [relativePath],
           ),
         )),
         returnValueForMissingStub: _i5.Future<Duration>.value(_FakeDuration_3(
           this,
           Invocation.method(
             #getDuration,
-            [absolutePath],
+            [relativePath],
           ),
         )),
       ) as _i5.Future<Duration>);

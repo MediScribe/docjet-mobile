@@ -6,7 +6,6 @@ import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_loc
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
 // Import the new service interfaces needed for constructor
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,7 +24,6 @@ import 'audio_local_data_source_impl_permission_test.mocks.dart';
   MockSpec<PathProvider>(),
   MockSpec<PermissionHandler>(), // Mock OUR interface
   MockSpec<AudioConcatenationService>(),
-  MockSpec<AudioDurationRetriever>(),
   MockSpec<LocalJobStore>(),
   MockSpec<AudioPlayerAdapter>(),
 ])

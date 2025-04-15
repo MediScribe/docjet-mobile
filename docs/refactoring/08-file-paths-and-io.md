@@ -28,8 +28,8 @@
 
 ## Refactor Plan: Centralize Path Logic (2024 Update)
 
-1. **Inject `PathResolver` only into `IoFileSystem`.** All path wrangling is internal to `FileSystem`. No other class touches it. **[DONE]**
-2. **Refactor `AudioFileManagerImpl` and `AudioPlayerAdapterImpl` to use only `FileSystem` for all file and path operations.** Remove `PathResolver` from their constructors and fields. **[DONE: AudioFileManagerImpl, AudioPlayerAdapterImpl]**
+1. **Inject `PathResolver` only into `IoFileSystem` and `AudioPlayerAdapterImpl`.** All path wrangling is internal to these classes. No other class touches it. **[IN PROGRESS: AudioPlayerAdapterImpl]**
+2. **Refactor `AudioPlayerAdapterImpl` to accept only `relativePath` in `getDuration`, and resolve it internally.** Remove any expectation of absolute paths from the public API. **[IN PROGRESS]**
 3. **Update dependency injection:** Only `IoFileSystem` gets `PathResolver`. Remove `PathResolver` from DI for all other classes. **[DONE]**
 4. **Enforce DI discipline:** The DI container MUST inject `PathResolver` *only* into `IoFileSystem`. If you see `PathResolver` injected anywhere else, that's a code review fail—refactor it and tell the offender to go fuck themselves. Axe would fire you for less. **[DONE]**
 5. **Remove all direct uses of `PathResolver` outside `IoFileSystem`.** Refactor any code (including tests) that uses `PathResolver` to use `FileSystem` instead. **[DONE]**
@@ -40,7 +40,7 @@
     - If a client provides a **relative path** (including subdirectories), it is always resolved to the app's container directory. If the resolved file does not exist, throw a clear error and log full context. **[DONE]**
     - **Never attempt to "fix" or "guess" a broken path.** Fail fast and loud. This prevents silent bugs and makes upstream issues obvious. **[DONE]**
 9. **Test the hell out of `PathResolver` and `FileSystem`.** Cover all platform edge cases, subdirectory handling, and error scenarios. If you half-ass these, you'll be chasing bugs like Mafee chasing Axe's approval. **[DONE]**
-10. **Encapsulate all audio decoding (just_audio) in the AudioPlayerAdapter.** Add a `getDuration(String absolutePath)` method to the adapter. All duration retrieval goes through this method. No just_audio or duration logic in FileManager or domain/data layers. **[DONE]**
+10. **Encapsulate all audio decoding (just_audio) in the AudioPlayerAdapter.** Add a `getDuration(String relativePath)` method to the adapter. All duration retrieval goes through this method. No just_audio or duration logic in FileManager or domain/data layers. **[IN PROGRESS: interface and impl update]**
 11. **Delete AudioDurationRetriever and its tests.** Update all usages to use the adapter's new `getDuration` method. **[DONE]**
 12. **TDD: Add/Update tests for the adapter's duration retrieval.** Ensure all duration logic is tested at the adapter level. **[DONE]**
 
@@ -225,21 +225,25 @@ The `AudioPlayerAdapter` refactor teaches several important lessons:
    - The original `getDuration` method created a hard dependency on the real `AudioPlayer` class directly inside the method.
    - This made testing impossible without running real audio decoders, causing test timeouts and flaky behavior.
    - By adding a factory pattern to inject the player creation, we made the code testable and maintainable.
+   - **NEW:** By injecting PathResolver and always resolving relative paths internally, we guarantee platform correctness and kill all path ambiguity.
 
 2. **Always Consider Testing When Designing Code**:
    - The refactored code allows for proper mocking in tests without changing the public API.
    - Every method that interacts with hardware or external services should be designed with testing in mind.
+   - **NEW:** Tests must use the new interface and dependency. If you see a test using `absolutePath`, refactor it.
 
 3. **Fail Fast, Log Everything**:
    - The improved implementation has extensive logging at every step.
    - All error conditions are explicitly checked and throw meaningful exceptions.
    - This makes debugging in production much easier and prevents silent failures.
+   - **NEW:** If a relative path can't be resolved, fail LOUD and log the context. No silent fallback, no guessing.
 
 4. **Clean, Readable Implementation**:
    - Proper parameters and return types make the contract clear.
    - Strong typing and proper error handling make the code robust.
    - Comprehensive logging with transaction IDs makes troubleshooting easier.
    - Factory pattern allows for dependency injection while maintaining a clean interface.
+   - **NEW:** The only correct contract is: `getDuration(String relativePath)`. If you see anything else, refactor it.
 
 As Axe would say, "I don't need my code to be pretty. I need it to fucking work, every time, no excuses."
 
@@ -247,5 +251,18 @@ As Axe would say, "I don't need my code to be pretty. I need it to fucking work,
 
 **2024-06-XX Update:**
 - All direct uses of `getAbsolutePath` and `PathResolver` outside `IoFileSystem` are now removed. `AppSeeder` and its tests have been refactored to use only the public `FileSystem` contract, passing relative paths throughout. The `getDuration` method in `AudioPlayerAdapter` has been improved with dependency injection to allow proper testing without real hardware. The codebase is fully compliant with the new architecture and refactor plan.
+
+---
+
+**2024-06-XX: AudioPlayerAdapter Path Refactor (Hard Bob Mandate)**
+- [IN PROGRESS] **AudioPlayerAdapter.getDuration now takes a `relativePath` (not `absolutePath`).**
+- [IN PROGRESS] PathResolver is injected into AudioPlayerAdapterImpl and used internally to resolve the relative path to an absolute path before passing to just_audio.
+- [IN PROGRESS] All duration logic is adapter-only. No path wrangling or resolution outside the adapter. No more absolute path parameters in the public API.
+- [IN PROGRESS] All tests and mocks must use the new interface and dependency. If you see a test or class using `absolutePath` or doing its own path wrangling, refactor it and tell the author to go fuck themselves.
+- **Impact:**
+    - No more confusion about what kind of path to pass. The contract is clear: always relative, always resolved internally.
+    - No more leaky abstractions or accidental platform bugs.
+    - The codebase is DRY, SOLID, and Hard Bob certified. If you see the old pattern, you know what to do.
+    - As Dollar Bill would say: "I'm not renting space to uncertainty."
 
 --- 
