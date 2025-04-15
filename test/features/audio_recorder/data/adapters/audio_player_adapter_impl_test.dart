@@ -7,6 +7,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_pla
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
 
 // Import the generated mocks file
 import 'audio_player_adapter_impl_test.mocks.dart';
@@ -17,8 +18,8 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 // Import the new logging test utilities package
 // import 'package:docjet_test/docjet_test.dart'; // Obsolete
 
-// Generate mocks for the AudioPlayer class from just_audio
-@GenerateMocks([AudioPlayer])
+// Generate mocks for the AudioPlayer class from just_audio and FileSystem
+@GenerateMocks([AudioPlayer, FileSystem])
 void main() {
   late MockAudioPlayer mockAudioPlayer;
   late AudioPlayerAdapter audioPlayerAdapter;
@@ -90,38 +91,103 @@ void main() {
   // Basic functional tests
 
   group('pause', () {
-    test('should call pause on AudioPlayer', () async {
+    test('should emit paused state after pause is called', () async {
+      // Arrange
+      final completer = Completer<void>();
+      final emittedStates = <DomainPlayerState>[];
+      final subscription = audioPlayerAdapter.onPlayerStateChanged.listen((
+        state,
+      ) {
+        emittedStates.add(state);
+        if (emittedStates.contains(DomainPlayerState.paused)) {
+          completer.complete();
+        }
+      });
+      // Act
       await audioPlayerAdapter.pause();
-      verify(mockAudioPlayer.pause()).called(1);
+      // Simulate player emitting paused state
+      playerStateController.add(PlayerState(false, ProcessingState.ready));
+      // Assert
+      await completer.future.timeout(const Duration(seconds: 2));
+      expect(emittedStates, contains(DomainPlayerState.paused));
+      await subscription.cancel();
     });
   });
 
   group('resume', () {
-    test('should call play on AudioPlayer', () async {
+    test('should emit playing state after resume is called', () async {
+      final completer = Completer<void>();
+      final emittedStates = <DomainPlayerState>[];
+      final subscription = audioPlayerAdapter.onPlayerStateChanged.listen((
+        state,
+      ) {
+        emittedStates.add(state);
+        if (emittedStates.contains(DomainPlayerState.playing)) {
+          completer.complete();
+        }
+      });
       await audioPlayerAdapter.resume();
-      verify(mockAudioPlayer.play()).called(1);
+      playerStateController.add(PlayerState(true, ProcessingState.ready));
+      await completer.future.timeout(const Duration(seconds: 2));
+      expect(emittedStates, contains(DomainPlayerState.playing));
+      await subscription.cancel();
     });
   });
 
   group('seek', () {
-    test('should call seek on AudioPlayer with correct position', () async {
-      const position = Duration(seconds: 10);
-      await audioPlayerAdapter.seek('', position);
-      verify(mockAudioPlayer.seek(position)).called(1);
+    test('should emit correct position after seek is called', () async {
+      final completer = Completer<void>();
+      final expectedPosition = Duration(seconds: 10);
+      final emittedPositions = <Duration>[];
+      final subscription = audioPlayerAdapter.onPositionChanged.listen((pos) {
+        emittedPositions.add(pos);
+        if (emittedPositions.contains(expectedPosition)) {
+          completer.complete();
+        }
+      });
+      await audioPlayerAdapter.seek('', expectedPosition);
+      positionController.add(expectedPosition);
+      await completer.future.timeout(const Duration(seconds: 2));
+      expect(emittedPositions, contains(expectedPosition));
+      await subscription.cancel();
     });
   });
 
   group('stop', () {
-    test('should call stop on AudioPlayer', () async {
+    test('should emit stopped state after stop is called', () async {
+      final completer = Completer<void>();
+      final emittedStates = <DomainPlayerState>[];
+      final subscription = audioPlayerAdapter.onPlayerStateChanged.listen((
+        state,
+      ) {
+        emittedStates.add(state);
+        if (emittedStates.contains(DomainPlayerState.stopped)) {
+          completer.complete();
+        }
+      });
       await audioPlayerAdapter.stop();
-      verify(mockAudioPlayer.stop()).called(1);
+      playerStateController.add(PlayerState(false, ProcessingState.idle));
+      await completer.future.timeout(const Duration(seconds: 2));
+      expect(emittedStates, contains(DomainPlayerState.stopped));
+      await subscription.cancel();
     });
   });
 
   group('dispose', () {
-    test('should call dispose on AudioPlayer', () async {
+    test('should not emit any more states after dispose is called', () async {
+      final emittedStates = <DomainPlayerState>[];
+      final subscription = audioPlayerAdapter.onPlayerStateChanged.listen((
+        state,
+      ) {
+        emittedStates.add(state);
+      });
       await audioPlayerAdapter.dispose();
-      verify(mockAudioPlayer.dispose()).called(1);
+      playerStateController.add(PlayerState(true, ProcessingState.ready));
+      // Wait a short time to ensure no new states are emitted
+      await Future.delayed(const Duration(milliseconds: 200));
+      // After dispose, no new states should be added
+      expect(emittedStates.length, equals(0));
+      await subscription.cancel();
     });
   });
 
@@ -161,6 +227,119 @@ void main() {
         expect(uri.toString(), contains('example.com/audio.mp3'));
       },
     );
+
+    test('should throw when given a missing local file path', () async {
+      // Arrange: mock FileSystem to return false for fileExists
+      final mockFileSystem = MockFileSystem();
+      when(mockFileSystem.fileExists(any)).thenAnswer((_) async => false);
+      final adapter = AudioPlayerAdapterImpl(
+        mockAudioPlayer,
+        fileSystem: mockFileSystem,
+      );
+      // Act & Assert
+      expect(
+        () => adapter.setSourceUrl('/missing/file.mp3'),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('should throw when given a malformed (empty string) path', () async {
+      // Arrange: no FileSystem needed, just pass empty string
+      // Act & Assert
+      expect(
+        () => audioPlayerAdapter.setSourceUrl(''),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('should throw when given an invalid URI', () async {
+      expect(
+        () => audioPlayerAdapter.setSourceUrl('::not_a_uri::'),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test(
+      'should skip file existence check and play remote URLs even if FileSystem is injected',
+      () async {
+        final mockFileSystem = MockFileSystem();
+        final adapter = AudioPlayerAdapterImpl(
+          mockAudioPlayer,
+          fileSystem: mockFileSystem,
+        );
+        const remoteUrl = 'https://example.com/audio.mp3';
+        await adapter.setSourceUrl(remoteUrl);
+        verifyNever(mockFileSystem.fileExists(any));
+        verify(mockAudioPlayer.setAudioSource(any)).called(1);
+      },
+    );
+
+    test(
+      'should throw if underlying player throws on setAudioSource',
+      () async {
+        when(
+          mockAudioPlayer.setAudioSource(any),
+        ).thenThrow(Exception('player fail'));
+        expect(
+          () => audioPlayerAdapter.setSourceUrl('/path/to/local/audio.mp3'),
+          throwsA(isA<Exception>()),
+        );
+      },
+    );
+
+    test('should throw if called after dispose()', () async {
+      await audioPlayerAdapter.dispose();
+      expect(
+        () => audioPlayerAdapter.setSourceUrl('/path/to/local/audio.mp3'),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('should play relative path if file exists, throw if not', () async {
+      final mockFileSystem = MockFileSystem();
+      when(
+        mockFileSystem.fileExists('audio.mp3'),
+      ).thenAnswer((_) async => true);
+      final adapter = AudioPlayerAdapterImpl(
+        mockAudioPlayer,
+        fileSystem: mockFileSystem,
+      );
+      await adapter.setSourceUrl('audio.mp3');
+      verify(mockFileSystem.fileExists('audio.mp3')).called(1);
+      verify(mockAudioPlayer.setAudioSource(any)).called(1);
+
+      // Now test missing file
+      when(
+        mockFileSystem.fileExists('missing.mp3'),
+      ).thenAnswer((_) async => false);
+      expect(
+        () => adapter.setSourceUrl('missing.mp3'),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('should play absolute path if file exists, throw if not', () async {
+      final mockFileSystem = MockFileSystem();
+      when(
+        mockFileSystem.fileExists('/abs/path/audio.mp3'),
+      ).thenAnswer((_) async => true);
+      final adapter = AudioPlayerAdapterImpl(
+        mockAudioPlayer,
+        fileSystem: mockFileSystem,
+      );
+      await adapter.setSourceUrl('/abs/path/audio.mp3');
+      verify(mockFileSystem.fileExists('/abs/path/audio.mp3')).called(1);
+      verify(mockAudioPlayer.setAudioSource(any)).called(1);
+
+      // Now test missing file
+      when(
+        mockFileSystem.fileExists('/abs/path/missing.mp3'),
+      ).thenAnswer((_) async => false);
+      expect(
+        () => adapter.setSourceUrl('/abs/path/missing.mp3'),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 
   // Stream tests - adding back with proper completion handling
