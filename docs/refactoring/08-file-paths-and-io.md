@@ -9,6 +9,7 @@
 - [DONE] No global mutable state in tests; all tests are isolated and parallel-safe.
 - [DONE] All test and implementation code is readable, maintainable, and follows best practice.
 - [DONE] Lessons learned: test isolation, DRY, fail fast, no global state, readable tests, and always run your shit after you change it.
+- [DONE] Audio duration retrieval is now encapsulated in the AudioPlayerAdapter, not in FileManager or a separate retriever. FileManager is pure file ops. All just_audio logic is in the adapter. AudioDurationRetriever and its tests are deleted. All usages now call the adapter's getDuration method.
 ---
 
 ## Refactor Plan: Centralize Path Logic (2024 Update)
@@ -25,6 +26,9 @@
     - If a client provides a **relative path** (including subdirectories), it is always resolved to the app's container directory. If the resolved file does not exist, throw a clear error and log full context. **[DONE]**
     - **Never attempt to "fix" or "guess" a broken path.** Fail fast and loud. This prevents silent bugs and makes upstream issues obvious. **[DONE]**
 9. **Test the hell out of `PathResolver` and `FileSystem`.** Cover all platform edge cases, subdirectory handling, and error scenarios. If you half-ass these, you'll be chasing bugs like Mafee chasing Axe's approval. **[DONE]**
+10. **Encapsulate all audio decoding (just_audio) in the AudioPlayerAdapter.** Add a `getDuration(String absolutePath)` method to the adapter. All duration retrieval goes through this method. No just_audio or duration logic in FileManager or domain/data layers. **[DONE]**
+11. **Delete AudioDurationRetriever and its tests.** Update all usages to use the adapter's new `getDuration` method. **[DONE]**
+12. **TDD: Add/Update tests for the adapter's duration retrieval.** Ensure all duration logic is tested at the adapter level. **[DONE]**
 
 ### **2024 Update: PathResolver & Testing Discipline**
 - [DONE] `PathResolver` is now **internal-only**. It is not exposed or tested outside `FileSystem` except for its own isolated edge-case tests.
@@ -194,3 +198,36 @@ abstract class PathResolver {
 ```
 
 - If you see PathResolver anywhere but inside IoFileSystem, refactor and slap the offender. Axe would be proud. 
+
+## Lessons From the AudioPlayerAdapter Refactor (NEW)
+
+The `AudioPlayerAdapter` refactor teaches several important lessons:
+
+1. **Dependency Injection Is Your Friend**:
+   - The original `getDuration` method created a hard dependency on the real `AudioPlayer` class directly inside the method.
+   - This made testing impossible without running real audio decoders, causing test timeouts and flaky behavior.
+   - By adding a factory pattern to inject the player creation, we made the code testable and maintainable.
+
+2. **Always Consider Testing When Designing Code**:
+   - The refactored code allows for proper mocking in tests without changing the public API.
+   - Every method that interacts with hardware or external services should be designed with testing in mind.
+
+3. **Fail Fast, Log Everything**:
+   - The improved implementation has extensive logging at every step.
+   - All error conditions are explicitly checked and throw meaningful exceptions.
+   - This makes debugging in production much easier and prevents silent failures.
+
+4. **Clean, Readable Implementation**:
+   - Proper parameters and return types make the contract clear.
+   - Strong typing and proper error handling make the code robust.
+   - Comprehensive logging with transaction IDs makes troubleshooting easier.
+   - Factory pattern allows for dependency injection while maintaining a clean interface.
+
+As Axe would say, "I don't need my code to be pretty. I need it to fucking work, every time, no excuses."
+
+---
+
+**2024-06-XX Update:**
+- All direct uses of `getAbsolutePath` and `PathResolver` outside `IoFileSystem` are now removed. `AppSeeder` and its tests have been refactored to use only the public `FileSystem` contract, passing relative paths throughout. The `getDuration` method in `AudioPlayerAdapter` has been improved with dependency injection to allow proper testing without real hardware. The codebase is fully compliant with the new architecture and refactor plan.
+
+--- 
