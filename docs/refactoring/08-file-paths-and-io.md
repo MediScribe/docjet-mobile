@@ -14,7 +14,7 @@
 ## Refactor Plan: Centralize Path Logic (2024 Update)
 
 1. **Inject `PathResolver` only into `IoFileSystem`.** All path wrangling is internal to `FileSystem`. No other class touches it. **[DONE]**
-2. **Refactor `AudioFileManagerImpl` and `AudioPlayerAdapterImpl` to use only `FileSystem` for all file and path operations.** Remove `PathResolver` from their constructors and fields. **[DONE]**
+2. **Refactor `AudioFileManagerImpl` and `AudioPlayerAdapterImpl` to use only `FileSystem` for all file and path operations.** Remove `PathResolver` from their constructors and fields. **[DONE: AudioFileManagerImpl]**
 3. **Update dependency injection:** Only `IoFileSystem` gets `PathResolver`. Remove `PathResolver` from DI for all other classes. **[DONE]**
 4. **Enforce DI discipline:** The DI container MUST inject `PathResolver` *only* into `IoFileSystem`. If you see `PathResolver` injected anywhere else, that's a code review fail—refactor it and tell the offender to go fuck themselves. Axe would fire you for less. **[DONE]**
 5. **Remove all direct uses of `PathResolver` outside `IoFileSystem`.** Refactor any code (including tests) that uses `PathResolver` to use `FileSystem` instead. **[DONE]**
@@ -85,14 +85,16 @@ After refactoring our app to improve file system handling, we ran into the usual
 ### 4. AudioFileManager (or other domain managers)
 - If you need domain-specific logic (e.g., audio duration, format validation), create a thin manager that composes `FileSystem`.
 - Never duplicates file/path logic.
+- **[DONE: AudioFileManagerImpl now uses only FileSystem for all file ops; no direct file wrangling remains.]**
 
 ## Migration: Cleaning Up the Mess
 
 1. **Migrate all stored paths to be full relative paths (including subdirectories, not just filenames).**
 2. **Update all code to use only `FileSystem` for file ops.**
-3. **Remove all direct uses of `PathResolver` outside `FileSystem`.**
+3. **Remove all direct uses of `PathResolver` outside `IoFileSystem`.**
 4. **Update tests to mock `FileSystem`, not `PathResolver`.**
 5. **Search for and destroy all references to "relative", "absolute", or manual path wrangling in the codebase.**
+6. **[DONE: AudioFileManagerImpl is now fully compliant—no direct file wrangling, only FileSystem used.]**
 
 ## Testing: How To Not Be A Dumbass
 

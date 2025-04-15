@@ -1,16 +1,15 @@
 import 'dart:async';
-import 'dart:io' show FileSystemEntity, FileSystemEntityType, FileStat, File;
-
-// ADD THIS IMPORT
+import 'dart:io' show FileSystemEntity, FileSystemEntityType, FileStat;
 
 // Import interfaces and entities
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
+import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
+
 import '../exceptions/audio_exceptions.dart';
 import './audio_duration_retriever.dart';
 import './audio_file_manager.dart';
-import 'package:docjet_mobile/core/utils/logger.dart';
 
 /// Default implementation of [AudioFileManager].
 /// Interacts with the [FileSystem] and uses [PathProvider] and [AudioDurationRetriever]
@@ -32,58 +31,15 @@ class AudioFileManagerImpl implements AudioFileManager {
   Future<void> deleteRecording(String filePath) async {
     logger.d('Attempting to delete recording: $filePath');
     try {
-      // First check if the file exists as provided
-      bool exists = await fileSystem.fileExists(filePath);
-
-      // If the path contains a directory separator, it might be an absolute path
-      // In that case, also try treating as a relative path
-      if (!exists && filePath.contains('/')) {
-        // Try with filename only
-        final filename = filePath.split('/').last;
-        logger.d(
-          'File not found at path, trying with filename only: $filename',
-        );
-        exists = await fileSystem.fileExists(filename);
-
-        if (exists) {
-          // Use the relative path for deletion instead
-          logger.d('Found file using relative path: $filename');
-          filePath = filename;
-        }
-      }
-
-      // If still doesn't exist, try a last resort check from docs dir
-      if (!exists) {
-        try {
-          final appDir = await pathProvider.getApplicationDocumentsDirectory();
-          final filename = filePath.split('/').last;
-          final absolutePath = '${appDir.path}/$filename';
-
-          logger.d('Checking file exists at absolute path: $absolutePath');
-          final fileExists = await File(absolutePath).exists();
-
-          if (fileExists) {
-            logger.d('File found at absolute path, using direct File.delete()');
-            await File(absolutePath).delete();
-            logger.i('Successfully deleted file via File API: $absolutePath');
-            return;
-          }
-        } catch (innerError) {
-          logger.e('Error during last resort file check', error: innerError);
-          // Continue with normal flow - we'll throw the appropriate error below
-        }
-      }
-
+      final exists = await fileSystem.fileExists(filePath);
       if (!exists) {
         logger.w('Attempted to delete non-existent file: $filePath');
         throw RecordingFileNotFoundException('File not found: $filePath');
       }
-
-      // Delete through the FileSystem abstraction
       await fileSystem.deleteFile(filePath);
       logger.i('Successfully deleted file: $filePath');
     } on RecordingFileNotFoundException {
-      rethrow; // Allow specific exception to pass through
+      rethrow;
     } catch (e, s) {
       logger.e('Failed to delete file: $filePath', error: e, stackTrace: s);
       throw AudioFileSystemException('Failed to delete file: $filePath', e);
@@ -113,7 +69,7 @@ class AudioFileManagerImpl implements AudioFileManager {
       );
 
       entitiesStream.listen(
-        (entity) async {
+        (FileSystemEntity entity) async {
           try {
             logger.d('Processing entity: ${entity.path}');
             final FileStat stat = await fileSystem.stat(entity.path);
