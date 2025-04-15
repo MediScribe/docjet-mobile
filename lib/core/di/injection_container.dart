@@ -1,43 +1,39 @@
-import 'package:get_it/get_it.dart';
-import 'package:record/record.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
+// Import the AppSeeder
+import 'package:docjet_mobile/core/services/app_seeder.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever_impl.dart';
+// Import Fake Data Source
+import 'package:docjet_mobile/features/audio_recorder/data/datasources/fake_transcription_data_source_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/datasources/local_job_store_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/repositories/audio_recorder_repository_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
-import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
-import 'package:just_audio/just_audio.dart' as just_audio;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_playback_service_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
-
-// Import Hive and related components
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/services/transcription_merge_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/datasources/local_job_store_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/audio_recorder_repository.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
-// Import Fake Data Source
-import 'package:docjet_mobile/features/audio_recorder/data/datasources/fake_transcription_data_source_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/transcription_remote_data_source.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/transcription_merge_service_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/services/audio_playback_service.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/services/transcription_merge_service.dart';
-
-// Import the AppSeeder
-import 'package:docjet_mobile/core/services/app_seeder.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_list_cubit.dart';
+import 'package:docjet_mobile/features/audio_recorder/presentation/cubit/audio_recording_cubit.dart';
+import 'package:get_it/get_it.dart';
+// Import Hive and related components
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:just_audio/just_audio.dart' as just_audio;
+import 'package:record/record.dart';
 // Import SharedPreferences
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/adapters/audio_player_adapter_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/mappers/playback_state_mapper_impl.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/mappers/playback_state_mapper.dart';
 
 final sl = GetIt.instance;
 
@@ -88,7 +84,7 @@ Future<void> init() async {
       audioConcatenationService: sl(),
       fileSystem: sl(),
       localJobStore: sl(),
-      audioDurationRetriever: sl(),
+      audioPlayerAdapter: sl(),
     ),
   );
 
@@ -118,11 +114,6 @@ Future<void> init() async {
   // --- Other Features ---
   // Register dependencies for other features
 
-  // Audio Services
-  sl.registerLazySingleton<AudioDurationRetriever>(
-    () => AudioDurationRetrieverImpl(),
-  );
-
   sl.registerLazySingleton<AudioConcatenationService>(
     () => DummyAudioConcatenator(),
   );
@@ -132,7 +123,7 @@ Future<void> init() async {
     () => AudioFileManagerImpl(
       fileSystem: sl(),
       pathProvider: sl(),
-      audioDurationRetriever: sl(),
+      audioPlayerAdapter: sl(),
     ),
   );
 
@@ -184,7 +175,7 @@ Future<void> init() async {
     () => AppSeeder(
       localJobStore: sl(),
       fileSystem: sl(),
-      audioDurationRetriever: sl(),
+      audioPlayerAdapter: sl(),
       prefs: sl(), // Use the registered instance
     ),
   );

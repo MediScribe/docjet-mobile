@@ -1,9 +1,3 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
-import 'package:permission_handler/permission_handler.dart' as ph;
-import 'package:record/record.dart';
-
 // Import interfaces and exceptions
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
@@ -13,7 +7,13 @@ import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exce
 // Import the new service interfaces needed for constructor
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
+import 'package:record/record.dart';
 
 // Import generated mocks (will be generated for this file)
 import 'audio_local_data_source_impl_permission_test.mocks.dart';
@@ -27,6 +27,7 @@ import 'audio_local_data_source_impl_permission_test.mocks.dart';
   MockSpec<AudioConcatenationService>(),
   MockSpec<AudioDurationRetriever>(),
   MockSpec<LocalJobStore>(),
+  MockSpec<AudioPlayerAdapter>(),
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +38,6 @@ void main() {
   late MockPathProvider mockPathProvider;
   late MockPermissionHandler mockPermissionHandler; // Mock for our interface
   late MockAudioConcatenationService mockConcatenationService;
-  late MockAudioDurationRetriever mockAudioDurationRetriever;
   late MockLocalJobStore mockLocalJobStore;
 
   // Use the aliased type from the package for constants
@@ -49,8 +49,8 @@ void main() {
     mockPathProvider = MockPathProvider();
     mockPermissionHandler = MockPermissionHandler();
     mockConcatenationService = MockAudioConcatenationService();
-    mockAudioDurationRetriever = MockAudioDurationRetriever();
     mockLocalJobStore = MockLocalJobStore();
+    final mockAudioPlayerAdapter = MockAudioPlayerAdapter();
 
     dataSource = AudioLocalDataSourceImpl(
       recorder: mockRecorder,
@@ -58,8 +58,8 @@ void main() {
       pathProvider: mockPathProvider,
       permissionHandler: mockPermissionHandler,
       audioConcatenationService: mockConcatenationService,
-      audioDurationRetriever: mockAudioDurationRetriever,
       localJobStore: mockLocalJobStore,
+      audioPlayerAdapter: mockAudioPlayerAdapter,
     );
   });
 

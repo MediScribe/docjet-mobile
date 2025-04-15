@@ -8,23 +8,23 @@ import 'package:docjet_mobile/core/utils/logger.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 
 import '../exceptions/audio_exceptions.dart';
-import './audio_duration_retriever.dart';
 import './audio_file_manager.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 
 /// Default implementation of [AudioFileManager].
-/// Interacts with the [FileSystem] and uses [PathProvider] and [AudioDurationRetriever]
+/// Interacts with the [FileSystem] and uses [PathProvider] and [AudioPlayerAdapter]
 /// to manage recording files.
 class AudioFileManagerImpl implements AudioFileManager {
   final FileSystem fileSystem;
   final PathProvider pathProvider;
-  final AudioDurationRetriever audioDurationRetriever;
+  final AudioPlayerAdapter audioPlayerAdapter;
   // Using centralized logger with level OFF
   final logger = Logger(level: Level.off);
 
   AudioFileManagerImpl({
     required this.fileSystem,
     required this.pathProvider,
-    required this.audioDurationRetriever,
+    required this.audioPlayerAdapter,
   });
 
   @override
@@ -146,7 +146,7 @@ class AudioFileManagerImpl implements AudioFileManager {
         throw AudioFileSystemException('Path is not a file: $path');
       }
 
-      final duration = await audioDurationRetriever.getDuration(path);
+      final duration = await audioPlayerAdapter.getDuration(path);
 
       // Use modified time as created time
       final createdAt = stat.modified;

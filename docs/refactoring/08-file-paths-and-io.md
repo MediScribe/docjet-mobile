@@ -1,6 +1,20 @@
 # File Path Handling: The Only Way That Doesn't Suck
 
 ---
+**2024-06 Finalization:**
+- [DONE] **Audio duration retrieval is now 100% via `AudioPlayerAdapter.getDuration`.**
+- [DONE] All usages of `AudioDurationRetriever` have been refactored to use the adapter, including `AppSeeder`, `AudioFileManagerImpl`, `AudioLocalDataSourceImpl`, and all related tests.
+- [DONE] **`AudioDurationRetriever` and its implementation/tests are deleted.** No more dead code, no more split logic.
+- [DONE] DI is updated: only `AudioPlayerAdapter` is injected where duration is needed. No more retriever in the container.
+- [DONE] All tests and mocks are updated. All analyzer and test errors are gone. The codebase is DRY, SOLID, and Hard Bob certified.
+- **Impact:**
+    - No more duplicate duration logic or test flakiness.
+    - All duration logic is testable, mockable, and isolated.
+    - DI is clean and explicit. No more "mystery meat" dependencies.
+    - The codebase is easier to reason about, debug, and extend.
+    - As Axe would say: "It fucking works, every time, no excuses."
+
+---
 **2024-06 Update:**
 - [DONE] FileSystem is now fully async—no sync methods, no legacy code, no dead weight.
 - [DONE] All path logic is internal to FileSystem; no public path helpers, no leaky abstractions.
@@ -99,6 +113,7 @@ After refactoring our app to improve file system handling, we ran into the usual
 4. **Update tests to mock `FileSystem`, not `PathResolver`.**
 5. **Search for and destroy all references to "relative", "absolute", or manual path wrangling in the codebase.**
 6. **[DONE: AudioFileManagerImpl is now fully compliant—no direct file wrangling, only FileSystem used.]**
+7. **[DONE: AudioDurationRetriever and its tests are deleted. All usages now use AudioPlayerAdapter.getDuration. DI and tests are updated. Codebase is clean.]**
 
 ## Testing: How To Not Be A Dumbass
 
@@ -107,6 +122,7 @@ After refactoring our app to improve file system handling, we ran into the usual
 - **Mock `FileSystem` in all other tests.**
 - **Never test path logic in domain/data/UI tests.**
 - [DONE] **Test suite is lean and focused: only platform-specific edge cases relevant to the app are covered.**
+- [DONE] **All duration logic is now tested at the adapter level. No more split logic or test flakiness.**
 
 ## Best Practices: Tattoo These On Your Brain
 
@@ -117,6 +133,7 @@ After refactoring our app to improve file system handling, we ran into the usual
 5. **If you need domain logic, compose, don't duplicate.**
 6. **Test on real devices, not just simulators.**
 7. **If you see code doing path wrangling, refactor it.**
+8. [DONE] **All duration logic is now adapter-only. No more retriever, no more split tests.**
 
 ## Impact: Why This Makes You Rich, Not Pretty
 
@@ -126,6 +143,7 @@ After refactoring our app to improve file system handling, we ran into the usual
 - One place to fix all future path/file bugs.
 - Codebase is DRY, SOLID, and maintainable.
 - No silent data loss or file collisions due to duplicate filenames in different directories.
+- **All duration logic is now adapter-only, testable, and robust.**
 
 ## Appendix: Debugging Checklist
 

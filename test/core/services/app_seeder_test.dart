@@ -1,6 +1,6 @@
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/services/app_seeder.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 @GenerateMocks([
   LocalJobStore,
   FileSystem,
-  AudioDurationRetriever,
+  AudioPlayerAdapter,
   SharedPreferences,
 ])
 import 'app_seeder_test.mocks.dart';
@@ -41,7 +41,7 @@ void main() {
     late MockFileSystem mockFileSystem;
     late MockSharedPreferences mockPrefs;
     late MockLocalJobStore mockLocalJobStore;
-    late MockAudioDurationRetriever mockAudioDurationRetriever;
+    late MockAudioPlayerAdapter mockAudioPlayerAdapter;
 
     // Test constants
     const seedingDoneKey = 'app_seeding_done_v1';
@@ -53,25 +53,22 @@ void main() {
       mockFileSystem = MockFileSystem();
       mockPrefs = MockSharedPreferences();
       mockLocalJobStore = MockLocalJobStore();
-      mockAudioDurationRetriever = MockAudioDurationRetriever();
+      mockAudioPlayerAdapter = MockAudioPlayerAdapter();
 
       // Setup default behavior for mocks
       when(mockPrefs.getBool(any)).thenReturn(null);
       when(mockFileSystem.fileExists(any)).thenAnswer((_) async => false);
       when(mockLocalJobStore.getJob(any)).thenAnswer((_) async => null);
-      when(mockAudioDurationRetriever.getDuration(any)).thenAnswer(
+      when(mockAudioPlayerAdapter.getDuration(any)).thenAnswer(
         (_) async => const Duration(milliseconds: testDurationMillis),
       );
-      when(
-        mockFileSystem.getAbsolutePath(any),
-      ).thenAnswer((_) async => '/absolute/path/test_sample.m4a');
 
       // Create appSeeder with test paths
       appSeeder = AppSeeder(
         fileSystem: mockFileSystem,
         prefs: mockPrefs,
         localJobStore: mockLocalJobStore,
-        audioDurationRetriever: mockAudioDurationRetriever,
+        audioPlayerAdapter: mockAudioPlayerAdapter,
         sampleAssetPath: testSampleAssetPath,
         sampleRelativePath: testSampleRelativePath,
       );

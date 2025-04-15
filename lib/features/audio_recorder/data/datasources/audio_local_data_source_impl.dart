@@ -11,7 +11,7 @@ import '../services/audio_concatenation_service.dart';
 import 'audio_local_data_source.dart';
 import '../exceptions/audio_exceptions.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 
@@ -22,7 +22,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
   final AudioConcatenationService audioConcatenationService;
   final FileSystem fileSystem;
   final LocalJobStore localJobStore;
-  final AudioDurationRetriever audioDurationRetriever;
+  final AudioPlayerAdapter audioPlayerAdapter;
 
   AudioLocalDataSourceImpl({
     required this.recorder,
@@ -31,7 +31,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
     required this.audioConcatenationService,
     required this.fileSystem,
     required this.localJobStore,
-    required this.audioDurationRetriever,
+    required this.audioPlayerAdapter,
   });
 
   @override
@@ -118,7 +118,7 @@ class AudioLocalDataSourceImpl implements AudioLocalDataSource {
         );
       }
 
-      final duration = await audioDurationRetriever.getDuration(stoppedPath);
+      final duration = await audioPlayerAdapter.getDuration(stoppedPath);
       final String relativeFilePath =
           stoppedPath.contains('/') ? stoppedPath.split('/').last : stoppedPath;
       final job = LocalJob(

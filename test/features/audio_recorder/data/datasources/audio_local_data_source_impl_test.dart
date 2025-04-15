@@ -2,24 +2,24 @@
 
 import 'dart:io'; // Keep for FileSystemEntityType, FileSystemException, Directory
 
+import 'package:dartz/dartz.dart'; // For Either if needed in mocks/results
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/core/platform/permission_handler.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/datasources/audio_local_data_source_impl.dart';
+import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart'; // For potential exception tests
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart'; // Needed for test setup
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'; // For verifying saveJob arguments later
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'; // For status enum
+import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:permission_handler/permission_handler.dart'
     show Permission, PermissionStatus; // Use specific imports if needed
 import 'package:record/record.dart'; // For mocking AudioRecorder
-import 'package:dartz/dartz.dart'; // For Either if needed in mocks/results
-import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart'; // For potential exception tests
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'; // For verifying saveJob arguments later
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
-import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'; // For status enum
 
 // Import generated mocks (will be created after running build_runner)
 import 'audio_local_data_source_impl_test.mocks.dart';
@@ -32,7 +32,7 @@ import 'audio_local_data_source_impl_test.mocks.dart';
   AudioConcatenationService,
   FileSystem,
   LocalJobStore,
-  AudioDurationRetriever,
+  AudioPlayerAdapter,
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +44,7 @@ void main() {
   late MockAudioConcatenationService mockAudioConcatenationService;
   late MockFileSystem mockFileSystem;
   late MockLocalJobStore mockLocalJobStore;
-  late MockAudioDurationRetriever mockAudioDurationRetriever;
+  late MockAudioPlayerAdapter mockAudioPlayerAdapter;
   late AudioLocalDataSourceImpl dataSource;
 
   setUpAll(() {
@@ -69,7 +69,7 @@ void main() {
     mockAudioConcatenationService = MockAudioConcatenationService();
     mockFileSystem = MockFileSystem();
     mockLocalJobStore = MockLocalJobStore();
-    mockAudioDurationRetriever = MockAudioDurationRetriever();
+    mockAudioPlayerAdapter = MockAudioPlayerAdapter();
 
     // Create the instance of the class under test with mocks
     dataSource = AudioLocalDataSourceImpl(
@@ -79,7 +79,7 @@ void main() {
       audioConcatenationService: mockAudioConcatenationService,
       fileSystem: mockFileSystem,
       localJobStore: mockLocalJobStore,
-      audioDurationRetriever: mockAudioDurationRetriever,
+      audioPlayerAdapter: mockAudioPlayerAdapter,
     );
 
     // Common mock setup for path provider - REMOVED mockDirectory references
@@ -117,7 +117,7 @@ void main() {
         when(mockFileSystem.fileExists(any)).thenAnswer((_) async => true);
         // Add stub for getDuration, even though this test doesn't verify it, because the code now calls it.
         when(
-          mockAudioDurationRetriever.getDuration(any),
+          mockAudioPlayerAdapter.getDuration(any),
         ).thenAnswer((_) async => Duration.zero);
         // Add stub for saveJob as well, as the code path now reaches it.
         when(mockLocalJobStore.saveJob(any)).thenAnswer((_) async {});
@@ -131,7 +131,7 @@ void main() {
         verify(mockRecorder.stop());
         verify(mockFileSystem.fileExists(tRecordingPath));
         // Now verify the new calls were made, even if the test name doesn't imply it
-        verify(mockAudioDurationRetriever.getDuration(tRecordingPath));
+        verify(mockAudioPlayerAdapter.getDuration(tRecordingPath));
         verify(mockLocalJobStore.saveJob(any));
         // Check the result
         expect(result, equals(tRecordingPath));
@@ -155,7 +155,7 @@ void main() {
         verifyZeroInteractions(
           mockFileSystem,
         ); // Still expect no interaction here
-        verifyZeroInteractions(mockAudioDurationRetriever);
+        verifyZeroInteractions(mockAudioPlayerAdapter);
         verifyZeroInteractions(mockLocalJobStore);
       },
     );
@@ -174,7 +174,7 @@ void main() {
         await expectLater(call, throwsA(isA<RecordingFileNotFoundException>()));
         verify(mockRecorder.stop());
         verify(mockFileSystem.fileExists(tRecordingPath));
-        verifyZeroInteractions(mockAudioDurationRetriever);
+        verifyZeroInteractions(mockAudioPlayerAdapter);
         verifyZeroInteractions(mockLocalJobStore);
       },
     );
@@ -194,7 +194,7 @@ void main() {
           mockFileSystem.fileExists(tFinalPath),
         ).thenAnswer((_) async => true);
         when(
-          mockAudioDurationRetriever.getDuration(tFinalPath),
+          mockAudioPlayerAdapter.getDuration(tFinalPath),
         ).thenAnswer((_) async => tDuration);
         // Use `any` for the job argument initially, can refine later if needed
         when(mockLocalJobStore.saveJob(any)).thenAnswer((_) async {});
@@ -210,7 +210,7 @@ void main() {
           equals(tFinalPath),
         ); // Ensure it still returns the correct FULL path
         // Verify duration retrieval
-        verify(mockAudioDurationRetriever.getDuration(tFinalPath));
+        verify(mockAudioPlayerAdapter.getDuration(tFinalPath));
         // Verify job saving
         final verificationResult = verify(
           mockLocalJobStore.saveJob(captureAny),

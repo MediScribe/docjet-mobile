@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/platform/path_provider.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/exceptions/audio_exceptions.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_file_manager_impl.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/audio_record.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,7 +52,7 @@ class FakeFileStat implements FileStat {
 @GenerateNiceMocks([
   MockSpec<FileSystem>(),
   MockSpec<PathProvider>(),
-  MockSpec<AudioDurationRetriever>(),
+  MockSpec<AudioPlayerAdapter>(),
   MockSpec<Directory>(),
   MockSpec<FileSystemEntity>(),
   MockSpec<FileStat>(),
@@ -63,7 +63,7 @@ void main() {
   late AudioFileManagerImpl fileManager;
   late MockFileSystem mockFileSystem;
   late MockPathProvider mockPathProvider;
-  late MockAudioDurationRetriever mockAudioDurationRetriever;
+  late MockAudioPlayerAdapter mockAudioPlayerAdapter;
   late MockDirectory mockDirectory;
 
   // Helper to create mock FileSystemEntity
@@ -83,13 +83,13 @@ void main() {
   setUp(() {
     mockFileSystem = MockFileSystem();
     mockPathProvider = MockPathProvider();
-    mockAudioDurationRetriever = MockAudioDurationRetriever();
+    mockAudioPlayerAdapter = MockAudioPlayerAdapter();
     mockDirectory = MockDirectory();
 
     fileManager = AudioFileManagerImpl(
       fileSystem: mockFileSystem,
       pathProvider: mockPathProvider,
-      audioDurationRetriever: mockAudioDurationRetriever,
+      audioPlayerAdapter: mockAudioPlayerAdapter,
     );
 
     // Common mock setup for pathProvider
@@ -105,9 +105,7 @@ void main() {
     test('should call fileSystem.deleteFile when file exists', () async {
       // Arrange
       when(mockFileSystem.fileExists(any)).thenAnswer((_) async => true);
-      when(
-        mockFileSystem.deleteFile(any),
-      ).thenAnswer((_) async {
+      when(mockFileSystem.deleteFile(any)).thenAnswer((_) async {
         return;
       }); // Completes normally
 

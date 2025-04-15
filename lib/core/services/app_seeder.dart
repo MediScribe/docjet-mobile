@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart';
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart';
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart';
@@ -19,7 +19,7 @@ class AppSeeder {
   final FileSystem _fileSystem;
   final SharedPreferences _prefs;
   final LocalJobStore _localJobStore;
-  final AudioDurationRetriever _audioDurationRetriever;
+  final AudioPlayerAdapter _audioPlayerAdapter;
 
   // Configuration and constants
   static const String _seedingDonePrefsKey = 'app_seeding_done_v1';
@@ -40,13 +40,13 @@ class AppSeeder {
     required FileSystem fileSystem,
     required SharedPreferences prefs,
     required LocalJobStore localJobStore,
-    required AudioDurationRetriever audioDurationRetriever,
+    required AudioPlayerAdapter audioPlayerAdapter,
     this.sampleAssetPath = _defaultSampleAssetPath,
     this.sampleRelativePath = _defaultSampleRelativePath,
   }) : _fileSystem = fileSystem,
        _prefs = prefs,
        _localJobStore = localJobStore,
-       _audioDurationRetriever = audioDurationRetriever {
+       _audioPlayerAdapter = audioPlayerAdapter {
     logger.d('$_tag AppSeeder initialized with debug logging enabled');
   }
 
@@ -183,11 +183,10 @@ class AppSeeder {
       fileCopied = true;
       logger.d('$_tag Sample file written successfully');
 
-      // Get duration of the copied file - need absolute path for the player
-      final absolutePath = await _fileSystem.getAbsolutePath(
+      // Get duration of the copied file - pass relative path directly
+      final duration = await _audioPlayerAdapter.getDuration(
         sampleRelativePath,
       );
-      final duration = await _audioDurationRetriever.getDuration(absolutePath);
       logger.d('$_tag Audio duration: ${duration.inMilliseconds}ms');
 
       // Create the local job
