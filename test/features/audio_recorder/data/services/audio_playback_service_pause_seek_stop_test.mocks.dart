@@ -29,6 +29,16 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
+class _FakeDuration_0 extends _i1.SmartFake implements Duration {
+  _FakeDuration_0(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
 /// A class which mocks [AudioPlayerAdapter].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -129,6 +139,21 @@ class MockAudioPlayerAdapter extends _i1.Mock
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
       ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
+        Invocation.method(
+          #getDuration,
+          [absolutePath],
+        ),
+        returnValue: _i3.Future<Duration>.value(_FakeDuration_0(
+          this,
+          Invocation.method(
+            #getDuration,
+            [absolutePath],
+          ),
+        )),
+      ) as _i3.Future<Duration>);
 }
 
 /// A class which mocks [PlaybackStateMapper].

@@ -5,12 +5,13 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 import 'dart:io' as _i2;
-import 'dart:typed_data' as _i9;
+import 'dart:typed_data' as _i8;
 
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i8;
-import 'package:docjet_mobile/core/platform/path_provider.dart' as _i7;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
-    as _i11;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i7;
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'
+    as _i9;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
+    as _i10;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
     as _i5;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
@@ -18,8 +19,7 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcript
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart'
     as _i3;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i10;
-import 'package:shared_preferences/src/shared_preferences_legacy.dart' as _i12;
+import 'package:shared_preferences/src/shared_preferences_legacy.dart' as _i11;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -35,8 +35,8 @@ import 'package:shared_preferences/src/shared_preferences_legacy.dart' as _i12;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeDirectory_0 extends _i1.SmartFake implements _i2.Directory {
-  _FakeDirectory_0(
+class _FakeFileStat_0 extends _i1.SmartFake implements _i2.FileStat {
+  _FakeFileStat_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -45,18 +45,8 @@ class _FakeDirectory_0 extends _i1.SmartFake implements _i2.Directory {
         );
 }
 
-class _FakeFileStat_1 extends _i1.SmartFake implements _i2.FileStat {
-  _FakeFileStat_1(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeDuration_2 extends _i1.SmartFake implements Duration {
-  _FakeDuration_2(
+class _FakeDuration_1 extends _i1.SmartFake implements Duration {
+  _FakeDuration_1(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -141,35 +131,10 @@ class MockLocalJobStore extends _i1.Mock implements _i3.LocalJobStore {
       ) as _i4.Future<void>);
 }
 
-/// A class which mocks [PathProvider].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockPathProvider extends _i1.Mock implements _i7.PathProvider {
-  MockPathProvider() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getApplicationDocumentsDirectory,
-          [],
-        ),
-        returnValue: _i4.Future<_i2.Directory>.value(_FakeDirectory_0(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-      ) as _i4.Future<_i2.Directory>);
-}
-
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i8.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i7.FileSystem {
   MockFileSystem() {
     _i1.throwOnMissingStub(this);
   }
@@ -180,7 +145,7 @@ class MockFileSystem extends _i1.Mock implements _i8.FileSystem {
           #stat,
           [path],
         ),
-        returnValue: _i4.Future<_i2.FileStat>.value(_FakeFileStat_1(
+        returnValue: _i4.Future<_i2.FileStat>.value(_FakeFileStat_0(
           this,
           Invocation.method(
             #stat,
@@ -243,19 +208,9 @@ class MockFileSystem extends _i1.Mock implements _i8.FileSystem {
       ) as _i4.Stream<_i2.FileSystemEntity>);
 
   @override
-  List<_i2.FileSystemEntity> listDirectorySync(String? path) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #listDirectorySync,
-          [path],
-        ),
-        returnValue: <_i2.FileSystemEntity>[],
-      ) as List<_i2.FileSystemEntity>);
-
-  @override
   _i4.Future<void> writeFile(
     String? path,
-    _i9.Uint8List? bytes,
+    _i8.Uint8List? bytes,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -270,58 +225,127 @@ class MockFileSystem extends _i1.Mock implements _i8.FileSystem {
       ) as _i4.Future<void>);
 
   @override
-  _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
-      (super.noSuchMethod(
+  _i4.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
-          #getApplicationDocumentsDirectory,
-          [],
+          #readFile,
+          [path],
         ),
-        returnValue: _i4.Future<_i2.Directory>.value(_FakeDirectory_0(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-      ) as _i4.Future<_i2.Directory>);
-
-  @override
-  _i4.Future<String> getAbsolutePath(String? relativePath) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAbsolutePath,
-          [relativePath],
-        ),
-        returnValue: _i4.Future<String>.value(_i10.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-      ) as _i4.Future<String>);
+        returnValue: _i4.Future<List<int>>.value(<int>[]),
+      ) as _i4.Future<List<int>>);
 }
 
-/// A class which mocks [AudioDurationRetriever].
+/// A class which mocks [AudioPlayerAdapter].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationRetriever extends _i1.Mock
-    implements _i11.AudioDurationRetriever {
-  MockAudioDurationRetriever() {
+class MockAudioPlayerAdapter extends _i1.Mock
+    implements _i9.AudioPlayerAdapter {
+  MockAudioPlayerAdapter() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<Duration> getDuration(String? filePath) => (super.noSuchMethod(
+  _i4.Stream<_i10.DomainPlayerState> get onPlayerStateChanged =>
+      (super.noSuchMethod(
+        Invocation.getter(#onPlayerStateChanged),
+        returnValue: _i4.Stream<_i10.DomainPlayerState>.empty(),
+      ) as _i4.Stream<_i10.DomainPlayerState>);
+
+  @override
+  _i4.Stream<Duration> get onDurationChanged => (super.noSuchMethod(
+        Invocation.getter(#onDurationChanged),
+        returnValue: _i4.Stream<Duration>.empty(),
+      ) as _i4.Stream<Duration>);
+
+  @override
+  _i4.Stream<Duration> get onPositionChanged => (super.noSuchMethod(
+        Invocation.getter(#onPositionChanged),
+        returnValue: _i4.Stream<Duration>.empty(),
+      ) as _i4.Stream<Duration>);
+
+  @override
+  _i4.Stream<void> get onPlayerComplete => (super.noSuchMethod(
+        Invocation.getter(#onPlayerComplete),
+        returnValue: _i4.Stream<void>.empty(),
+      ) as _i4.Stream<void>);
+
+  @override
+  _i4.Future<void> setSourceUrl(String? url) => (super.noSuchMethod(
+        Invocation.method(
+          #setSourceUrl,
+          [url],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> pause() => (super.noSuchMethod(
+        Invocation.method(
+          #pause,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> resume() => (super.noSuchMethod(
+        Invocation.method(
+          #resume,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> seek(
+    String? filePath,
+    Duration? position,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #seek,
+          [
+            filePath,
+            position,
+          ],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> stop() => (super.noSuchMethod(
+        Invocation.method(
+          #stop,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> dispose() => (super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
         Invocation.method(
           #getDuration,
-          [filePath],
+          [absolutePath],
         ),
-        returnValue: _i4.Future<Duration>.value(_FakeDuration_2(
+        returnValue: _i4.Future<Duration>.value(_FakeDuration_1(
           this,
           Invocation.method(
             #getDuration,
-            [filePath],
+            [absolutePath],
           ),
         )),
       ) as _i4.Future<Duration>);
@@ -330,7 +354,7 @@ class MockAudioDurationRetriever extends _i1.Mock
 /// A class which mocks [SharedPreferences].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSharedPreferences extends _i1.Mock implements _i12.SharedPreferences {
+class MockSharedPreferences extends _i1.Mock implements _i11.SharedPreferences {
   MockSharedPreferences() {
     _i1.throwOnMissingStub(this);
   }

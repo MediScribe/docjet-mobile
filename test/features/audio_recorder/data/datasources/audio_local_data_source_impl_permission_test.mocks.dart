@@ -8,12 +8,16 @@ import 'dart:io' as _i3;
 import 'dart:typed_data' as _i6;
 
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i7;
-import 'package:docjet_mobile/core/platform/path_provider.dart' as _i9;
-import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i10;
+import 'package:docjet_mobile/core/platform/path_provider.dart' as _i8;
+import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i9;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
-    as _i12;
+    as _i11;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
     as _i13;
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'
+    as _i17;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
+    as _i18;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
     as _i15;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
@@ -21,8 +25,8 @@ import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcript
 import 'package:docjet_mobile/features/audio_recorder/domain/repositories/local_job_store.dart'
     as _i14;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i8;
-import 'package:permission_handler/permission_handler.dart' as _i11;
+import 'package:mockito/src/dummies.dart' as _i12;
+import 'package:permission_handler/permission_handler.dart' as _i10;
 import 'package:record/src/record.dart' as _i4;
 import 'package:record_platform_interface/record_platform_interface.dart'
     as _i2;
@@ -362,17 +366,6 @@ class MockFileSystem extends _i1.Mock implements _i7.FileSystem {
       ) as _i5.Stream<_i3.FileSystemEntity>);
 
   @override
-  List<_i3.FileSystemEntity> listDirectorySync(String? path) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #listDirectorySync,
-          [path],
-        ),
-        returnValue: <_i3.FileSystemEntity>[],
-        returnValueForMissingStub: <_i3.FileSystemEntity>[],
-      ) as List<_i3.FileSystemEntity>);
-
-  @override
   _i5.Future<void> writeFile(
     String? path,
     _i6.Uint8List? bytes,
@@ -390,58 +383,20 @@ class MockFileSystem extends _i1.Mock implements _i7.FileSystem {
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<_i3.Directory> getApplicationDocumentsDirectory() =>
-      (super.noSuchMethod(
+  _i5.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
-          #getApplicationDocumentsDirectory,
-          [],
+          #readFile,
+          [path],
         ),
-        returnValue: _i5.Future<_i3.Directory>.value(_FakeDirectory_2(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i5.Future<_i3.Directory>.value(_FakeDirectory_2(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-      ) as _i5.Future<_i3.Directory>);
-
-  @override
-  _i5.Future<String> getAbsolutePath(String? relativePath) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAbsolutePath,
-          [relativePath],
-        ),
-        returnValue: _i5.Future<String>.value(_i8.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i5.Future<String>.value(_i8.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-      ) as _i5.Future<String>);
+        returnValue: _i5.Future<List<int>>.value(<int>[]),
+        returnValueForMissingStub: _i5.Future<List<int>>.value(<int>[]),
+      ) as _i5.Future<List<int>>);
 }
 
 /// A class which mocks [PathProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPathProvider extends _i1.Mock implements _i9.PathProvider {
+class MockPathProvider extends _i1.Mock implements _i8.PathProvider {
   @override
   _i5.Future<_i3.Directory> getApplicationDocumentsDirectory() =>
       (super.noSuchMethod(
@@ -470,35 +425,35 @@ class MockPathProvider extends _i1.Mock implements _i9.PathProvider {
 /// A class which mocks [PermissionHandler].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPermissionHandler extends _i1.Mock implements _i10.PermissionHandler {
+class MockPermissionHandler extends _i1.Mock implements _i9.PermissionHandler {
   @override
-  _i5.Future<Map<_i11.Permission, _i11.PermissionStatus>> request(
-          List<_i11.Permission>? permissions) =>
+  _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>> request(
+          List<_i10.Permission>? permissions) =>
       (super.noSuchMethod(
         Invocation.method(
           #request,
           [permissions],
         ),
         returnValue:
-            _i5.Future<Map<_i11.Permission, _i11.PermissionStatus>>.value(
-                <_i11.Permission, _i11.PermissionStatus>{}),
+            _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>>.value(
+                <_i10.Permission, _i10.PermissionStatus>{}),
         returnValueForMissingStub:
-            _i5.Future<Map<_i11.Permission, _i11.PermissionStatus>>.value(
-                <_i11.Permission, _i11.PermissionStatus>{}),
-      ) as _i5.Future<Map<_i11.Permission, _i11.PermissionStatus>>);
+            _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>>.value(
+                <_i10.Permission, _i10.PermissionStatus>{}),
+      ) as _i5.Future<Map<_i10.Permission, _i10.PermissionStatus>>);
 
   @override
-  _i5.Future<_i11.PermissionStatus> status(_i11.Permission? permission) =>
+  _i5.Future<_i10.PermissionStatus> status(_i10.Permission? permission) =>
       (super.noSuchMethod(
         Invocation.method(
           #status,
           [permission],
         ),
-        returnValue: _i5.Future<_i11.PermissionStatus>.value(
-            _i11.PermissionStatus.denied),
-        returnValueForMissingStub: _i5.Future<_i11.PermissionStatus>.value(
-            _i11.PermissionStatus.denied),
-      ) as _i5.Future<_i11.PermissionStatus>);
+        returnValue: _i5.Future<_i10.PermissionStatus>.value(
+            _i10.PermissionStatus.denied),
+        returnValueForMissingStub: _i5.Future<_i10.PermissionStatus>.value(
+            _i10.PermissionStatus.denied),
+      ) as _i5.Future<_i10.PermissionStatus>);
 
   @override
   _i5.Future<bool> openAppSettings() => (super.noSuchMethod(
@@ -515,7 +470,7 @@ class MockPermissionHandler extends _i1.Mock implements _i10.PermissionHandler {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAudioConcatenationService extends _i1.Mock
-    implements _i12.AudioConcatenationService {
+    implements _i11.AudioConcatenationService {
   @override
   _i5.Future<String> concatenate(List<String>? inputFilePaths) =>
       (super.noSuchMethod(
@@ -523,7 +478,7 @@ class MockAudioConcatenationService extends _i1.Mock
           #concatenate,
           [inputFilePaths],
         ),
-        returnValue: _i5.Future<String>.value(_i8.dummyValue<String>(
+        returnValue: _i5.Future<String>.value(_i12.dummyValue<String>(
           this,
           Invocation.method(
             #concatenate,
@@ -531,7 +486,7 @@ class MockAudioConcatenationService extends _i1.Mock
           ),
         )),
         returnValueForMissingStub:
-            _i5.Future<String>.value(_i8.dummyValue<String>(
+            _i5.Future<String>.value(_i12.dummyValue<String>(
           this,
           Invocation.method(
             #concatenate,
@@ -644,4 +599,128 @@ class MockLocalJobStore extends _i1.Mock implements _i14.LocalJobStore {
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
+}
+
+/// A class which mocks [AudioPlayerAdapter].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAudioPlayerAdapter extends _i1.Mock
+    implements _i17.AudioPlayerAdapter {
+  @override
+  _i5.Stream<_i18.DomainPlayerState> get onPlayerStateChanged =>
+      (super.noSuchMethod(
+        Invocation.getter(#onPlayerStateChanged),
+        returnValue: _i5.Stream<_i18.DomainPlayerState>.empty(),
+        returnValueForMissingStub: _i5.Stream<_i18.DomainPlayerState>.empty(),
+      ) as _i5.Stream<_i18.DomainPlayerState>);
+
+  @override
+  _i5.Stream<Duration> get onDurationChanged => (super.noSuchMethod(
+        Invocation.getter(#onDurationChanged),
+        returnValue: _i5.Stream<Duration>.empty(),
+        returnValueForMissingStub: _i5.Stream<Duration>.empty(),
+      ) as _i5.Stream<Duration>);
+
+  @override
+  _i5.Stream<Duration> get onPositionChanged => (super.noSuchMethod(
+        Invocation.getter(#onPositionChanged),
+        returnValue: _i5.Stream<Duration>.empty(),
+        returnValueForMissingStub: _i5.Stream<Duration>.empty(),
+      ) as _i5.Stream<Duration>);
+
+  @override
+  _i5.Stream<void> get onPlayerComplete => (super.noSuchMethod(
+        Invocation.getter(#onPlayerComplete),
+        returnValue: _i5.Stream<void>.empty(),
+        returnValueForMissingStub: _i5.Stream<void>.empty(),
+      ) as _i5.Stream<void>);
+
+  @override
+  _i5.Future<void> setSourceUrl(String? url) => (super.noSuchMethod(
+        Invocation.method(
+          #setSourceUrl,
+          [url],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> pause() => (super.noSuchMethod(
+        Invocation.method(
+          #pause,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> resume() => (super.noSuchMethod(
+        Invocation.method(
+          #resume,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> seek(
+    String? filePath,
+    Duration? position,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #seek,
+          [
+            filePath,
+            position,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> stop() => (super.noSuchMethod(
+        Invocation.method(
+          #stop,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> dispose() => (super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
+        Invocation.method(
+          #getDuration,
+          [absolutePath],
+        ),
+        returnValue: _i5.Future<Duration>.value(_FakeDuration_3(
+          this,
+          Invocation.method(
+            #getDuration,
+            [absolutePath],
+          ),
+        )),
+        returnValueForMissingStub: _i5.Future<Duration>.value(_FakeDuration_3(
+          this,
+          Invocation.method(
+            #getDuration,
+            [absolutePath],
+          ),
+        )),
+      ) as _i5.Future<Duration>);
 }

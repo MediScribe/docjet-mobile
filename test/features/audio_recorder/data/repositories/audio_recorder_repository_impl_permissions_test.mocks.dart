@@ -805,17 +805,6 @@ class MockFileSystem extends _i1.Mock implements _i19.FileSystem {
       ) as _i7.Stream<_i5.FileSystemEntity>);
 
   @override
-  List<_i5.FileSystemEntity> listDirectorySync(String? path) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #listDirectorySync,
-          [path],
-        ),
-        returnValue: <_i5.FileSystemEntity>[],
-        returnValueForMissingStub: <_i5.FileSystemEntity>[],
-      ) as List<_i5.FileSystemEntity>);
-
-  @override
   _i7.Future<void> writeFile(
     String? path,
     _i18.Uint8List? bytes,
@@ -833,52 +822,14 @@ class MockFileSystem extends _i1.Mock implements _i19.FileSystem {
       ) as _i7.Future<void>);
 
   @override
-  _i7.Future<_i5.Directory> getApplicationDocumentsDirectory() =>
-      (super.noSuchMethod(
+  _i7.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
-          #getApplicationDocumentsDirectory,
-          [],
+          #readFile,
+          [path],
         ),
-        returnValue: _i7.Future<_i5.Directory>.value(_FakeDirectory_4(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i7.Future<_i5.Directory>.value(_FakeDirectory_4(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-      ) as _i7.Future<_i5.Directory>);
-
-  @override
-  _i7.Future<String> getAbsolutePath(String? relativePath) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAbsolutePath,
-          [relativePath],
-        ),
-        returnValue: _i7.Future<String>.value(_i8.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i7.Future<String>.value(_i8.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-      ) as _i7.Future<String>);
+        returnValue: _i7.Future<List<int>>.value(<int>[]),
+        returnValueForMissingStub: _i7.Future<List<int>>.value(<int>[]),
+      ) as _i7.Future<List<int>>);
 }
 
 /// A class which mocks [PathProvider].

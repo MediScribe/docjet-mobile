@@ -12,8 +12,10 @@ import 'package:docjet_mobile/core/platform/path_provider.dart' as _i7;
 import 'package:docjet_mobile/core/platform/permission_handler.dart' as _i8;
 import 'package:docjet_mobile/features/audio_recorder/data/services/audio_concatenation_service.dart'
     as _i10;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'
     as _i16;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
+    as _i17;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/local_job.dart'
     as _i14;
 import 'package:docjet_mobile/features/audio_recorder/domain/entities/transcription_status.dart'
@@ -432,16 +434,6 @@ class MockFileSystem extends _i1.Mock implements _i12.FileSystem {
       ) as _i5.Stream<_i3.FileSystemEntity>);
 
   @override
-  List<_i3.FileSystemEntity> listDirectorySync(String? path) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #listDirectorySync,
-          [path],
-        ),
-        returnValue: <_i3.FileSystemEntity>[],
-      ) as List<_i3.FileSystemEntity>);
-
-  @override
   _i5.Future<void> writeFile(
     String? path,
     _i6.Uint8List? bytes,
@@ -459,36 +451,13 @@ class MockFileSystem extends _i1.Mock implements _i12.FileSystem {
       ) as _i5.Future<void>);
 
   @override
-  _i5.Future<_i3.Directory> getApplicationDocumentsDirectory() =>
-      (super.noSuchMethod(
+  _i5.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
-          #getApplicationDocumentsDirectory,
-          [],
+          #readFile,
+          [path],
         ),
-        returnValue: _i5.Future<_i3.Directory>.value(_FakeDirectory_1(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-      ) as _i5.Future<_i3.Directory>);
-
-  @override
-  _i5.Future<String> getAbsolutePath(String? relativePath) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAbsolutePath,
-          [relativePath],
-        ),
-        returnValue: _i5.Future<String>.value(_i11.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-      ) as _i5.Future<String>);
+        returnValue: _i5.Future<List<int>>.value(<int>[]),
+      ) as _i5.Future<List<int>>);
 }
 
 /// A class which mocks [LocalJobStore].
@@ -567,26 +536,118 @@ class MockLocalJobStore extends _i1.Mock implements _i13.LocalJobStore {
       ) as _i5.Future<void>);
 }
 
-/// A class which mocks [AudioDurationRetriever].
+/// A class which mocks [AudioPlayerAdapter].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationRetriever extends _i1.Mock
-    implements _i16.AudioDurationRetriever {
-  MockAudioDurationRetriever() {
+class MockAudioPlayerAdapter extends _i1.Mock
+    implements _i16.AudioPlayerAdapter {
+  MockAudioPlayerAdapter() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<Duration> getDuration(String? filePath) => (super.noSuchMethod(
+  _i5.Stream<_i17.DomainPlayerState> get onPlayerStateChanged =>
+      (super.noSuchMethod(
+        Invocation.getter(#onPlayerStateChanged),
+        returnValue: _i5.Stream<_i17.DomainPlayerState>.empty(),
+      ) as _i5.Stream<_i17.DomainPlayerState>);
+
+  @override
+  _i5.Stream<Duration> get onDurationChanged => (super.noSuchMethod(
+        Invocation.getter(#onDurationChanged),
+        returnValue: _i5.Stream<Duration>.empty(),
+      ) as _i5.Stream<Duration>);
+
+  @override
+  _i5.Stream<Duration> get onPositionChanged => (super.noSuchMethod(
+        Invocation.getter(#onPositionChanged),
+        returnValue: _i5.Stream<Duration>.empty(),
+      ) as _i5.Stream<Duration>);
+
+  @override
+  _i5.Stream<void> get onPlayerComplete => (super.noSuchMethod(
+        Invocation.getter(#onPlayerComplete),
+        returnValue: _i5.Stream<void>.empty(),
+      ) as _i5.Stream<void>);
+
+  @override
+  _i5.Future<void> setSourceUrl(String? url) => (super.noSuchMethod(
+        Invocation.method(
+          #setSourceUrl,
+          [url],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> pause() => (super.noSuchMethod(
+        Invocation.method(
+          #pause,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> resume() => (super.noSuchMethod(
+        Invocation.method(
+          #resume,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> seek(
+    String? filePath,
+    Duration? position,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #seek,
+          [
+            filePath,
+            position,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> stop() => (super.noSuchMethod(
+        Invocation.method(
+          #stop,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> dispose() => (super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
         Invocation.method(
           #getDuration,
-          [filePath],
+          [absolutePath],
         ),
         returnValue: _i5.Future<Duration>.value(_FakeDuration_3(
           this,
           Invocation.method(
             #getDuration,
-            [filePath],
+            [absolutePath],
           ),
         )),
       ) as _i5.Future<Duration>);

@@ -8,11 +8,13 @@ import 'dart:io' as _i2;
 import 'dart:typed_data' as _i5;
 
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i3;
-import 'package:docjet_mobile/core/platform/path_provider.dart' as _i7;
-import 'package:docjet_mobile/features/audio_recorder/data/services/audio_duration_retriever.dart'
+import 'package:docjet_mobile/core/platform/path_provider.dart' as _i6;
+import 'package:docjet_mobile/features/audio_recorder/domain/adapters/audio_player_adapter.dart'
+    as _i7;
+import 'package:docjet_mobile/features/audio_recorder/domain/entities/domain_player_state.dart'
     as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i6;
+import 'package:mockito/src/dummies.dart' as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -173,17 +175,6 @@ class MockFileSystem extends _i1.Mock implements _i3.FileSystem {
       ) as _i4.Stream<_i2.FileSystemEntity>);
 
   @override
-  List<_i2.FileSystemEntity> listDirectorySync(String? path) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #listDirectorySync,
-          [path],
-        ),
-        returnValue: <_i2.FileSystemEntity>[],
-        returnValueForMissingStub: <_i2.FileSystemEntity>[],
-      ) as List<_i2.FileSystemEntity>);
-
-  @override
   _i4.Future<void> writeFile(
     String? path,
     _i5.Uint8List? bytes,
@@ -201,58 +192,20 @@ class MockFileSystem extends _i1.Mock implements _i3.FileSystem {
       ) as _i4.Future<void>);
 
   @override
-  _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
-      (super.noSuchMethod(
+  _i4.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
-          #getApplicationDocumentsDirectory,
-          [],
+          #readFile,
+          [path],
         ),
-        returnValue: _i4.Future<_i2.Directory>.value(_FakeDirectory_1(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Directory>.value(_FakeDirectory_1(
-          this,
-          Invocation.method(
-            #getApplicationDocumentsDirectory,
-            [],
-          ),
-        )),
-      ) as _i4.Future<_i2.Directory>);
-
-  @override
-  _i4.Future<String> getAbsolutePath(String? relativePath) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAbsolutePath,
-          [relativePath],
-        ),
-        returnValue: _i4.Future<String>.value(_i6.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<String>.value(_i6.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getAbsolutePath,
-            [relativePath],
-          ),
-        )),
-      ) as _i4.Future<String>);
+        returnValue: _i4.Future<List<int>>.value(<int>[]),
+        returnValueForMissingStub: _i4.Future<List<int>>.value(<int>[]),
+      ) as _i4.Future<List<int>>);
 }
 
 /// A class which mocks [PathProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPathProvider extends _i1.Mock implements _i7.PathProvider {
+class MockPathProvider extends _i1.Mock implements _i6.PathProvider {
   @override
   _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
       (super.noSuchMethod(
@@ -278,29 +231,125 @@ class MockPathProvider extends _i1.Mock implements _i7.PathProvider {
       ) as _i4.Future<_i2.Directory>);
 }
 
-/// A class which mocks [AudioDurationRetriever].
+/// A class which mocks [AudioPlayerAdapter].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAudioDurationRetriever extends _i1.Mock
-    implements _i8.AudioDurationRetriever {
+class MockAudioPlayerAdapter extends _i1.Mock
+    implements _i7.AudioPlayerAdapter {
   @override
-  _i4.Future<Duration> getDuration(String? filePath) => (super.noSuchMethod(
+  _i4.Stream<_i8.DomainPlayerState> get onPlayerStateChanged =>
+      (super.noSuchMethod(
+        Invocation.getter(#onPlayerStateChanged),
+        returnValue: _i4.Stream<_i8.DomainPlayerState>.empty(),
+        returnValueForMissingStub: _i4.Stream<_i8.DomainPlayerState>.empty(),
+      ) as _i4.Stream<_i8.DomainPlayerState>);
+
+  @override
+  _i4.Stream<Duration> get onDurationChanged => (super.noSuchMethod(
+        Invocation.getter(#onDurationChanged),
+        returnValue: _i4.Stream<Duration>.empty(),
+        returnValueForMissingStub: _i4.Stream<Duration>.empty(),
+      ) as _i4.Stream<Duration>);
+
+  @override
+  _i4.Stream<Duration> get onPositionChanged => (super.noSuchMethod(
+        Invocation.getter(#onPositionChanged),
+        returnValue: _i4.Stream<Duration>.empty(),
+        returnValueForMissingStub: _i4.Stream<Duration>.empty(),
+      ) as _i4.Stream<Duration>);
+
+  @override
+  _i4.Stream<void> get onPlayerComplete => (super.noSuchMethod(
+        Invocation.getter(#onPlayerComplete),
+        returnValue: _i4.Stream<void>.empty(),
+        returnValueForMissingStub: _i4.Stream<void>.empty(),
+      ) as _i4.Stream<void>);
+
+  @override
+  _i4.Future<void> setSourceUrl(String? url) => (super.noSuchMethod(
+        Invocation.method(
+          #setSourceUrl,
+          [url],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> pause() => (super.noSuchMethod(
+        Invocation.method(
+          #pause,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> resume() => (super.noSuchMethod(
+        Invocation.method(
+          #resume,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> seek(
+    String? filePath,
+    Duration? position,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #seek,
+          [
+            filePath,
+            position,
+          ],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> stop() => (super.noSuchMethod(
+        Invocation.method(
+          #stop,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> dispose() => (super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<Duration> getDuration(String? absolutePath) => (super.noSuchMethod(
         Invocation.method(
           #getDuration,
-          [filePath],
+          [absolutePath],
         ),
         returnValue: _i4.Future<Duration>.value(_FakeDuration_2(
           this,
           Invocation.method(
             #getDuration,
-            [filePath],
+            [absolutePath],
           ),
         )),
         returnValueForMissingStub: _i4.Future<Duration>.value(_FakeDuration_2(
           this,
           Invocation.method(
             #getDuration,
-            [filePath],
+            [absolutePath],
           ),
         )),
       ) as _i4.Future<Duration>);
@@ -313,11 +362,11 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
   @override
   String get path => (super.noSuchMethod(
         Invocation.getter(#path),
-        returnValue: _i6.dummyValue<String>(
+        returnValue: _i9.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
-        returnValueForMissingStub: _i6.dummyValue<String>(
+        returnValueForMissingStub: _i9.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
@@ -457,7 +506,7 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           #resolveSymbolicLinks,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i6.dummyValue<String>(
+        returnValue: _i4.Future<String>.value(_i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -465,7 +514,7 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           ),
         )),
         returnValueForMissingStub:
-            _i4.Future<String>.value(_i6.dummyValue<String>(
+            _i4.Future<String>.value(_i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -480,14 +529,14 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           #resolveSymbolicLinksSync,
           [],
         ),
-        returnValue: _i6.dummyValue<String>(
+        returnValue: _i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
             [],
           ),
         ),
-        returnValueForMissingStub: _i6.dummyValue<String>(
+        returnValueForMissingStub: _i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
@@ -706,11 +755,11 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
   @override
   String get path => (super.noSuchMethod(
         Invocation.getter(#path),
-        returnValue: _i6.dummyValue<String>(
+        returnValue: _i9.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
-        returnValueForMissingStub: _i6.dummyValue<String>(
+        returnValueForMissingStub: _i9.dummyValue<String>(
           this,
           Invocation.getter(#path),
         ),
@@ -835,7 +884,7 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
           #resolveSymbolicLinks,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i6.dummyValue<String>(
+        returnValue: _i4.Future<String>.value(_i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -843,7 +892,7 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
           ),
         )),
         returnValueForMissingStub:
-            _i4.Future<String>.value(_i6.dummyValue<String>(
+            _i4.Future<String>.value(_i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinks,
@@ -858,14 +907,14 @@ class MockFileSystemEntity extends _i1.Mock implements _i2.FileSystemEntity {
           #resolveSymbolicLinksSync,
           [],
         ),
-        returnValue: _i6.dummyValue<String>(
+        returnValue: _i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
             [],
           ),
         ),
-        returnValueForMissingStub: _i6.dummyValue<String>(
+        returnValueForMissingStub: _i9.dummyValue<String>(
           this,
           Invocation.method(
             #resolveSymbolicLinksSync,
@@ -1022,11 +1071,11 @@ class MockFileStat extends _i1.Mock implements _i2.FileStat {
   @override
   _i2.FileSystemEntityType get type => (super.noSuchMethod(
         Invocation.getter(#type),
-        returnValue: _i6.dummyValue<_i2.FileSystemEntityType>(
+        returnValue: _i9.dummyValue<_i2.FileSystemEntityType>(
           this,
           Invocation.getter(#type),
         ),
-        returnValueForMissingStub: _i6.dummyValue<_i2.FileSystemEntityType>(
+        returnValueForMissingStub: _i9.dummyValue<_i2.FileSystemEntityType>(
           this,
           Invocation.getter(#type),
         ),
@@ -1052,14 +1101,14 @@ class MockFileStat extends _i1.Mock implements _i2.FileStat {
           #modeString,
           [],
         ),
-        returnValue: _i6.dummyValue<String>(
+        returnValue: _i9.dummyValue<String>(
           this,
           Invocation.method(
             #modeString,
             [],
           ),
         ),
-        returnValueForMissingStub: _i6.dummyValue<String>(
+        returnValueForMissingStub: _i9.dummyValue<String>(
           this,
           Invocation.method(
             #modeString,
