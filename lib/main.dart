@@ -1,4 +1,4 @@
-import 'package:docjet_mobile/features/home/presentation/pages/transcriptions_page.dart';
+import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Docjet Mobile',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const TranscriptionsPage(),
+      home: const JobListPage(), // Use the renamed page class
     );
   }
 }
