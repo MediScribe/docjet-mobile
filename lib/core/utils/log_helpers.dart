@@ -66,18 +66,6 @@ export 'package:logger/logger.dart'
 // Use this file for all logging needs
 // test/helpers/log_helpers.dart is for testing
 
-// Define PlaybackState - Placeholder needed for formatPlaybackState
-// TODO: Replace with actual PlaybackState import once available
-enum PlaybackStatePlaceholder {
-  initial,
-  loading,
-  playing,
-  paused,
-  stopped,
-  completed,
-  error,
-}
-
 /// Helper function to create a standardized log tag
 String logTag(dynamic context) {
   return '[${_getLoggerId(context)}]';
@@ -230,25 +218,3 @@ class MemoryOutput extends LogOutput {
     logs.clear();
   }
 }
-
-/// Format PlaybackState for logging - USING PLACEHOLDER
-/// TODO: Update this function when the actual PlaybackState is available
-String formatPlaybackState(PlaybackStatePlaceholder state) {
-  // Simplified placeholder implementation
-  return state.toString().split('.').last;
-}
-
-// Example of how the real function might look
-/*
-String formatPlaybackState(PlaybackState state) {
-  return state.when(
-    initial: () => 'initial',
-    loading: () => 'loading',
-    playing: (pos, dur) => 'playing(${pos.inMilliseconds}ms/${dur?.inMilliseconds ?? 'N/A'}ms)',
-    paused: (pos, dur) => 'paused(${pos.inMilliseconds}ms/${dur?.inMilliseconds ?? 'N/A'}ms)',
-    stopped: () => 'stopped',
-    completed: () => 'completed',
-    error: (msg, pos, dur) => 'error($msg)',
-  );
-}
-*/
