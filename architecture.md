@@ -215,23 +215,26 @@ graph TB
         direction TB
         
         subgraph Domain [Domain Layer]
-            Entities[Entities]
-            Repositories[Repository Interfaces]
-            Services[Service Interfaces]
-            Adapters[Adapter Interfaces]
+            Entities[Entities (Transcription, LocalJob)]
+            Repositories[Repository Interfaces (AudioRecorderRepository, LocalJobStore)]
+            Services[Service Interfaces (AudioPlaybackService, TranscriptionMergeService)]
+            Adapters[Adapter Interfaces (AudioPlayerAdapter)]
+            Mappers[Mapper Interfaces (PlaybackStateMapper)]
         end
         
         subgraph Data [Data Layer]
-            RepoImpls[Repository Implementations]
-            DataSources[Data Sources]
-            ServiceImpls[Service Implementations]
-            AdapterImpls[Adapter Implementations]
+            RepoImpls[Repository Implementations (AudioRecorderRepositoryImpl, HiveLocalJobStoreImpl)]
+            DataSources[Data Sources (AudioLocalDataSource, TranscriptionRemoteDataSource)]
+            ServiceImpls[Service Implementations (AudioPlaybackServiceImpl, TranscriptionMergeServiceImpl)]
+            AdapterImpls[Adapter Implementations (AudioPlayerAdapterImpl)]
+            MapperImpls[Mapper Implementations (PlaybackStateMapperImpl)]
+            Utils[Utils (AudioFileManager)]
         end
         
         subgraph Presentation [Presentation Layer]
-            Pages[Pages]
-            Cubits[Cubits]
-            Widgets[Widgets]
+            Pages[Pages (AudioRecorderListView)]
+            Cubits[Cubits (AudioListCubit, AudioRecordingCubit)]
+            Widgets[Widgets (AudioPlayerWidget)]
         end
     end
     
@@ -245,17 +248,58 @@ graph TB
     style Presentation fill:#fff7e6,stroke:#fa8c16,stroke-width:2px
 ```
 
-### 3.2 Key Components
+### 3.2 Key Components & Data Flows
 
-1. **Recording Pipeline**:
-   * `AudioRecorder` → `LocalJobStore` → `TranscriptionRemoteDataSource`
+1.  **Recording Pipeline**:
+    *   `AudioRecordingCubit` → `AudioRecorderRepository` → `AudioLocalDataSource` (uses `record` package) → `FileSystem` (via `AudioFileManager`) → `LocalJobStore` (Hive)
 
-2. **Playback Pipeline**: 
-   * `AudioPlayerWidget` → `AudioListCubit` → `AudioPlaybackService` → `AudioPlayerAdapter`
+2.  **Transcription List Loading & Merging Pipeline**:
+    *   `AudioListCubit` → `AudioRecorderRepository`
+    *   `AudioRecorderRepository` → `LocalJobStore` (Hive)
+    *   `AudioRecorderRepository` → `TranscriptionRemoteDataSource` (Backend API)
+    *   `AudioRecorderRepository` → `TranscriptionMergeService` → Merged `List<Transcription>`
 
-3. **Storage**:
-   * Local files managed by `FileSystem`
-   * Metadata stored in `LocalJobStore` (Hive)
+3.  **Transcription Upload Pipeline**:
+    *   (User Action/Trigger) → `AudioRecorderRepository` → `LocalJobStore` (validate state) → `TranscriptionRemoteDataSource` (upload) → `LocalJobStore` (update state)
+
+4.  **Playback Pipeline**:
+    *   `AudioPlayerWidget` → `AudioListCubit` → `AudioPlaybackService` → `PlaybackStateMapper` & `AudioPlayerAdapter` → `just_audio`
+
+5.  **Storage**:
+    *   Local audio files managed by `FileSystem` via `AudioFileManager`.
+    *   Local job metadata (`LocalJob`) stored via `LocalJobStore` (Hive).
+    *   Merged view (`Transcription`) constructed by the repository using the `TranscriptionMergeService`.
+
+### 3.3 Data Flow: Loading Transcription List
+
+This diagram illustrates how the repository combines local and remote data to present the unified list of transcriptions to the Cubit.
+
+```mermaid
+sequenceDiagram
+    participant Cubit as AudioListCubit
+    participant Repo as AudioRecorderRepository
+    participant RemoteDS as TranscriptionRemoteDataSource
+    participant LocalStore as LocalJobStore
+    participant Merger as TranscriptionMergeService
+    
+    Cubit->>Repo: loadTranscriptions()
+    Repo->>RemoteDS: getUserJobs()
+    RemoteDS-->>Repo: Either<ApiFailure, List<Transcription>> remoteJobsResult
+    Repo->>LocalStore: getAllLocalJobs()
+    LocalStore-->>Repo: Either<CacheFailure, List<LocalJob>> localJobsResult
+    
+    alt Failed Local Fetch
+      Repo-->>Cubit: Left(CacheFailure)
+    else Successful Local Fetch
+      alt Failed Remote Fetch (and no local jobs)
+        Repo-->>Cubit: Left(ApiFailure)
+      else Merge Needed
+        Repo->>Merger: mergeJobs(remoteJobs, localJobs)
+        Merger-->>Repo: List<Transcription> mergedList
+        Repo-->>Cubit: Right(mergedList)
+      end
+    end
+```
 
 ## 4. Audio Playback Architecture
 
@@ -263,17 +307,20 @@ The audio playback system has been refactored and standardized on `just_audio`. 
 
 ### 4.1 Playback Components Overview
 
+This diagram shows the high-level flow of control and state updates during playback.
+
 ```mermaid
 graph TB
     UI[AudioPlayerWidget] --> Cubit[AudioListCubit]
     Cubit --> Service[AudioPlaybackService]
-    Service --> Adapter[AudioPlayerAdapter]
     Service --> Mapper[PlaybackStateMapper]
+    Service --> Adapter[AudioPlayerAdapter]
     Adapter --> Library[just_audio]
-    Adapter -- Events --> Mapper
-    Mapper -- UI States --> Service
-    Service -- Updates --> Cubit
-    Cubit -- Renders --> UI
+    Library -- Raw Events --> Adapter
+    Adapter -- Domain Events --> Mapper
+    Mapper -- PlaybackState Stream --> Service
+    Service -- PlaybackState Updates --> Cubit
+    Cubit -- State --> UI
     
     %% Styling
     style UI fill:#fff7e6,stroke:#fa8c16,stroke-width:2px
@@ -286,6 +333,8 @@ graph TB
 
 ### 4.2 Detailed Event Flow Diagram
 
+This diagram details the interaction between components and the transformation of events.
+
 ```mermaid
 graph LR
     subgraph "Presentation Layer (UI & State)"
@@ -294,7 +343,7 @@ graph LR
         CUBIT[AudioListCubit]
     end
 
-    subgraph "Domain Layer (Interf & Ent)"
+    subgraph "Domain Layer (Interfaces & Entities)"
         direction LR
         ENTITY_PSTATE["PlaybackState (Freezed)"]
         ENTITY_DSTATE["DomainPlayerState (enum)"]
@@ -313,7 +362,6 @@ graph LR
     subgraph "External Dependencies"
         direction LR
         PLAYER[just_audio::AudioPlayer]
-        %% Duration is now handled by the adapter
     end
 
     %% --- Dependencies --- 
@@ -321,42 +369,31 @@ graph LR
     UI -- Dispatches User Actions --> CUBIT
     CUBIT -- Exposes State Stream --> UI
     CUBIT -- Calls Methods On --> SVC_IF
-    CUBIT -- Maps Service Events To UI State --> ENTITY_PSTATE
     
     SVC_IMPL --> SVC_IF
-    SVC_IMPL -- Calls Player Methods --> ADP_IF
-    SVC_IMPL -- Exposes Merged Stream --> MAP_IF
+    SVC_IMPL -- Uses --> ADP_IF
+    SVC_IMPL -- Uses --> MAP_IF
+    SVC_IMPL -- Subscribes to --> MAP_IF
     
     ADP_IMPL --> ADP_IF
-    ADP_IMPL -- Emits Position Updates --> SVC_IMPL
-    ADP_IMPL -- Emits Duration Changes --> SVC_IMPL
-    ADP_IMPL -- Notifies On Completion --> SVC_IMPL
     MAP_IMPL --> MAP_IF
     
     ADP_IMPL -- Controls & Monitors --> PLAYER
-    MAP_IMPL -- Transforms To --> ENTITY_PSTATE
-    MAP_IMPL -- Interprets --> ENTITY_DSTATE
-    MAP_IMPL -- Consumes Stream From --> ADP_IF
-    %% Duration is now handled via the adapter's getDuration method
-
-    %% Interface/Entity usage
-    ADP_IF -- Emits Player Events --> ENTITY_DSTATE
-    MAP_IF -- Consumes Raw Events --> ENTITY_DSTATE
-    MAP_IF -- Produces UI-Ready State --> ENTITY_PSTATE
-    SVC_IF -- Exposes Combined Stream --> ENTITY_PSTATE
-
-    %% Presentation Layer Details
-    CUBIT -- Maintains Playback Context --> CUBIT
-    CUBIT -- Handles Race Conditions --> CUBIT
-    UI -- Updates On Stream Events --> UI
-    UI -- Manages Local UI State --> UI
+    ADP_IMPL -- Emits Normalized Events --> MAP_IMPL
+    
+    MAP_IMPL -- Consumes Streams From --> ADP_IMPL
+    MAP_IMPL -- Produces --> ENTITY_PSTATE
+    
+    SVC_IMPL -- Exposes Stream Of --> ENTITY_PSTATE
+    CUBIT -- Consumes Stream Of --> ENTITY_PSTATE
 
     %% Stream Flow Highlights
-    PLAYER -- Raw Events --> ADP_IMPL
-    ADP_IMPL -- Normalized Events --> MAP_IMPL
-    MAP_IMPL -- Combined State --> SVC_IMPL
-    SVC_IMPL -- Business State --> CUBIT
-    CUBIT -- UI State --> UI
+    PLAYER -- Raw Player Events --> ADP_IMPL
+    ADP_IMPL -- DomainPlayerState, Duration, Position Events --> MAP_IMPL
+    MAP_IMPL -- Combines & Maps Events --> ENTITY_PSTATE
+    MAP_IMPL -- Emits Combined State --> SVC_IMPL
+    SVC_IMPL -- Relays Combined State --> CUBIT
+    CUBIT -- Transforms to UI State --> UI
 
     %% Style all nodes with colors
     classDef presentation fill:#fff7e6,stroke:#fa8c16,stroke-width:2px
