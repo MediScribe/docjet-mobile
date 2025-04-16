@@ -203,6 +203,43 @@ graph TB
 * **UI Components**: Widgets and screens
 * **State Management**: Cubits/BLoCs
 
+### 2.3 Core Platform Interfaces
+
+The Core Platform layer provides platform abstraction interfaces that isolate the application from direct platform dependencies. These interfaces are located in `/lib/core/platform/`.
+
+```mermaid
+graph TB
+    App[Application Code] --> Platform[Core Platform Interfaces]
+    Platform --> Impl[Platform Implementations]
+    Impl --> Native[Native Platform APIs]
+    
+    %% Styling
+    style App fill:#f9f0ff,stroke:#722ed1,stroke-width:1px
+    style Platform fill:#e6f7ff,stroke:#1890ff,stroke-width:2px
+    style Impl fill:#f6ffed,stroke:#52c41a,stroke-width:2px
+    style Native fill:#fff7e6,stroke:#fa8c16,stroke-width:2px
+```
+
+#### Key Platform Interfaces
+
+* **`FileSystem`** (`file_system.dart`): Abstract interface for file operations with these responsibilities:
+  * Provides platform-agnostic file access methods (read, write, delete)
+  * Handles path resolution to prevent iOS/Android path inconsistencies
+  * Standardizes error handling for file operations
+  * Isolates file operation implementation details from application code
+
+* **`PathProvider`** (`path_provider.dart`): Abstract interface for platform filesystem paths with these responsibilities:
+  * Provides access to platform-specific directory locations (temporary, document, cache)
+  * Abstracts platform differences in path structures
+  * Used by FileSystem for path resolution
+
+* **`PermissionHandler`** (`permission_handler.dart`): Abstract interface for platform permissions with these responsibilities:
+  * Provides unified API for checking and requesting permissions
+  * Abstracts platform-specific permission models (iOS vs Android)
+  * Used primarily for microphone access in recording feature
+
+These interfaces allow the application to interact with platform capabilities without direct dependencies on platform-specific APIs, improving testability and portability.
+
 ## 3. Audio Recorder Feature
 
 The Audio Recorder feature handles recording, storing, transcribing, and playing back audio files.
@@ -300,6 +337,102 @@ sequenceDiagram
       end
     end
 ```
+
+### 3.4 Detailed Component Overview
+
+#### 3.4.1 Data Sources
+
+Data Sources are responsible for direct interaction with external data providers (APIs, local databases, device hardware). The Audio Recorder feature includes these key data sources:
+
+1. **`AudioLocalDataSource`** (`audio_local_data_source.dart`):
+   * **Purpose**: Handles direct interaction with audio recording hardware
+   * **Responsibilities**:
+     * Start/stop/pause/resume audio recording
+     * Convert raw audio data to file
+     * Check and request microphone permissions
+     * Handle recording errors and exceptions
+   * **Dependencies**: `record` package, platform permissions
+
+2. **`LocalJobStore`** (`local_job_store.dart`):
+   * **Purpose**: Persistent local storage for transcription job metadata
+   * **Responsibilities**:
+     * Store and retrieve `LocalJob` objects using Hive
+     * Track status of local and synced transcriptions
+     * Provide CRUD operations for job records
+     * Handle storage errors and cache misses
+   * **Implementation**: Uses Hive database for persistence
+
+3. **`TranscriptionRemoteDataSource`** (`transcription_remote_data_source.dart`):
+   * **Purpose**: Interface with backend transcription API
+   * **Responsibilities**:
+     * Upload audio files for transcription
+     * Fetch transcription status and results
+     * Retrieve user's transcription history
+     * Handle network errors and API failures
+   * **Dependencies**: HTTP client for API communication
+
+#### 3.4.2 Repositories
+
+Repositories coordinate between multiple data sources and provide a clean API to the domain layer. The Audio Recorder feature includes these repositories:
+
+1. **`AudioRecorderRepository`** (`audio_recorder_repository.dart`):
+   * **Purpose**: Central coordination point for all audio recording and transcription operations
+   * **Responsibilities**:
+     * Orchestrate the recording lifecycle (start/stop/pause/resume)
+     * Combine local and remote transcription data
+     * Handle file management for recordings
+     * Provide unified error handling
+   * **Implementation** (`AudioRecorderRepositoryImpl`):
+     * Uses `AudioLocalDataSource` for recording operations
+     * Uses `LocalJobStore` for local persistence
+     * Uses `TranscriptionRemoteDataSource` for API operations
+     * Uses `AudioFileManager` for file operations
+     * Uses `TranscriptionMergeService` to combine local and remote data
+
+2. **`LocalJobStore`** (Interfaces with both Repository and DataSource roles):
+   * Acts as both a repository interface (in domain) and has implementation (in data)
+   * Provides a persistence abstraction specifically for job metadata
+
+#### 3.4.3 Services
+
+Services implement business logic that doesn't fit cleanly into repositories or data sources. The Audio Recorder feature includes these services:
+
+1. **`AudioPlaybackService`** (`audio_playback_service.dart`):
+   * **Purpose**: Manages audio playback with a clean business-level API
+   * **Responsibilities**:
+     * Control playback (play, pause, resume, stop)
+     * Track playback state (position, duration)
+     * Handle player lifecycle and errors
+     * Provide a unified stream of playback state updates
+   * **Implementation** (`AudioPlaybackServiceImpl`):
+     * Uses `AudioPlayerAdapter` to interact with audio libraries
+     * Uses `PlaybackStateMapper` to transform raw events
+     * Manages playback context (current file)
+     * Handles player initialization and disposal
+
+2. **`TranscriptionMergeService`** (`transcription_merge_service.dart`):
+   * **Purpose**: Combines local and remote transcription data
+   * **Responsibilities**:
+     * Merge local jobs with remote transcriptions
+     * Resolve conflicts between local and remote data
+     * Sort and prioritize transcription display order
+     * Create unified view model for UI consumption
+   * **Implementation** (`TranscriptionMergeServiceImpl`):
+     * Maps `LocalJob` objects to `Transcription` domain entities
+     * Prioritizes remote data for synced items
+     * Preserves local-only items
+     * Sorts by creation/update time (newest first)
+
+3. **`AudioFileManager`** (Utility service):
+   * **Purpose**: Centralized file operations for audio recordings
+   * **Responsibilities**:
+     * Generate appropriate file paths
+     * Delete recording files
+     * Check file existence
+     * Standardize file naming
+   * **Implementation**: Uses core `FileSystem` interface
+
+These components work together to provide a robust, maintainable implementation of the audio recording and transcription functionality, with clear separation of concerns and strong domain boundaries.
 
 ## 4. Audio Playback Architecture
 
@@ -695,4 +828,4 @@ The ongoing refactoring efforts show a commitment to continuous improvement and 
 
 ---
 
-*"Complex systems that work invariably evolved from simple systems that worked."* — John Gall
+*"Complex systems that work invariably evolved from simple systems that worked."* — John Gall 

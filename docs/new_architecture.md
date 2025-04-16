@@ -1,6 +1,6 @@
-# Transcription Audio Player: Complete Architecture
+# Transcription Audio Player: Revised Architecture
 
-This document provides a comprehensive view of the entire Transcription Audio Player architecture, showing all components and their relationships.
+This document provides a comprehensive view of the Transcription Audio Player architecture, showing all components and their relationships with proper separation of concerns.
 
 ## System Overview
 
@@ -13,23 +13,29 @@ graph TB
         ListView[TranscriptionListView]
         ItemWidget[TranscriptionItemWidget]
         PlayerWidget[AudioPlayerControlWidget]
+        RecordWidget[AudioRecordingWidget]
     end
     
     subgraph StateManagement [State Management Layer]
         direction TB
-        Cubit[TranscriptionCubit]
-        State[TranscriptionState<br>UI Model]
+        ListCubit[TranscriptionCubit]
+        RecordCubit[RecordingCubit]
+        ListState[TranscriptionState]
+        RecordState[RecordingState]
     end
     
     subgraph Domain [Domain Layer]
         direction TB
         Entities[Domain Entities<br>Transcription<br>TranscriptionList]
-        Services[Domain Services<br>AudioPlayerService<br>TranscriptionService]
+        Interfaces[Domain Interfaces<br>AudioPlayer<br>AudioRecorder<br>TranscriptionRepository]
+        Services[Domain Services<br>TranscriptionService]
     end
     
     subgraph Data [Data Access Layer]
         direction TB
-        Repository[TranscriptionRepository]
+        RepositoryImpl[TranscriptionRepositoryImpl]
+        AudioPlayerImpl[AudioPlayerImpl]
+        AudioRecorderImpl[AudioRecorderImpl]
         LocalDataSource[LocalStorage]
         RemoteDataSource[ApiClient]
         FileSystem[FileSystem]
@@ -38,6 +44,7 @@ graph TB
     subgraph External [External Dependencies]
         direction TB
         JustAudio[just_audio]
+        RecorderLib[flutter_sound/record]
         Hive[Hive Database]
         BackendAPI[Backend API]
         NativeFS[Native File System]
@@ -47,25 +54,35 @@ graph TB
     Screen --> ListView
     ListView --> ItemWidget
     ItemWidget --> PlayerWidget
+    Screen --> RecordWidget
     
-    Screen -- Provides --> Cubit
-    ListView -- Consumes --> State
-    ItemWidget -- Consumes --> State
-    PlayerWidget -- Consumes --> State
+    Screen -- Provides --> ListCubit
+    Screen -- Provides --> RecordCubit
+    ListView -- Consumes --> ListState
+    ItemWidget -- Consumes --> ListState
+    PlayerWidget -- Consumes --> ListState
+    RecordWidget -- Consumes --> RecordState
     
-    ItemWidget -- User Actions --> Cubit
-    PlayerWidget -- User Actions --> Cubit
+    ItemWidget -- User Actions --> ListCubit
+    PlayerWidget -- User Actions --> ListCubit
+    RecordWidget -- User Actions --> RecordCubit
     
-    Cubit -- "emit(state)" --> State
-    Cubit -- Uses --> Services
-    Cubit -- Calls --> Repository
+    ListCubit -- "emit(state)" --> ListState
+    RecordCubit -- "emit(state)" --> RecordState
+    ListCubit -- Uses --> Interfaces
+    RecordCubit -- Uses --> Interfaces
     
-    Repository -- Creates --> Entities
-    Repository -- Uses --> LocalDataSource
-    Repository -- Uses --> RemoteDataSource
-    Repository -- Uses --> FileSystem
+    RepositoryImpl -- Implements --> Interfaces
+    AudioPlayerImpl -- Implements --> Interfaces
+    AudioRecorderImpl -- Implements --> Interfaces
     
-    Services -- Uses --> JustAudio
+    RepositoryImpl -- Creates --> Entities
+    RepositoryImpl -- Uses --> LocalDataSource
+    RepositoryImpl -- Uses --> RemoteDataSource
+    RepositoryImpl -- Uses --> FileSystem
+    
+    AudioPlayerImpl -- Uses --> JustAudio
+    AudioRecorderImpl -- Uses --> RecorderLib
     LocalDataSource -- Uses --> Hive
     RemoteDataSource -- Uses --> BackendAPI
     FileSystem -- Uses --> NativeFS
@@ -77,16 +94,16 @@ graph TB
     classDef data fill:#f8cecc,stroke:#b85450,stroke-width:1px
     classDef external fill:#e1d5e7,stroke:#9673a6,stroke-width:1px
     
-    class Screen,ListView,ItemWidget,PlayerWidget presentation
-    class Cubit,State stateManagement
-    class Entities,Services domain
-    class Repository,LocalDataSource,RemoteDataSource,FileSystem data
-    class JustAudio,Hive,BackendAPI,NativeFS external
+    class Screen,ListView,ItemWidget,PlayerWidget,RecordWidget presentation
+    class ListCubit,RecordCubit,ListState,RecordState stateManagement
+    class Entities,Interfaces,Services domain
+    class RepositoryImpl,AudioPlayerImpl,AudioRecorderImpl,LocalDataSource,RemoteDataSource,FileSystem data
+    class JustAudio,RecorderLib,Hive,BackendAPI,NativeFS external
 ```
 
 ## Detailed Component Breakdown
 
-### Domain Layer (Business Logic)
+### Domain Layer (Pure Business Logic)
 
 ```mermaid
 classDiagram
@@ -105,13 +122,34 @@ classDiagram
         +sortByDate() List~Transcription~
     }
     
-    class AudioPlayerService {
+    class AudioPlayer {
+        <<interface>>
         +play(String filePath) Future~void~
         +pause() Future~void~
         +seekTo(Duration position) Future~void~
         +stop() Future~void~
         +getDuration(String filePath) Future~Duration~
-        +Stream~AudioState~ get stateStream
+        +Stream~PlaybackState~ get stateStream
+    }
+    
+    class AudioRecorder {
+        <<interface>>
+        +startRecording(String filePath) Future~void~
+        +pauseRecording() Future~void~
+        +resumeRecording() Future~void~
+        +stopRecording() Future~String~
+        +Stream~RecordingState~ get stateStream
+        +Stream~double~ get levelStream
+    }
+    
+    class TranscriptionRepository {
+        <<interface>>
+        +getTranscriptions() Future~TranscriptionList~
+        +getTranscriptionById(String id) Future~Transcription~
+        +getAudioFilePath(String id) Future~String~
+        +saveTranscription(Transcription) Future~void~
+        +createLocalTranscription(String audioPath) Future~Transcription~
+        +uploadForTranscription(String id) Future~void~
     }
     
     class TranscriptionService {
@@ -119,14 +157,36 @@ classDiagram
         +updateTranscription(Transcription transcription) Future~void~
     }
     
+    class PlaybackState {
+        <<enum>>
+        INITIAL
+        LOADING
+        PLAYING
+        PAUSED
+        STOPPED
+        COMPLETED
+        ERROR
+    }
+    
+    class RecordingState {
+        <<enum>>
+        INITIAL
+        RECORDING
+        PAUSED
+        STOPPED
+        ERROR
+    }
+    
     TranscriptionList o-- Transcription : contains
+    AudioPlayer -- PlaybackState : produces
+    AudioRecorder -- RecordingState : produces
 ```
 
-### Data Access Layer (Data Sources)
+### Data Access Layer (Infrastructure Implementations)
 
 ```mermaid
 classDiagram
-    class TranscriptionRepository {
+    class TranscriptionRepositoryImpl {
         -ApiClient _apiClient
         -LocalStorage _localStorage
         -FileSystem _fileSystem
@@ -134,6 +194,30 @@ classDiagram
         +getTranscriptionById(String id) Future~Transcription~
         +getAudioFilePath(String id) Future~String~
         +saveTranscription(Transcription) Future~void~
+        +createLocalTranscription(String audioPath) Future~Transcription~
+        +uploadForTranscription(String id) Future~void~
+    }
+    
+    class AudioPlayerImpl {
+        -AudioPlayer _player
+        +play(String filePath) Future~void~
+        +pause() Future~void~
+        +seekTo(Duration position) Future~void~
+        +stop() Future~void~
+        +getDuration(String filePath) Future~Duration~
+        +Stream~PlaybackState~ get stateStream
+        -_mapPlayerStateToPlaybackState(PlayerState) PlaybackState
+    }
+    
+    class AudioRecorderImpl {
+        -FlutterSoundRecorder _recorder
+        +startRecording(String filePath) Future~void~
+        +pauseRecording() Future~void~
+        +resumeRecording() Future~void~
+        +stopRecording() Future~String~
+        +Stream~RecordingState~ get stateStream
+        +Stream~double~ get levelStream
+        -_mapRecorderStateToRecordingState(RecorderState) RecordingState
     }
     
     class ApiClient {
@@ -153,11 +237,22 @@ classDiagram
         +writeFile(String path, Uint8List data) Future~void~
         +fileExists(String path) Future~bool~
         +deleteFile(String path) Future~void~
+        +generateFilePath(String extension) String
     }
     
-    TranscriptionRepository -- ApiClient : uses
-    TranscriptionRepository -- LocalStorage : uses
-    TranscriptionRepository -- FileSystem : uses
+    class JustAudioLib {
+        <<external>>
+    }
+    
+    class RecorderLib {
+        <<external>>
+    }
+    
+    TranscriptionRepositoryImpl -- ApiClient : uses
+    TranscriptionRepositoryImpl -- LocalStorage : uses
+    TranscriptionRepositoryImpl -- FileSystem : uses
+    AudioPlayerImpl -- JustAudioLib : adapts
+    AudioRecorderImpl -- RecorderLib : adapts
 ```
 
 ### State Management Layer
@@ -170,7 +265,7 @@ classDiagram
         +String? error
         +String? selectedId
         +String? playingId
-        +bool isPlaying
+        +PlaybackState playerState
         +Duration position
         +Duration? duration
         +Transcription? get selectedTranscription
@@ -179,16 +274,39 @@ classDiagram
     
     class TranscriptionCubit {
         -TranscriptionRepository _repository
-        -AudioPlayerService _audioService
+        -AudioPlayer _audioPlayer
         +loadTranscriptions() Future~void~
         +selectTranscription(String id) void
         +playTranscription(String id) Future~void~
         +pausePlayback() Future~void~
         +seekTo(Duration position) Future~void~
         +stopPlayback() Future~void~
+        +uploadForTranscription(String id) Future~void~
+    }
+    
+    class RecordingState {
+        +RecordingState recordingState
+        +String? filePath
+        +double audioLevel
+        +Duration recordingDuration
+        +String? error
+        +copyWith(...) RecordingState
+    }
+    
+    class RecordingCubit {
+        -AudioRecorder _audioRecorder
+        -TranscriptionRepository _repository
+        -FileSystem _fileSystem
+        +startRecording() Future~void~
+        +pauseRecording() Future~void~
+        +resumeRecording() Future~void~
+        +stopRecording() Future~void~
+        +cancelRecording() Future~void~
+        +saveRecording() Future~void~
     }
     
     TranscriptionCubit -- TranscriptionState : emits
+    RecordingCubit -- RecordingState : emits
 ```
 
 ### Presentation Layer (UI)
@@ -215,7 +333,7 @@ classDiagram
     }
     
     class AudioPlayerControlWidget {
-        -bool isPlaying
+        -PlaybackState playerState
         -Duration position
         -Duration duration
         -Function() onPlay
@@ -224,9 +342,22 @@ classDiagram
         +build(BuildContext) Widget
     }
     
+    class AudioRecordingWidget {
+        -RecordingState recordingState
+        -double audioLevel
+        -Duration recordingDuration
+        -Function() onStartRecording
+        -Function() onPauseRecording
+        -Function() onResumeRecording
+        -Function() onStopRecording
+        -Function() onCancelRecording
+        +build(BuildContext) Widget
+    }
+    
     TranscriptionListScreen o-- TranscriptionListView : contains
     TranscriptionListView o-- TranscriptionItemWidget : contains
     TranscriptionItemWidget o-- AudioPlayerControlWidget : contains when selected
+    TranscriptionListScreen o-- AudioRecordingWidget : contains
 ```
 
 ## Data Flow Diagrams
@@ -237,7 +368,7 @@ classDiagram
 sequenceDiagram
     participant Screen as TranscriptionListScreen
     participant Cubit as TranscriptionCubit
-    participant Repo as Repository
+    participant Repo as TranscriptionRepositoryImpl
     participant API as ApiClient
     participant DB as LocalStorage
     
@@ -271,7 +402,8 @@ sequenceDiagram
     participant Item as TranscriptionItemWidget
     participant Player as AudioPlayerControlWidget
     participant Cubit as TranscriptionCubit
-    participant Service as AudioPlayerService
+    participant Repo as TranscriptionRepositoryImpl
+    participant AudioPlayer as AudioPlayerImpl
     participant JustAudio as just_audio
     
     %% Select transcription
@@ -284,23 +416,69 @@ sequenceDiagram
     Player->>Cubit: playTranscription()
     Cubit->>Repo: getAudioFilePath(selectedId)
     Repo-->>Cubit: filePath
-    Cubit->>Service: play(filePath)
-    Service->>JustAudio: setFilePath(filePath)
-    Service->>JustAudio: play()
+    Cubit->>AudioPlayer: play(filePath)
+    AudioPlayer->>JustAudio: setFilePath(filePath)
+    AudioPlayer->>JustAudio: play()
     
     %% Playback updates
-    JustAudio-->>Service: position updates
-    Service-->>Cubit: state stream updates
-    Cubit->>Cubit: emit state with updated position
-    Cubit-->>Player: rebuild with new position
+    JustAudio-->>AudioPlayer: position/state updates
+    AudioPlayer-->>Cubit: PlaybackState stream updates
+    Cubit->>Cubit: emit state with updated position/state
+    Cubit-->>Player: rebuild with new position/state
     
     %% Seek interaction
     User->>Player: drag seek bar
     Player->>Player: update local position
     User->>Player: release seek bar
     Player->>Cubit: seekTo(position)
-    Cubit->>Service: seekTo(position)
-    Service->>JustAudio: seek(position)
+    Cubit->>AudioPlayer: seekTo(position)
+    AudioPlayer->>JustAudio: seek(position)
+```
+
+### Audio Recording
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant RecordUI as AudioRecordingWidget
+    participant RecordCubit as RecordingCubit
+    participant Recorder as AudioRecorderImpl
+    participant FS as FileSystem
+    participant Repo as TranscriptionRepositoryImpl
+    
+    %% Start recording
+    User->>RecordUI: tap record button
+    RecordUI->>RecordCubit: startRecording()
+    RecordCubit->>FS: generateFilePath(".m4a")
+    FS-->>RecordCubit: filePath
+    RecordCubit->>Recorder: startRecording(filePath)
+    Recorder-->>RecordCubit: RecordingState.RECORDING stream update
+    RecordCubit->>RecordCubit: emit state with recordingState
+    RecordCubit-->>RecordUI: update UI with recordingState
+    
+    %% Level updates during recording
+    Recorder-->>RecordCubit: audio level updates
+    RecordCubit->>RecordCubit: emit state with updated level
+    RecordCubit-->>RecordUI: update UI with audio level
+    
+    %% Stop recording
+    User->>RecordUI: tap stop button
+    RecordUI->>RecordCubit: stopRecording()
+    RecordCubit->>Recorder: stopRecording()
+    Recorder-->>RecordCubit: filePath
+    RecordCubit->>RecordCubit: emit state with RecordingState.STOPPED
+    
+    %% Save recording
+    User->>RecordUI: tap save button
+    RecordUI->>RecordCubit: saveRecording()
+    RecordCubit->>Repo: createLocalTranscription(filePath)
+    Repo->>Repo: generate pending Transcription
+    Repo-->>RecordCubit: Transcription object
+    RecordCubit->>RecordCubit: emit initial state (reset)
+    
+    %% Optionally initiate transcription
+    RecordCubit->>Repo: uploadForTranscription(id)
+    Repo->>Repo: mark for background upload
 ```
 
 ## Dependency Injection
@@ -310,97 +488,81 @@ graph TB
     subgraph DI [Dependency Injection Container]
         direction TB
         JA[just_audio.AudioPlayer]
+        Rec[Recorder]
         FS[FileSystem]
         API[ApiClient]
         DB[LocalStorage]
-        APS[AudioPlayerService]
-        Repo[TranscriptionRepository]
-        Cubit[TranscriptionCubit]
+        AP[AudioPlayerImpl]
+        AR[AudioRecorderImpl]
+        Repo[TranscriptionRepositoryImpl]
+        TCubit[TranscriptionCubit]
+        RCubit[RecordingCubit]
     end
     
     subgraph UI [UI Components]
         Screen[TranscriptionListScreen]
     end
     
-    JA --> APS
+    JA --> AP
+    Rec --> AR
     FS --> Repo
     API --> Repo
     DB --> Repo
     
-    APS --> Cubit
-    Repo --> Cubit
+    AP --> TCubit
+    Repo --> TCubit
+    AR --> RCubit
+    Repo --> RCubit
+    FS --> RCubit
     
-    Cubit --> Screen
+    TCubit --> Screen
+    RCubit --> Screen
     
     %% Registration
     DI -- "register singleton" --> JA
+    DI -- "register singleton" --> Rec
     DI -- "register singleton" --> FS
     DI -- "register singleton" --> API
     DI -- "register singleton" --> DB
-    DI -- "register singleton" --> APS
-    DI -- "register singleton" --> Repo
-    DI -- "register singleton/factory" --> Cubit
+    DI -- "register as AudioPlayer" --> AP
+    DI -- "register as AudioRecorder" --> AR
+    DI -- "register as TranscriptionRepository" --> Repo
+    DI -- "register singleton/factory" --> TCubit
+    DI -- "register singleton/factory" --> RCubit
     
     %% Styling
     classDef di fill:#d5e8d4,stroke:#82b366,stroke-width:1px
     classDef ui fill:#dae8fc,stroke:#6c8ebf,stroke-width:1px
     
-    class DI,JA,FS,API,DB,APS,Repo,Cubit di
+    class DI,JA,Rec,FS,API,DB,AP,AR,Repo,TCubit,RCubit di
     class UI,Screen ui
 ```
 
-## Key Insights
+## Key Architectural Improvements
 
-1. **Clean Separation of Concerns**:
-   - Domain layer contains pure business logic and entities
-   - Data layer handles data access and persistence
-   - State management layer bridges domain and UI
-   - Presentation layer focuses only on displaying state
+1. **Proper Separation of Concerns**:
+   - Domain layer contains only business logic, entities, and interfaces
+   - Audio implementation details (both playback and recording) moved to the Data layer
+   - No infrastructure implementation details leak into the Domain layer
 
-2. **Unidirectional Data Flow**:
-   - User actions flow down to the Cubit
-   - Cubit updates state based on those actions
-   - State changes flow back up to the UI
-   - UI rebuilds based on new state
+2. **Complete Functionality**:
+   - Full recording functionality properly represented
+   - Clear separation between recording and playback concerns
+   - Proper flow for creating new transcriptions
 
-3. **Domain-Driven Design**:
-   - Repository creates and returns domain objects
-   - Business logic operates on domain objects
-   - UI displays domain objects but doesn't modify them
+3. **Clean Interfaces at Boundaries**:
+   - Domain defines what capabilities are needed through interfaces
+   - Data layer implements those interfaces with concrete implementations
+   - No direct dependencies on external libraries from Domain or Cubits
 
-4. **Single Source of Truth**:
-   - TranscriptionState contains all data needed by the UI
-   - No duplicated state across components
-   - All state updates go through the Cubit
+4. **Testability**:
+   - All Cubits depend only on interfaces
+   - Easy to mock AudioPlayer, AudioRecorder and TranscriptionRepository for testing
+   - No need to mock external dependencies directly in tests
 
-5. **Testability**:
-   - Each component has a single responsibility
-   - Dependencies are injected and can be mocked
-   - Cubits expose predictable, testable methods
-   - UI components are pure functions of their inputs
+5. **Minimal Architecture**:
+   - No unnecessary abstraction layers
+   - Direct, straightforward data flow
+   - Interfaces only where they provide real value (at layer boundaries)
 
-This architecture provides a scalable foundation for the Transcription Audio Player, with clear boundaries between components and a predictable data flow.
-
-## Implementation Strategy
-
-1. **Start with Domain Entities**:
-   - Define Transcription and TranscriptionList classes
-   - Implement basic domain logic
-
-2. **Implement Data Access**:
-   - Create API client and local storage
-   - Implement repository and data sources
-
-3. **Build State Management**:
-   - Define TranscriptionState class
-   - Implement TranscriptionCubit with core methods
-
-4. **Create UI Components**:
-   - Build TranscriptionListView and item widgets
-   - Implement audio player controls
-   - Connect widgets to Cubit
-
-5. **Wire Everything Together**:
-   - Set up dependency injection
-   - Register all services and repositories
-   - Connect UI to state management 
+This revised architecture maintains proper Clean Architecture principles while eliminating unnecessary complexity. It ensures dependencies point inward toward the Domain layer while keeping the implementation minimal and focused, and now includes the complete recording functionality needed for a transcription application. 
