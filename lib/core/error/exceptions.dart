@@ -21,3 +21,16 @@ class FileSystemException implements Exception {
   final String? message;
   FileSystemException([this.message]);
 }
+
+/// Represents exceptions related to API interactions (network, status codes, parsing).
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ApiException({required this.message, this.statusCode});
+
+  @override
+  String toString() {
+    return 'ApiException(message: $message, statusCode: $statusCode)';
+  }
+}

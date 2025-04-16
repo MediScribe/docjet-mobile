@@ -2,20 +2,35 @@ import 'package:equatable/equatable.dart';
 
 /// Base Failure class for handling errors across the application.
 abstract class Failure extends Equatable {
-  // If you want to pass properties to the failure, add them here.
-  // const Failure([List properties = const <dynamic>[]]);
-  // For simplicity, no properties for now.
-  const Failure();
+  final List properties;
+  const Failure([this.properties = const <dynamic>[]]);
 
   @override
-  List<Object> get props => [];
+  List<Object> get props => [properties];
 }
 
-// General failures
-class ServerFailure extends Failure {}
+// --- General Failure Types ---
 
-class CacheFailure extends Failure {}
+/// Represents an error originating from the backend server or API communication (non-2xx status code).
+class ServerFailure extends Failure {
+  final String? message;
+  final int? statusCode;
+  const ServerFailure({this.message, this.statusCode});
 
+  @override
+  List<Object> get props => [message ?? '', statusCode ?? 0];
+}
+
+/// Represents an error originating from the local cache (e.g., Hive, SharedPreferences).
+class CacheFailure extends Failure {
+  final String message;
+  const CacheFailure([this.message = 'Local cache error']);
+
+  @override
+  List<Object> get props => [message];
+}
+
+/// Represents an unexpected or unknown error.
 class UnknownFailure extends Failure {
   final String message;
   const UnknownFailure(this.message);
@@ -23,14 +38,6 @@ class UnknownFailure extends Failure {
   @override
   List<Object> get props => [message];
 }
-
-// Specific failure types can be defined below, e.g.:
-// class ServerFailure extends Failure { ... }
-// class CacheFailure extends Failure { ... }
-// class PermissionFailure extends Failure { ... }
-// class FileSystemFailure extends Failure { ... }
-// class RecordingFailure extends Failure { ... }
-// class ConcatenationFailure extends Failure { ... }
 
 // --- Specific Failure Types ---
 
@@ -90,7 +97,8 @@ class ValidationFailure extends Failure {
   List<Object> get props => [message];
 }
 
-/// Failure related to API interactions (e.g., network errors, server errors, unexpected responses).
+/// Failure related to API interactions (e.g., network errors, specific API error responses).
+/// Consider using this or ServerFailure depending on the desired level of detail.
 class ApiFailure extends Failure {
   final String message;
   final int? statusCode; // Optional HTTP status code

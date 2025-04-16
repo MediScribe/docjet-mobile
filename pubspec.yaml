@@ -48,6 +48,9 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
+  # HTTP Client
+  dio: ^5.5.0+1 # Added for network requests
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -56,6 +59,7 @@ dev_dependencies:
   mockito: ^5.4.4 # Using latest stable
   build_runner: ^2.4.11 # Using latest stable
   hive_generator: ^2.0.1
+  http_mock_adapter: ^0.6.1 # Corrected package name for mocking dio requests
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart'; // Add Equatable for value comparison
 
-// Pure Domain Entity - no persistence concerns
+// Represents a single recording job and its metadata. This is the pure Domain Entity with no persistence concerns.
 class Job extends Equatable {
   final String id; // UUID
   final String status; // Consider using an Enum here later
