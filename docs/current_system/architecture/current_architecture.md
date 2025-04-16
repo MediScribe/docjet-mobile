@@ -243,15 +243,18 @@ Service for seeding initial data when the app is first launched.
 
 #### Domain Layer
 
+@Keep
 #### `lib/features/audio_recorder/domain/entities/audio_record.dart`
 Represents a single audio recording with its file path, duration, and creation timestamp.
 
+@Keep
 #### `lib/features/audio_recorder/domain/entities/transcription.dart`
 Represents a recording with its transcription status, combining local and remote data.
 
 #### `lib/features/audio_recorder/domain/entities/playback_state.dart`
 Represents the state of audio playback including position, duration, and player state.
 
+@Keep
 #### `lib/features/audio_recorder/domain/entities/local_job.dart`
 Represents a local transcription job stored with Hive.
 
