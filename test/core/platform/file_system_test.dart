@@ -29,14 +29,14 @@ void main() {
 
     // Checks that fileExists returns false for a missing file
     test('fileExists returns false for missing file', () async {
-      final missingFilePath = 'missing.txt';
+      const missingFilePath = 'missing.txt';
       final exists = await fileSystem.fileExists(missingFilePath);
       expect(exists, isFalse);
     });
 
     // Checks that fileExists returns true for an existing file
     test('fileExists returns true for existing file', () async {
-      final filePath = 'exists.txt';
+      const filePath = 'exists.txt';
       final file = File(p.join(tempDir.path, filePath));
       await file.writeAsString('hello');
       final exists = await fileSystem.fileExists(filePath);
@@ -47,7 +47,7 @@ void main() {
     test(
       'writeFile writes bytes and fileExists returns true (developer doc example)',
       () async {
-        final filePath = 'written.txt';
+        const filePath = 'written.txt';
         final bytes = Uint8List.fromList([1, 2, 3, 4, 5]);
 
         await fileSystem.writeFile(filePath, bytes);
@@ -70,7 +70,7 @@ void main() {
 
     // Checks that readFile returns the bytes that were written
     test('readFile returns the bytes that were written', () async {
-      final filePath = 'readme.txt';
+      const filePath = 'readme.txt';
       final bytes = Uint8List.fromList([10, 20, 30]);
 
       await fileSystem.writeFile(filePath, bytes);
@@ -80,7 +80,7 @@ void main() {
 
     // Checks that deleteFile removes the file
     test('deleteFile removes the file', () async {
-      final filePath = 'todelete.txt';
+      const filePath = 'todelete.txt';
       final bytes = Uint8List.fromList([99, 100]);
 
       await fileSystem.writeFile(filePath, bytes);
@@ -91,7 +91,7 @@ void main() {
 
     // Checks that directoryExists returns false for a missing directory
     test('directoryExists returns false for missing directory', () async {
-      final dirPath = 'missing_dir';
+      const dirPath = 'missing_dir';
       final exists = await fileSystem.directoryExists(dirPath);
       expect(exists, isFalse);
     });
@@ -100,7 +100,7 @@ void main() {
     test(
       'createDirectory creates a directory, directoryExists returns true',
       () async {
-        final dirPath = 'created_dir';
+        const dirPath = 'created_dir';
         await fileSystem.createDirectory(dirPath);
         final exists = await fileSystem.directoryExists(dirPath);
         expect(exists, isTrue);
@@ -156,7 +156,7 @@ void main() {
 
     // Checks that listDirectory returns the correct files
     test('listDirectory returns correct files', () async {
-      final dirPath = 'list_dir';
+      const dirPath = 'list_dir';
       await fileSystem.createDirectory(dirPath);
       final file1 = p.join(dirPath, 'a.txt');
       final file2 = p.join(dirPath, 'b.txt');
@@ -173,8 +173,8 @@ void main() {
     test(
       'stat returns info for files and directories, throws for missing',
       () async {
-        final filePath = 'stat_file.txt';
-        final dirPath = 'stat_dir';
+        const filePath = 'stat_file.txt';
+        const dirPath = 'stat_dir';
 
         await fileSystem.writeFile(filePath, Uint8List.fromList([1]));
         await fileSystem.createDirectory(dirPath);
@@ -190,7 +190,7 @@ void main() {
 
     // Checks that writeFile overwrites existing file contents
     test('writeFile overwrites existing file', () async {
-      final filePath = 'overwrite.txt';
+      const filePath = 'overwrite.txt';
 
       await fileSystem.writeFile(filePath, Uint8List.fromList([1, 2, 3]));
       await fileSystem.writeFile(filePath, Uint8List.fromList([9, 8, 7]));

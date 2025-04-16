@@ -30,68 +30,34 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  meta: ^1.12.0
-  shared_preferences: ^2.2.3
-  path: ^1.9.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  # State Management
-  bloc: ^9.0.0
-  flutter_bloc: ^9.1.0
-  equatable: ^2.0.5
-  # Network
-  dio: ^5.4.1
-  # Dependency Injection
-  get_it: ^8.0.3
-  # Audio
-  record: ^6.0.0
-  # Storage
-  path_provider: ^2.1.2
-  # Permissions
-  permission_handler: ^12.0.0+1
-  # Others
-  dartz: ^0.10.1
+
+  # Core Dependencies from old project
   logger: ^2.5.0
-  multiple_result: ^5.1.0
-  uuid: ^4.3.3
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
-  go_router: ^14.8.1
-  # Use latest stable freezed annotation
-  freezed_annotation: ^3.0.0 # Reverted due to hive_generator conflict
-  rxdart: ^0.28.0
-  just_audio: ^0.9.46
-  json_annotation: ^4.8.1
-  json_serializable: ^6.7.1
-  audio_session: ^0.1.17
-  firebase_storage: ^12.4.5
-  cloud_firestore: ^5.6.6
-  firebase_core: ^3.13.0
-  lottie: ^3.3.1
-  firebase_auth: ^5.5.2
-  flutter_background_service: ^5.0.5
-  flutter_local_notifications: ^19.1.0
-  device_info_plus: ^11.3.3
-  path_provider_foundation: ^2.3.1
-  path_provider_platform_interface: ^2.1.2 # Added based on dart analyze
-  plugin_platform_interface: ^2.1.8 # Added based on dart analyze
+  get_it: ^8.0.3
+  equatable: ^2.0.5
+  path: ^1.9.0 # Using 1.9.0 instead of 1.9.1 from original list
+  path_provider: ^2.1.2
+  permission_handler: ^12.0.0+1
+  dartz: ^0.10.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  mockito: ^5.4.0
-  build_runner: ^2.3.3
-  flutter_lints: ^5.0.0
-  bloc_test: ^10.0.0
-  mocktail: ^1.0.3
-  fake_async: ^1.3.1 # Keep this for now, might need ^1.3.3 later
-  hive_generator: ^2.0.1
-  # Use latest stable freezed generator
-  freezed: ^3.0.0-0.0.dev # Reverted due to hive_generator conflict
-  record_platform_interface: ^1.2.0 # Replacing 'any', using constraint from 'record'
-  collection: ^1.18.0 # Replacing 'any'
+
+  # Dev Dependencies from old project
+  mockito: ^5.4.4 # Using latest stable
+  build_runner: ^2.4.11 # Using latest stable
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^5.0.0 # Updated to latest available
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

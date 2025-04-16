@@ -38,15 +38,15 @@ void main() {
     test('resolves relative path to absolute using PathProvider', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final relativePath = 'audio/test.m4a';
-      final expected = '/mock/documents/audio/test.m4a';
+      const relativePath = 'audio/test.m4a';
+      const expected = '/mock/documents/audio/test.m4a';
       final result = await pathResolver.resolve(relativePath);
       expect(result, expected);
     });
 
     test('returns absolute path if it exists', () async {
       pathResolver = createResolver(fileExists: true);
-      final absolutePath = '/already/absolute/test.m4a';
+      const absolutePath = '/already/absolute/test.m4a';
       final result = await pathResolver.resolve(absolutePath, mustExist: true);
       expect(result, absolutePath);
     });
@@ -55,7 +55,7 @@ void main() {
       'throws PathResolutionException if absolute path does not exist and mustExist is true',
       () async {
         pathResolver = createResolver(fileExists: false);
-        final absolutePath = '/does/not/exist.m4a';
+        const absolutePath = '/does/not/exist.m4a';
         expect(
           () => pathResolver.resolve(absolutePath, mustExist: true),
           throwsA(isA<PathResolutionException>()),
@@ -68,7 +68,7 @@ void main() {
       () async {
         pathResolver = createResolver(fileExists: false);
         stubDocsDir();
-        final relativePath = 'audio/missing.m4a';
+        const relativePath = 'audio/missing.m4a';
         expect(
           () => pathResolver.resolve(relativePath, mustExist: true),
           throwsA(isA<PathResolutionException>()),
@@ -79,8 +79,8 @@ void main() {
     test('handles subdirectories and platform-specific separators', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final relativePath = 'subdir\\file.m4a'; // Windows-style
-      final expected = '/mock/documents/subdir/file.m4a';
+      const relativePath = 'subdir\\file.m4a'; // Windows-style
+      const expected = '/mock/documents/subdir/file.m4a';
       final result = await pathResolver.resolve(relativePath);
       expect(result, expected);
     });
@@ -88,7 +88,7 @@ void main() {
     /// iOS/Android: POSIX absolute path is returned as-is if mustExist is false
     test('returns POSIX absolute path as-is (iOS/Android)', () async {
       pathResolver = createResolver(fileExists: true);
-      final posixAbsolute = '/data/user/0/com.example.app/files/foo.txt';
+      const posixAbsolute = '/data/user/0/com.example.app/files/foo.txt';
       final result = await pathResolver.resolve(posixAbsolute);
       expect(result, posixAbsolute);
     });
@@ -97,8 +97,8 @@ void main() {
     test('normalizes and joins relative path with mixed separators', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final mixed = 'foo/bar\\baz/file.txt';
-      final expected = '/mock/documents/foo/bar/baz/file.txt';
+      const mixed = 'foo/bar\\baz/file.txt';
+      const expected = '/mock/documents/foo/bar/baz/file.txt';
       final result = await pathResolver.resolve(mixed);
       expect(result, expected);
     });
@@ -107,8 +107,8 @@ void main() {
     test('normalizes path with .. and .', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final weird = 'foo/./bar/../baz/file.txt';
-      final expected = '/mock/documents/foo/baz/file.txt';
+      const weird = 'foo/./bar/../baz/file.txt';
+      const expected = '/mock/documents/foo/baz/file.txt';
       final result = await pathResolver.resolve(weird);
       expect(result, expected);
     });
@@ -117,8 +117,8 @@ void main() {
     test('normalizes and joins path with trailing slash', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final trailing = 'foo/bar/';
-      final expected = '/mock/documents/foo/bar';
+      const trailing = 'foo/bar/';
+      const expected = '/mock/documents/foo/bar';
       final result = await pathResolver.resolve(trailing);
       expect(result, expected);
     });
@@ -127,7 +127,7 @@ void main() {
     test('resolves simple relative path', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final input = 'foo.txt';
+      const input = 'foo.txt';
       final result = await pathResolver.resolve(input);
       expect(result, endsWith('foo.txt'));
     });
@@ -136,7 +136,7 @@ void main() {
     test('resolves nested relative path', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final input = 'bar/baz.txt';
+      const input = 'bar/baz.txt';
       final result = await pathResolver.resolve(input);
       expect(result, contains('bar'));
       expect(result, endsWith('baz.txt'));
@@ -145,7 +145,7 @@ void main() {
     // Checks that PathResolver returns absolute path as-is
     test('returns absolute path as-is', () async {
       pathResolver = createResolver(fileExists: true);
-      final absPath = '/tmp/absolute.txt';
+      const absPath = '/tmp/absolute.txt';
       final result = await pathResolver.resolve(absPath);
       expect(result, absPath);
     });
@@ -154,7 +154,7 @@ void main() {
     test('throws if mustExist is true and file does not exist', () async {
       pathResolver = createResolver(fileExists: false);
       stubDocsDir();
-      final input = 'does_not_exist.txt';
+      const input = 'does_not_exist.txt';
       expect(
         () => pathResolver.resolve(input, mustExist: true),
         throwsA(isA<Exception>()),
@@ -165,7 +165,7 @@ void main() {
     test('resolves subdirectory path', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final input = 'subdir/foo.txt';
+      const input = 'subdir/foo.txt';
       final result = await pathResolver.resolve(input);
       expect(result, contains('subdir'));
       expect(result, endsWith('foo.txt'));
@@ -175,7 +175,7 @@ void main() {
     test('normalizes redundant slashes', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final input = 'foo//bar///baz.txt';
+      const input = 'foo//bar///baz.txt';
       final result = await pathResolver.resolve(input);
       expect(result, contains('foo/bar/baz.txt'));
     });
@@ -184,7 +184,7 @@ void main() {
     test('handles dot segments', () async {
       pathResolver = createResolver(fileExists: true);
       stubDocsDir();
-      final input = './foo/../bar.txt';
+      const input = './foo/../bar.txt';
       final result = await pathResolver.resolve(input);
       expect(result, endsWith('bar.txt'));
     });
