@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Import the new provider
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
@@ -18,6 +19,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// The Dio client instance used for making HTTP requests.
   final Dio dio;
 
+  /// Provider for authentication credentials (JWT, API Key).
+  final AuthCredentialsProvider authCredentialsProvider;
+
   /// Function used to create a [MultipartFile] from a file path.
   /// Injected for testability.
   final MultipartFileCreator _multipartFileCreator;
@@ -35,6 +39,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// function. If no creator is provided, it defaults to [MultipartFile.fromFile].
   ApiJobRemoteDataSourceImpl({
     required this.dio,
+    required this.authCredentialsProvider, // Add provider to constructor
     // Default to the actual static method for production
     MultipartFileCreator multipartFileCreator = MultipartFile.fromFile,
   }) : _multipartFileCreator = multipartFileCreator;
@@ -43,22 +48,40 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   // ==                          Private Helper Methods                       ==
   // ===========================================================================
 
-  /// Adds required headers (e.g., JWT, API Key) to Dio requests.
+  /// Asynchronously retrieves authentication credentials and creates Dio [Options].
   ///
-  /// FIXME: Replace placeholder values with actual token/key retrieval logic.
-  Options _getHeaders() {
-    // Placeholder values - replace with actual token/key retrieval
-    const String tempJwt = 'your_jwt_token_here';
-    const String tempApiKey = 'your_api_key_here';
+  /// Fetches the API key and access token using the injected [AuthCredentialsProvider].
+  /// Sets the required `X-API-Key` and `Authorization` headers.
+  /// Sets `Content-Type` based on the `isJsonRequest` flag.
+  ///
+  /// Throws [ApiException] if credentials cannot be obtained.
+  Future<Options> _getOptionsWithAuth({bool isJsonRequest = true}) async {
+    try {
+      final apiKey = await authCredentialsProvider.getApiKey();
+      final accessToken = await authCredentialsProvider.getAccessToken();
 
-    return Options(
-      headers: {
-        'Authorization': 'Bearer $tempJwt',
-        'X-API-Key': tempApiKey,
-        'Content-Type':
-            'application/json', // Default, may be overridden for POST
-      },
-    );
+      final headers = <String, dynamic>{'X-API-Key': apiKey};
+
+      if (accessToken != null) {
+        headers['Authorization'] = 'Bearer $accessToken';
+      }
+      // Set Content-Type based on the request type
+      if (isJsonRequest) {
+        headers['Content-Type'] = 'application/json';
+      } // For multipart/form-data, Dio handles Content-Type automatically
+
+      return Options(headers: headers);
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to get authentication credentials or create options',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Wrap any credential retrieval errors in ApiException
+      throw ApiException(
+        message: 'Failed to prepare request options: ${e.toString()}',
+      );
+    }
   }
 
   /// Safely maps a JSON map (typically from an API response) to a [Job] entity.
@@ -177,7 +200,8 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     _logger.d('$_tag Fetching job by ID: $id from $endpoint');
 
     try {
-      final response = await dio.get(endpoint, options: _getHeaders());
+      final options = await _getOptionsWithAuth();
+      final response = await dio.get(endpoint, options: options);
 
       // --- Success Case (200 OK) ---
       if (response.statusCode == 200 && response.data != null) {
@@ -230,7 +254,8 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     _logger.d('$_tag Fetching all jobs from $endpoint');
 
     try {
-      final response = await dio.get(endpoint, options: _getHeaders());
+      final options = await _getOptionsWithAuth();
+      final response = await dio.get(endpoint, options: options);
 
       // --- Success Case (200 OK) ---
       if (response.statusCode == 200 && response.data != null) {
@@ -310,10 +335,11 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
       // --- Make API Call ---
       _logger.d('$_tag Sending POST request to $endpoint');
+      final options = await _getOptionsWithAuth(isJsonRequest: false);
       final response = await dio.post(
         endpoint,
         data: formData, // Send the prepared FormData
-        options: _getHeaders(),
+        options: options,
       );
 
       // --- Handle Response ---
@@ -380,11 +406,11 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
     try {
       // --- Make API Call ---
+      final options = await _getOptionsWithAuth();
       final response = await dio.patch(
         endpoint,
         data: updates, // Send the updates map as the request body
-        options:
-            _getHeaders(), // Ensure correct headers are sent (like Content-Type: application/json)
+        options: options,
       );
 
       // --- Handle Response ---

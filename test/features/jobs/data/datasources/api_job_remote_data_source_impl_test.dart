@@ -1,12 +1,13 @@
 import 'dart:typed_data'; // For Uint8List
 
 import 'package:dio/dio.dart';
+import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Import provider
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'; // Will not exist yet
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart'; // Import mockito annotations
-import 'package:mockito/mockito.dart'; // Import mockito
+import 'package:mockito/mockito.dart';
 
 // Import the generated mocks file (will be created by build_runner)
 import 'api_job_remote_data_source_impl_test.mocks.dart';
@@ -17,15 +18,20 @@ String fixture(String name) =>
 
 // --- REMOVED: Unused Helper Function --- //
 
-// Annotation to generate mocks for Dio
-@GenerateMocks([Dio])
+// Annotation to generate mocks for Dio and the new provider
+// Use GenerateNiceMocks as recommended by the documentation
+@GenerateNiceMocks([MockSpec<Dio>(), MockSpec<AuthCredentialsProvider>()])
 void main() {
   late MockDio mockDio; // Use MockDio instead of Dio
+  late MockAuthCredentialsProvider
+  mockAuthCredentialsProvider; // Mock for the provider
   late ApiJobRemoteDataSourceImpl dataSource; // The class under test
 
   // --- Test Setup --- //
   setUp(() {
     mockDio = MockDio();
+    mockAuthCredentialsProvider =
+        MockAuthCredentialsProvider(); // Instantiate mock provider
 
     // Create a dummy MultipartFile instance for tests
     final dummyMultipartFile = MultipartFile.fromBytes(
@@ -40,9 +46,10 @@ void main() {
       return dummyMultipartFile;
     }
 
-    // Instantiate the data source, injecting the mock Dio and mock creator
+    // Instantiate the data source, injecting the mock Dio, mock provider, and mock creator
     dataSource = ApiJobRemoteDataSourceImpl(
       dio: mockDio,
+      authCredentialsProvider: mockAuthCredentialsProvider, // Provide the mock
       multipartFileCreator: mockCreator,
     );
   });
@@ -97,10 +104,7 @@ void main() {
   // Helper function to setup successful GET request mock
   void setUpMockGetSuccess(String path, dynamic responseBody) {
     // Use Mockito to stub the dio.get method
-    when(
-      // Match the specific path
-      mockDio.get(path, options: anyNamed('options')),
-    ).thenAnswer(
+    when(mockDio.get(path, options: anyNamed('options'))).thenAnswer(
       (_) async => Response(
         requestOptions: RequestOptions(path: path),
         data: responseBody,
@@ -128,13 +132,45 @@ void main() {
       'should perform GET request on /jobs/{id} and return Job on 200 success',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+
+        // Stub the provider methods
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         setUpMockGetSuccess('/jobs/$tJobId', tJobJson);
+
         // Act
         final result = await dataSource.fetchJobById(tJobId);
+
         // Assert
         expect(result, equals(tJobEntity));
-        // We don't verify dio calls directly, the adapter handles interception.
-        // Verification focuses on the *outcome* (correct Job entity returned).
+
+        // Verify dio.get was called and capture the options
+        final capturedOptions =
+            verify(
+                  mockDio.get(
+                    '/jobs/$tJobId',
+                    options: captureAnyNamed('options'),
+                  ),
+                ).captured.single
+                as Options;
+
+        // Verify the headers in the captured options
+        expect(capturedOptions.headers, containsPair('X-API-Key', testApiKey));
+        expect(
+          capturedOptions.headers,
+          containsPair('Authorization', 'Bearer $testToken'),
+        );
+        expect(
+          capturedOptions.headers,
+          containsPair('Content-Type', 'application/json'),
+        );
       },
     );
 
@@ -147,8 +183,8 @@ void main() {
         final call = dataSource.fetchJobById;
         // Assert
         await expectLater(() => call(tJobId), throwsA(isA<ApiException>()));
-        // Optional: Check specific properties of the exception if needed
-        // await expectLater(() => call(tJobId), throwsA(predicate((e) => e is ApiException && e.statusCode == 404)));
+        // We still expect the credential provider to be called even if the API call fails later
+        verify(mockAuthCredentialsProvider.getApiKey()).called(1);
       },
     );
 
@@ -164,7 +200,8 @@ void main() {
         // Assert
         await expectLater(() => call(tJobId), throwsA(isA<ApiException>()));
         // Optional: Check specific properties
-        // await expectLater(() => call(tJobId), throwsA(predicate((e) => e is ApiException && e.statusCode == 500)));
+        // Verify credential provider was called
+        verify(mockAuthCredentialsProvider.getApiKey()).called(1);
       },
     );
 
@@ -183,8 +220,6 @@ void main() {
       // Assert
       await expectLater(() => call(tJobId), throwsA(isA<ApiException>()));
     });
-
-    // TODO: Add test for network/connection errors (adapter might throw DioException)
   });
 
   group('fetchJobs', () {
@@ -192,12 +227,32 @@ void main() {
       'should perform GET request on /jobs and return List<Job> on 200 success',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         // Use the tJobListJson which contains a list under the "data" key
         setUpMockGetSuccess('/jobs', tJobListJson);
         // Act
         final result = await dataSource.fetchJobs();
         // Assert
         expect(result, equals(tJobList));
+        // Verify options were captured and headers are correct
+        final capturedOptions =
+            verify(
+                  mockDio.get('/jobs', options: captureAnyNamed('options')),
+                ).captured.single
+                as Options;
+        expect(capturedOptions.headers, containsPair('X-API-Key', testApiKey));
+        expect(
+          capturedOptions.headers,
+          containsPair('Authorization', 'Bearer $testToken'),
+        );
       },
     );
 
@@ -205,12 +260,28 @@ void main() {
       'should return empty list when response is 200 but data list is empty',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         final emptyListJson = {"data": [], "pagination": {}}; // Empty data list
         setUpMockGetSuccess('/jobs', emptyListJson);
         // Act
         final result = await dataSource.fetchJobs();
         // Assert
         expect(result, equals(<Job>[])); // Expect an empty list of Jobs
+        // Verify options/headers even for empty list success
+        final capturedOptions =
+            verify(
+                  mockDio.get('/jobs', options: captureAnyNamed('options')),
+                ).captured.single
+                as Options;
+        expect(capturedOptions.headers, containsPair('X-API-Key', testApiKey));
       },
     );
 
@@ -218,11 +289,22 @@ void main() {
       'should throw ApiException when the response code is 500 (Server Error)',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         setUpMockGetFailure('/jobs', 500, {'error': 'Server went boom'});
         // Act
         final call = dataSource.fetchJobs;
         // Assert
         await expectLater(() => call(), throwsA(isA<ApiException>()));
+        // Verify credential provider was called
+        verify(mockAuthCredentialsProvider.getApiKey()).called(1);
       },
     );
 
@@ -243,8 +325,6 @@ void main() {
       // Assert
       await expectLater(() => call(), throwsA(isA<ApiException>()));
     });
-
-    // TODO: Add test for network/connection errors
   });
 
   group('createJob', () {
@@ -305,6 +385,15 @@ void main() {
       'should perform POST request with FormData and return Job on 201 success',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         setUpMockPostSuccess(
           tJobJson,
         ); // Use tJobJson as the success response body
@@ -329,16 +418,33 @@ void main() {
                 '/jobs',
                 // Capture the data argument
                 data: captureAnyNamed('data'),
-                options: anyNamed('options'),
+                options: captureAnyNamed('options'),
               ),
             ).captured;
         // Assert that the captured data is indeed FormData
-        expect(captured.single, isA<FormData>());
+        expect(captured[0], isA<FormData>());
+        // Assert headers in captured options (index 1)
+        final capturedOptions = captured[1] as Options;
+        expect(capturedOptions.headers, containsPair('X-API-Key', testApiKey));
+        expect(
+          capturedOptions.headers,
+          containsPair('Authorization', 'Bearer $testToken'),
+        );
+        // Content-Type is handled by Dio for FormData, so don't check it strictly here
       },
     );
 
     test('should throw ApiException on 400 Bad Request', () async {
       // Arrange
+      const testApiKey = 'test-api-key';
+      const testToken = 'test-jwt-token';
+      when(
+        mockAuthCredentialsProvider.getApiKey(),
+      ).thenAnswer((_) async => testApiKey);
+      when(
+        mockAuthCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => testToken);
+
       final responseBody = {'error': 'Missing required field: user_id'};
       setUpMockPostFailure(400, responseBody); // Mock a 400 response
 
@@ -366,11 +472,25 @@ void main() {
               options: anyNamed('options'),
             ),
           ).captured;
-      expect(captured.single, isA<FormData>()); // Check captured data type
+      expect(
+        captured[0],
+        isA<FormData>(),
+      ); // Check captured data type (index 0)
+      // Verify credential provider was called
+      verify(mockAuthCredentialsProvider.getApiKey()).called(1);
     });
 
     test('should throw ApiException on 500 Server Error', () async {
       // Arrange
+      const testApiKey = 'test-api-key';
+      const testToken = 'test-jwt-token';
+      when(
+        mockAuthCredentialsProvider.getApiKey(),
+      ).thenAnswer((_) async => testApiKey);
+      when(
+        mockAuthCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => testToken);
+
       final responseBody = {'error': 'Internal Server Error'};
       setUpMockPostFailure(500, responseBody); // Mock a 500 response
 
@@ -398,11 +518,26 @@ void main() {
               options: anyNamed('options'),
             ),
           ).captured;
-      expect(captured.single, isA<FormData>()); // Check captured data type
+      expect(
+        captured[0],
+        isA<FormData>(),
+      ); // Check captured data type (index 0)
+      // Verify credential provider was called
+      verify(mockAuthCredentialsProvider.getApiKey()).called(1);
     });
 
     test('should throw ApiException on network/connection error', () async {
       // Arrange
+      // Stub credentials even when Dio throws
+      const testApiKey = 'test-api-key';
+      const testToken = 'test-jwt-token';
+      when(
+        mockAuthCredentialsProvider.getApiKey(),
+      ).thenAnswer((_) async => testApiKey);
+      when(
+        mockAuthCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => testToken);
+
       final exception = DioException(
         requestOptions: RequestOptions(path: '/jobs'),
         error: 'Connection refused',
@@ -493,7 +628,8 @@ void main() {
       when(
         mockDio.patch(
           path,
-          data: requestBody, // Match the specific request body
+          // Use anyNamed for data and options in the stub
+          data: anyNamed('data'),
           options: anyNamed('options'),
         ),
       ).thenAnswer(
@@ -514,7 +650,7 @@ void main() {
       when(
         mockDio.patch(
           path,
-          // Use anyNamed('data') for the named argument, even in failure mocks
+          // Use anyNamed for data and options in the stub
           data: anyNamed('data'),
           options: anyNamed('options'),
         ),
@@ -531,6 +667,15 @@ void main() {
       'should perform PATCH request with data and return updated Job on 200 success',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         final path = '/jobs/$tJobId';
         setUpMockPatchSuccess(path, tUpdatePayload, tUpdatedJobJson);
 
@@ -542,13 +687,32 @@ void main() {
 
         // Assert
         expect(result, equals(tUpdatedJobEntity));
-        verify(
+
+        // Verify the call was made once with the right parameters
+        // Use specific payload for data, and anyNamed for options
+        final verification = verify(
           mockDio.patch(
             path,
-            data: tUpdatePayload, // Verify the exact payload was sent
-            options: anyNamed('options'),
+            data: captureAnyNamed('data'),
+            options: captureAnyNamed('options'),
           ),
-        ).called(1);
+        );
+        verification.called(1);
+
+        // Verify the captured data and options
+        expect(verification.captured[0], equals(tUpdatePayload));
+        final capturedOptions = verification.captured[1] as Options;
+
+        // Verify headers in the captured options
+        expect(capturedOptions.headers, containsPair('X-API-Key', testApiKey));
+        expect(
+          capturedOptions.headers,
+          containsPair('Authorization', 'Bearer $testToken'),
+        );
+        expect(
+          capturedOptions.headers,
+          containsPair('Content-Type', 'application/json'),
+        );
       },
     );
 
@@ -556,21 +720,41 @@ void main() {
       'should throw ApiException when the response code is 404 (Not Found)',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         final path = '/jobs/$tJobId';
         final responseBody = {'error': 'Job not found'};
-        // Call the simplified helper
+        // Use the corrected failure helper
         setUpMockPatchFailure(path, 404, responseBody);
 
         // Act
         final call = dataSource.updateJob;
 
         // Assert
+        // Use expectLater with the correct matcher
         await expectLater(
           () => call(jobId: tJobId, updates: tUpdatePayload),
           throwsA(
             isA<ApiException>().having((e) => e.statusCode, 'statusCode', 404),
           ),
         );
+        // Verify credential provider was called
+        verify(mockAuthCredentialsProvider.getApiKey()).called(1);
+        // Verify patch was called (optional, but good practice)
+        verify(
+          mockDio.patch(
+            path,
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).called(1);
       },
     );
 
@@ -578,21 +762,41 @@ void main() {
       'should throw ApiException when the response code is 400 (Bad Request)',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         final path = '/jobs/$tJobId';
         final responseBody = {'error': 'Invalid field in update'};
-        setUpMockPatchFailure(path, 400, responseBody); // Mock 400
+        // Use the corrected failure helper
+        setUpMockPatchFailure(path, 400, responseBody);
 
         // Act
         final call = dataSource.updateJob;
 
         // Assert
+        // Use expectLater with the correct matcher
         await expectLater(
-          () =>
-              call(jobId: tJobId, updates: tUpdatePayload), // Send some payload
+          () => call(jobId: tJobId, updates: tUpdatePayload),
           throwsA(
             isA<ApiException>().having((e) => e.statusCode, 'statusCode', 400),
           ),
         );
+        // Verify credential provider was called
+        verify(mockAuthCredentialsProvider.getApiKey()).called(1);
+        // Verify patch was called
+        verify(
+          mockDio.patch(
+            path,
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).called(1);
       },
     );
 
@@ -600,25 +804,56 @@ void main() {
       'should throw ApiException when the response code is 500 (Server Error)',
       () async {
         // Arrange
+        const testApiKey = 'test-api-key';
+        const testToken = 'test-jwt-token';
+        when(
+          mockAuthCredentialsProvider.getApiKey(),
+        ).thenAnswer((_) async => testApiKey);
+        when(
+          mockAuthCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => testToken);
+
         final path = '/jobs/$tJobId';
         final responseBody = {'error': 'Internal Server Error'};
-        setUpMockPatchFailure(path, 500, responseBody); // Mock 500
+        // Use the corrected failure helper
+        setUpMockPatchFailure(path, 500, responseBody);
 
         // Act
         final call = dataSource.updateJob;
 
         // Assert
+        // Use expectLater with the correct matcher
         await expectLater(
           () => call(jobId: tJobId, updates: tUpdatePayload),
           throwsA(
             isA<ApiException>().having((e) => e.statusCode, 'statusCode', 500),
           ),
         );
+        // Verify credential provider was called
+        verify(mockAuthCredentialsProvider.getApiKey()).called(1);
+        // Verify patch was called
+        verify(
+          mockDio.patch(
+            path,
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).called(1);
       },
     );
 
     test('should throw ApiException on network/connection error', () async {
       // Arrange
+      // Stub credentials even when Dio throws
+      const testApiKey = 'test-api-key';
+      const testToken = 'test-jwt-token';
+      when(
+        mockAuthCredentialsProvider.getApiKey(),
+      ).thenAnswer((_) async => testApiKey);
+      when(
+        mockAuthCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => testToken);
+
       final path = '/jobs/$tJobId';
       final exception = DioException(
         requestOptions: RequestOptions(path: path),
@@ -626,10 +861,11 @@ void main() {
         type: DioExceptionType.connectionTimeout,
       );
       // Configure mockDio.patch to throw the exception
+      // Use anyNamed matchers for the stub when throwing
       when(
         mockDio.patch(
           path,
-          data: anyNamed('data'), // Matcher for named arg
+          data: anyNamed('data'),
           options: anyNamed('options'),
         ),
       ).thenThrow(exception);
@@ -641,14 +877,19 @@ void main() {
       await expectLater(
         () => call(jobId: tJobId, updates: tUpdatePayload),
         throwsA(
-          isA<ApiException>().having(
-            // Should be caught and wrapped, statusCode is usually null for DioException
-            (e) => e.statusCode,
-            'statusCode',
-            isNull,
-          ),
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', isNull),
         ),
       );
+      // Verify credential provider was still called before Dio threw
+      verify(mockAuthCredentialsProvider.getApiKey()).called(1);
+      // Verify patch was called
+      verify(
+        mockDio.patch(
+          path,
+          data: anyNamed('data'),
+          options: anyNamed('options'),
+        ),
+      ).called(1);
     });
   });
 }
