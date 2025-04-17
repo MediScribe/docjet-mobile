@@ -1,4 +1,4 @@
-import '../models/job_hive_model.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart'; // Import CacheException
 
 // Abstract interface for interacting with the local job cache (e.g., Hive)

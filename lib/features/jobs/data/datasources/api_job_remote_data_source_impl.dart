@@ -4,22 +4,53 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'job_remote_data_source.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
 
+// Type definition for the MultipartFile creator function. This allows injecting
+// a mock creator for testing without needing the actual file system.
+typedef MultipartFileCreator = Future<MultipartFile> Function(String path);
+
+/// {@template api_job_remote_data_source_impl}
+/// Implements the [JobRemoteDataSource] interface using the Dio package
+/// for HTTP requests to interact with the backend jobs API.
+///
+/// Handles fetching, creating, and updating job data.
+/// {@endtemplate}
 class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
+  /// The Dio client instance used for making HTTP requests.
   final Dio dio;
-  // Add logger instance
+
+  /// Function used to create a [MultipartFile] from a file path.
+  /// Injected for testability.
+  final MultipartFileCreator _multipartFileCreator;
+
+  /// Logger instance for logging events within this data source.
   final Logger _logger = LoggerFactory.getLogger(ApiJobRemoteDataSourceImpl);
-  // Define log tag
+
+  /// Static log tag for identifying logs from this class.
   static final String _tag = logTag(ApiJobRemoteDataSourceImpl);
 
-  // TODO: Inject base URL or read from config
-  ApiJobRemoteDataSourceImpl({required this.dio});
+  /// {@macro api_job_remote_data_source_impl}
+  /// Creates an instance of [ApiJobRemoteDataSourceImpl].
+  ///
+  /// Requires a [Dio] instance and optionally accepts a [multipartFileCreator]
+  /// function. If no creator is provided, it defaults to [MultipartFile.fromFile].
+  ApiJobRemoteDataSourceImpl({
+    required this.dio,
+    // Default to the actual static method for production
+    MultipartFileCreator multipartFileCreator = MultipartFile.fromFile,
+  }) : _multipartFileCreator = multipartFileCreator;
 
-  // Helper to add required headers (JWT, API Key)
-  // TODO: Implement actual header retrieval logic (e.g., from auth state/storage)
+  // ===========================================================================
+  // ==                          Private Helper Methods                       ==
+  // ===========================================================================
+
+  /// Adds required headers (e.g., JWT, API Key) to Dio requests.
+  ///
+  /// TODO: Implement actual header retrieval logic (e.g., from auth state/storage).
   Options _getHeaders() {
     // Placeholder values - replace with actual token/key retrieval
     const String tempJwt = 'your_jwt_token_here';
     const String tempApiKey = 'your_api_key_here';
+
     return Options(
       headers: {
         'Authorization': 'Bearer $tempJwt',
@@ -30,38 +61,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     );
   }
 
-  @override
-  Future<Job> fetchJobById(String id) async {
-    final String endpoint = '/jobs/$id';
-    try {
-      final response = await dio.get(endpoint, options: _getHeaders());
-
-      if (response.statusCode == 200 && response.data != null) {
-        // API wraps the job object in a "data" key
-        final Map<String, dynamic> jobData = response.data['data'];
-        return _mapJsonToJob(jobData); // Use a helper for mapping
-      } else {
-        // Handle non-200 status codes gracefully
-        throw ApiException(
-          message: 'Failed to fetch job. Status: ${response.statusCode}',
-          statusCode: response.statusCode,
-        );
-      }
-    } on DioException catch (e) {
-      // Handle Dio specific errors (network, timeout, response errors)
-      throw ApiException(
-        message: 'API request failed: ${e.message}',
-        statusCode: e.response?.statusCode,
-      );
-    } catch (e) {
-      // Handle other unexpected errors (e.g., parsing)
-      throw ApiException(
-        message: 'An unexpected error occurred: ${e.toString()}',
-      );
-    }
-  }
-
-  // --- Helper method for mapping JSON to Job entity ---
+  /// Safely maps a JSON map (typically from an API response) to a [Job] entity.
+  ///
+  /// Handles potential parsing errors and wraps them in an [ApiException].
   Job _mapJsonToJob(Map<String, dynamic> json) {
     try {
       return Job(
@@ -82,19 +84,119 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       );
     } catch (e) {
       // Catch potential parsing errors (wrong types, missing keys)
+      _logger.e('$_tag Failed to parse job data: $json', error: e);
       throw ApiException(message: 'Failed to parse job data: ${e.toString()}');
     }
   }
 
-  // --- Methods to be implemented ---
+  /// Creates a [FormData] object for the `createJob` request.
+  ///
+  /// Uses the injected [_multipartFileCreator] to handle file creation,
+  /// allowing for mocking during tests.
+  Future<FormData> _createJobFormData({
+    required String userId,
+    required String audioFilePath,
+    String? text,
+    String? additionalText,
+  }) async {
+    _logger.d('$_tag Preparing FormData for job creation...');
+    try {
+      // Use the injected creator function
+      final audioFile = await _multipartFileCreator(audioFilePath);
+
+      // Build the form data map
+      final formMap = <String, dynamic>{
+        'user_id': userId,
+        if (text != null) 'text': text,
+        if (additionalText != null) 'additional_text': additionalText,
+        'audio_file': audioFile,
+      };
+
+      _logger.d('$_tag FormData map prepared: $formMap');
+      return FormData.fromMap(formMap);
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to create MultipartFile or FormData',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Wrap file system or other errors in an ApiException to be caught upstream
+      throw ApiException(
+        message: 'Failed to prepare data for upload: ${e.toString()}',
+      );
+    }
+  }
+
+  // ===========================================================================
+  // ==                    JobRemoteDataSource Implementation                 ==
+  // ===========================================================================
+
+  @override
+  Future<Job> fetchJobById(String id) async {
+    final String endpoint = '/jobs/$id';
+    _logger.d('$_tag Fetching job by ID: $id from $endpoint');
+
+    try {
+      final response = await dio.get(endpoint, options: _getHeaders());
+
+      // --- Success Case (200 OK) ---
+      if (response.statusCode == 200 && response.data != null) {
+        _logger.i(
+          '$_tag Successfully fetched job $id (200). Response: ${response.data}',
+        );
+        // API wraps the job object in a "data" key
+        final Map<String, dynamic> jobData = response.data['data'];
+        return _mapJsonToJob(jobData);
+      }
+      // --- Error Case (Non-200) ---
+      else {
+        _logger.w(
+          '$_tag Failed to fetch job $id. Status: ${response.statusCode}, Response: ${response.data}',
+        );
+        throw ApiException(
+          message: 'Failed to fetch job. Status: ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    }
+    // --- Dio/Network Error Case ---
+    on DioException catch (e) {
+      _logger.e(
+        '$_tag DioException while fetching job $id: ${e.message}',
+        error: e,
+        stackTrace: e.stackTrace,
+      );
+      throw ApiException(
+        message: 'API request failed: ${e.message}',
+        statusCode: e.response?.statusCode,
+      );
+    }
+    // --- Other Unexpected Error Case ---
+    catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Unexpected error while fetching job $id: ${e.toString()}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw ApiException(
+        message: 'An unexpected error occurred: ${e.toString()}',
+      );
+    }
+  }
 
   @override
   Future<List<Job>> fetchJobs() async {
     const String endpoint = '/jobs';
+    _logger.d('$_tag Fetching all jobs from $endpoint');
+
     try {
       final response = await dio.get(endpoint, options: _getHeaders());
 
+      // --- Success Case (200 OK) ---
       if (response.statusCode == 200 && response.data != null) {
+        _logger.i(
+          '$_tag Successfully fetched jobs (200). Response: ${response.data}',
+        );
         // API wraps the job list in a "data" key
         final List<dynamic> jobListJson = response.data['data'] as List;
         // Map each item in the list using the helper method
@@ -104,20 +206,40 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
                   (jobJson) => _mapJsonToJob(jobJson as Map<String, dynamic>),
                 )
                 .toList();
+        _logger.d('$_tag Parsed ${jobs.length} jobs.');
         return jobs;
-      } else {
+      }
+      // --- Error Case (Non-200) ---
+      else {
+        _logger.w(
+          '$_tag Failed to fetch jobs. Status: ${response.statusCode}, Response: ${response.data}',
+        );
         throw ApiException(
           message: 'Failed to fetch jobs. Status: ${response.statusCode}',
           statusCode: response.statusCode,
         );
       }
-    } on DioException catch (e) {
+    }
+    // --- Dio/Network Error Case ---
+    on DioException catch (e) {
+      _logger.e(
+        '$_tag DioException while fetching jobs: ${e.message}',
+        error: e,
+        stackTrace: e.stackTrace,
+      );
       throw ApiException(
         message: 'API request failed: ${e.message}',
         statusCode: e.response?.statusCode,
       );
-    } catch (e) {
+    }
+    // --- Other Unexpected Error Case ---
+    catch (e, stackTrace) {
       // Includes potential parsing errors from the mapping
+      _logger.e(
+        '$_tag Unexpected error while fetching jobs: ${e.toString()}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw ApiException(
         message: 'An unexpected error occurred: ${e.toString()}',
       );
@@ -130,53 +252,42 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     required String audioFilePath,
     String? text,
     String? additionalText,
-    // Add testing parameter - not part of the interface contract but helps with testing
-    MultipartFile? testAudioFile,
   }) async {
     const String endpoint = '/jobs';
-    // Log method entry
     _logger.d(
-      '$_tag createJob called with userId: $userId, audioFilePath: $audioFilePath, text: $text, additionalText: $additionalText, hasTestAudioFile: ${testAudioFile != null}',
+      '$_tag createJob called with userId: $userId, audioFilePath: $audioFilePath, text: $text, additionalText: $additionalText',
     );
-    try {
-      // Create FormData for multipart request
-      final formMap = <String, dynamic>{
-        'user_id': userId,
-        // Add text fields only if they're not null
-        if (text != null) 'text': text,
-        if (additionalText != null) 'additional_text': additionalText,
-        // Use provided test file or create one from the path
-        'audio_file':
-            testAudioFile ??
-            await MultipartFile.fromFile(
-              audioFilePath,
-              filename:
-                  audioFilePath.split('/').last, // Extract filename from path
-            ),
-      };
-      // Log the map before creating FormData
-      _logger.d('$_tag FormData map prepared: $formMap');
-      final formData = FormData.fromMap(formMap);
 
-      // Make the POST request with multipart/form-data
-      // No need to explicitly set Content-Type - Dio handles this for FormData
+    try {
+      // --- Prepare Data ---
+      // Use helper to create FormData, which includes the audio file
+      final formData = await _createJobFormData(
+        userId: userId,
+        audioFilePath: audioFilePath,
+        text: text,
+        additionalText: additionalText,
+      );
+
+      // --- Make API Call ---
+      _logger.d('$_tag Sending POST request to $endpoint');
       final response = await dio.post(
         endpoint,
-        data: formData,
+        data: formData, // Send the prepared FormData
         options: _getHeaders(),
       );
 
-      // Check response status and data
+      // --- Handle Response ---
+      // Success Case (201 Created)
       if (response.statusCode == 201 && response.data != null) {
-        // Log successful response
         _logger.i(
           '$_tag createJob successful (201). Response data: ${response.data}',
         );
-        // API wraps the created job in a "data" object
+        // API returns the created job object wrapped in "data"
         final Map<String, dynamic> jobData = response.data['data'];
         return _mapJsonToJob(jobData);
-      } else {
-        // Log unexpected success status
+      }
+      // Error Case (Non-201)
+      else {
         _logger.w(
           '$_tag createJob received unexpected status: ${response.statusCode}. Response data: ${response.data}',
         );
@@ -185,33 +296,34 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
           statusCode: response.statusCode,
         );
       }
-    } on DioException catch (e) {
-      // Log DioException
+    }
+    // --- Dio/Network Error Case ---
+    on DioException catch (e) {
       _logger.e(
         '$_tag DioException in createJob: ${e.message}',
         error: e,
         stackTrace: e.stackTrace,
       );
-      // Handle network errors and response errors from DioException
       throw ApiException(
         message: 'API request failed: ${e.message}',
         statusCode: e.response?.statusCode,
       );
-    } catch (e, stackTrace) {
-      // Log other exceptions
+    }
+    // --- Other Unexpected Error Case (includes FormData creation errors) ---
+    catch (e, stackTrace) {
       _logger.e(
         '$_tag Unexpected error in createJob: ${e.toString()}',
         error: e,
         stackTrace: stackTrace,
       );
-      // Re-throw if it's already an ApiException, otherwise wrap it.
+      // Re-throw if it's already an ApiException (e.g., from _createJobFormData)
       if (e is ApiException) {
-        throw e;
+        rethrow;
       }
-      // Handle other unexpected errors
+      // Otherwise, wrap it
       throw ApiException(
-        message: 'An unexpected error occurred: ${e.toString()}',
-        // Keep statusCode null for truly unexpected errors
+        message:
+            'An unexpected error occurred during job creation: ${e.toString()}',
       );
     }
   }
@@ -227,12 +339,16 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     );
 
     try {
+      // --- Make API Call ---
       final response = await dio.patch(
         endpoint,
         data: updates, // Send the updates map as the request body
-        options: _getHeaders(), // Ensure correct headers are sent
+        options:
+            _getHeaders(), // Ensure correct headers are sent (like Content-Type: application/json)
       );
 
+      // --- Handle Response ---
+      // Success Case (200 OK)
       if (response.statusCode == 200 && response.data != null) {
         _logger.i(
           '$_tag updateJob successful (200) for jobId: $jobId. Response data: ${response.data}',
@@ -240,7 +356,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         // API returns the updated job object wrapped in "data"
         final Map<String, dynamic> updatedJobData = response.data['data'];
         return _mapJsonToJob(updatedJobData);
-      } else {
+      }
+      // Error Case (Non-200)
+      else {
         _logger.w(
           '$_tag updateJob for jobId: $jobId received unexpected status: ${response.statusCode}. Response data: ${response.data}',
         );
@@ -249,7 +367,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
           statusCode: response.statusCode,
         );
       }
-    } on DioException catch (e) {
+    }
+    // --- Dio/Network Error Case ---
+    on DioException catch (e) {
       _logger.e(
         '$_tag DioException in updateJob for jobId: $jobId: ${e.message}',
         error: e,
@@ -259,7 +379,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         message: 'API request failed during update: ${e.message}',
         statusCode: e.response?.statusCode,
       );
-    } catch (e, stackTrace) {
+    }
+    // --- Other Unexpected Error Case ---
+    catch (e, stackTrace) {
       _logger.e(
         '$_tag Unexpected error in updateJob for jobId: $jobId: ${e.toString()}',
         error: e,
@@ -267,7 +389,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       );
       // Re-throw if it's already an ApiException, otherwise wrap it.
       if (e is ApiException) {
-        throw e;
+        rethrow;
       }
       throw ApiException(
         message: 'An unexpected error occurred during update: ${e.toString()}',
