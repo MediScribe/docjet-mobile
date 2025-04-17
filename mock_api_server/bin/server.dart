@@ -14,6 +14,82 @@ const String _expectedApiKey = 'test-api-key';
 final List<Map<String, dynamic>> _jobs = [];
 const _uuid = Uuid();
 
+// Debug middleware to log request details
+Middleware _debugMiddleware() {
+  return (Handler innerHandler) {
+    return (Request request) async {
+      print('=== DEBUG: Incoming Request ===');
+      print('Method: ${request.method}, URL: ${request.url}');
+      print('Headers: ${request.headers}');
+
+      // Add special debug for multipart content type
+      if (request.headers['content-type'] != null &&
+          request.headers['content-type']!
+              .toLowerCase()
+              .contains('multipart/form-data')) {
+        print('MULTIPART REQUEST DETECTED:');
+        print('Full Content-Type: ${request.headers['content-type']}');
+      }
+
+      // Create a copy of the request for logging so we don't consume the body
+      String? bodyContent;
+      Request requestForHandler;
+
+      // For non-multipart requests, try to read and log the body
+      if (request.headers['content-type'] != null &&
+          !request.headers['content-type']!.startsWith('multipart/form-data')) {
+        try {
+          bodyContent = await request.readAsString();
+          print('Body: $bodyContent');
+
+          // Create a new request with the same body since we consumed it
+          requestForHandler = Request(
+            request.method,
+            request.requestedUri,
+            body: bodyContent,
+            headers: Map.from(request.headers),
+            context: Map.from(request.context),
+            encoding: request.encoding,
+            onHijack: request.hijack,
+          );
+        } catch (e) {
+          print('Could not read body: $e');
+          requestForHandler = request;
+        }
+      } else if (request.headers['content-type'] != null &&
+          request.headers['content-type']!.startsWith('multipart/form-data')) {
+        print('Body: [multipart form data detected - not displaying raw body]');
+        requestForHandler = request;
+      } else {
+        requestForHandler = request;
+      }
+
+      Response response;
+      try {
+        // Call the next handler with our possibly modified request
+        response = await innerHandler(requestForHandler);
+      } catch (e) {
+        print('=== DEBUG: Handler Error ===');
+        print('Error: $e');
+        print('=============================');
+        rethrow; // Re-throw so shelf can handle it
+      }
+
+      print('=== DEBUG: Outgoing Response ===');
+      print('Status: ${response.statusCode}');
+      print('Headers: ${response.headers}');
+
+      // Log error responses but don't try to read the body
+      if (response.statusCode >= 400) {
+        print('Error response status: ${response.statusCode}');
+      }
+
+      print('=============================');
+      return response;
+    };
+  };
+}
+
 // Define the router
 final _router = Router()
   ..post('/api/v1/auth/login', _loginHandler)
@@ -26,6 +102,7 @@ final _router = Router()
 
 // Login handler logic
 Future<Response> _loginHandler(Request request) async {
+  print('DEBUG: Login handler called');
   // Content-Type check (middleware could also do this, but fine here for simplicity)
   if (request.headers['content-type']
           ?.toLowerCase()
@@ -39,43 +116,57 @@ Future<Response> _loginHandler(Request request) async {
     );
   }
 
-  String body;
   try {
-    body = await request.readAsString();
-    // Validate the body contains expected fields (basic check)
-    final decodedBody = jsonDecode(body) as Map<String, dynamic>;
-    if (!decodedBody.containsKey('email') ||
-        !decodedBody.containsKey('password')) {
-      throw FormatException('Missing email or password');
+    // For validation, try to get a string copy of the body
+    String? body;
+    try {
+      body = await request.readAsString();
+      // Try to parse the JSON to validate it
+      final decodedBody = jsonDecode(body) as Map<String, dynamic>;
+
+      // For malformed request test, check for required fields
+      if (!decodedBody.containsKey('email') ||
+          !decodedBody.containsKey('password')) {
+        throw FormatException('Missing email or password fields');
+      }
+    } catch (e) {
+      // If JSON parsing fails, return a 400 to pass the malformed body test
+      print('DEBUG: JSON parsing failed: $e');
+      return Response(
+        HttpStatus.badRequest, // 400
+        body: jsonEncode({'error': 'Malformed JSON or missing fields: $e'}),
+        headers: {'content-type': 'application/json'},
+      );
     }
-    // In a real app, you'd validate email/password from the parsed body here
+
+    // Just create our success response
+    final responseBody = jsonEncode({
+      'access_token':
+          'fake-access-token-${DateTime.now().millisecondsSinceEpoch}',
+      'refresh_token':
+          'fake-refresh-token-${DateTime.now().millisecondsSinceEpoch}',
+      'user_id': 'fake-user-id-123',
+    });
+
+    return Response.ok(
+      responseBody,
+      headers: {'content-type': 'application/json'},
+    );
   } catch (e) {
-    // Catches JSON parsing errors and FormatException for missing keys
+    // Log any unexpected errors
+    print('DEBUG LOGIN: Error processing login: $e');
     return Response(
       HttpStatus.badRequest, // 400
       body: jsonEncode(
-          {'error': 'Malformed JSON body or missing fields: ${e.toString()}'}),
+          {'error': 'Error processing login request: ${e.toString()}'}),
       headers: {'content-type': 'application/json'},
     );
   }
-
-  // For the mock, we just return success if JSON is valid and has keys
-  final responseBody = jsonEncode({
-    'access_token':
-        'fake-access-token-${DateTime.now().millisecondsSinceEpoch}',
-    'refresh_token':
-        'fake-refresh-token-${DateTime.now().millisecondsSinceEpoch}',
-    'user_id': 'fake-user-id-123',
-  });
-
-  return Response.ok(
-    responseBody,
-    headers: {'content-type': 'application/json'},
-  );
 }
 
 // Refresh handler logic
 Future<Response> _refreshHandler(Request request) async {
+  print('DEBUG: Refresh handler called');
   // Content-Type check
   if (request.headers['content-type']
           ?.toLowerCase()
@@ -89,51 +180,64 @@ Future<Response> _refreshHandler(Request request) async {
     );
   }
 
-  String body;
   try {
-    body = await request.readAsString();
-    // Validate the body contains the refresh_token field
-    final decodedBody = jsonDecode(body) as Map<String, dynamic>;
-    if (!decodedBody.containsKey('refresh_token') ||
-        decodedBody['refresh_token'] is! String) {
-      throw FormatException('Missing or invalid refresh_token field');
+    // For validation, try to get a string copy of the body
+    String? body;
+    try {
+      body = await request.readAsString();
+      // Try to parse the JSON to validate it
+      final decodedBody = jsonDecode(body) as Map<String, dynamic>;
+
+      // Check for refresh_token
+      if (!decodedBody.containsKey('refresh_token') ||
+          decodedBody['refresh_token'] is! String) {
+        throw FormatException('Missing or invalid refresh_token field');
+      }
+    } catch (e) {
+      // If JSON parsing fails, return a 400 to pass the malformed body test
+      print('DEBUG: JSON parsing failed: $e');
+      return Response(
+        HttpStatus.badRequest, // 400
+        body: jsonEncode(
+            {'error': 'Malformed JSON or missing refresh_token: $e'}),
+        headers: {'content-type': 'application/json'},
+      );
     }
-    // In a real app, you'd validate the actual refresh token value here
+
+    // Return new fake tokens
+    final responseBody = jsonEncode({
+      'access_token':
+          'new-fake-access-token-${DateTime.now().millisecondsSinceEpoch}',
+      'refresh_token':
+          'new-fake-refresh-token-${DateTime.now().millisecondsSinceEpoch}',
+    });
+
+    return Response.ok(
+      responseBody,
+      headers: {'content-type': 'application/json'},
+    );
   } catch (e) {
-    // Catches JSON parsing errors and FormatException for missing/invalid field
+    // Log any unexpected errors
+    print('DEBUG REFRESH: Error processing refresh: $e');
     return Response(
       HttpStatus.badRequest, // 400
-      body: jsonEncode({
-        'error':
-            'Malformed JSON body or missing/invalid refresh_token: ${e.toString()}'
-      }),
+      body: jsonEncode(
+          {'error': 'Error processing refresh request: ${e.toString()}'}),
       headers: {'content-type': 'application/json'},
     );
   }
-
-  // Return new fake tokens
-  final responseBody = jsonEncode({
-    'access_token':
-        'new-fake-access-token-${DateTime.now().millisecondsSinceEpoch}',
-    'refresh_token':
-        'new-fake-refresh-token-${DateTime.now().millisecondsSinceEpoch}',
-  });
-
-  return Response.ok(
-    responseBody,
-    headers: {'content-type': 'application/json'},
-  );
 }
 
 // Create Job handler logic
 Future<Response> _createJobHandler(Request request) async {
-  // Check if the request is multipart by checking content-type header
-  if (request.headers['content-type'] == null ||
-      !request.headers['content-type']!
-          .toLowerCase()
-          .startsWith('multipart/form-data')) {
+  print('DEBUG CREATE JOB: Content-Type is ${request.headers['content-type']}');
+
+  // Check if the request is a multipart request using the multipart() extension
+  final multipart = request.multipart();
+  if (multipart == null) {
+    print('DEBUG CREATE JOB: Not a valid multipart request');
     return Response(
-      HttpStatus.badRequest, // 400
+      HttpStatus.badRequest,
       body: jsonEncode({'error': 'Expected multipart/form-data request'}),
       headers: {'content-type': 'application/json'},
     );
@@ -145,49 +249,78 @@ Future<Response> _createJobHandler(Request request) async {
   bool hasAudioFile = false;
 
   try {
-    // Get multipart request handler
-    final multipart = MultipartRequest.of(request);
-    if (multipart == null) {
-      return Response(
-        HttpStatus.badRequest,
-        body: jsonEncode({'error': 'Invalid multipart request format'}),
-        headers: {'content-type': 'application/json'},
-      );
-    }
+    print('DEBUG CREATE JOB: Processing multipart request');
 
-    // Process all parts
-    await for (final part in multipart.parts) {
-      final contentDisposition = part.headers['content-disposition'];
-      if (contentDisposition == null) continue;
+    // Process form data if it exists
+    final formData = request.formData();
+    if (formData != null) {
+      print('DEBUG CREATE JOB: Request contains form data');
 
-      // Extract field name from content-disposition
-      final nameMatch =
-          RegExp(r'name="([^"]*)"').firstMatch(contentDisposition);
-      final fieldName = nameMatch?.group(1);
-      if (fieldName == null) continue;
+      // Collect all form data parts
+      await for (final data in formData.formData) {
+        final name = data.name;
+        print('DEBUG CREATE JOB: Processing form field: $name');
 
-      // Check if this is a file by looking for filename in content-disposition
-      final filenameMatch =
-          RegExp(r'filename="([^"]*)"').firstMatch(contentDisposition);
-      final hasFilename = filenameMatch != null;
+        // Check if this is a file by looking for a filename
+        if (data.filename != null) {
+          if (name == 'audio_file') {
+            print('DEBUG CREATE JOB: Found audio_file upload');
+            hasAudioFile = true;
+            // Just consume the bytes - in a real implementation we might save the file
+            await data.part.readBytes();
+          }
+        } else {
+          // Regular form field
+          final value = await data.part.readString();
+          print('DEBUG CREATE JOB: Field $name = $value');
 
-      if (hasFilename) {
-        // This is a file upload
-        if (fieldName == 'audio_file') {
-          hasAudioFile = true;
-          // Just consume the stream - in a real implementation we might save the file
-          await part.readBytes();
+          if (name == 'user_id') {
+            userId = value;
+          } else if (name == 'text') {
+            text = value;
+          } else if (name == 'additional_text') {
+            additionalText = value;
+          }
         }
-      } else {
-        // This is a regular form field
-        final value = await utf8.decoder.bind(part).join();
+      }
+    } else {
+      print(
+          'DEBUG CREATE JOB: Not a form-data request, processing raw multipart');
 
-        if (fieldName == 'user_id') {
-          userId = value;
-        } else if (fieldName == 'text') {
-          text = value;
-        } else if (fieldName == 'additional_text') {
-          additionalText = value;
+      // Process raw multipart parts
+      await for (final part in multipart.parts) {
+        final contentDisposition = part.headers['content-disposition'];
+        if (contentDisposition == null) {
+          print('DEBUG CREATE JOB: Part missing Content-Disposition header');
+          continue;
+        }
+
+        // Extract field name from content-disposition
+        final nameMatch =
+            RegExp(r'name="([^"]*)"').firstMatch(contentDisposition);
+        final fieldName = nameMatch?.group(1);
+        if (fieldName == null) continue;
+
+        // Check if this is a file
+        final filenameMatch =
+            RegExp(r'filename="([^"]*)"').firstMatch(contentDisposition);
+        final isFile = filenameMatch != null;
+
+        if (isFile) {
+          if (fieldName == 'audio_file') {
+            hasAudioFile = true;
+            await part.readBytes();
+          }
+        } else {
+          final value = await part.readString();
+
+          if (fieldName == 'user_id') {
+            userId = value;
+          } else if (fieldName == 'text') {
+            text = value;
+          } else if (fieldName == 'additional_text') {
+            additionalText = value;
+          }
         }
       }
     }
@@ -235,8 +368,10 @@ Future<Response> _createJobHandler(Request request) async {
       jsonEncode({'data': responseData}),
       headers: {'content-type': 'application/json'},
     );
-  } catch (e) {
+  } catch (e, stackTrace) {
     // Handle potential multipart parsing errors or validation FormatExceptions
+    print('DEBUG CREATE JOB ERROR: $e');
+    print('Stack trace: $stackTrace');
     return Response(
       HttpStatus.badRequest, // 400
       body: jsonEncode({'error': 'Failed to process request: ${e.toString()}'}),
@@ -357,15 +492,86 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   );
 }
 
+// Middleware to check API key
+Middleware _apiKeyMiddleware(String expectedApiKey) {
+  return (Handler innerHandler) {
+    return (Request request) {
+      // DEBUGGING: Log the received API key
+      print('DEBUG: Received X-API-Key: ${request.headers['x-api-key']}');
+      print('DEBUG: Expected X-API-Key: $expectedApiKey');
+
+      final apiKey = request.headers['x-api-key'];
+      if (apiKey == null || apiKey != expectedApiKey) {
+        // Return 401 Unauthorized if API key is missing or invalid
+        print('DEBUG: API Key validation failed');
+        return Response(
+          HttpStatus.unauthorized, // 401
+          body: jsonEncode({'error': 'Missing or invalid X-API-Key header'}),
+          headers: {'content-type': 'application/json'},
+        );
+      }
+
+      print('DEBUG: API Key validation successful');
+      // API key is valid, proceed to the next handler
+      return innerHandler(request);
+    };
+  };
+}
+
+// Middleware to check Bearer Token
+Middleware _authMiddleware() {
+  return (Handler innerHandler) {
+    return (Request request) {
+      // Skip auth for login and refresh endpoints
+      if (request.requestedUri.path.endsWith('/auth/login') ||
+          request.requestedUri.path.endsWith('/auth/refresh-session')) {
+        return innerHandler(request);
+      }
+
+      // DEBUGGING: Log the received Authorization header
+      print(
+          'DEBUG: Received Authorization: ${request.headers['authorization']}');
+
+      final authHeader = request.headers['authorization'];
+      bool isValid = false;
+      if (authHeader != null && authHeader.startsWith('Bearer ')) {
+        // Basic check: just see if it looks like a Bearer token
+        // In a real app, you'd parse and validate the JWT
+        final token = authHeader.substring(7);
+        if (token.isNotEmpty) {
+          isValid = true;
+          // Optional: Add parsed token/user info to request context
+          // request = request.change(context: {'user': ...});
+        }
+      }
+
+      if (!isValid) {
+        print('DEBUG: Auth validation failed');
+        return Response(
+          HttpStatus.unauthorized, // 401
+          body:
+              jsonEncode({'error': 'Missing or invalid Authorization header'}),
+          headers: {'content-type': 'application/json'},
+        );
+      }
+
+      print('DEBUG: Auth validation successful');
+      // Token looks okay, proceed
+      return innerHandler(request);
+    };
+  };
+}
+
 // Update Job handler logic
 Future<Response> _updateJobHandler(Request request, String jobId) async {
   // Authentication and API key are already handled by middleware
 
   // Check Content-Type
-  if (request.headers['content-type']
-          ?.toLowerCase()
-          .startsWith('application/json') !=
-      true) {
+  print('DEBUG UPDATE: Content-Type is ${request.headers['content-type']}');
+  if (request.headers['content-type'] == null ||
+      !request.headers['content-type']!
+          .toLowerCase()
+          .contains('application/json')) {
     return Response(
       HttpStatus.badRequest, // 400
       body: jsonEncode({'error': 'Expected Content-Type: application/json'}),
@@ -393,8 +599,10 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
   Map<String, dynamic> patchData;
   try {
     body = await request.readAsString();
+    print('DEBUG UPDATE: Request body: $body');
     patchData = jsonDecode(body) as Map<String, dynamic>;
   } catch (e) {
+    print('DEBUG UPDATE: Error parsing body: $e');
     return Response(
       HttpStatus.badRequest, // 400
       body: jsonEncode({'error': 'Malformed JSON body: ${e.toString()}'}),
@@ -445,66 +653,49 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
   );
 }
 
-// Middleware to check API key
-Middleware _apiKeyMiddleware(String expectedApiKey) {
-  return (Handler innerHandler) {
-    return (Request request) {
-      final apiKey = request.headers['x-api-key'];
-      if (apiKey == null || apiKey != expectedApiKey) {
-        // Return 401 Unauthorized if API key is missing or invalid
-        return Response(
-          HttpStatus.unauthorized, // 401
-          body: jsonEncode({'error': 'Missing or invalid X-API-Key header'}),
-          headers: {'content-type': 'application/json'},
-        );
-      }
-      // API key is valid, proceed to the next handler
-      return innerHandler(request);
-    };
-  };
-}
-
-// Middleware to check Bearer Token
-Middleware _authMiddleware() {
-  return (Handler innerHandler) {
-    return (Request request) {
-      final authHeader = request.headers['authorization'];
-      bool isValid = false;
-      if (authHeader != null && authHeader.startsWith('Bearer ')) {
-        // Basic check: just see if it looks like a Bearer token
-        // In a real app, you'd parse and validate the JWT
-        final token = authHeader.substring(7);
-        if (token.isNotEmpty) {
-          isValid = true;
-          // Optional: Add parsed token/user info to request context
-          // request = request.change(context: {'user': ...});
-        }
-      }
-
-      if (!isValid) {
-        return Response(
-          HttpStatus.unauthorized, // 401
-          body:
-              jsonEncode({'error': 'Missing or invalid Authorization header'}),
-          headers: {'content-type': 'application/json'},
-        );
-      }
-      // Token looks okay, proceed
-      return innerHandler(request);
-    };
-  };
-}
-
 // Main function now just adds the router, as middleware is applied per-route or globally
 void main() async {
-  final handler = const Pipeline()
-      .addMiddleware(logRequests()) // Log requests
-      .addMiddleware(_apiKeyMiddleware(
-          _expectedApiKey)) // Check API Key (applied globally)
-      .addMiddleware(_authMiddleware()) // Check Bearer Token (applied globally)
-      .addHandler(
-          _router); // Add the router (job route has its own multipart middleware)
+  try {
+    // Main server pipeline
+    final handler = const Pipeline()
+        .addMiddleware(logRequests()) // Log requests
+        .addMiddleware(_debugMiddleware()) // Add our debug middleware
+        .addMiddleware(_apiKeyMiddleware(
+            _expectedApiKey)) // Check API Key (applied globally)
+        .addHandler((request) {
+      // Skip auth check for auth endpoints
+      if (request.requestedUri.path.contains('/auth/')) {
+        print('DEBUG: Auth endpoint detected, skipping auth middleware');
+        return _router.call(request);
+      }
 
-  final server = await io.serve(handler, 'localhost', 8080);
-  print('Mock server listening on port ${server.port}');
+      print('DEBUG: Non-auth endpoint, applying auth middleware');
+      // Apply auth middleware to non-auth endpoints
+      final authProtectedHandler =
+          Pipeline().addMiddleware(_authMiddleware()).addHandler(_router.call);
+
+      return authProtectedHandler(request);
+    });
+
+    // Create server
+    final server = await io.serve(handler, 'localhost', 8080);
+    print('Mock server listening on port ${server.port}');
+
+    // Handle signals for graceful shutdown
+    ProcessSignal.sigint.watch().listen((_) async {
+      print('Received SIGINT - shutting down gracefully...');
+      await server.close(force: false);
+      exit(0);
+    });
+
+    ProcessSignal.sigterm.watch().listen((_) async {
+      print('Received SIGTERM - shutting down gracefully...');
+      await server.close(force: false);
+      exit(0);
+    });
+  } catch (e, stack) {
+    print('ERROR starting server: $e');
+    print('Stack trace: $stack');
+    exit(1);
+  }
 }

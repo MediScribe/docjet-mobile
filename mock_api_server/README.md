@@ -74,6 +74,73 @@ When making multipart requests, ensure:
      "http://localhost:8080/api/v1/jobs"
    ```
 
+## API Job Remote Data Source Debug Test
+
+We have a dedicated test for debugging API job remote data source interactions with the mock server. This test helps diagnose multipart upload issues and verify proper communication with the server.
+
+### Running the Debug Test
+
+```bash
+# First, make sure mocks are generated (only needed once or after changes)
+flutter pub run build_runner build --delete-conflicting-outputs
+
+# Run the debug test
+flutter test test/features/jobs/data/datasources/api_job_remote_data_source_debug_test.dart
+```
+
+This test:
+- Automatically starts and stops the mock server
+- Creates a test multipart form with audio file
+- Sends the request to the mock server
+- Logs detailed request/response information
+- Validates a successful response
+
+### Debug Test Output
+
+The test provides verbose logging including:
+- FormData construction with fields and files
+- HTTP request headers and payload
+- HTTP response data
+- Request processing by the mock server
+
+### Troubleshooting Debug Test Issues
+
+If you encounter issues:
+1. Check the mock server logs for specific errors
+2. Verify that `test-api-key` and auth token headers are properly included
+3. Check that FormData is constructed with both fields and files
+4. Ensure no port conflicts (kill any running mock server instances)
+5. Verify that no Content-Type header is manually set for multipart requests
+
+## Multipart Upload Testing with httpbin.org
+
+We've created dedicated tests to validate multipart upload behavior against httpbin.org, which is helpful for troubleshooting issues with the mock server.
+
+### Running httpbin Tests
+
+From the project root:
+
+```bash
+flutter test test/features/jobs/data/datasources/httpbin_multipart_test.dart
+```
+
+This test validates:
+- Default Dio FormData behavior
+- Custom boundary approaches
+- Proper header handling
+
+The httpbin tests are crucial for isolating issues with multipart uploads from the mock server implementation.
+
+### Quick Diagnostic Tests
+
+If you suspect issues with multipart handling, run:
+
+```bash
+flutter test test/features/jobs/data/datasources/debug_multipart_test.dart
+```
+
+This test performs more detailed logging and diagnostics of multipart request handling.
+
 ## Running Integration Tests
 
 Integration tests require the mock server to be running properly. Follow these steps:
@@ -94,17 +161,49 @@ Integration tests require the mock server to be running properly. Follow these s
    - Check that you're using `isJsonRequest: false` when getting options for multipart requests
    - Make sure FormData is properly configured with all required fields
    - Let Dio handle setting the Content-Type header with the boundary
+   - Check the URL in your requests (common error: `'${_mockBaseUrl}api/v1/jobs'` should be `'$_mockBaseUrl/jobs'`)
 
-## Known Issues
+## Running All Tests
 
-1. Integration tests may fail with `400 Bad Request` when using Dio to create FormData directly
-   - Workaround: Let Dio handle the Content-Type header automatically, don't override it
-   - Ensure your api_job_remote_data_source_impl.dart is using `isJsonRequest: false` when getting options
+To run all relevant tests in sequence:
 
-2. The boundary format is crucial for multipart requests
-   - If custom boundary is needed, follow standard format (`----WebKitFormBoundary...` or similar)
+```bash
+# Kill any existing server first
+pkill -f "dart bin/server.dart" || true
 
-3. For integration tests, use the helper method `_directDioUpload` in the test file instead of direct API calls
+# 1. Run isolated httpbin tests (no mock server needed)
+flutter test test/features/jobs/data/datasources/httpbin_multipart_test.dart
+
+# 2. Run debug diagnostics
+flutter test test/features/jobs/data/datasources/debug_multipart_test.dart
+
+# 3. Run the API job remote data source debug test
+flutter test test/features/jobs/data/datasources/api_job_remote_data_source_debug_test.dart
+
+# 4. Run integration tests
+flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
+```
+
+## Known Issues and Troubleshooting
+
+1. **400 Bad Request errors with Dio**:
+   - URL concatenation: Make sure you're not doubling up paths like `${_mockBaseUrl}api/v1/jobs`
+   - Auth headers: Verify `X-API-Key` and `Authorization` are present in all requests
+   - Content-Type: Don't manually set Content-Type for multipart requests, let Dio handle it
+
+2. **Common integration test errors**:
+   - `Failed to create job. Status: 400` - Check the request format and headers
+   - "Expected Content-Type starting with multipart/form-data" - Check how FormData is constructed
+
+3. **Boundary handling**:
+   - Default approach: `final formData = FormData();` (let Dio handle boundaries)
+   - If custom boundary needed: Use format like `boundary=------------------------${timestamp}`
+   - Never manually construct multipart payloads without proper boundary handling
+
+4. **Testing multipart uploads**:
+   - Always validate against httpbin.org first if something fails
+   - Use `LogInterceptor` with Dio to see exact request/response details
+   - Compare working curl requests with failing Dio requests
 
 ## Debugging
 
@@ -112,6 +211,12 @@ The server includes extensive debug logging. Look for:
 - `=== DEBUG: Incoming Request ===` - Shows incoming request details
 - `=== DEBUG: Outgoing Response ===` - Shows outgoing response details
 - `DEBUG CREATE JOB:` - Shows multipart form processing details
+
+For additional debugging:
+```bash
+# Capture full request/response logs
+flutter test --verbose test/features/jobs/data/datasources/job_datasources_integration_test.dart > test_log.txt 2>&1
+```
 
 ## Stopping the Server
 
