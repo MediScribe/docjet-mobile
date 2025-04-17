@@ -1,14 +1,35 @@
 import 'dart:convert';
+import 'dart:io'; // Added for Process
+
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
-// Assume server runs on localhost:8080 (we'll configure this later)
-final String baseUrl = 'http://localhost:8080';
-// As per spec, a fixed API key is needed
+import 'test_helpers.dart'; // Import the helper
+
+// No longer using a fixed baseUrl
+// final String baseUrl = 'http://localhost:8080';
 final String testApiKey = 'test-api-key';
+final String dummyJwt = 'fake-jwt-token'; // For Authorization header
+
+// Path to server executable (relative to mock_api_server directory)
+// const String _mockServerPath = 'bin/server.dart'; // Moved to helper
 
 void main() {
-  // TODO: Add setupAll and tearDownAll to start/stop the server for tests
+  Process? mockServerProcess;
+  int mockServerPort = 0; // Initialize port
+  late String baseUrl; // Declare baseUrl, will be set in setUpAll
+
+  setUpAll(() async {
+    (mockServerProcess, mockServerPort) = await startMockServer('AuthTest');
+    if (mockServerProcess == null) {
+      throw Exception('Failed to start mock server for AuthTest');
+    }
+    baseUrl = 'http://localhost:$mockServerPort'; // Set dynamic baseUrl
+  });
+
+  tearDownAll(() async {
+    await stopMockServer('AuthTest', mockServerProcess);
+  });
 
   group('POST /api/v1/auth/login', () {
     test('should return JWT tokens on successful login', () async {

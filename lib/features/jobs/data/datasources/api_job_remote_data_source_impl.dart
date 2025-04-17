@@ -62,13 +62,16 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
       final headers = <String, dynamic>{'X-API-Key': apiKey};
 
-      if (accessToken != null) {
+      if (accessToken != null && accessToken.isNotEmpty) {
         headers['Authorization'] = 'Bearer $accessToken';
       }
-      // Set Content-Type based on the request type
+
+      // Only set Content-Type for JSON requests
+      // For multipart/form-data, don't set any content-type and let Dio handle it
+      // automatically with the correct boundary
       if (isJsonRequest) {
         headers['Content-Type'] = 'application/json';
-      } // For multipart/form-data, Dio handles Content-Type automatically
+      }
 
       return Options(headers: headers);
     } catch (e, stackTrace) {
@@ -164,19 +167,33 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   }) async {
     _logger.d('$_tag Preparing FormData for job creation...');
     try {
-      // Use the injected creator function
+      // Use Dio's default boundary handling.
+      final formData = FormData();
+
+      // Use the injected creator function to create the audio file
       final audioFile = await _multipartFileCreator(audioFilePath);
 
-      // Build the form data map
+      // Add fields and files manually
+      formData.fields.add(MapEntry('user_id', userId));
+      if (text != null) {
+        formData.fields.add(MapEntry('text', text));
+      }
+      if (additionalText != null) {
+        formData.fields.add(MapEntry('additional_text', additionalText));
+      }
+      formData.files.add(MapEntry('audio_file', audioFile));
+
+      // Build the form data map for logging
       final formMap = <String, dynamic>{
         'user_id': userId,
         if (text != null) 'text': text,
         if (additionalText != null) 'additional_text': additionalText,
-        'audio_file': audioFile,
+        'audio_file': 'Instance of \\\'MultipartFile\\\'',
       };
 
       _logger.d('$_tag FormData map prepared: $formMap');
-      return FormData.fromMap(formMap);
+      _logger.d('$_tag FormData using boundary: ${formData.boundary}');
+      return formData;
     } catch (e, stackTrace) {
       _logger.e(
         '$_tag Failed to create MultipartFile or FormData',
@@ -318,14 +335,15 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     String? text,
     String? additionalText,
   }) async {
+    // Restore original endpoint
     const String endpoint = '/jobs';
+
     _logger.d(
       '$_tag createJob called with userId: $userId, audioFilePath: $audioFilePath, text: $text, additionalText: $additionalText',
     );
 
     try {
-      // --- Prepare Data ---
-      // Use helper to create FormData, which includes the audio file
+      // Restore original call to helper
       final formData = await _createJobFormData(
         userId: userId,
         audioFilePath: audioFilePath,
@@ -335,25 +353,31 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
       // --- Make API Call ---
       _logger.d('$_tag Sending POST request to $endpoint');
+
+      // Restore original options fetching
       final options = await _getOptionsWithAuth(isJsonRequest: false);
+
       final response = await dio.post(
         endpoint,
-        data: formData, // Send the prepared FormData
+        data: formData,
         options: options,
       );
 
       // --- Handle Response ---
-      // Success Case (201 Created)
-      if (response.statusCode == 201 && response.data != null) {
+      // Restore original Success Case (201 Created or 200 OK)
+      if ((response.statusCode == 201 || response.statusCode == 200) &&
+          response.data != null) {
+        // Restore original success handling
         _logger.i(
-          '$_tag createJob successful (201). Response data: ${response.data}',
+          '$_tag createJob successful (${response.statusCode}). Response data: ${response.data}',
         );
         // API returns the created job object wrapped in "data"
         final Map<String, dynamic> jobData = response.data['data'];
         return _mapJsonToJob(jobData);
       }
-      // Error Case (Non-201)
+      // Restore original Error Case (Non-201/200)
       else {
+        // Restore original error handling
         _logger.w(
           '$_tag createJob received unexpected status: ${response.statusCode}. Response data: ${response.data}',
         );
@@ -363,7 +387,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         );
       }
     }
-    // --- Dio/Network Error Case ---
+    // Restore original Dio/Network Error Case
     on DioException catch (e) {
       _logger.e(
         '$_tag DioException in createJob: ${e.message}',
@@ -375,14 +399,14 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         statusCode: e.response?.statusCode,
       );
     }
-    // --- Other Unexpected Error Case (includes FormData creation errors) ---
+    // Restore original Other Unexpected Error Case
     catch (e, stackTrace) {
       _logger.e(
         '$_tag Unexpected error in createJob: ${e.toString()}',
         error: e,
         stackTrace: stackTrace,
       );
-      // Re-throw if it's already an ApiException (e.g., from _createJobFormData)
+      // Re-throw if it's already an ApiException
       if (e is ApiException) {
         rethrow;
       }

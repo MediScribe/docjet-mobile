@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:args/args.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
+import 'package:mime/mime.dart';
 import 'package:uuid/uuid.dart';
 
 // Hardcoded API key for mock validation, matching the test
@@ -13,6 +15,17 @@ const String _expectedApiKey = 'test-api-key';
 // In-memory storage for jobs
 final List<Map<String, dynamic>> _jobs = [];
 const _uuid = Uuid();
+
+// Helper function to read MimeMultipart as string
+Future<String> readAsString(MimeMultipart part) async {
+  // MimeMultipart is a Stream<List<int>>, so collect all chunks and decode
+  final chunks = await part.toList();
+  final allBytes = <int>[];
+  for (var chunk in chunks) {
+    allBytes.addAll(chunk);
+  }
+  return utf8.decode(allBytes);
+}
 
 // Debug middleware to log request details
 Middleware _debugMiddleware() {
@@ -232,13 +245,26 @@ Future<Response> _refreshHandler(Request request) async {
 Future<Response> _createJobHandler(Request request) async {
   print('DEBUG CREATE JOB: Content-Type is ${request.headers['content-type']}');
 
-  // Check if the request is a multipart request using the multipart() extension
-  final multipart = request.multipart();
-  if (multipart == null) {
-    print('DEBUG CREATE JOB: Not a valid multipart request');
+  // Additional debugging for the request
+  print('DEBUG CREATE JOB: All headers:');
+  request.headers.forEach((name, value) {
+    print('  $name: $value');
+  });
+
+  // IMPORTANT: DO NOT read the request body here as it can only be read once
+  print('DEBUG CREATE JOB: Processing multipart request');
+
+  // More lenient check for multipart content type
+  if (request.headers['content-type'] == null ||
+      !request.headers['content-type']!
+          .toLowerCase()
+          .contains('multipart/form-data')) {
+    print(
+        'DEBUG CREATE JOB: Not a valid multipart request. Content-Type: ${request.headers['content-type']}');
     return Response(
       HttpStatus.badRequest,
-      body: jsonEncode({'error': 'Expected multipart/form-data request'}),
+      body: jsonEncode(
+          {'error': 'Expected Content-Type containing multipart/form-data'}),
       headers: {'content-type': 'application/json'},
     );
   }
@@ -251,76 +277,68 @@ Future<Response> _createJobHandler(Request request) async {
   try {
     print('DEBUG CREATE JOB: Processing multipart request');
 
-    // Process form data if it exists
-    final formData = request.formData();
-    if (formData != null) {
-      print('DEBUG CREATE JOB: Request contains form data');
+    // First, ensure we have a multipart request
+    final multipartRequest = request.multipart();
+    if (multipartRequest == null) {
+      throw FormatException('Could not parse as multipart request');
+    }
 
-      // Collect all form data parts
-      await for (final data in formData.formData) {
-        final name = data.name;
-        print('DEBUG CREATE JOB: Processing form field: $name');
+    // Initialize variables to store form data
+    userId = null;
+    text = null;
+    additionalText = null;
+    hasAudioFile = false;
 
-        // Check if this is a file by looking for a filename
-        if (data.filename != null) {
-          if (name == 'audio_file') {
-            print('DEBUG CREATE JOB: Found audio_file upload');
-            hasAudioFile = true;
-            // Just consume the bytes - in a real implementation we might save the file
-            await data.part.readBytes();
-          }
-        } else {
-          // Regular form field
-          final value = await data.part.readString();
-          print('DEBUG CREATE JOB: Field $name = $value');
+    // Process the multipart parts directly without storing them first
+    await for (final part in multipartRequest.parts) {
+      final headers = part.headers;
+      print('DEBUG CREATE JOB: Part headers: $headers');
 
-          if (name == 'user_id') {
-            userId = value;
-          } else if (name == 'text') {
-            text = value;
-          } else if (name == 'additional_text') {
-            additionalText = value;
-          }
-        }
+      final contentDisposition = headers['content-disposition'];
+      if (contentDisposition == null) {
+        print('DEBUG CREATE JOB: Missing Content-Disposition header in part');
+        continue;
       }
-    } else {
+
+      // Extract field name and filename
+      final nameMatch =
+          RegExp(r'name="([^"]*)"').firstMatch(contentDisposition);
+      final filenameMatch =
+          RegExp(r'filename="([^"]*)"').firstMatch(contentDisposition);
+
+      final name = nameMatch?.group(1);
+      final filename = filenameMatch?.group(1);
+
+      if (name == null) {
+        print(
+            'DEBUG CREATE JOB: Could not find name in Content-Disposition: $contentDisposition');
+        continue;
+      }
+
       print(
-          'DEBUG CREATE JOB: Not a form-data request, processing raw multipart');
+          'DEBUG CREATE JOB: Processing part with name: $name, filename: $filename');
 
-      // Process raw multipart parts
-      await for (final part in multipart.parts) {
-        final contentDisposition = part.headers['content-disposition'];
-        if (contentDisposition == null) {
-          print('DEBUG CREATE JOB: Part missing Content-Disposition header');
-          continue;
+      // Check if this is a file by looking for a filename
+      if (filename != null) {
+        if (name == 'audio_file') {
+          print(
+              'DEBUG CREATE JOB: Found audio_file upload with filename: $filename');
+          hasAudioFile = true;
+          // Just consume the bytes - in a real implementation we might save the file
+          await part
+              .drain(); // MimeMultipart extends Stream<List<int>> so we can use drain()
         }
+      } else {
+        // Regular form field
+        final value = await readAsString(part);
+        print('DEBUG CREATE JOB: Field $name = $value');
 
-        // Extract field name from content-disposition
-        final nameMatch =
-            RegExp(r'name="([^"]*)"').firstMatch(contentDisposition);
-        final fieldName = nameMatch?.group(1);
-        if (fieldName == null) continue;
-
-        // Check if this is a file
-        final filenameMatch =
-            RegExp(r'filename="([^"]*)"').firstMatch(contentDisposition);
-        final isFile = filenameMatch != null;
-
-        if (isFile) {
-          if (fieldName == 'audio_file') {
-            hasAudioFile = true;
-            await part.readBytes();
-          }
-        } else {
-          final value = await part.readString();
-
-          if (fieldName == 'user_id') {
-            userId = value;
-          } else if (fieldName == 'text') {
-            text = value;
-          } else if (fieldName == 'additional_text') {
-            additionalText = value;
-          }
+        if (name == 'user_id') {
+          userId = value;
+        } else if (name == 'text') {
+          text = value;
+        } else if (name == 'additional_text') {
+          additionalText = value;
         }
       }
     }
@@ -654,7 +672,12 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
 }
 
 // Main function now just adds the router, as middleware is applied per-route or globally
-void main() async {
+void main(List<String> args) async {
+  // Define argument parser
+  final parser = ArgParser()..addOption('port', abbr: 'p', defaultsTo: '8080');
+  final argResults = parser.parse(args);
+  final port = int.tryParse(argResults['port'] as String) ?? 8080;
+
   try {
     // Main server pipeline
     final handler = const Pipeline()
@@ -678,7 +701,7 @@ void main() async {
     });
 
     // Create server
-    final server = await io.serve(handler, 'localhost', 8080);
+    final server = await io.serve(handler, 'localhost', port);
     print('Mock server listening on port ${server.port}');
 
     // Handle signals for graceful shutdown

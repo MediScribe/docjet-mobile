@@ -1,14 +1,33 @@
 import 'dart:convert';
+import 'dart:io'; // Needed for Process
+
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
-// Constants from auth tests (or shared location eventually)
-final String baseUrl = 'http://localhost:8080';
+import 'test_helpers.dart'; // Import the helper
+
+// No longer using a fixed baseUrl
+// final String baseUrl = 'http://localhost:8080';
 final String testApiKey = 'test-api-key';
 final String dummyJwt = 'fake-jwt-token'; // For Authorization header
 
 void main() {
-  // TODO: Add setupAll/tearDownAll to start/stop server?
+  Process? mockServerProcess;
+  int mockServerPort = 0; // Initialize port
+  late String baseUrl; // Declare baseUrl, will be set in setUpAll
+
+  setUpAll(() async {
+    (mockServerProcess, mockServerPort) = await startMockServer('JobsTest');
+    if (mockServerProcess == null) {
+      throw Exception('Failed to start mock server for JobsTest');
+    }
+    baseUrl = 'http://localhost:$mockServerPort'; // Set dynamic baseUrl
+  });
+
+  tearDownAll(() async {
+    await stopMockServer('JobsTest', mockServerProcess);
+  });
+
   // TODO: Maybe reset in-memory job list between tests?
 
   group('POST /api/v1/jobs', () {
@@ -137,7 +156,7 @@ void main() {
 
   group('GET /api/v1/jobs', () {
     // Helper to create a job for testing GET requests
-    Future<Map<String, dynamic>> _createTestJob() async {
+    Future<Map<String, dynamic>> createTestJob() async {
       final createUrl = Uri.parse('$baseUrl/api/v1/jobs');
       final createRequest = http.MultipartRequest('POST', createUrl)
         ..headers.addAll({
@@ -189,7 +208,7 @@ void main() {
     test('should return 200 OK with a list of existing jobs', () async {
       // Arrange
       // Create a job first to ensure there's something to retrieve
-      final createdJob = await _createTestJob();
+      final createdJob = await createTestJob();
       final url = Uri.parse('$baseUrl/api/v1/jobs');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
@@ -255,7 +274,7 @@ void main() {
 
   group('GET /api/v1/jobs/{id}', () {
     // Helper to create a job for testing GET requests
-    Future<Map<String, dynamic>> _createTestJob() async {
+    Future<Map<String, dynamic>> createTestJob() async {
       final createUrl = Uri.parse('$baseUrl/api/v1/jobs');
       final createRequest = http.MultipartRequest('POST', createUrl)
         ..headers.addAll({
@@ -276,7 +295,7 @@ void main() {
     test('should return 200 OK with the specific job details if found',
         () async {
       // Arrange
-      final createdJob = await _createTestJob();
+      final createdJob = await createTestJob();
       final jobId = createdJob['id'];
       final url = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
       final headers = {
@@ -352,7 +371,7 @@ void main() {
 
   group('GET /api/v1/jobs/{id}/documents', () {
     // Helper to create a job for testing
-    Future<Map<String, dynamic>> _createTestJob() async {
+    Future<Map<String, dynamic>> createTestJob() async {
       final createUrl = Uri.parse('$baseUrl/api/v1/jobs');
       final createRequest = http.MultipartRequest('POST', createUrl)
         ..headers.addAll({
@@ -372,7 +391,7 @@ void main() {
     test('should return 200 OK with a list of document details if job exists',
         () async {
       // Arrange
-      final createdJob = await _createTestJob();
+      final createdJob = await createTestJob();
       final jobId = createdJob['id'];
       final url = Uri.parse('$baseUrl/api/v1/jobs/$jobId/documents');
       final headers = {
@@ -447,7 +466,7 @@ void main() {
 
   group('PATCH /api/v1/jobs/{id}', () {
     // Helper to create a job for testing PATCH requests
-    Future<Map<String, dynamic>> _createTestJobForPatch() async {
+    Future<Map<String, dynamic>> createTestJobForPatch() async {
       final createUrl = Uri.parse('$baseUrl/api/v1/jobs');
       final createRequest = http.MultipartRequest('POST', createUrl)
         ..headers.addAll({
@@ -466,7 +485,7 @@ void main() {
 
     test('should return 200 OK and update job fields on success', () async {
       // Arrange
-      final createdJob = await _createTestJobForPatch();
+      final createdJob = await createTestJobForPatch();
       final jobId = createdJob['id'];
       final originalUpdatedAt = createdJob['updated_at'];
       final url = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
@@ -505,7 +524,7 @@ void main() {
 
     test('should return 200 OK and update only provided fields', () async {
       // Arrange
-      final createdJob = await _createTestJobForPatch();
+      final createdJob = await createTestJobForPatch();
       final jobId = createdJob['id'];
       final originalText = createdJob['text']; // Should remain unchanged
       final url = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
@@ -588,7 +607,7 @@ void main() {
         'should return 400 Bad Request if Content-Type is not application/json',
         () async {
       // Arrange
-      final createdJob = await _createTestJobForPatch();
+      final createdJob = await createTestJobForPatch();
       final jobId = createdJob['id'];
       final url = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
       final headers = {

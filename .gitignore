@@ -69,3 +69,6 @@ flutter_app.iml
 **/macos/Flutter/ephemeral
 **/macos/Pods/
 **/macos/.symlinks 
+
+# Mock server build artifacts
+/mock_api_server/build/ 

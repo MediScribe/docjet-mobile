@@ -74,113 +74,35 @@ When making multipart requests, ensure:
      "http://localhost:8080/api/v1/jobs"
    ```
 
-## API Job Remote Data Source Debug Test
+## Quick Debug Commands
 
-We have a dedicated test for debugging API job remote data source interactions with the mock server. This test helps diagnose multipart upload issues and verify proper communication with the server.
-
-### Running the Debug Test
-
-```bash
-# First, make sure mocks are generated (only needed once or after changes)
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Run the debug test
-flutter test test/features/jobs/data/datasources/api_job_remote_data_source_debug_test.dart
-```
-
-This test:
-- Automatically starts and stops the mock server
-- Creates a test multipart form with audio file
-- Sends the request to the mock server
-- Logs detailed request/response information
-- Validates a successful response
-
-### Debug Test Output
-
-The test provides verbose logging including:
-- FormData construction with fields and files
-- HTTP request headers and payload
-- HTTP response data
-- Request processing by the mock server
-
-### Troubleshooting Debug Test Issues
-
-If you encounter issues:
-1. Check the mock server logs for specific errors
-2. Verify that `test-api-key` and auth token headers are properly included
-3. Check that FormData is constructed with both fields and files
-4. Ensure no port conflicts (kill any running mock server instances)
-5. Verify that no Content-Type header is manually set for multipart requests
-
-## Multipart Upload Testing with httpbin.org
-
-We've created dedicated tests to validate multipart upload behavior against httpbin.org, which is helpful for troubleshooting issues with the mock server.
-
-### Running httpbin Tests
-
-From the project root:
+For debugging the server and tests in one go, you can use the following one-liner that:
+1. Starts the mock server
+2. Waits for it to initialize
+3. Tests it with a curl request
+4. Runs the integration tests
 
 ```bash
-flutter test test/features/jobs/data/datasources/httpbin_multipart_test.dart
+# Run server, test with curl, and then run integration tests
+cd mock_api_server && dart bin/server.dart & sleep 2 && curl -v -X POST -H "X-API-Key: test-api-key" -H "Authorization: Bearer fake-access-token" -F "user_id=fake-user-id-123" -F "text=Test text" -F "audio_file=@README.md" "http://localhost:8080/api/v1/jobs" && cd .. && flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
 ```
 
-This test validates:
-- Default Dio FormData behavior
-- Custom boundary approaches
-- Proper header handling
-
-The httpbin tests are crucial for isolating issues with multipart uploads from the mock server implementation.
-
-### Quick Diagnostic Tests
-
-If you suspect issues with multipart handling, run:
+A simpler version to just run the test:
 
 ```bash
-flutter test test/features/jobs/data/datasources/debug_multipart_test.dart
+# Kill any existing server, start a new one and run tests
+pkill -f "dart bin/server.dart" || true && cd mock_api_server && dart bin/server.dart & sleep 2 && cd .. && flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
 ```
 
-This test performs more detailed logging and diagnostics of multipart request handling.
+## Running All Tests (Simplified)
 
-## Running Integration Tests
-
-Integration tests require the mock server to be running properly. Follow these steps:
-
-1. **Important**: Make sure no previous mock server is running:
-   ```bash
-   pkill -f "dart bin/server.dart" || true
-   ```
-
-2. Run the integration tests from the project root:
-   ```bash
-   flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
-   ```
-
-3. Note: The integration test will automatically start/stop the mock server as needed, but it's good practice to ensure no server is running before starting.
-
-4. If you encounter `400 Bad Request` errors in the integration test:
-   - Check that you're using `isJsonRequest: false` when getting options for multipart requests
-   - Make sure FormData is properly configured with all required fields
-   - Let Dio handle setting the Content-Type header with the boundary
-   - Check the URL in your requests (common error: `'${_mockBaseUrl}api/v1/jobs'` should be `'$_mockBaseUrl/jobs'`)
-
-## Running All Tests
-
-To run all relevant tests in sequence:
+To run the main integration tests (which now include testing against the mock server):
 
 ```bash
 # Kill any existing server first
 pkill -f "dart bin/server.dart" || true
 
-# 1. Run isolated httpbin tests (no mock server needed)
-flutter test test/features/jobs/data/datasources/httpbin_multipart_test.dart
-
-# 2. Run debug diagnostics
-flutter test test/features/jobs/data/datasources/debug_multipart_test.dart
-
-# 3. Run the API job remote data source debug test
-flutter test test/features/jobs/data/datasources/api_job_remote_data_source_debug_test.dart
-
-# 4. Run integration tests
+# Run integration tests (server started/stopped automatically within)
 flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
 ```
 
@@ -204,6 +126,10 @@ flutter test test/features/jobs/data/datasources/job_datasources_integration_tes
    - Always validate against httpbin.org first if something fails
    - Use `LogInterceptor` with Dio to see exact request/response details
    - Compare working curl requests with failing Dio requests
+
+5. **WARNING: Persistent 400 Errors in Flutter Tests? CHECK YOUR BINDING!**
+   - If your integration tests using `flutter test` consistently fail with 400 Bad Request errors (even against httpbin.org or when curl works), **check if your test setup calls `TestWidgetsFlutterBinding.ensureInitialized()`**. This binding replaces the standard `HttpClient` with a test version that **blocks all real network requests** and returns 400 status codes.
+   - **SOLUTION**: For integration tests that require *real* network interaction (like hitting this mock server), **DO NOT** use `TestWidgetsFlutterBinding.ensureInitialized()`. If you need a binding (e.g., for plugins or Hive setup outside a pure widget test), ensure it's appropriate for integration testing or remove it if unnecessary for the specific test suite.
 
 ## Debugging
 

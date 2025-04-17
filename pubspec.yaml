@@ -56,6 +56,7 @@ dependencies:
   dio: ^5.5.0+1 # Added for network requests
   flutter_secure_storage: ^4.2.1
   flutter_dotenv: ^5.2.1
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_test:
