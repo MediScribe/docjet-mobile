@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
-import 'job_remote_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
 
 // Type definition for the MultipartFile creator function. This allows injecting
@@ -45,7 +45,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
   /// Adds required headers (e.g., JWT, API Key) to Dio requests.
   ///
-  /// TODO: Implement actual header retrieval logic (e.g., from auth state/storage).
+  /// FIXME: Replace placeholder values with actual token/key retrieval logic.
   Options _getHeaders() {
     // Placeholder values - replace with actual token/key retrieval
     const String tempJwt = 'your_jwt_token_here';
@@ -66,13 +66,40 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// Handles potential parsing errors and wraps them in an [ApiException].
   Job _mapJsonToJob(Map<String, dynamic> json) {
     try {
+      // Helper function for safe casting with type checking
+      T safeCast<T>(dynamic value, String key) {
+        if (value is T) {
+          return value;
+        }
+        throw FormatException(
+          'Invalid type for key "$key": Expected $T but got ${value?.runtimeType ?? 'null'}',
+        );
+      }
+
+      // Helper for safe DateTime parsing
+      DateTime parseDateTime(dynamic value, String key) {
+        if (value is String) {
+          try {
+            return DateTime.parse(value);
+          } catch (e) {
+            throw FormatException(
+              'Invalid DateTime format for key "$key": "$value"',
+            );
+          }
+        }
+        throw FormatException(
+          'Invalid type for key "$key": Expected String but got ${value?.runtimeType ?? 'null'}',
+        );
+      }
+
       return Job(
-        id: json['id'] as String,
-        userId: json['user_id'] as String,
+        id: safeCast<String>(json['id'], 'id'),
+        userId: safeCast<String>(json['user_id'], 'user_id'),
         // Map 'job_status' from API to 'status' in entity
-        status: json['job_status'] as String,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
+        status: safeCast<String>(json['job_status'], 'job_status'),
+        createdAt: parseDateTime(json['created_at'], 'created_at'),
+        updatedAt: parseDateTime(json['updated_at'], 'updated_at'),
+        // Optional fields - allow null if missing or null
         errorCode: json['error_code'] as int?,
         errorMessage: json['error_message'] as String?,
         text: json['text'] as String?,
@@ -82,10 +109,23 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         // audioFilePath is not expected in GET responses according to spec
         audioFilePath: null,
       );
-    } catch (e) {
-      // Catch potential parsing errors (wrong types, missing keys)
-      _logger.e('$_tag Failed to parse job data: $json', error: e);
-      throw ApiException(message: 'Failed to parse job data: ${e.toString()}');
+    } on FormatException catch (e) {
+      // Catch specific parsing errors
+      _logger.e(
+        '$_tag Failed to parse job data: ${e.message}. JSON: $json',
+        error: e,
+      );
+      throw ApiException(message: 'Failed to parse job data: ${e.message}');
+    } catch (e, stackTrace) {
+      // Catch other potential errors during construction
+      _logger.e(
+        '$_tag Unexpected error mapping JSON to Job: $json',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw ApiException(
+        message: 'Unexpected error processing job data: ${e.toString()}',
+      );
     }
   }
 

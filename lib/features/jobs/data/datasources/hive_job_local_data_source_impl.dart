@@ -162,24 +162,31 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   @override
   Future<JobHiveModel?> getLastJobHiveModel() async {
     _logger.d('$_tag getLastJobHiveModel called');
-    // TODO: Performance Warning: This loads ALL jobs into memory and sorts them.
-    // This could become very slow if the number of cached jobs becomes large.
-    // Consider alternative strategies if performance becomes an issue, such as:
-    // 1. Storing the ID of the last updated job separately.
-    // 2. Using a different local storage solution that supports indexing/querying.
+    // Implementation Note: This iterates through all cached jobs to find the one
+    // with the latest 'updatedAt' timestamp. This is necessary with Hive's basic
+    // key-value structure without maintaining separate indices.
+    // If performance becomes an issue with a very large cache, consider:
+    // 1. Storing the last updated job's ID separately.
+    // 2. Migrating to a local DB that supports indexed queries (e.g., Isar, Drift).
     try {
       final box = await _getOpenBox();
-      final jobs = box.values.toList();
+      final jobs = box.values.toList(); // Read all values
       if (jobs.isEmpty) {
         _logger.d('$_tag No jobs found in cache for getLastJobHiveModel.');
         return null;
       }
       _logger.d(
-        '$_tag Found ${jobs.length} jobs, sorting to find the last one...',
+        '$_tag Found ${jobs.length} jobs, iterating to find the most recent...',
       );
-      // Sort by updatedAt descending and return the first one
-      jobs.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      final lastJob = jobs.first;
+
+      // Iterate to find the job with the maximum updatedAt timestamp
+      JobHiveModel lastJob = jobs[0]; // Initialize with the first element
+      for (int i = 1; i < jobs.length; i++) {
+        if (jobs[i].updatedAt.isAfter(lastJob.updatedAt)) {
+          lastJob = jobs[i];
+        }
+      }
+
       _logger.d(
         '$_tag Last job found with id: ${lastJob.id}, updatedAt: ${lastJob.updatedAt}',
       );
