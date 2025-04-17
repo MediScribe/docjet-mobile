@@ -22,6 +22,7 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   final EnvReader _envReader;
 
   static const String _accessTokenKey = 'accessToken';
+  static const String _refreshTokenKey = 'refreshToken';
   static const String _apiKeyEnvVariable = 'API_KEY';
 
   SecureStorageAuthCredentialsProvider({
@@ -50,12 +51,29 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   }
 
   /// Stores the access token securely.
+  @override
   Future<void> setAccessToken(String token) async {
     await _secureStorage.write(key: _accessTokenKey, value: token);
   }
 
   /// Deletes the access token from secure storage.
+  @override
   Future<void> deleteAccessToken() async {
     await _secureStorage.delete(key: _accessTokenKey);
+  }
+
+  @override
+  Future<String?> getRefreshToken() async {
+    return _secureStorage.read(key: _refreshTokenKey);
+  }
+
+  @override
+  Future<void> setRefreshToken(String token) async {
+    await _secureStorage.write(key: _refreshTokenKey, value: token);
+  }
+
+  @override
+  Future<void> deleteRefreshToken() async {
+    await _secureStorage.delete(key: _refreshTokenKey);
   }
 }
