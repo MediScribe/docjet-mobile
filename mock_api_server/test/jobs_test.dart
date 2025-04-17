@@ -315,9 +315,11 @@ void main() {
       expect(jsonResponse['data']['user_id'], 'test-user-get-id');
       expect(jsonResponse['data']['job_status'], 'submitted');
       expect(jsonResponse['data']['text'], 'Job for ID lookup');
-      // Assuming GET by ID returns the full detail, same as POST response
-      expect(jsonResponse['data'], isNot(contains('display_title')));
-      expect(jsonResponse['data'], isNot(contains('display_text')));
+      // Handler now includes these fields, even if null initially
+      expect(jsonResponse['data'], contains('display_title'));
+      expect(jsonResponse['data']['display_title'], isNull);
+      expect(jsonResponse['data'], contains('display_text'));
+      expect(jsonResponse['data']['display_text'], isNull);
     });
 
     test('should return 404 Not Found if job ID does not exist', () async {

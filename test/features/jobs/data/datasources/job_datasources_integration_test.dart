@@ -468,6 +468,168 @@ void main() {
       },
     );
 
+    test(
+      'RemoteDataSource - fetchJobs successfully retrieves a list of jobs',
+      () async {
+        // Arrange: Create a job first so the list isn't empty
+        final tempDir = await Directory.systemTemp.createTemp(
+          'test_audio_fetch_',
+        );
+        final testFile = File(p.join(tempDir.path, 'test_audio.mp3'));
+        await testFile.writeAsString('dummy audio content');
+        const text = 'Fetch Jobs Test';
+        final createdJob = await remoteDataSource.createJob(
+          userId: _testUserId,
+          audioFilePath: testFile.path,
+          text: text,
+        );
+        _logger.i('$_tag Created job for fetchJobs test: ${createdJob.id}');
+
+        // Act
+        final List<Job> jobs = await remoteDataSource.fetchJobs();
+
+        // Assert
+        expect(jobs, isNotEmpty);
+        expect(jobs, isA<List<Job>>());
+        // Check if the created job is in the list
+        final foundJob = jobs.firstWhere(
+          (job) => job.id == createdJob.id,
+          orElse:
+              () => Job(
+                // Provide a dummy Job if not found to avoid null error
+                id: '',
+                userId: '',
+                status: '',
+                createdAt: DateTime(0),
+                updatedAt: DateTime(0),
+              ),
+        );
+        expect(foundJob.id, createdJob.id);
+        expect(foundJob.userId, _testUserId);
+        expect(foundJob.text, text);
+
+        // Cleanup
+        await tempDir.delete(recursive: true);
+      },
+    );
+
+    test(
+      'RemoteDataSource - fetchJobById successfully retrieves a specific job',
+      () async {
+        // Arrange: Create a job first
+        final tempDir = await Directory.systemTemp.createTemp(
+          'test_audio_fetch_id_',
+        );
+        final testFile = File(p.join(tempDir.path, 'test_audio_id.mp3'));
+        await testFile.writeAsString('dummy audio content for id');
+        const text = 'Fetch Job By ID Test';
+        final createdJob = await remoteDataSource.createJob(
+          userId: _testUserId,
+          audioFilePath: testFile.path,
+          text: text,
+        );
+        _logger.i('$_tag Created job for fetchJobById test: ${createdJob.id}');
+
+        // Act
+        final Job fetchedJob = await remoteDataSource.fetchJobById(
+          createdJob.id,
+        );
+
+        // Assert
+        expect(fetchedJob, isA<Job>());
+        expect(fetchedJob.id, createdJob.id);
+        expect(fetchedJob.userId, _testUserId);
+        expect(fetchedJob.status, 'submitted'); // Initial status
+        expect(fetchedJob.text, text);
+        expect(fetchedJob.createdAt.isBefore(DateTime.now()), isTrue);
+        expect(
+          fetchedJob.updatedAt.isAtSameMomentAs(fetchedJob.createdAt),
+          isTrue,
+        );
+
+        // Cleanup
+        await tempDir.delete(recursive: true);
+      },
+    );
+
+    test(
+      'RemoteDataSource - fetchJobById throws ApiException for non-existent job ID',
+      () async {
+        // Arrange
+        const nonExistentJobId = 'this-id-does-not-exist';
+
+        // Act & Assert
+        expect(
+          () => remoteDataSource.fetchJobById(nonExistentJobId),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', 404)
+                .having((e) => e.message, 'message', contains('not found')),
+          ),
+        );
+      },
+    );
+
+    test(
+      'RemoteDataSource - updateJob successfully updates job fields',
+      () async {
+        // Arrange: Create a job first
+        final tempDir = await Directory.systemTemp.createTemp(
+          'test_audio_update_',
+        );
+        final testFile = File(p.join(tempDir.path, 'test_audio_update.mp3'));
+        await testFile.writeAsString('dummy audio content for update');
+        final createdJob = await remoteDataSource.createJob(
+          userId: _testUserId,
+          audioFilePath: testFile.path,
+          text: 'Original Text',
+        );
+        _logger.i('$_tag Created job for updateJob test: ${createdJob.id}');
+        final originalUpdatedAt = createdJob.updatedAt;
+
+        // Updates to apply
+        const updatedText = 'Updated Job Text';
+        const updatedDisplayTitle = 'My Updated Title';
+        const updatedDisplayText = 'This is the updated display text.';
+        final updateData = {
+          'text': updatedText,
+          'display_title': updatedDisplayTitle,
+          'display_text': updatedDisplayText,
+        };
+
+        // Act: Update the job
+        final Job updatedJob = await remoteDataSource.updateJob(
+          jobId: createdJob.id,
+          updates: updateData,
+        );
+
+        // Assert: Check the returned updated job
+        expect(updatedJob, isA<Job>());
+        expect(updatedJob.id, createdJob.id);
+        expect(updatedJob.text, updatedText);
+        expect(updatedJob.displayTitle, updatedDisplayTitle);
+        expect(updatedJob.displayText, updatedDisplayText);
+        expect(
+          updatedJob.status,
+          'transcribed',
+        ); // Status changes on display text update
+        expect(updatedJob.updatedAt.isAfter(originalUpdatedAt), isTrue);
+
+        // Assert: Fetch the job again to verify persistence (in mock server memory)
+        final Job fetchedAfterUpdate = await remoteDataSource.fetchJobById(
+          createdJob.id,
+        );
+        expect(fetchedAfterUpdate.text, updatedText);
+        expect(fetchedAfterUpdate.displayTitle, updatedDisplayTitle);
+        expect(fetchedAfterUpdate.displayText, updatedDisplayText);
+        expect(fetchedAfterUpdate.status, 'transcribed');
+        expect(fetchedAfterUpdate.updatedAt, updatedJob.updatedAt);
+
+        // Cleanup
+        await tempDir.delete(recursive: true);
+      },
+    );
+
     /* // COMMENT OUT EXTRA TEST 1
     // Direct diagnostic test with very verbse HTTP request tracing
     test('Minimal direct HttpClient multipart debug', () async {
@@ -637,11 +799,6 @@ void main() {
     });
     */
 
-    // TODO: Add tests for:
-    // - remoteDataSource.fetchJobById
-    // - remoteDataSource.fetchJobs
-    // - remoteDataSource.updateJob
-    // - remoteDataSource.fetchJobDocuments
-    // - localDataSource interactions (saveJobHiveModel, getAllJobHiveModels, etc.)
+    // TODO: Add tests for localDataSource interactions (saveJobHiveModel, getAllJobHiveModels, etc.) in a separate suite.
   });
 }

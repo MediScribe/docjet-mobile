@@ -231,11 +231,18 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       }
       // --- Error Case (Non-200) ---
       else {
+        String errorMessage =
+            'Failed to fetch job. Status: ${response.statusCode}';
+        if (response.data is Map<String, dynamic> &&
+            (response.data as Map<String, dynamic>).containsKey('error')) {
+          errorMessage =
+              (response.data as Map<String, dynamic>)['error'].toString();
+        }
         _logger.w(
           '$_tag Failed to fetch job $id. Status: ${response.statusCode}, Response: ${response.data}',
         );
         throw ApiException(
-          message: 'Failed to fetch job. Status: ${response.statusCode}',
+          message: errorMessage, // Use parsed error message
           statusCode: response.statusCode,
         );
       }
@@ -259,6 +266,11 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         error: e,
         stackTrace: stackTrace,
       );
+      // Re-throw if it's already an ApiException
+      if (e is ApiException) {
+        rethrow;
+      }
+      // Otherwise, wrap it
       throw ApiException(
         message: 'An unexpected error occurred: ${e.toString()}',
       );

@@ -499,7 +499,10 @@ Future<Response> _getJobByIdHandler(Request request, String jobId) async {
     'updated_at': foundJob['updated_at'],
     'text': foundJob['text'],
     'additional_text': foundJob['additional_text'],
-    // Exclude other potential fields like transcript, display_title, etc.
+    // Include display fields, they might be null but should be present
+    'display_title': foundJob['display_title'],
+    'display_text': foundJob['display_text'],
+    // Exclude other potential fields like transcript
   };
 
   return Response.ok(
