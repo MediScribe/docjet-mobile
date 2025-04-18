@@ -11,6 +11,7 @@ import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
@@ -494,7 +495,7 @@ void main() {
                 // Provide a dummy Job if not found to avoid null error
                 id: '',
                 userId: '',
-                status: '',
+                status: JobStatus.created, // Use a default enum value
                 createdAt: DateTime(0),
                 updatedAt: DateTime(0),
               ),

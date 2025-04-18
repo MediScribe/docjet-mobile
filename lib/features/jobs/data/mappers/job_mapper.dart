@@ -24,16 +24,30 @@ class JobMapper {
   /// Converts a status string (from API/Hive) to JobStatus enum.
   /// Defaults to JobStatus.error if the string is unknown or invalid.
   static JobStatus stringToJobStatus(String? statusString) {
-    if (statusString == null) return JobStatus.error;
-    try {
-      return JobStatus.values.firstWhere(
-        (e) => e.name.toLowerCase() == statusString.toLowerCase(),
+    if (statusString == null || statusString.trim().isEmpty) {
+      _logger.w(
+        '$_tag Received null or empty JobStatus string. Defaulting to error.',
       );
-    } catch (e) {
-      // Log the error properly
+      return JobStatus.error;
+    }
+    try {
+      // Case-insensitive comparison
+      final lowerCaseStatus = statusString.trim().toLowerCase();
+      return JobStatus.values.firstWhere(
+        (e) => e.name.toLowerCase() == lowerCaseStatus,
+        orElse: () {
+          _logger.e(
+            '$_tag Unknown JobStatus string received: $statusString. Defaulting to error.',
+          );
+          return JobStatus.error;
+        },
+      );
+    } catch (e, stackTrace) {
+      // Catch any unexpected error during enum lookup
       _logger.e(
-        '$_tag Unknown JobStatus string received: $statusString. Defaulting to error.',
+        '$_tag Unexpected error converting string \'$statusString\' to JobStatus. Defaulting to error.',
         error: e,
+        stackTrace: stackTrace,
       );
       return JobStatus.error;
     }

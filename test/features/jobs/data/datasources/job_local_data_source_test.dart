@@ -157,7 +157,7 @@ void main() {
   group('saveJobHiveModels', () {
     test('should call box.putAll with the correct map', () async {
       // Arrange
-      final Map<String, JobHiveModel> expectedMap = {
+      final Map<dynamic, JobHiveModel> expectedMap = {
         for (var item in tJobHiveModelList) item.id: item,
       };
       when(mockBox.putAll(any)).thenAnswer((_) async => Future<void>.value());
@@ -212,8 +212,11 @@ void main() {
   group('clearAllJobHiveModels', () {
     test('should call box.clear', () async {
       // Arrange
-      // Return value of clear is int (number of deleted items), mock it
       when(mockBox.clear()).thenAnswer((_) async => 1);
+      // Add missing stub for the timestamp get call
+      when(
+        mockBox.get(HiveJobLocalDataSourceImpl.lastFetchTimestampKey),
+      ).thenReturn(null);
       // Act
       await dataSource.clearAllJobHiveModels();
       // Assert
@@ -229,6 +232,11 @@ void main() {
         mockHive.openBox<JobHiveModel>(any),
       ).thenAnswer((_) async => mockBox); // Ensure box opens
       when(mockBox.clear()).thenThrow(Exception('Hive error'));
+      // Add missing stub for the timestamp get call (needed even if clear fails)
+      when(
+        mockBox.get(HiveJobLocalDataSourceImpl.lastFetchTimestampKey),
+      ).thenReturn(null);
+
       // Act
       final call = dataSource.clearAllJobHiveModels;
       // Assert
