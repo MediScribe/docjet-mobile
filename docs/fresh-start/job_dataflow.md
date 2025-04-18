@@ -167,23 +167,23 @@ The backend endpoint providing job data.
 This section tracks the current implementation status of components in the Jobs feature.
 
 ### Implemented Components
-- ✅ Job Entity (domain/entities/job.dart)
-- ✅ JobRepository Interface (domain/repositories/job_repository.dart)
-- ✅ JobLocalDataSource Interface (data/datasources/job_local_data_source.dart)
-- ✅ HiveJobLocalDataSourceImpl (data/datasources/hive_job_local_data_source_impl.dart)
-- ✅ JobHiveModel (data/models/job_hive_model.dart)
-- ✅ JobRemoteDataSource Interface (data/datasources/job_remote_data_source.dart)
-- ✅ ApiJobRemoteDataSourceImpl (data/datasources/api_job_remote_data_source_impl.dart)
-- ✅ Basic JobMapper (for Hive models only) (data/mappers/job_mapper.dart)
-- ✅ JobApiDTO (data/models/job_api_dto.dart)
+- ✅ Job Entity (lib/features/jobs/domain/entities/job.dart)
+- ✅ JobRepository Interface (lib/features/jobs/domain/repositories/job_repository.dart)
+- ✅ JobLocalDataSource Interface (lib/features/jobs/data/datasources/job_local_data_source.dart)
+- ✅ HiveJobLocalDataSourceImpl (lib/features/jobs/data/datasources/hive_job_local_data_source_impl.dart)
+- ✅ JobHiveModel (lib/features/jobs/data/models/job_hive_model.dart)
+- ✅ JobRemoteDataSource Interface (lib/features/jobs/data/datasources/job_remote_data_source.dart)
+- ✅ ApiJobRemoteDataSourceImpl (lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart)
+- ✅ Basic JobMapper (for Hive models only) (lib/features/jobs/data/mappers/job_mapper.dart)
+- ✅ JobApiDTO (lib/features/jobs/data/models/job_api_dto.dart)
 
 ### TODO Components
-- ❌ **HIGH PRIORITY** - JobRepositoryImpl implementation (data/repositories/job_repository_impl.dart)
+- ❌ **HIGH PRIORITY** - Create and implement JobRepositoryImpl (lib/features/jobs/data/repositories/job_repository_impl.dart)
+  - File does not exist yet.
   - Should orchestrate between local and remote data sources
   - Implement caching strategy (freshness policy, offline support)
-  - Handle proper error cases and fallback strategies
 
-- ✅ **COMPLETED** - Extend JobMapper with API DTO support (data/mappers/job_mapper.dart)
+- ✅ **COMPLETED** - Extend JobMapper with API DTO support (lib/features/jobs/data/mappers/job_mapper.dart)
   - Implemented `fromApiDto` and `toApiDto`
   - Implemented `fromApiDtoList`
   - Skipped `toApiDtoList` as likely not needed for batch updates
@@ -200,4 +200,25 @@ This section tracks the current implementation status of components in the Jobs 
 - ApiJobRemoteDataSourceImpl currently maps JSON directly to Job entities in _mapJsonToJob
 - No freshness policy is implemented yet (deciding when local data is stale)
 - No explicit error recovery strategy implemented for network failures
-- ❌ **REFACTOR (Debt)** - Refactor `status` fields (`Job.status`, `JobHiveModel.status`, `JobApiDTO.jobStatus`) to use a type-safe `JobStatus` enum instead of `String` to prevent runtime errors from typos and improve clarity. This requires changes in entity, models, DTO, mapper, and potentially repository/datasources depending on logic. 
+- ❌ **REFACTOR (Debt)** - Refactor `status` fields (`Job.status`, `JobHiveModel.status`, `JobApiDTO.jobStatus`) to use a type-safe `JobStatus` enum instead of `String` to prevent runtime errors from typos and improve clarity. This requires changes in entity, models, DTO, mapper, and potentially repository/datasources depending on logic.
+
+### Current Implementation Progress
+
+The `JobRepositoryImpl` has been created with basic caching and staleness check strategy. To complete the implementation, the following steps are needed:
+
+1. ❌ **HIGH PRIORITY** - Update `JobLocalDataSource` interface to include timestamp methods:
+   - Add `Future<DateTime?> getLastFetchTime();` - Returns when data was last fetched from remote
+   - Add `Future<void> saveLastFetchTime(DateTime time);` - Records when data was fetched
+
+2. ❌ **HIGH PRIORITY** - Implement these methods in `HiveJobLocalDataSourceImpl`:
+   - Store fetch timestamp in a dedicated Hive key or separate box
+   - Handle null cases for first-time access
+
+3. ❌ **HIGH PRIORITY** - Regenerate test mocks after interface update:
+   - Run `flutter pub run build_runner build --delete-conflicting-outputs`
+
+Once completed, the repository will properly handle:
+- Cache freshness with configurable staleness threshold (default: 1 hour)
+- Fetch from remote when local data is stale
+- Proper error handling with logging
+- Write-through caching (saves remote data locally) 
