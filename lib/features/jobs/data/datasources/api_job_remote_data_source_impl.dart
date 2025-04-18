@@ -120,7 +120,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       }
 
       return Job(
-        id: safeCast<String>(json['id'], 'id'),
+        localId: safeCast<String>(json['id'], 'id'),
         userId: safeCast<String>(json['user_id'], 'user_id'),
         // Use JobMapper to convert the status string to the enum
         status: JobMapper.stringToJobStatus(json['job_status'] as String?),
@@ -386,7 +386,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         // TODO: Consider using JobApiDTO and JobMapper here for consistency
         try {
           return Job(
-            id: jobData['id'] as String,
+            localId: jobData['id'] as String,
             userId: jobData['user_id'] as String,
             // Use JobMapper to convert the status string to the enum
             status: JobMapper.stringToJobStatus(

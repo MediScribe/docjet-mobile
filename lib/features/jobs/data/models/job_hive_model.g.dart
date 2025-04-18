@@ -17,7 +17,7 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return JobHiveModel()
-      ..id = fields[0] as String
+      ..localId = fields[0] as String
       ..status = fields[1] as String
       ..createdAt = fields[2] as DateTime
       ..updatedAt = fields[3] as DateTime
@@ -29,15 +29,16 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       ..audioFilePath = fields[9] as String?
       ..text = fields[10] as String?
       ..additionalText = fields[11] as String?
-      ..syncStatus = fields[12] as SyncStatus;
+      ..syncStatus = fields[12] as SyncStatus
+      ..serverId = fields[13] as String?;
   }
 
   @override
   void write(BinaryWriter writer, JobHiveModel obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
-      ..write(obj.id)
+      ..write(obj.localId)
       ..writeByte(1)
       ..write(obj.status)
       ..writeByte(2)
@@ -61,7 +62,9 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       ..writeByte(11)
       ..write(obj.additionalText)
       ..writeByte(12)
-      ..write(obj.syncStatus);
+      ..write(obj.syncStatus)
+      ..writeByte(13)
+      ..write(obj.serverId);
   }
 
   @override

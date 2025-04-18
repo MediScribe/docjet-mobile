@@ -420,7 +420,7 @@ void main() {
 
         // Assert
         expect(result, isA<Job>());
-        expect(result.id, isNotEmpty);
+        expect(result.localId, isNotEmpty);
         expect(result.userId, 'fake-user-id-123');
         expect(
           result.status,
@@ -446,7 +446,7 @@ void main() {
           audioFilePath: testFile.path,
           text: text,
         );
-        logger.i('$tag Created job for fetchJobs test: ${createdJob.id}');
+        logger.i('$tag Created job for fetchJobs test: ${createdJob.localId}');
 
         // Act
         final List<Job> jobs = await remoteDataSource.fetchJobs();
@@ -456,18 +456,18 @@ void main() {
         expect(jobs, isA<List<Job>>());
         // Check if the created job is in the list
         final foundJob = jobs.firstWhere(
-          (job) => job.id == createdJob.id,
+          (job) => job.localId == createdJob.localId,
           orElse:
               () => Job(
                 // Provide a dummy Job if not found to avoid null error
-                id: '',
+                localId: '',
                 userId: '',
                 status: JobStatus.created, // Use a default enum value
                 createdAt: DateTime(0),
                 updatedAt: DateTime(0),
               ),
         );
-        expect(foundJob.id, createdJob.id);
+        expect(foundJob.localId, createdJob.localId);
         expect(foundJob.userId, _testUserId);
         expect(foundJob.text, text);
 
@@ -490,16 +490,18 @@ void main() {
           audioFilePath: testFile.path,
           text: text,
         );
-        logger.i('$tag Created job for fetchJobById test: ${createdJob.id}');
+        logger.i(
+          '$tag Created job for fetchJobById test: ${createdJob.localId}',
+        );
 
         // Act
         final Job fetchedJob = await remoteDataSource.fetchJobById(
-          createdJob.id,
+          createdJob.localId,
         );
 
         // Assert
         expect(fetchedJob, isA<Job>());
-        expect(fetchedJob.id, createdJob.id);
+        expect(fetchedJob.localId, createdJob.localId);
         expect(fetchedJob.userId, _testUserId);
         expect(fetchedJob.status, JobStatus.submitted); // Use enum value
         expect(fetchedJob.text, text);
@@ -527,7 +529,7 @@ void main() {
           audioFilePath: testFile.path,
           text: 'Original Text',
         );
-        logger.i('$tag Created job for updateJob test: ${createdJob.id}');
+        logger.i('$tag Created job for updateJob test: ${createdJob.localId}');
         final originalUpdatedAt = createdJob.updatedAt;
 
         // Updates to apply
@@ -542,13 +544,13 @@ void main() {
 
         // Act: Update the job
         final Job updatedJob = await remoteDataSource.updateJob(
-          jobId: createdJob.id,
+          jobId: createdJob.localId,
           updates: updateData,
         );
 
         // Assert: Check the returned updated job
         expect(updatedJob, isA<Job>());
-        expect(updatedJob.id, createdJob.id);
+        expect(updatedJob.localId, createdJob.localId);
         expect(updatedJob.text, updatedText);
         expect(updatedJob.displayTitle, updatedDisplayTitle);
         expect(updatedJob.displayText, updatedDisplayText);
@@ -557,7 +559,7 @@ void main() {
 
         // Assert: Fetch the job again to verify persistence (in mock server memory)
         final Job fetchedAfterUpdate = await remoteDataSource.fetchJobById(
-          createdJob.id,
+          createdJob.localId,
         );
         expect(fetchedAfterUpdate.text, updatedText);
         expect(fetchedAfterUpdate.displayTitle, updatedDisplayTitle);

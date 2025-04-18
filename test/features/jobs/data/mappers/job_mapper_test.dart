@@ -31,7 +31,7 @@ void main() {
 
       // Assert: Check if the Job entity has the correct values
       expect(jobEntity, isA<Job>());
-      expect(jobEntity.id, 'job-123');
+      expect(jobEntity.localId, 'job-123');
       expect(jobEntity.userId, 'user-456');
       expect(jobEntity.status, JobStatus.completed); // Assert Enum
       expect(jobEntity.createdAt, now);
@@ -77,13 +77,13 @@ void main() {
       expect(jobList.length, 2);
 
       // Check first job
-      expect(jobList[0].id, 'job-1');
+      expect(jobList[0].localId, 'job-1');
       expect(jobList[0].status, JobStatus.submitted); // Assert Enum
       expect(jobList[0].createdAt, now1);
       expect(jobList[0].displayTitle, isNull);
 
       // Check second job
-      expect(jobList[1].id, 'job-2');
+      expect(jobList[1].localId, 'job-2');
       expect(jobList[1].status, JobStatus.completed); // Assert Enum
       expect(jobList[1].updatedAt, now2);
       expect(jobList[1].displayTitle, 'Completed Job');
@@ -94,7 +94,7 @@ void main() {
       // Arrange: Create a sample Job entity
       final now = DateTime.now();
       final jobEntity = Job(
-        id: 'job-789',
+        localId: 'job-789',
         userId: 'user-101',
         status: JobStatus.error, // Use Enum
         createdAt: now,

@@ -523,7 +523,7 @@ This bottom-up implementation plan follows Test-Driven Development principles, f
    - GREEN: Add package to pubspec.yaml, run pub get
    - REFACTOR: Ensure tests are clean and meaningful
 
-2. ✅ **COMPLETED** - ~~Create File Service:~~ **Use existing FileSystem service:**
+2. ✅ **COMPLETED** - Use existing FileSystem service:
    - RED: Write tests verifying FileSystem interaction
    - GREEN: Ensure we can use the existing implementation
    - REFACTOR: Clean up tests
@@ -535,12 +535,12 @@ This bottom-up implementation plan follows Test-Driven Development principles, f
 
 #### Level 2: Basic Models
 
-4. ❌ **Update `JobEntity` and `JobHiveModel`:**
+4. ✅ **COMPLETED** - Update `JobEntity` and `JobHiveModel`:
    - RED: Write tests for dual-ID support (`localId` and `serverId`)
    - GREEN: Add fields, run code generation
    - REFACTOR: Ensure good default values
 
-5. ❌ **Update `JobMapper`:**
+5. ❌ **LOW PRIORITY** - Update `JobMapper`:
    - RED: Write tests for mapping between dual-ID models
    - GREEN: Update mapper implementation
    - REFACTOR: Ensure consistent mapping

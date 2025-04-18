@@ -195,15 +195,15 @@ class JobRepositoryImpl implements JobRepository {
 
           // Update sync status to synced *after* saving
           await localDataSource.updateJobSyncStatus(
-            syncedJob.id, // Use ID from the synced job entity
+            syncedJob.localId, // Use ID from the synced job entity
             SyncStatus.synced,
           );
           _logger.d(
-            '$_tag Updated local status to synced for job ${syncedJob.id}.',
+            '$_tag Updated local status to synced for job ${syncedJob.localId}.',
           );
         } catch (e, stackTrace) {
           _logger.e(
-            '$_tag Error updating local status/data for synced job ${syncedJob.id}: $e',
+            '$_tag Error updating local status/data for synced job ${syncedJob.localId}: $e',
             error: e,
             stackTrace: stackTrace,
           );

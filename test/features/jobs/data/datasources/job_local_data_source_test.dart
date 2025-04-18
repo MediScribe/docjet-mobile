@@ -20,7 +20,7 @@ void main() {
   final tJobId = 'test-uuid-1';
   final tJobHiveModel =
       JobHiveModel()
-        ..id = tJobId
+        ..localId = tJobId
         ..status = JobStatus.created.name
         ..createdAt = DateTime(2024)
         ..updatedAt = DateTime(2024, 1, 2)
@@ -139,7 +139,7 @@ void main() {
       verify(
         mockHive.openBox<JobHiveModel>(HiveJobLocalDataSourceImpl.jobsBoxName),
       );
-      verify(mockBox.put(tJobHiveModel.id, tJobHiveModel));
+      verify(mockBox.put(tJobHiveModel.localId, tJobHiveModel));
     });
 
     test('should throw CacheException when putting to the box fails', () async {
@@ -248,7 +248,7 @@ void main() {
   group('getLastJobHiveModel', () {
     final tJobHiveModel2 =
         JobHiveModel()
-          ..id = 'job-2'
+          ..localId = 'job-2'
           ..status = JobStatus.submitted.name
           ..createdAt = DateTime(2024, 1, 3)
           ..updatedAt = DateTime(2024, 1, 4)

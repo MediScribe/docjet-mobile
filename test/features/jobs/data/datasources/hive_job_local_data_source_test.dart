@@ -167,23 +167,26 @@ void main() {
   group('getJobsToSync', () {
     final tJob1 =
         JobHiveModel()
-          ..id = 'job-1'
+          ..localId = 'job-1'
           ..syncStatus = SyncStatus.pending;
     final tJob2 =
         JobHiveModel()
-          ..id = 'job-2'
+          ..localId = 'job-2'
           ..syncStatus = SyncStatus.synced;
     final tJob3 =
         JobHiveModel()
-          ..id = 'job-3'
+          ..localId = 'job-3'
           ..syncStatus = SyncStatus.error;
     final tJob4 =
         JobHiveModel()
-          ..id = 'job-4'
+          ..localId = 'job-4'
           ..syncStatus = SyncStatus.pending;
     final tJobsMap = {
       // Simulate a box with jobs and timestamp
-      tJob1.id: tJob1, tJob2.id: tJob2, tJob3.id: tJob3, tJob4.id: tJob4,
+      tJob1.localId: tJob1,
+      tJob2.localId: tJob2,
+      tJob3.localId: tJob3,
+      tJob4.localId: tJob4,
       timestampKey: 1678886400000,
     };
 
@@ -206,8 +209,8 @@ void main() {
     test('should return empty list when no jobs are pending', () async {
       // Arrange: Stub values with only non-pending jobs
       final tSyncedJobsMap = {
-        tJob2.id: tJob2,
-        tJob3.id: tJob3,
+        tJob2.localId: tJob2,
+        tJob3.localId: tJob3,
         timestampKey: 1,
       };
       when(mockBox.values).thenReturn(tSyncedJobsMap.values);
@@ -283,7 +286,7 @@ void main() {
 
     setUp(() {
       mockJobHiveModel = MockJobHiveModel(); // Instantiate the mock
-      when(mockJobHiveModel.id).thenReturn(tJobId);
+      when(mockJobHiveModel.localId).thenReturn(tJobId);
       when(mockJobHiveModel.key).thenReturn(tJobId);
     });
 

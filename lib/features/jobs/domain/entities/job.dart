@@ -3,7 +3,8 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; //
 
 // Represents a single recording job and its metadata. This is the pure Domain Entity with no persistence concerns.
 class Job extends Equatable {
-  final String id; // UUID
+  final String localId; // UUID
+  final String? serverId; // New: Nullable server-assigned ID
   final JobStatus status; // USE ENUM INSTEAD OF STRING
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -18,7 +19,8 @@ class Job extends Equatable {
   final String? additionalText; // Optional extra metadata
 
   const Job({
-    required this.id,
+    required this.localId,
+    this.serverId, // New: Optional server ID
     required this.status, // USE ENUM INSTEAD OF STRING
     required this.createdAt,
     required this.updatedAt,
@@ -35,7 +37,8 @@ class Job extends Equatable {
   // Equatable props for value comparison
   @override
   List<Object?> get props => [
-    id,
+    localId,
+    serverId, // New
     status, // USE ENUM INSTEAD OF STRING
     createdAt,
     updatedAt,
@@ -51,7 +54,8 @@ class Job extends Equatable {
 
   // Optional: Add copyWith if needed for state management
   Job copyWith({
-    String? id,
+    String? localId,
+    String? serverId, // New
     JobStatus? status, // USE ENUM INSTEAD OF STRING
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -65,7 +69,8 @@ class Job extends Equatable {
     String? additionalText,
   }) {
     return Job(
-      id: id ?? this.id,
+      localId: localId ?? this.localId,
+      serverId: serverId ?? this.serverId, // New
       status: status ?? this.status, // USE ENUM INSTEAD OF STRING
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

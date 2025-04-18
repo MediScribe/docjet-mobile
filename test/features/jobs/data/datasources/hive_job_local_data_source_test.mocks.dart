@@ -584,19 +584,19 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
   }
 
   @override
-  String get id => (super.noSuchMethod(
-        Invocation.getter(#id),
+  String get localId => (super.noSuchMethod(
+        Invocation.getter(#localId),
         returnValue: _i7.dummyValue<String>(
           this,
-          Invocation.getter(#id),
+          Invocation.getter(#localId),
         ),
       ) as String);
 
   @override
-  set id(String? _id) => super.noSuchMethod(
+  set localId(String? _localId) => super.noSuchMethod(
         Invocation.setter(
-          #id,
-          _id,
+          #localId,
+          _localId,
         ),
         returnValueForMissingStub: null,
       );
@@ -747,6 +747,15 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
         Invocation.setter(
           #syncStatus,
           _syncStatus,
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  set serverId(String? _serverId) => super.noSuchMethod(
+        Invocation.setter(
+          #serverId,
+          _serverId,
         ),
         returnValueForMissingStub: null,
       );

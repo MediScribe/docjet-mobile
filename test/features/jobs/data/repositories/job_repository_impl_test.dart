@@ -39,7 +39,7 @@ void main() {
 
   // Sample data for testing
   final tJob = Job(
-    id: 'job1',
+    localId: 'job1',
     userId: 'user123',
     status: JobStatus.completed, // USE ENUM
     displayTitle: 'Test Job 1',
@@ -334,7 +334,7 @@ void main() {
   // --- NEW GROUP: syncPendingJobs ---
   group('syncPendingJobs', () {
     final tPendingJob = Job(
-      id: 'pendingJob1',
+      localId: 'pendingJob1',
       userId: 'user123',
       status:
           JobStatus
@@ -350,7 +350,7 @@ void main() {
     final tBaseHiveModel = JobMapper.toHiveModel(tPendingJob);
     final tPendingJobHiveModel =
         JobHiveModel()
-          ..id = tBaseHiveModel.id
+          ..localId = tBaseHiveModel.localId
           ..userId = tBaseHiveModel.userId
           ..status =
               tBaseHiveModel
@@ -388,7 +388,7 @@ void main() {
         // 3. Stub localDataSource.updateJobSyncStatus to succeed for each synced job
         when(
           mockLocalDataSource.updateJobSyncStatus(
-            tPendingJobHiveModel.id,
+            tPendingJobHiveModel.localId,
             SyncStatus.synced,
           ),
         ).thenAnswer((_) async => Future.value());
@@ -414,13 +414,13 @@ void main() {
         expect(captured.single, isA<List<Job>>());
         expect(captured.single.length, 1);
         // Compare relevant fields as direct object comparison might fail due to different instances/syncStatus
-        expect(captured.single.first.id, tPendingJob.id);
+        expect(captured.single.first.id, tPendingJob.localId);
         expect(captured.single.first.audioFilePath, tPendingJob.audioFilePath);
 
         // 4. Verify localDataSource.updateJobSyncStatus was called for the job ID with SyncStatus.synced
         verify(
           mockLocalDataSource.updateJobSyncStatus(
-            tPendingJobHiveModel.id,
+            tPendingJobHiveModel.localId,
             SyncStatus.synced,
           ),
         ).called(1);
@@ -430,7 +430,7 @@ void main() {
           mockLocalDataSource.saveJobHiveModel(
             argThat(
               predicate<dynamic>((arg) {
-                return arg is JobHiveModel && arg.id == tSyncedJob.id;
+                return arg is JobHiveModel && arg.localId == tSyncedJob.localId;
               }),
             ),
           ),

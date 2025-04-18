@@ -97,15 +97,15 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
 
   @override
   Future<void> saveJobHiveModel(JobHiveModel model) async {
-    _logger.d('$_tag saveJobHiveModel called for id: ${model.id}');
+    _logger.d('$_tag saveJobHiveModel called for id: ${model.localId}');
     try {
       // Use the general box because we are writing a JobHiveModel
       final box = await _getOpenBox();
-      await box.put(model.id, model);
-      _logger.i('$_tag Saved job model with id: ${model.id} to cache.');
+      await box.put(model.localId, model);
+      _logger.i('$_tag Saved job model with id: ${model.localId} to cache.');
     } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Failed to save job model with id: ${model.id} to cache',
+        '$_tag Failed to save job model with id: ${model.localId} to cache',
         error: e,
         stackTrace: stackTrace,
       );
@@ -121,7 +121,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
 
       // Fix the type issue by using more explicit Map<String, dynamic>
       final Map<String, JobHiveModel> modelsMap = {
-        for (var model in models) model.id: model,
+        for (var model in models) model.localId: model,
       };
 
       await box.putAll(modelsMap);
@@ -210,7 +210,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       }
 
       _logger.d(
-        '$_tag Last job found with id: ${lastJob.id}, updatedAt: ${lastJob.updatedAt}',
+        '$_tag Last job found with id: ${lastJob.localId}, updatedAt: ${lastJob.updatedAt}',
       );
       return lastJob;
     } catch (e, stackTrace) {

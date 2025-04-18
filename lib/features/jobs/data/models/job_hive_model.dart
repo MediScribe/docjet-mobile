@@ -10,7 +10,7 @@ part 'job_hive_model.g.dart'; // Hive generator directive
 @HiveType(typeId: 0) // Use the same typeId as the original Job attempt
 class JobHiveModel extends HiveObject {
   @HiveField(0)
-  late String id; // UUID
+  late String localId; // UUID
 
   @HiveField(1)
   late String status; // Stored as String, but mapped to/from JobStatus enum
@@ -47,6 +47,9 @@ class JobHiveModel extends HiveObject {
 
   @HiveField(12)
   SyncStatus syncStatus = SyncStatus.synced; // Default to synced
+
+  @HiveField(13) // New field for server-assigned ID
+  String? serverId;
 
   // Default constructor (required by Hive for generation)
   JobHiveModel();

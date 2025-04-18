@@ -17,7 +17,7 @@ class JobMapper {
   static Job fromHiveModel(JobHiveModel model) {
     final status = stringToJobStatus(model.status);
     return Job(
-      id: model.id,
+      localId: model.localId,
       status: status,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
@@ -36,7 +36,7 @@ class JobMapper {
   static JobHiveModel toHiveModel(Job entity) {
     final model =
         JobHiveModel()
-          ..id = entity.id
+          ..localId = entity.localId
           ..status = entity.status.name
           ..createdAt = entity.createdAt
           ..updatedAt = entity.updatedAt
@@ -99,7 +99,7 @@ class JobMapper {
   static Job fromApiDto(JobApiDTO dto) {
     final status = stringToJobStatus(dto.jobStatus);
     return Job(
-      id: dto.id,
+      localId: dto.id,
       status: status,
       createdAt: dto.createdAt,
       updatedAt: dto.updatedAt,
@@ -116,7 +116,7 @@ class JobMapper {
   /// Maps a JobEntity to a JobApiDTO.
   static JobApiDTO toApiDto(Job entity) {
     return JobApiDTO(
-      id: entity.id,
+      id: entity.localId,
       userId: entity.userId,
       jobStatus: entity.status.name,
       createdAt: entity.createdAt,

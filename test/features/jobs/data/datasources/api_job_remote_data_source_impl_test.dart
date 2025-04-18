@@ -80,7 +80,7 @@ void main() {
 
   // Expected Job entity corresponding to tJobJson
   final tJobEntity = Job(
-    id: tJobId,
+    localId: tJobId,
     userId: tUserId,
     status: JobStatus.completed, // Assert Enum
     errorCode: null,
@@ -373,7 +373,7 @@ void main() {
     // - Uses audioFilePath passed into the createJob call
     // - Error fields are null
     final tCreatedJobEntity = Job(
-      id: "new-job-uuid-789",
+      localId: "new-job-uuid-789",
       userId: tUserId,
       status: JobStatus.submitted, // Expect Enum based on "submitted"
       createdAt: DateTime.parse("2024-01-16T12:00:00.000Z"),
@@ -648,7 +648,7 @@ void main() {
 
     // Expected Job entity corresponding to tUpdateJobResponseJson
     final tUpdatedJobEntity = Job(
-      id: tJobId,
+      localId: tJobId,
       userId: tUserId,
       status: JobStatus.transcribed, // Expect Enum
       errorCode: null,
