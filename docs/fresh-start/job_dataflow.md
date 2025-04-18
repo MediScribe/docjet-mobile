@@ -176,17 +176,24 @@ This section tracks the current implementation status of components in the Jobs 
 - ✅ ApiJobRemoteDataSourceImpl (lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart)
 - ✅ Basic JobMapper (for Hive models only) (lib/features/jobs/data/mappers/job_mapper.dart)
 - ✅ JobApiDTO (lib/features/jobs/data/models/job_api_dto.dart)
+- ✅ SyncStatus enum (lib/features/jobs/domain/entities/sync_status.dart)
 
 ### TODO Components
-- ❌ **HIGH PRIORITY** - Create and implement JobRepositoryImpl (lib/features/jobs/data/repositories/job_repository_impl.dart)
-  - File does not exist yet.
-  - Should orchestrate between local and remote data sources
-  - Implement caching strategy (freshness policy, offline support)
+- ✅ **EXISTING NEEDS UPDATE** - JobRepositoryImpl (lib/features/jobs/data/repositories/job_repository_impl.dart)
+  - File exists but needs enhancement
+  - Needs to implement sync mechanisms using the new sync status fields
+  - Add support for syncing pending jobs when connectivity is restored
 
 - ✅ **COMPLETED** - Extend JobMapper with API DTO support (lib/features/jobs/data/mappers/job_mapper.dart)
   - Implemented `fromApiDto` and `toApiDto`
   - Implemented `fromApiDtoList`
   - Skipped `toApiDtoList` as likely not needed for batch updates
+
+- ❌ **HIGH PRIORITY** - Implement JobStatus enum for type-safe status handling
+  - Create `JobStatus` enum in domain layer
+  - Update `Job`, `JobHiveModel`, and `JobApiDTO` to use the enum
+  - Update `JobMapper` to handle conversion between different status formats
+  - Update any business logic that depends on job status
 
 - ❌ **LOW PRIORITY** - Pagination support in RemoteDataSource
   - Add pagination parameters to API calls
@@ -200,25 +207,49 @@ This section tracks the current implementation status of components in the Jobs 
 - ApiJobRemoteDataSourceImpl currently maps JSON directly to Job entities in _mapJsonToJob
 - No freshness policy is implemented yet (deciding when local data is stale)
 - No explicit error recovery strategy implemented for network failures
-- ❌ **REFACTOR (Debt)** - Refactor `status` fields (`Job.status`, `JobHiveModel.status`, `JobApiDTO.jobStatus`) to use a type-safe `JobStatus` enum instead of `String` to prevent runtime errors from typos and improve clarity. This requires changes in entity, models, DTO, mapper, and potentially repository/datasources depending on logic.
+- ✅ **COMPLETED** - Added SyncStatus enum tracking to JobHiveModel
+- ✅ **COMPLETED** - Implemented getJobsToSync and updateJobSyncStatus methods in JobLocalDataSource
 
 ### Current Implementation Progress
 
-The `JobRepositoryImpl` has been created with basic caching and staleness check strategy. To complete the implementation, the following steps are needed:
+✅ **COMPLETED** - The latest implementation adds support for sync status tracking and timestamp handling:
 
-1. ❌ **HIGH PRIORITY** - Update `JobLocalDataSource` interface to include timestamp methods:
-   - Add `Future<DateTime?> getLastFetchTime();` - Returns when data was last fetched from remote
-   - Add `Future<void> saveLastFetchTime(DateTime time);` - Records when data was fetched
+1. ✅ **COMPLETED** - Updated `JobLocalDataSource` interface to include timestamp methods:
+   - Added `Future<DateTime?> getLastFetchTime();` - Returns when data was last fetched from remote
+   - Added `Future<void> saveLastFetchTime(DateTime time);` - Records when data was fetched
 
-2. ❌ **HIGH PRIORITY** - Implement these methods in `HiveJobLocalDataSourceImpl`:
-   - Store fetch timestamp in a dedicated Hive key or separate box
-   - Handle null cases for first-time access
+2. ✅ **COMPLETED** - Implemented these methods in `HiveJobLocalDataSourceImpl`:
+   - Store fetch timestamp in Hive using a dedicated key
+   - Handle null cases and type errors for first-time access
+   - Ensure UTC consistency in timestamp handling
 
-3. ❌ **HIGH PRIORITY** - Regenerate test mocks after interface update:
-   - Run `flutter pub run build_runner build --delete-conflicting-outputs`
+3. ✅ **COMPLETED** - Added support for sync status tracking:
+   - Created SyncStatus enum (pending/synced/error)
+   - Extended JobHiveModel with syncStatus field
+   - Added getJobsToSync and updateJobSyncStatus methods to JobLocalDataSource
+   - Implemented methods in HiveJobLocalDataSourceImpl with robust error handling
 
-Once completed, the repository will properly handle:
-- Cache freshness with configurable staleness threshold (default: 1 hour)
-- Fetch from remote when local data is stale
-- Proper error handling with logging
-- Write-through caching (saves remote data locally) 
+### Next Steps
+
+The following are the next high-priority items:
+
+1. ❌ **HIGH PRIORITY** - Update existing JobRepositoryImpl:
+   - Add methods to support the new sync status functionality
+   - Implement offline-first strategy with pending sync tracking
+   - Add functionality to sync pending jobs when connectivity is restored
+   - Implement error handling and retry mechanism for sync operations
+
+2. ❌ **HIGH PRIORITY** - Create JobStatus enum:
+   - Identify all possible job statuses from API and app requirements
+   - Replace string-based status in all model layers
+   - Update mappers and any status-dependent logic
+
+3. ❌ **MEDIUM PRIORITY** - Create comprehensive tests for JobRepositoryImpl:
+   - Test caching behavior with different staleness scenarios
+   - Test sync status handling and recovery
+   - Test error handling and fallback strategies
+
+Once these are completed, the jobs feature will have:
+- Full type safety for job status and sync status
+- Robust offline support with proper sync tracking
+- Comprehensive error handling throughout the stack 

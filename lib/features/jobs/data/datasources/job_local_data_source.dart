@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart'; // Import CacheException
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
 // Abstract interface for interacting with the local job cache (e.g., Hive)
 // This defines the contract for what the local data source must provide.
@@ -44,4 +45,15 @@ abstract class JobLocalDataSource {
   /// Saves the timestamp of the last successful fetch.
   /// Throws a [CacheException] on failure.
   Future<void> saveLastFetchTime(DateTime time);
+
+  /// Retrieves all Job models marked with a [SyncStatus.pending].
+  /// Used by the repository to know which jobs need syncing with the backend.
+  /// Returns a list of [JobHiveModel].
+  /// Throws a [CacheException] if unable to access the cache.
+  Future<List<JobHiveModel>> getJobsToSync();
+
+  /// Updates the sync status of a specific job by its ID.
+  /// Used by the repository after a sync attempt (success or failure).
+  /// Throws a [CacheException] if the job is not found or on cache access errors.
+  Future<void> updateJobSyncStatus(String id, SyncStatus status);
 }

@@ -28,13 +28,14 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       ..errorMessage = fields[8] as String?
       ..audioFilePath = fields[9] as String?
       ..text = fields[10] as String?
-      ..additionalText = fields[11] as String?;
+      ..additionalText = fields[11] as String?
+      ..syncStatus = fields[12] as SyncStatus;
   }
 
   @override
   void write(BinaryWriter writer, JobHiveModel obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -58,7 +59,9 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       ..writeByte(10)
       ..write(obj.text)
       ..writeByte(11)
-      ..write(obj.additionalText);
+      ..write(obj.additionalText)
+      ..writeByte(12)
+      ..write(obj.syncStatus);
   }
 
   @override

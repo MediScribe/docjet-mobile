@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
 part 'job_hive_model.g.dart'; // Hive generator directive
 
@@ -42,6 +43,9 @@ class JobHiveModel extends HiveObject {
 
   @HiveField(11)
   String? additionalText;
+
+  @HiveField(12)
+  SyncStatus syncStatus = SyncStatus.synced; // Default to synced
 
   // Default constructor (required by Hive for generation)
   JobHiveModel();

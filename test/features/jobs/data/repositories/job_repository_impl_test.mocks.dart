@@ -12,6 +12,8 @@ import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_sou
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i6;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
+    as _i7;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -227,6 +229,33 @@ class MockJobLocalDataSource extends _i1.Mock
         Invocation.method(
           #saveLastFetchTime,
           [time],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
+  _i4.Future<List<_i6.JobHiveModel>> getJobsToSync() => (super.noSuchMethod(
+        Invocation.method(
+          #getJobsToSync,
+          [],
+        ),
+        returnValue:
+            _i4.Future<List<_i6.JobHiveModel>>.value(<_i6.JobHiveModel>[]),
+      ) as _i4.Future<List<_i6.JobHiveModel>>);
+
+  @override
+  _i4.Future<void> updateJobSyncStatus(
+    String? id,
+    _i7.SyncStatus? status,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateJobSyncStatus,
+          [
+            id,
+            status,
+          ],
         ),
         returnValue: _i4.Future<void>.value(),
         returnValueForMissingStub: _i4.Future<void>.value(),
