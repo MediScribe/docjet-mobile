@@ -160,4 +160,46 @@ Data Transfer Object specifically for API communication. Mirrors the API's JSON 
 The Hive database box used for local storage.
 
 ### REST API
-The backend endpoint providing job data. 
+The backend endpoint providing job data.
+
+## Implementation Status & TODOs
+
+This section tracks the current implementation status of components in the Jobs feature.
+
+### Implemented Components
+- ✅ Job Entity (domain/entities/job.dart)
+- ✅ JobRepository Interface (domain/repositories/job_repository.dart)
+- ✅ JobLocalDataSource Interface (data/datasources/job_local_data_source.dart)
+- ✅ HiveJobLocalDataSourceImpl (data/datasources/hive_job_local_data_source_impl.dart)
+- ✅ JobHiveModel (data/models/job_hive_model.dart)
+- ✅ JobRemoteDataSource Interface (data/datasources/job_remote_data_source.dart)
+- ✅ ApiJobRemoteDataSourceImpl (data/datasources/api_job_remote_data_source_impl.dart)
+- ✅ Basic JobMapper (for Hive models only) (data/mappers/job_mapper.dart)
+
+### TODO Components
+- ❌ **HIGH PRIORITY** - JobRepositoryImpl implementation (data/repositories/job_repository_impl.dart)
+  - Should orchestrate between local and remote data sources
+  - Implement caching strategy (freshness policy, offline support)
+  - Handle proper error cases and fallback strategies
+
+- ❌ **HIGH PRIORITY** - JobApiDTO (data/models/job_api_dto.dart) 
+  - Create data class matching API response structure
+  - Implement fromJson/toJson methods
+  - Add proper validation and error handling
+
+- ❌ **MEDIUM PRIORITY** - Extend JobMapper with API DTO support
+  - Add fromApiDto/toApiDto methods
+  - Add list mapping methods for ApiDTO
+
+- ❌ **LOW PRIORITY** - Pagination support in RemoteDataSource
+  - Add pagination parameters to API calls
+  - Implement pagination state tracking
+
+- ❌ **LOW PRIORITY** - Network connectivity detection
+  - Add network state detection before API calls
+  - Implement offline-first behavior
+
+### Implementation Notes
+- ApiJobRemoteDataSourceImpl currently maps JSON directly to Job entities in _mapJsonToJob
+- No freshness policy is implemented yet (deciding when local data is stale)
+- No explicit error recovery strategy implemented for network failures 
