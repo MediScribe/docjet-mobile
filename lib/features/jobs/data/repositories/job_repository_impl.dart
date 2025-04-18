@@ -413,8 +413,9 @@ class JobRepositoryImpl implements JobRepository {
                 );
               }
             }
-          } else if (job.syncStatus == SyncStatus.pending) {
-            // --- Handle Creation or Update ---
+          } else if (job.syncStatus == SyncStatus.pending ||
+              job.syncStatus == SyncStatus.error) {
+            // --- Handle Creation or Update (includes retrying errors) ---
             Job syncedJob; // To hold the result from remote operation
             if (job.serverId == null) {
               // --- Create New Job ---
@@ -492,9 +493,9 @@ class JobRepositoryImpl implements JobRepository {
               '$_tag Successfully updated local data and status for job ${syncedJob.localId}.',
             );
           } else {
-            // Should not happen if getJobsToSync is correct, but log anyway
+            // Should now only catch SyncStatus.synced if getJobsToSync is correct
             _logger.w(
-              '$_tag Job ${job.localId} has unexpected syncStatus: ${job.syncStatus}. Skipping.',
+              '$_tag Job ${job.localId} has unexpected non-pending/error syncStatus: ${job.syncStatus}. Skipping.',
             );
           }
         } on ApiException catch (e) {

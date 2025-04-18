@@ -480,9 +480,10 @@ This section details the comprehensive synchronization strategy for jobs, coveri
    - For deleted jobs, removes from local DB after successful API deletion
 
 5. **Error Handling:**
-   - Sets `syncStatus = SyncStatus.error` on network/server errors
-   - Job will be retried on next sync cycle
-   - No exponential backoff in initial implementation
+   - Sets `syncStatus = SyncStatus.error` on network/server errors during an individual job sync attempt.
+   - Jobs in the `error` state **will be retried** on subsequent `syncPendingJobs` cycles alongside `pending` jobs.
+   - Sync process continues with other jobs even if one fails.
+   - No exponential backoff in initial implementation.
 
 #### Server-Side Deletion Handling
 
@@ -597,10 +598,14 @@ This bottom-up implementation plan follows Test-Driven Development principles, f
 
 #### Level 5: Integration Testing
 
-15. ❌ **TODO** - Create integration tests:
-    - Create workflow tests covering the full job lifecycle
-    - Test edge cases and error scenarios
-    - Verify correct interaction between components
+15. ✅ **COMPLETED** - Implement integration tests for Job Repository:
+    - Tests implemented in `test/features/jobs/integration/job_lifecycle_test.dart` using mocks for dependencies (`JobLocalDataSource`, `JobRemoteDataSource`, `FileSystem`, `Uuid`).
+    - Verified core lifecycle scenarios:
+        - ✅ Create → Sync → Update → Sync → Delete → Sync
+        - ✅ Batch operations with mixed states (New, Update, Delete)
+        - ✅ Server-side deletion detection
+        - ✅ Error handling (Network, API, File System failures), including successful retries after failure.
+    - Confirmed repository correctly orchestrates calls to data sources and file system based on job state and API responses.
 
 ### Implementation Notes (April 2023)
 
@@ -641,4 +646,41 @@ During our implementation of the job synchronization system, we made several key
    - The actual deletion happens during the sync process for both local and remote persistence
    - Both synced (with serverId) and unsynced jobs are handled correctly
 
-All tests are now passing for this Job feature, including comprehensive test coverage for the delete functionality. 
+All tests are now passing for this Job feature, including comprehensive test coverage for the delete functionality and repository integration tests.
+
+## Integration Test Plan (May 2023) - Status: COMPLETED
+
+Integration tests verifying the complete job feature functionality **have been implemented and are passing**. These tests ensure that all components orchestrated by the `JobRepositoryImpl` interact correctly through the full job lifecycle.
+
+### Test File Structure
+
+Tests are implemented in `test/features/jobs/integration/job_lifecycle_test.dart`.
+
+### Test Scenarios Covered
+
+The implemented tests cover the following key scenarios using mocked dependencies:
+
+#### Happy Path Tests
+
+1.  ✅ **Complete Job Lifecycle**: Verified the full workflow from creation to deletion, including sync steps.
+2.  ✅ **Batch Job Operations**: Verified handling of multiple jobs with different sync states (new, updated, deleted) within a single sync cycle.
+3.  ✅ **Server-side Deletion Detection**: Verified the system's ability to detect and handle jobs deleted on the server during a fetch operation.
+
+#### Error Path Tests
+
+4.  ✅ **Network Failures**: Verified graceful handling of connectivity issues, including marking jobs as `error` and successfully retrying them on subsequent sync attempts.
+5.  ✅ **API Errors**: Verified proper handling of server errors, marking jobs as `error`.
+6.  ✅ **File System Errors**: Verified graceful handling of file system issues during deletion (errors logged, job deletion proceeds).
+
+### Implementation Strategy Used
+
+The integration tests utilize `mockito` to configure mocks for `JobLocalDataSource`, `JobRemoteDataSource`, `FileSystem`, and `Uuid`. These mocks simulate realistic behavior, including state persistence for the local data source and error conditions for the remote data source and file system.
+
+This approach allowed for controlled testing conditions, validating that the `JobRepositoryImpl` correctly orchestrates interactions between components according to the defined sync strategy and error handling procedures.
+
+The tests will follow arrange-act-assert patterns:
+1. Setup initial state and mock behaviors
+2. Perform repository operations in sequence
+3. Verify state transitions and interactions between components
+
+Through these integration tests, we'll validate that the Job feature operates correctly as a cohesive system, not just as individual components. 
