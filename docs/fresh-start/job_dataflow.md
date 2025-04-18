@@ -7,7 +7,6 @@ This document details the data flow architecture for the Job feature in DocJet M
 The following diagram illustrates the components and their relationships for the job feature.
 
 ```mermaid
-%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 graph TD
     subgraph "Presentation Layer (UI, State Management)"
         UI --> |Uses| AppService(Application Service / Use Cases)
@@ -37,8 +36,11 @@ graph TD
         subgraph "Remote API"
             ApiJobRemoteDS(ApiJobRemoteDataSourceImpl<br>- Implements JobRemoteDSInterface) -->|Implements| JobRemoteDSInterface
             ApiJobRemoteDS -->|Uses| HttpClient([HTTP Client<br>- dio/http])
+            ApiJobRemoteDS -->|Uses| JobMapper
+            ApiJobRemoteDS -->|Uses| JobApiDTO((JobApiDTO<br>- API Contract))
+            JobMapper -->|Maps to/from| JobApiDTO
             ApiJobRemoteDS -->|Talks to| RestAPI{REST API<br>/api/v1/jobs}
-            %% ApiJobRemoteDS -->|Maps JSON to/from| JobEntity %% Potentially needs ApiDTO later
+            JobApiDTO -->|Serializes/Deserializes| RestAPI
         end
     end
 
@@ -49,7 +51,7 @@ graph TD
     classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
 
     class JobEntity,JobRepositoryInterface domain;
-    class JobRepositoryImpl,JobLocalDSInterface,JobRemoteDSInterface,HiveJobLocalDS,ApiJobRemoteDS,JobMapper,JobHiveModel,HiveBox,HttpClient,RestAPI data;
+    class JobRepositoryImpl,JobLocalDSInterface,JobRemoteDSInterface,HiveJobLocalDS,ApiJobRemoteDS,JobMapper,JobHiveModel,JobApiDTO,HiveBox,HttpClient,RestAPI data;
     class UI,AppService presentation;
 ```
 
@@ -75,6 +77,7 @@ sequenceDiagram
     participant LocalDS as HiveJobLocalDS
     participant RemoteDS as ApiJobRemoteDS
     participant Mapper as JobMapper
+    participant ApiDTO as JobApiDTO
     participant Hive as Hive Box
     participant API as REST API
 
@@ -87,7 +90,7 @@ sequenceDiagram
     JobRepo->>LocalDS: getLocalJobs()
     LocalDS->>Hive: readAllJobs()
     Hive-->>LocalDS: List<JobHiveModel> (fresh data)
-    LocalDS->>Mapper: mapToEntityList(hiveModels)
+    LocalDS->>Mapper: fromHiveModelList(hiveModels)
     Mapper-->>LocalDS: List<JobEntity>
     LocalDS-->>JobRepo: List<JobEntity>
     JobRepo-->>AppSvc: List<JobEntity>
@@ -104,9 +107,13 @@ sequenceDiagram
     JobRepo->>RemoteDS: fetchRemoteJobs()
     RemoteDS->>API: GET /api/v1/jobs
     API-->>RemoteDS: Job JSON Array
-    RemoteDS-->>JobRepo: List<JobEntity> (after mapping)
+    RemoteDS->>ApiDTO: fromJson(jsonData)
+    ApiDTO-->>RemoteDS: List<JobApiDTO>
+    RemoteDS->>Mapper: fromApiDtoList(jobApiDtos)
+    Mapper-->>RemoteDS: List<JobEntity>
+    RemoteDS-->>JobRepo: List<JobEntity>
     JobRepo->>LocalDS: saveJobs(fetchedJobs)
-    LocalDS->>Mapper: mapToHiveModelList(jobEntities)
+    LocalDS->>Mapper: toHiveModelList(jobEntities)
     Mapper-->>LocalDS: List<JobHiveModel>
     LocalDS->>Hive: writeAllJobs(hiveModels)
     Hive-->>LocalDS: Save Confirmation
@@ -139,10 +146,15 @@ Orchestrates data operations for Jobs. It decides whether to fetch from the loca
 Implements the `JobLocalDataSourceInterface`. Responsible for interacting with the local persistence layer (Hive). Uses `JobMapper` to convert between `JobEntity` and `JobHiveModel`.
 
 ### ApiJobRemoteDataSourceImpl
-Implements the `JobRemoteDataSourceInterface`. Responsible for communicating with the backend REST API (`/api/v1/jobs`) using an HTTP client. Maps API responses to `JobEntity`.
+Implements the `JobRemoteDataSourceInterface`. Responsible for communicating with the backend REST API (`/api/v1/jobs`) using an HTTP client. Uses `JobApiDTO` for parsing API responses and `JobMapper` for converting between `JobApiDTO` and `JobEntity`.
 
 ### JobMapper
-Maps data between `JobEntity` (domain) and `JobHiveModel` (persistence).
+Bidirectional mapper that handles transformations between:
+- `JobEntity` (domain) and `JobHiveModel` (local persistence)
+- `JobEntity` (domain) and `JobApiDTO` (API communication)
+
+### JobApiDTO
+Data Transfer Object specifically for API communication. Mirrors the API's JSON structure and handles serialization/deserialization.
 
 ### Hive Box
 The Hive database box used for local storage.
