@@ -14,26 +14,32 @@ import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+// Import the actual FileSystem class
+import 'package:docjet_mobile/core/platform/file_system.dart';
 
-// Generate mocks for the dependencies (JobMapper removed)
-@GenerateMocks([JobRemoteDataSource, JobLocalDataSource])
+// Generate mocks for the dependencies
+@GenerateMocks([
+  JobRemoteDataSource,
+  JobLocalDataSource,
+  FileSystem,
+]) // Add FileSystem here
 import 'job_repository_impl_test.mocks.dart';
 
 void main() {
   late JobRepositoryImpl repository;
   late MockJobRemoteDataSource mockRemoteDataSource;
   late MockJobLocalDataSource mockLocalDataSource;
-  // late MockJobMapper mockMapper; // REMOVED
+  late MockFileSystem mockFileSystem; // Declare mock file system
 
   setUp(() {
     mockRemoteDataSource = MockJobRemoteDataSource();
     mockLocalDataSource = MockJobLocalDataSource();
-    // mockMapper = MockJobMapper(); // REMOVED
-    // Instantiate the repository without the mapper
+    mockFileSystem = MockFileSystem(); // Instantiate mock file system
+    // Instantiate the repository
     repository = JobRepositoryImpl(
       remoteDataSource: mockRemoteDataSource,
       localDataSource: mockLocalDataSource,
-      // mapper: mockMapper, // REMOVED
+      fileSystemService: mockFileSystem, // Provide the mock file system
     );
   });
 
@@ -42,6 +48,7 @@ void main() {
     localId: 'job1',
     userId: 'user123',
     status: JobStatus.completed, // USE ENUM
+    syncStatus: SyncStatus.synced, // Add required sync status
     displayTitle: 'Test Job 1',
     audioFilePath: '/path/to/test.mp3', // Example local path
     createdAt: DateTime.parse('2023-01-01T10:00:00Z'),
@@ -326,125 +333,140 @@ void main() {
       verifyNoMoreInteractions(mockLocalDataSource);
     });
 
-    // TODO: Add test case for local cache save error when returning remote data successfully (already covered?) -> Verify behavior clarity
     // TODO: Add test case for handling known network unavailability (offline first behavior)
     // TODO: Add test case for returning stale data as fallback when remote fetch fails
+    // TODO: Add test cases for network/API failure scenarios
+    // TODO: Add test case for server-side deletion detection
   });
 
   // --- NEW GROUP: syncPendingJobs ---
   group('syncPendingJobs', () {
-    final tPendingJob = Job(
-      localId: 'pendingJob1',
-      userId: 'user123',
-      status:
-          JobStatus
-              .created, // CORRECTED: Use a valid JobStatus (assuming 'created')
-      displayTitle: 'Pending Job Sync Test',
-      audioFilePath: '/local/pending.mp3',
-      createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      updatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
-      // Sync status should be handled by the Hive model, not Job entity directly for this test
-    );
-    // The local data source deals with Hive Models
-    // CORRECTED: Instantiate JobHiveModel and assign fields
-    final tBaseHiveModel = JobMapper.toHiveModel(tPendingJob);
-    final tPendingJobHiveModel =
-        JobHiveModel()
-          ..localId = tBaseHiveModel.localId
-          ..userId = tBaseHiveModel.userId
-          ..status =
-              tBaseHiveModel
-                  .status // Mapper already converted to string
-          ..createdAt = tBaseHiveModel.createdAt
-          ..updatedAt = tBaseHiveModel.updatedAt
-          ..displayTitle = tBaseHiveModel.displayTitle
-          ..displayText = tBaseHiveModel.displayText
-          ..errorCode = tBaseHiveModel.errorCode
-          ..errorMessage = tBaseHiveModel.errorMessage
-          ..text = tBaseHiveModel.text
-          ..additionalText = tBaseHiveModel.additionalText
-          ..audioFilePath = tBaseHiveModel.audioFilePath
-          // Explicitly set syncStatus for the test
-          ..syncStatus = SyncStatus.pending;
-    final tPendingJobsHiveList = [tPendingJobHiveModel];
-    // Assume remote sync returns the updated/synced job entity
-    final tSyncedJob = tPendingJob.copyWith(
-      /* potentially updated fields from backend */
-    ); // For simplicity, assume no changes from backend for now
-
     test(
-      'should fetch pending jobs from local, sync with remote, and update local status to synced on success',
+      'should fetch pending jobs from local, create with remote, and update local status to synced on success',
       () async {
         // Arrange
-        // 1. Stub localDataSource.getJobsToSync to return pending jobs
+        // --- Setup for a NEW pending job (serverId is null) ---
+        final tPendingJobNew = Job(
+          localId: 'pendingNewJob1',
+          userId: 'user123',
+          status: JobStatus.created,
+          syncStatus: SyncStatus.pending,
+          displayTitle: 'New Pending Job Sync Test',
+          audioFilePath: '/local/new_pending.mp3',
+          text: 'Some initial text',
+          additionalText: 'Some additional text',
+          createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
+          updatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        );
+        final tPendingJobHiveModelNew = JobMapper.toHiveModel(tPendingJobNew);
+        final tPendingJobsHiveListNew = [tPendingJobHiveModelNew];
+        // Simulate the job returned by the server after creation (has serverId)
+        final tSyncedJobFromServer = tPendingJobNew.copyWith(
+          serverId: 'serverGeneratedId123', // Server assigns an ID
+          status: JobStatus.submitted, // Status might change after API call
+          syncStatus: SyncStatus.synced, // Should be synced after API call
+          updatedAt: DateTime.now(), // Update timestamp
+        );
+
+        // 1. Stub localDataSource.getJobsToSync to return the new pending job
         when(
           mockLocalDataSource.getJobsToSync(),
-        ).thenAnswer((_) async => tPendingJobsHiveList);
-        // 2. Stub remoteDataSource.syncJobs to succeed (we need to define this method in the interface/mock)
-        // Assuming syncJobs takes List<Job> and returns List<Job> (synced versions)
+        ).thenAnswer((_) async => tPendingJobsHiveListNew);
+
+        // 2. Stub remoteDataSource.createJob to succeed
         when(
-          mockRemoteDataSource.syncJobs(any),
-        ).thenAnswer((_) async => [tSyncedJob]);
-        // 3. Stub localDataSource.updateJobSyncStatus to succeed for each synced job
+          mockRemoteDataSource.createJob(
+            userId: tPendingJobNew.userId,
+            audioFilePath: tPendingJobNew.audioFilePath!,
+            text: tPendingJobNew.text,
+            additionalText: tPendingJobNew.additionalText,
+          ),
+        ).thenAnswer((_) async => tSyncedJobFromServer);
+
+        // 3. Stub localDataSource.updateJobSyncStatus to succeed
         when(
           mockLocalDataSource.updateJobSyncStatus(
-            tPendingJobHiveModel.localId,
+            tPendingJobNew.localId, // Use the original localId
             SyncStatus.synced,
           ),
         ).thenAnswer((_) async => Future.value());
-        // 4. Stub localDataSource.saveJobHiveModel to succeed for the updated job from remote
-        when(mockLocalDataSource.saveJobHiveModel(any)).thenAnswer(
-          (_) async => Future.value(),
-        ); // Using `any` as the synced job might be different instance
+
+        // 4. Stub localDataSource.saveJobHiveModel to succeed for the updated job
+        when(
+          mockLocalDataSource.saveJobHiveModel(any),
+        ).thenAnswer((_) async => Future.value());
 
         // Act
-        // Assuming JobRepositoryImpl will have a syncPendingJobs method returning Either<Failure, void> or similar
         final result = await repository.syncPendingJobs();
 
         // Assert
         // 1. Check result is Right (success)
-        expect(result, isA<Right<Failure, void>>());
+        expect(
+          result,
+          isA<Right<Failure, Unit>>(),
+        ); // Expect Right<Failure, Unit>
+
         // 2. Verify localDataSource.getJobsToSync was called
         verify(mockLocalDataSource.getJobsToSync()).called(1);
-        // 3. Verify remoteDataSource.syncJobs was called with the mapped Job entities
-        // We need to map HiveModels -> JobEntities before passing to remote
-        final captured =
-            verify(mockRemoteDataSource.syncJobs(captureAny)).captured;
-        // Expecting a list containing one Job matching tPendingJob
-        expect(captured.single, isA<List<Job>>());
-        expect(captured.single.length, 1);
-        // Compare relevant fields as direct object comparison might fail due to different instances/syncStatus
-        expect(captured.single.first.id, tPendingJob.localId);
-        expect(captured.single.first.audioFilePath, tPendingJob.audioFilePath);
 
-        // 4. Verify localDataSource.updateJobSyncStatus was called for the job ID with SyncStatus.synced
+        // 3. Verify remoteDataSource.createJob was called with correct arguments
+        verify(
+          mockRemoteDataSource.createJob(
+            userId: tPendingJobNew.userId,
+            audioFilePath: tPendingJobNew.audioFilePath!,
+            text: tPendingJobNew.text,
+            additionalText: tPendingJobNew.additionalText,
+          ),
+        ).called(1);
+
+        // 4. Verify localDataSource.saveJobHiveModel was called to save the updated job
+        final capturedHiveModel =
+            verify(
+                  mockLocalDataSource.saveJobHiveModel(captureAny),
+                ).captured.single
+                as JobHiveModel;
+        // Check key fields of the saved model
+        expect(
+          capturedHiveModel.localId,
+          tPendingJobNew.localId,
+        ); // Must retain localId
+        expect(
+          capturedHiveModel.serverId,
+          tSyncedJobFromServer.serverId,
+        ); // Should have serverId
+        expect(
+          capturedHiveModel.syncStatus,
+          SyncStatus.synced.index,
+        ); // Should be synced
+
+        // 5. Verify localDataSource.updateJobSyncStatus was called for the job ID with SyncStatus.synced
         verify(
           mockLocalDataSource.updateJobSyncStatus(
-            tPendingJobHiveModel.localId,
+            tPendingJobNew.localId,
             SyncStatus.synced,
           ),
         ).called(1);
-        // 5. Verify localDataSource.saveJobHiveModel was called to save the updated job from remote
-        // CORRECTED: Use argThat with safe type check and casting
-        verify(
-          mockLocalDataSource.saveJobHiveModel(
-            argThat(
-              predicate<dynamic>((arg) {
-                return arg is JobHiveModel && arg.localId == tSyncedJob.localId;
-              }),
-            ),
-          ),
-        ).called(1);
 
-        // 6. Verify no other interactions
+        // 6. Verify no other interactions with remote source or file system for this case
+        verifyNever(
+          mockRemoteDataSource.updateJob(
+            jobId: anyNamed('jobId'),
+            updates: anyNamed('updates'),
+          ),
+        );
+        verifyNever(mockRemoteDataSource.deleteJob(any));
+        verifyNever(mockFileSystem.deleteFile(any));
+
+        // Verify no more interactions than expected
         verifyNoMoreInteractions(mockRemoteDataSource);
-        // Allow multiple interactions with localDataSource as specified above
+        verifyNoMoreInteractions(mockFileSystem);
       },
     );
 
     // TODO: Add test case for sync failure (remote throws exception) -> updates status to error
     // TODO: Add test case for partial sync success/failure
     // TODO: Add test case when there are no pending jobs to sync
+    // TODO: Add integration tests covering full job lifecycle
   });
   // --- END NEW GROUP ---
 

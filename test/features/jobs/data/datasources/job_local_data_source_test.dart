@@ -2,6 +2,7 @@ import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
@@ -18,13 +19,14 @@ void main() {
 
   // Test data
   final tJobId = 'test-uuid-1';
-  final tJobHiveModel =
-      JobHiveModel()
-        ..localId = tJobId
-        ..status = JobStatus.created.name
-        ..createdAt = DateTime(2024)
-        ..updatedAt = DateTime(2024, 1, 2)
-        ..userId = 'user-123';
+  final tJobHiveModel = JobHiveModel(
+    localId: tJobId,
+    status: JobStatus.created.index,
+    createdAt: DateTime(2024).toIso8601String(),
+    updatedAt: DateTime(2024, 1, 2).toIso8601String(),
+    userId: 'user-123',
+    syncStatus: SyncStatus.synced.index,
+  );
 
   final tJobHiveModelList = [tJobHiveModel];
 
@@ -246,13 +248,14 @@ void main() {
   });
 
   group('getLastJobHiveModel', () {
-    final tJobHiveModel2 =
-        JobHiveModel()
-          ..localId = 'job-2'
-          ..status = JobStatus.submitted.name
-          ..createdAt = DateTime(2024, 1, 3)
-          ..updatedAt = DateTime(2024, 1, 4)
-          ..userId = 'user-456';
+    final tJobHiveModel2 = JobHiveModel(
+      localId: 'job-2',
+      status: JobStatus.submitted.index,
+      createdAt: DateTime(2024, 1, 3).toIso8601String(),
+      updatedAt: DateTime(2024, 1, 4).toIso8601String(),
+      userId: 'user-456',
+      syncStatus: SyncStatus.synced.index,
+    );
 
     test('should return the job with the latest updatedAt timestamp', () async {
       // Arrange

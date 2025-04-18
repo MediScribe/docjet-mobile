@@ -165,22 +165,22 @@ void main() {
   });
 
   group('getJobsToSync', () {
-    final tJob1 =
-        JobHiveModel()
-          ..localId = 'job-1'
-          ..syncStatus = SyncStatus.pending;
-    final tJob2 =
-        JobHiveModel()
-          ..localId = 'job-2'
-          ..syncStatus = SyncStatus.synced;
-    final tJob3 =
-        JobHiveModel()
-          ..localId = 'job-3'
-          ..syncStatus = SyncStatus.error;
-    final tJob4 =
-        JobHiveModel()
-          ..localId = 'job-4'
-          ..syncStatus = SyncStatus.pending;
+    final tJob1 = JobHiveModel(
+      localId: 'job-1',
+      syncStatus: SyncStatus.pending.index,
+    );
+    final tJob2 = JobHiveModel(
+      localId: 'job-2',
+      syncStatus: SyncStatus.synced.index,
+    );
+    final tJob3 = JobHiveModel(
+      localId: 'job-3',
+      syncStatus: SyncStatus.error.index,
+    );
+    final tJob4 = JobHiveModel(
+      localId: 'job-4',
+      syncStatus: SyncStatus.pending.index,
+    );
     final tJobsMap = {
       // Simulate a box with jobs and timestamp
       tJob1.localId: tJob1,
@@ -306,7 +306,7 @@ void main() {
       verify(mockHive.openBox<dynamic>(jobsBoxName)).called(1);
       verify(mockBox.get(tJobId)).called(1);
       verify(mockJobHiveModel.isInBox).called(1);
-      verify(mockJobHiveModel.syncStatus = SyncStatus.synced).called(1);
+      verify(mockJobHiveModel.syncStatus = SyncStatus.synced.index).called(1);
       verify(mockJobHiveModel.save()).called(1);
       verifyNever(mockBox.put(any, any));
       verifyNoMoreInteractions(mockBox);
@@ -366,7 +366,7 @@ void main() {
       verify(mockHive.openBox<dynamic>(jobsBoxName)).called(1);
       verify(mockBox.get(tJobId)).called(1);
       verify(mockJobHiveModel.isInBox).called(1);
-      verify(mockJobHiveModel.syncStatus = SyncStatus.synced).called(1);
+      verify(mockJobHiveModel.syncStatus = SyncStatus.synced.index).called(1);
       verify(mockJobHiveModel.save()).called(1); // Verify save was called
       verifyNever(mockBox.put(any, any));
       verifyNoMoreInteractions(mockBox);

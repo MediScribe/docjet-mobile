@@ -58,4 +58,6 @@ abstract class JobLocalDataSource {
   /// Used by the repository after a sync attempt (success or failure).
   /// Throws a [CacheException] if the job is not found or on cache access errors.
   Future<void> updateJobSyncStatus(String id, SyncStatus status);
+
+  // TODO: Add getSyncedJobs method to fetch only server-synced jobs with serverId
 }

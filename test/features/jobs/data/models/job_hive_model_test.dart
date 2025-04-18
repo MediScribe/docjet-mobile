@@ -1,8 +1,7 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:hive_test/hive_test.dart'; // Need this for HiveObject tests
+import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart'; // Import HiveObject
 
 void main() {
@@ -19,29 +18,27 @@ void main() {
   group('JobHiveModel', () {
     final tNow = DateTime.now();
     final tLocalId = 'local-uuid-123';
-    final tServerId = 'server-id-456';
     final tUserId = 'user-uuid-789';
 
     // Basic instantiation test - this will fail until fields are added
     test('should correctly instantiate with localId and nullable serverId', () {
       // Arrange
-      final model =
-          JobHiveModel()
-            ..localId =
-                tLocalId // Needs to be assignable
-            ..serverId =
-                null // Needs to be assignable
-            ..status = JobStatus.created.name
-            ..createdAt = tNow
-            ..updatedAt = tNow
-            ..userId = tUserId
-            ..syncStatus = SyncStatus.pending;
+      final model = JobHiveModel(
+        localId: tLocalId,
+        serverId: null,
+        status:
+            JobStatus.created.index, // Use enum index (int) not name (String)
+        createdAt: tNow.toIso8601String(), // Convert to ISO string
+        updatedAt: tNow.toIso8601String(), // Convert to ISO string
+        userId: tUserId,
+        syncStatus: SyncStatus.pending.index, // Use enum index (int) not enum
+      );
 
       // Assert
       expect(model.localId, tLocalId);
       expect(model.serverId, isNull);
-      expect(model.status, JobStatus.created.name);
-      expect(model.syncStatus, SyncStatus.pending);
+      expect(model.status, JobStatus.created.index); // Check int index
+      expect(model.syncStatus, SyncStatus.pending.index); // Check int index
     });
 
     // We will need HiveFields for these in the actual model
@@ -56,7 +53,10 @@ void main() {
 
     // Test HiveObject properties if needed (like key, isInBox)
     test('should be a subclass of HiveObject', () {
-      expect(JobHiveModel(), isA<HiveObject>());
+      expect(
+        JobHiveModel(localId: 'test-id'),
+        isA<HiveObject>(),
+      ); // Use constructor with required field
     });
 
     // Add a copyWith test if JobHiveModel gets one (it doesn't have one now)

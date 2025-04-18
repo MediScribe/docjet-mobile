@@ -13,7 +13,8 @@ void main() {
       expect(JobStatus.values, contains(JobStatus.generated));
       expect(JobStatus.values, contains(JobStatus.completed));
       expect(JobStatus.values, contains(JobStatus.error));
-      expect(JobStatus.values.length, 8); // Ensure no extra values slipped in
+      expect(JobStatus.values, contains(JobStatus.pendingDeletion));
+      expect(JobStatus.values.length, 9); // Update expected length to 9
     });
   });
 }

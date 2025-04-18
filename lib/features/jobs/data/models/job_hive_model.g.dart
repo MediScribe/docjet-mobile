@@ -16,21 +16,22 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return JobHiveModel()
-      ..localId = fields[0] as String
-      ..status = fields[1] as String
-      ..createdAt = fields[2] as DateTime
-      ..updatedAt = fields[3] as DateTime
-      ..userId = fields[4] as String
-      ..displayTitle = fields[5] as String?
-      ..displayText = fields[6] as String?
-      ..errorCode = fields[7] as int?
-      ..errorMessage = fields[8] as String?
-      ..audioFilePath = fields[9] as String?
-      ..text = fields[10] as String?
-      ..additionalText = fields[11] as String?
-      ..syncStatus = fields[12] as SyncStatus
-      ..serverId = fields[13] as String?;
+    return JobHiveModel(
+      localId: fields[0] as String,
+      status: fields[1] as int?,
+      createdAt: fields[2] as String?,
+      updatedAt: fields[3] as String?,
+      userId: fields[4] as String?,
+      displayTitle: fields[5] as String?,
+      displayText: fields[6] as String?,
+      errorCode: fields[7] as int?,
+      errorMessage: fields[8] as String?,
+      audioFilePath: fields[9] as String?,
+      text: fields[10] as String?,
+      additionalText: fields[11] as String?,
+      syncStatus: fields[12] as int?,
+      serverId: fields[13] as String?,
+    );
   }
 
   @override

@@ -3,15 +3,20 @@ import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
-// import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Removed - Status is String for now
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:uuid/uuid.dart';
 
 void main() {
-  group('JobMapper', () {
-    test('should map JobApiDTO to Job entity correctly', () {
-      // Arrange: Create a sample JobApiDTO
+  final uuid = const Uuid();
+
+  group('JobMapper: API DTO <-> Entity', () {
+    test('should map JobApiDTO to Job entity correctly (Server ID)', () {
+      // Arrange: Create a sample JobApiDTO (represents data FROM server)
       final now = DateTime.now();
+      final serverId = 'server-job-123';
       final jobApiDto = JobApiDTO(
-        id: 'job-123',
+        id: serverId, // API DTO's id IS the serverId
         userId: 'user-456',
         jobStatus: 'completed', // API sends string
         createdAt: now,
@@ -31,7 +36,8 @@ void main() {
 
       // Assert: Check if the Job entity has the correct values
       expect(jobEntity, isA<Job>());
-      expect(jobEntity.localId, 'job-123');
+      expect(jobEntity.localId, isNotNull); // Should be generated if null
+      expect(jobEntity.serverId, serverId); // serverId comes from DTO id
       expect(jobEntity.userId, 'user-456');
       expect(jobEntity.status, JobStatus.completed); // Assert Enum
       expect(jobEntity.createdAt, now);
@@ -43,22 +49,28 @@ void main() {
       expect(jobEntity.text, 'Transcribed text');
       expect(jobEntity.additionalText, 'Additional info');
       expect(jobEntity.audioFilePath, null); // DTO doesn't have this field
+      expect(
+        jobEntity.syncStatus,
+        SyncStatus.synced,
+      ); // Data from server is synced
     });
 
     test('should map a list of JobApiDTOs to a list of Job entities', () {
       // Arrange: Create a list of sample JobApiDTOs
       final now1 = DateTime.now();
       final now2 = now1.add(const Duration(minutes: 1));
+      final serverId1 = 'server-job-1';
+      final serverId2 = 'server-job-2';
       final dtoList = [
         JobApiDTO(
-          id: 'job-1',
+          id: serverId1,
           userId: 'user-1',
           jobStatus: 'submitted', // API sends string
           createdAt: now1,
           updatedAt: now1,
         ),
         JobApiDTO(
-          id: 'job-2',
+          id: serverId2,
           userId: 'user-1',
           jobStatus: 'completed', // API sends string
           createdAt: now2,
@@ -77,60 +89,107 @@ void main() {
       expect(jobList.length, 2);
 
       // Check first job
-      expect(jobList[0].localId, 'job-1');
+      expect(jobList[0].localId, isNotNull);
+      expect(jobList[0].serverId, serverId1);
       expect(jobList[0].status, JobStatus.submitted); // Assert Enum
       expect(jobList[0].createdAt, now1);
       expect(jobList[0].displayTitle, isNull);
+      expect(jobList[0].syncStatus, SyncStatus.synced);
 
       // Check second job
-      expect(jobList[1].localId, 'job-2');
+      expect(jobList[1].localId, isNotNull);
+      expect(jobList[1].serverId, serverId2);
       expect(jobList[1].status, JobStatus.completed); // Assert Enum
       expect(jobList[1].updatedAt, now2);
       expect(jobList[1].displayTitle, 'Completed Job');
       expect(jobList[1].text, 'Some text');
+      expect(jobList[1].syncStatus, SyncStatus.synced);
     });
 
-    test('should map Job entity back to JobApiDTO correctly', () {
-      // Arrange: Create a sample Job entity
-      final now = DateTime.now();
-      final jobEntity = Job(
-        localId: 'job-789',
-        userId: 'user-101',
-        status: JobStatus.error, // Use Enum
-        createdAt: now,
-        updatedAt: now,
-        displayTitle: 'Update Test Job',
-        displayText: null,
-        errorCode: 123,
-        errorMessage: 'Processing Error',
-        audioFilePath:
-            'local/path/to/audio.mp4', // This field won't be in the DTO
-        text: 'Submitted text',
-        additionalText: null,
-      );
+    test(
+      'should map Job entity WITH serverId back to JobApiDTO correctly (for Update)',
+      () {
+        // Arrange: Create a sample Job entity that HAS been synced
+        final now = DateTime.now();
+        final localId = uuid.v4();
+        final serverId = 'server-job-789';
+        final jobEntity = Job(
+          localId: localId,
+          serverId: serverId, // Has serverId
+          userId: 'user-101',
+          status: JobStatus.error, // Use Enum
+          createdAt: now,
+          updatedAt: now,
+          displayTitle: 'Update Test Job',
+          displayText: null,
+          errorCode: 123,
+          errorMessage: 'Processing Error',
+          audioFilePath:
+              'local/path/to/audio.mp4', // This field won't be in the DTO
+          text: 'Submitted text',
+          additionalText: null,
+          syncStatus: SyncStatus.synced, // Example status
+        );
 
-      // Act: Call the (non-existent) reverse mapper function
-      // This line WILL cause a compile error initially (RED step)
-      final jobApiDto = JobMapper.toApiDto(jobEntity);
+        // Act: Call the (non-existent) reverse mapper function
+        // This line WILL cause a compile error initially (RED step)
+        final jobApiDto = JobMapper.toApiDto(jobEntity);
 
-      // Assert: Check if the JobApiDTO has the correct values
-      expect(jobApiDto, isA<JobApiDTO>());
-      expect(jobApiDto.id, 'job-789');
-      expect(jobApiDto.userId, 'user-101');
-      expect(
-        jobApiDto.jobStatus,
-        'error',
-      ); // DTO uses string status, check lowercase 'error'
-      expect(jobApiDto.createdAt, now);
-      expect(jobApiDto.updatedAt, now);
-      expect(jobApiDto.displayTitle, 'Update Test Job');
-      expect(jobApiDto.displayText, null);
-      expect(jobApiDto.errorCode, 123);
-      expect(jobApiDto.errorMessage, 'Processing Error');
-      expect(jobApiDto.text, 'Submitted text');
-      expect(jobApiDto.additionalText, null);
-      // Note: audioFilePath is not part of JobApiDTO
-    });
+        // Assert: Check if the JobApiDTO has the correct values
+        expect(jobApiDto, isA<JobApiDTO>());
+        expect(jobApiDto.id, serverId); // DTO id should be the serverId
+        expect(jobApiDto.userId, 'user-101');
+        expect(
+          jobApiDto.jobStatus,
+          'error',
+        ); // DTO uses string status, check lowercase 'error'
+        expect(jobApiDto.createdAt, now);
+        expect(jobApiDto.updatedAt, now);
+        expect(jobApiDto.displayTitle, 'Update Test Job');
+        expect(jobApiDto.displayText, null);
+        expect(jobApiDto.errorCode, 123);
+        expect(jobApiDto.errorMessage, 'Processing Error');
+        expect(jobApiDto.text, 'Submitted text');
+        expect(jobApiDto.additionalText, null);
+        // Note: audioFilePath is not part of JobApiDTO
+      },
+    );
+
+    test(
+      'should map Job entity WITHOUT serverId back to JobApiDTO correctly (for Create)',
+      () {
+        // Arrange: Create a sample Job entity that has NOT been synced
+        final now = DateTime.now();
+        final localId = uuid.v4();
+        final jobEntity = Job(
+          localId: localId,
+          serverId: null, // No serverId yet
+          userId: 'user-202',
+          status: JobStatus.created,
+          createdAt: now,
+          updatedAt: now,
+          displayTitle: 'New Job',
+          audioFilePath: 'local/path/new_audio.mp4',
+          syncStatus: SyncStatus.pending,
+        );
+
+        // Act: Call the reverse mapper function
+        final jobApiDto = JobMapper.toApiDto(jobEntity);
+
+        // Assert: Check if the JobApiDTO has the correct values
+        expect(jobApiDto, isA<JobApiDTO>());
+        expect(
+          jobApiDto.id,
+          localId,
+        ); // DTO id should be the localId for creation
+        expect(jobApiDto.userId, 'user-202');
+        expect(jobApiDto.jobStatus, 'created');
+        expect(jobApiDto.createdAt, now);
+        expect(jobApiDto.updatedAt, now);
+        expect(jobApiDto.displayTitle, 'New Job');
+        // Other fields might be null or default depending on API contract for creation
+      },
+    );
 
     // TODO: Add tests for edge cases (e.g., empty list, list with errors)
   });
@@ -174,6 +233,254 @@ void main() {
         // expect(JobMapper.stringToJobStatus(null), JobStatus.error); // Depends on nullability
       },
     );
+  });
+
+  group('JobMapper: Hive Model <-> Entity', () {
+    test('should map JobHiveModel to Job entity correctly', () {
+      // Arrange
+      final now = DateTime.now();
+      final localId = uuid.v4();
+      final serverId = 'server-id-from-hive';
+      final hiveModel = JobHiveModel(
+        localId: localId,
+        serverId: serverId,
+        userId: 'user-from-hive',
+        status: JobStatus.generating.index, // Stored as int
+        syncStatus: SyncStatus.error.index, // Stored as int
+        createdAt: now.toIso8601String(),
+        updatedAt: now.toIso8601String(),
+        displayTitle: 'Hive Job',
+        text: 'Hive Text',
+        audioFilePath: '/path/to/hive/audio.aac',
+        errorCode: 404,
+        errorMessage: 'Not Found in Hive?',
+      );
+
+      // Act
+      final jobEntity = JobMapper.fromHiveModel(hiveModel);
+
+      // Assert
+      expect(jobEntity, isA<Job>());
+      expect(jobEntity.localId, localId);
+      expect(jobEntity.serverId, serverId);
+      expect(jobEntity.userId, 'user-from-hive');
+      expect(jobEntity.status, JobStatus.generating);
+      expect(jobEntity.syncStatus, SyncStatus.error);
+      expect(jobEntity.createdAt, now);
+      expect(jobEntity.updatedAt, now);
+      expect(jobEntity.displayTitle, 'Hive Job');
+      expect(jobEntity.text, 'Hive Text');
+      expect(jobEntity.audioFilePath, '/path/to/hive/audio.aac');
+      expect(jobEntity.errorCode, 404);
+      expect(jobEntity.errorMessage, 'Not Found in Hive?');
+    });
+
+    test(
+      'should map JobHiveModel with null serverId to Job entity correctly',
+      () {
+        // Arrange
+        final now = DateTime.now();
+        final localId = uuid.v4();
+        final hiveModel = JobHiveModel(
+          localId: localId,
+          serverId: null, // Server ID is null
+          userId: 'local-only-user',
+          status: JobStatus.created.index,
+          syncStatus: SyncStatus.pending.index,
+          createdAt: now.toIso8601String(),
+          updatedAt: now.toIso8601String(),
+          audioFilePath: '/path/to/local/audio.aac',
+        );
+
+        // Act
+        final jobEntity = JobMapper.fromHiveModel(hiveModel);
+
+        // Assert
+        expect(jobEntity.localId, localId);
+        expect(jobEntity.serverId, null); // Verify null serverId
+        expect(jobEntity.userId, 'local-only-user');
+        expect(jobEntity.status, JobStatus.created);
+        expect(jobEntity.syncStatus, SyncStatus.pending);
+        expect(jobEntity.createdAt, now);
+        expect(jobEntity.updatedAt, now);
+        expect(jobEntity.audioFilePath, '/path/to/local/audio.aac');
+      },
+    );
+
+    test('should map Job entity to JobHiveModel correctly', () {
+      // Arrange
+      final now = DateTime.now();
+      final localId = uuid.v4();
+      final serverId = 'server-id-to-hive';
+      final jobEntity = Job(
+        localId: localId,
+        serverId: serverId,
+        userId: 'user-to-hive',
+        status: JobStatus.transcribed,
+        syncStatus: SyncStatus.synced,
+        createdAt: now,
+        updatedAt: now,
+        displayTitle: 'Entity Job',
+        text: 'Entity Text',
+        audioFilePath: '/path/to/entity/audio.m4a',
+        errorCode: 500,
+        errorMessage: 'Server Error during sync',
+      );
+
+      // Act
+      final hiveModel = JobMapper.toHiveModel(jobEntity);
+
+      // Assert
+      expect(hiveModel, isA<JobHiveModel>());
+      expect(hiveModel.localId, localId);
+      expect(hiveModel.serverId, serverId);
+      expect(hiveModel.userId, 'user-to-hive');
+      expect(hiveModel.status, JobStatus.transcribed.index); // Stored as int
+      expect(hiveModel.syncStatus, SyncStatus.synced.index); // Stored as int
+      expect(hiveModel.createdAt, now.toIso8601String());
+      expect(hiveModel.updatedAt, now.toIso8601String());
+      expect(hiveModel.displayTitle, 'Entity Job');
+      expect(hiveModel.text, 'Entity Text');
+      expect(hiveModel.audioFilePath, '/path/to/entity/audio.m4a');
+      expect(hiveModel.errorCode, 500);
+      expect(hiveModel.errorMessage, 'Server Error during sync');
+    });
+
+    test(
+      'should map Job entity with null serverId to JobHiveModel correctly',
+      () {
+        // Arrange
+        final now = DateTime.now();
+        final localId = uuid.v4();
+        final jobEntity = Job(
+          localId: localId,
+          serverId: null, // Server ID is null
+          userId: 'local-only-user-to-hive',
+          status: JobStatus.pendingDeletion, // Example status
+          syncStatus: SyncStatus.pendingDeletion,
+          createdAt: now,
+          updatedAt: now,
+          audioFilePath: '/path/to/pending/delete/audio.m4a',
+        );
+
+        // Act
+        final hiveModel = JobMapper.toHiveModel(jobEntity);
+
+        // Assert
+        expect(hiveModel.localId, localId);
+        expect(hiveModel.serverId, null); // Verify null serverId
+        expect(hiveModel.userId, 'local-only-user-to-hive');
+        expect(hiveModel.status, JobStatus.pendingDeletion.index);
+        expect(hiveModel.syncStatus, SyncStatus.pendingDeletion.index);
+        expect(hiveModel.createdAt, now.toIso8601String());
+        expect(hiveModel.updatedAt, now.toIso8601String());
+        expect(hiveModel.audioFilePath, '/path/to/pending/delete/audio.m4a');
+      },
+    );
+
+    test('should map a list of JobHiveModels to a list of Job entities', () {
+      // Arrange
+      final now1 = DateTime.now();
+      final now2 = now1.add(const Duration(minutes: 5));
+      final localId1 = uuid.v4();
+      final serverId1 = 'server1';
+      final localId2 = uuid.v4(); // No serverId for second job
+
+      final hiveList = [
+        JobHiveModel(
+          localId: localId1,
+          serverId: serverId1,
+          userId: 'user1',
+          status: JobStatus.completed.index,
+          syncStatus: SyncStatus.synced.index,
+          createdAt: now1.toIso8601String(),
+          updatedAt: now1.toIso8601String(),
+        ),
+        JobHiveModel(
+          localId: localId2,
+          serverId: null,
+          userId: 'user2',
+          status: JobStatus.created.index,
+          syncStatus: SyncStatus.pending.index,
+          createdAt: now2.toIso8601String(),
+          updatedAt: now2.toIso8601String(),
+          audioFilePath: 'path/local.wav',
+        ),
+      ];
+
+      // Act
+      final entityList = JobMapper.fromHiveModelList(hiveList);
+
+      // Assert
+      expect(entityList, isA<List<Job>>());
+      expect(entityList.length, 2);
+
+      expect(entityList[0].localId, localId1);
+      expect(entityList[0].serverId, serverId1);
+      expect(entityList[0].status, JobStatus.completed);
+      expect(entityList[0].syncStatus, SyncStatus.synced);
+      expect(entityList[0].createdAt, now1);
+
+      expect(entityList[1].localId, localId2);
+      expect(entityList[1].serverId, isNull);
+      expect(entityList[1].status, JobStatus.created);
+      expect(entityList[1].syncStatus, SyncStatus.pending);
+      expect(entityList[1].createdAt, now2);
+      expect(entityList[1].audioFilePath, 'path/local.wav');
+    });
+
+    test('should map a list of Job entities to a list of JobHiveModels', () {
+      // Arrange
+      final now1 = DateTime.now();
+      final now2 = now1.add(const Duration(minutes: 5));
+      final localId1 = uuid.v4();
+      final serverId1 = 'server1-to-hive';
+      final localId2 = uuid.v4(); // No serverId for second job
+
+      final entityList = [
+        Job(
+          localId: localId1,
+          serverId: serverId1,
+          userId: 'user1-to-hive',
+          status: JobStatus.error,
+          syncStatus: SyncStatus.error,
+          createdAt: now1,
+          updatedAt: now1,
+          errorMessage: 'Failed hard',
+        ),
+        Job(
+          localId: localId2,
+          serverId: null,
+          userId: 'user2-local-to-hive',
+          status: JobStatus.submitted,
+          syncStatus: SyncStatus.pending,
+          createdAt: now2,
+          updatedAt: now2,
+          audioFilePath: 'path/local-entity.wav',
+        ),
+      ];
+
+      // Act
+      final hiveList = JobMapper.toHiveModelList(entityList);
+
+      // Assert
+      expect(hiveList, isA<List<JobHiveModel>>());
+      expect(hiveList.length, 2);
+
+      expect(hiveList[0].localId, localId1);
+      expect(hiveList[0].serverId, serverId1);
+      expect(hiveList[0].status, JobStatus.error.index);
+      expect(hiveList[0].syncStatus, SyncStatus.error.index);
+      expect(hiveList[0].createdAt, now1.toIso8601String());
+      expect(hiveList[0].errorMessage, 'Failed hard');
+
+      expect(hiveList[1].localId, localId2);
+      expect(hiveList[1].serverId, isNull);
+      expect(hiveList[1].status, JobStatus.submitted.index);
+      expect(hiveList[1].syncStatus, SyncStatus.pending.index);
+      expect(hiveList[1].createdAt, now2.toIso8601String());
+      expect(hiveList[1].audioFilePath, 'path/local-entity.wav');
+    });
   });
 
   // TODO: Add tests for the main mapping functions (from/to HiveModel, from/to ApiDto)

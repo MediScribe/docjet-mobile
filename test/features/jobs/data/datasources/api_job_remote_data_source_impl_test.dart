@@ -6,6 +6,7 @@ import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'; // Will not exist yet
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import the enum
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart'; // Import mockito annotations
 import 'package:mockito/mockito.dart';
@@ -83,6 +84,7 @@ void main() {
     localId: tJobId,
     userId: tUserId,
     status: JobStatus.completed, // Assert Enum
+    syncStatus: SyncStatus.synced, // API data is considered synced
     errorCode: null,
     errorMessage: null,
     createdAt: DateTime.parse("2024-01-15T10:00:00.000Z"),
@@ -376,6 +378,7 @@ void main() {
       localId: "new-job-uuid-789",
       userId: tUserId,
       status: JobStatus.submitted, // Expect Enum based on "submitted"
+      syncStatus: SyncStatus.synced, // API data is considered synced
       createdAt: DateTime.parse("2024-01-16T12:00:00.000Z"),
       updatedAt: DateTime.parse("2024-01-16T12:00:00.000Z"),
       text: "Uploaded text", // From response
@@ -651,6 +654,7 @@ void main() {
       localId: tJobId,
       userId: tUserId,
       status: JobStatus.transcribed, // Expect Enum
+      syncStatus: SyncStatus.synced, // API data is considered synced
       errorCode: null,
       errorMessage: null,
       createdAt: DateTime.parse("2024-01-15T10:00:00.000Z"),

@@ -8,10 +8,6 @@ import 'dart:typed_data' as _i6;
 
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i8;
-import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'
-    as _i10;
-import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
-    as _i9;
 import 'package:hive/hive.dart' as _i2;
 import 'package:hive/src/box/default_compaction_strategy.dart' as _i5;
 import 'package:hive/src/box/default_key_comparator.dart' as _i4;
@@ -44,16 +40,6 @@ class _FakeBox_0<E1> extends _i1.SmartFake implements _i2.Box<E1> {
 
 class _FakeLazyBox_1<E1> extends _i1.SmartFake implements _i2.LazyBox<E1> {
   _FakeLazyBox_1(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeDateTime_2 extends _i1.SmartFake implements DateTime {
-  _FakeDateTime_2(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -602,16 +588,7 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
       );
 
   @override
-  String get status => (super.noSuchMethod(
-        Invocation.getter(#status),
-        returnValue: _i7.dummyValue<String>(
-          this,
-          Invocation.getter(#status),
-        ),
-      ) as String);
-
-  @override
-  set status(String? _status) => super.noSuchMethod(
+  set status(int? _status) => super.noSuchMethod(
         Invocation.setter(
           #status,
           _status,
@@ -620,16 +597,7 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
       );
 
   @override
-  DateTime get createdAt => (super.noSuchMethod(
-        Invocation.getter(#createdAt),
-        returnValue: _FakeDateTime_2(
-          this,
-          Invocation.getter(#createdAt),
-        ),
-      ) as DateTime);
-
-  @override
-  set createdAt(DateTime? _createdAt) => super.noSuchMethod(
+  set createdAt(String? _createdAt) => super.noSuchMethod(
         Invocation.setter(
           #createdAt,
           _createdAt,
@@ -638,31 +606,13 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
       );
 
   @override
-  DateTime get updatedAt => (super.noSuchMethod(
-        Invocation.getter(#updatedAt),
-        returnValue: _FakeDateTime_2(
-          this,
-          Invocation.getter(#updatedAt),
-        ),
-      ) as DateTime);
-
-  @override
-  set updatedAt(DateTime? _updatedAt) => super.noSuchMethod(
+  set updatedAt(String? _updatedAt) => super.noSuchMethod(
         Invocation.setter(
           #updatedAt,
           _updatedAt,
         ),
         returnValueForMissingStub: null,
       );
-
-  @override
-  String get userId => (super.noSuchMethod(
-        Invocation.getter(#userId),
-        returnValue: _i7.dummyValue<String>(
-          this,
-          Invocation.getter(#userId),
-        ),
-      ) as String);
 
   @override
   set userId(String? _userId) => super.noSuchMethod(
@@ -737,13 +687,7 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
       );
 
   @override
-  _i9.SyncStatus get syncStatus => (super.noSuchMethod(
-        Invocation.getter(#syncStatus),
-        returnValue: _i9.SyncStatus.pending,
-      ) as _i9.SyncStatus);
-
-  @override
-  set syncStatus(_i9.SyncStatus? _syncStatus) => super.noSuchMethod(
+  set syncStatus(int? _syncStatus) => super.noSuchMethod(
         Invocation.setter(
           #syncStatus,
           _syncStatus,
@@ -765,24 +709,6 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
         Invocation.getter(#isInBox),
         returnValue: false,
       ) as bool);
-
-  @override
-  _i10.JobStatus getStatusEnum() => (super.noSuchMethod(
-        Invocation.method(
-          #getStatusEnum,
-          [],
-        ),
-        returnValue: _i10.JobStatus.created,
-      ) as _i10.JobStatus);
-
-  @override
-  void setStatusEnum(_i10.JobStatus? jobStatus) => super.noSuchMethod(
-        Invocation.method(
-          #setStatusEnum,
-          [jobStatus],
-        ),
-        returnValueForMissingStub: null,
-      );
 
   @override
   _i3.Future<void> save() => (super.noSuchMethod(

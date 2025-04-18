@@ -204,7 +204,14 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       // Iterate to find the job with the maximum updatedAt timestamp
       JobHiveModel lastJob = jobs[0]; // Initialize with the first element
       for (int i = 1; i < jobs.length; i++) {
-        if (jobs[i].updatedAt.isAfter(lastJob.updatedAt)) {
+        // Parse the date strings to DateTime objects for comparison
+        final currentDate = DateTime.tryParse(jobs[i].updatedAt ?? '');
+        final lastDate = DateTime.tryParse(lastJob.updatedAt ?? '');
+
+        // Only compare if both dates are valid
+        if (currentDate != null &&
+            lastDate != null &&
+            currentDate.isAfter(lastDate)) {
           lastJob = jobs[i];
         }
       }
@@ -283,7 +290,9 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       final pendingJobs =
           box.values
               .whereType<JobHiveModel>()
-              .where((job) => job.syncStatus == SyncStatus.pending)
+              .where(
+                (job) => job.syncStatus == SyncStatus.pending.index,
+              ) // Compare with index
               .toList();
       _logger.d('$_tag Found ${pendingJobs.length} jobs pending sync.');
       return pendingJobs;
@@ -307,7 +316,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
 
       if (value is JobHiveModel) {
         _logger.d('$_tag Found job model with id: $id for status update.');
-        value.syncStatus = status;
+        value.syncStatus = status.index; // Assign the index, not the enum
         // --- FIXED: Check isInBox and use put as fallback ---
         if (value.isInBox) {
           await value.save(); // Use HiveObject's save method if in box

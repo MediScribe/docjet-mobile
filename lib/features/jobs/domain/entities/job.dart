@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart'; // Add Equatable for value comparison
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import the enum
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'; // Import SyncStatus
 
 // Represents a single recording job and its metadata. This is the pure Domain Entity with no persistence concerns.
 class Job extends Equatable {
   final String localId; // UUID
   final String? serverId; // New: Nullable server-assigned ID
   final JobStatus status; // USE ENUM INSTEAD OF STRING
+  final SyncStatus syncStatus; // New: Sync status
   final DateTime createdAt;
   final DateTime updatedAt;
   final String userId; // UUID
@@ -22,6 +24,7 @@ class Job extends Equatable {
     required this.localId,
     this.serverId, // New: Optional server ID
     required this.status, // USE ENUM INSTEAD OF STRING
+    required this.syncStatus, // New: Required
     required this.createdAt,
     required this.updatedAt,
     required this.userId,
@@ -40,6 +43,7 @@ class Job extends Equatable {
     localId,
     serverId, // New
     status, // USE ENUM INSTEAD OF STRING
+    syncStatus, // New
     createdAt,
     updatedAt,
     userId,
@@ -57,6 +61,7 @@ class Job extends Equatable {
     String? localId,
     String? serverId, // New
     JobStatus? status, // USE ENUM INSTEAD OF STRING
+    SyncStatus? syncStatus, // New
     DateTime? createdAt,
     DateTime? updatedAt,
     String? userId,
@@ -72,6 +77,7 @@ class Job extends Equatable {
       localId: localId ?? this.localId,
       serverId: serverId ?? this.serverId, // New
       status: status ?? this.status, // USE ENUM INSTEAD OF STRING
+      syncStatus: syncStatus ?? this.syncStatus, // New
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       userId: userId ?? this.userId,

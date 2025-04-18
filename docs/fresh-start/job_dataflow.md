@@ -540,61 +540,91 @@ This bottom-up implementation plan follows Test-Driven Development principles, f
    - GREEN: Add fields, run code generation
    - REFACTOR: Ensure good default values
 
-5. ❌ **LOW PRIORITY** - Update `JobMapper`:
+5. ✅ **COMPLETED** - Update `JobMapper`:
    - RED: Write tests for mapping between dual-ID models
    - GREEN: Update mapper implementation
    - REFACTOR: Ensure consistent mapping
 
 #### Level 3: DataSource Layer
 
-6. ❌ **Update `JobLocalDataSource` interface:**
+6. ✅ **COMPLETED** - Update `JobLocalDataSource` interface:
    - RED: Write tests for new methods (getSyncedJobs, deleteJob)
    - GREEN: Add interface methods
    - REFACTOR: Ensure clear documentation
 
-7. ❌ **Update `HiveJobLocalDataSourceImpl`:**
+7. ✅ **COMPLETED** - Update `HiveJobLocalDataSourceImpl`:
    - RED: Write tests for implementation of new methods
    - GREEN: Implement methods
    - REFACTOR: Ensure robust error handling
 
 #### Level 4: Repository Layer
 
-8. ❌ **Update `JobRepositoryImpl` constructor:**
-   - RED: Write tests expecting FileService dependency
+8. ✅ **COMPLETED** - Update `JobRepositoryImpl` constructor:
+   - RED: Write tests expecting FileSystem dependency
    - GREEN: Add parameter to constructor
    - REFACTOR: Ensure defaults for backward compatibility
 
-9. ❌ **Implement `createJob` method:**
+9. ❌ **TODO** - Implement `createJob` method:
    - RED: Write tests covering UUID generation, status setting
    - GREEN: Implement method
    - REFACTOR: Ensure proper error handling
 
-10. ❌ **Implement `updateJob` method:**
+10. ❌ **TODO** - Implement `updateJob` method:
     - RED: Write tests for proper status updates
     - GREEN: Implement method
     - REFACTOR: Clean up implementation
 
-11. ❌ **Implement `deleteJob` method:**
+11. ✅ **COMPLETED** - Implement `deleteJob` method:
     - RED: Write tests for setting pendingDeletion status
     - GREEN: Implement method
     - REFACTOR: Ensure clean interface
 
-12. ❌ **Update `syncPendingJobs` method:**
+12. ✅ **COMPLETED** - Update `syncPendingJobs` method:
     - RED: Write tests for all sync scenarios (new/update/delete) using dual-ID system
     - GREEN: Implement logic for each case
     - REFACTOR: Extract common code into helper methods
 
-13. ❌ **Add server-side deletion detection to `getJobs`:**
+13. ❌ **TODO** - Add server-side deletion detection to `getJobs`:
     - RED: Write tests for comparing server vs local data
     - GREEN: Implement detection and deletion logic
     - REFACTOR: Ensure clean error handling
 
 #### Level 5: Integration Testing
 
-14. ❌ **Create integration tests:**
+14. ❌ **TODO** - Create integration tests:
     - Create workflow tests covering the full job lifecycle
     - Test edge cases and error scenarios
     - Verify correct interaction between components
+
+### Implementation Notes (April 2023)
+
+During our implementation of the job synchronization system, we made several key architecture decisions:
+
+1. **Individual Job Synchronization**: Instead of using a batch sync approach, we now process jobs individually with clear operation paths for:
+   - Creating new jobs (serverId == null)
+   - Updating existing jobs (serverId != null)
+   - Deleting jobs (syncStatus == pendingDeletion)
+
+2. **Audio File Cleanup**: We've integrated the FileSystem service to properly manage audio file resources:
+   - When a job is deleted (either locally or server-initiated), its audio file is also deleted
+   - The file deletion errors are logged but non-fatal to allow sync to proceed
+
+3. **Error Handling**: We've improved error handling with:
+   - Per-job error state tracking
+   - Graceful failure that doesn't abort the entire sync process
+   - Detailed logging for all sync operations
+
+4. **Dual-ID System**: We've fully implemented the dual-ID approach:
+   - localId: Client-generated UUID that never changes
+   - serverId: Server-assigned ID after first successful sync
+
+5. **Sync Status Tracking**: We've updated our sync status enum to properly track:
+   - pending: Local changes awaiting sync
+   - synced: Successfully synchronized with server
+   - error: Sync failed for this job
+   - pendingDeletion: Marked for deletion on next sync
+
+Still to be implemented are the createJob and updateJob methods that users will interact with, along with server-side deletion detection and integration tests.
 
 This plan ensures each component is properly tested in isolation before integrating into the larger system.
 

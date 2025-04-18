@@ -12,6 +12,7 @@ import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_sou
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
@@ -463,6 +464,7 @@ void main() {
                 localId: '',
                 userId: '',
                 status: JobStatus.created, // Use a default enum value
+                syncStatus: SyncStatus.pending, // Add required sync status
                 createdAt: DateTime(0),
                 updatedAt: DateTime(0),
               ),

@@ -25,4 +25,7 @@ enum JobStatus {
 
   /// An error occurred during processing.
   error,
+
+  /// The job has been marked for deletion locally and is awaiting server confirmation.
+  pendingDeletion,
 }

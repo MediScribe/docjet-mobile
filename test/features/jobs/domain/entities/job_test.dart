@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:equatable/equatable.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
 void main() {
   group('Job Entity', () {
@@ -16,6 +17,7 @@ void main() {
         localId: tLocalId,
         serverId: null, // Initially null
         status: JobStatus.transcribing,
+        syncStatus: SyncStatus.pending,
         createdAt: tNow,
         updatedAt: tNow,
         userId: tUserId,
@@ -30,6 +32,7 @@ void main() {
         localId: tLocalId,
         serverId: null,
         status: JobStatus.transcribing,
+        syncStatus: SyncStatus.pending,
         createdAt: tNow,
         updatedAt: tNow,
         userId: tUserId,
@@ -43,6 +46,7 @@ void main() {
         localId: tLocalId,
         serverId: tServerId,
         status: JobStatus.completed,
+        syncStatus: SyncStatus.synced,
         createdAt: tNow,
         updatedAt: tNow,
         userId: tUserId,
@@ -58,6 +62,7 @@ void main() {
         localId: tLocalId,
         serverId: tServerId,
         status: JobStatus.completed,
+        syncStatus: SyncStatus.synced,
         createdAt: tNow,
         updatedAt: tNow,
         userId: tUserId,
@@ -78,6 +83,7 @@ void main() {
           tLocalId, // New
           tServerId, // New
           JobStatus.completed,
+          SyncStatus.synced,
           tNow,
           tNow,
           tUserId,
@@ -98,6 +104,7 @@ void main() {
         localId: tLocalId,
         serverId: null,
         status: JobStatus.created,
+        syncStatus: SyncStatus.pending,
         createdAt: tNow,
         updatedAt: tNow,
         userId: tUserId,
@@ -107,6 +114,7 @@ void main() {
       final updatedJob = originalJob.copyWith(
         serverId: tServerId,
         status: JobStatus.completed,
+        syncStatus: SyncStatus.synced,
       );
 
       // Assert
@@ -117,6 +125,7 @@ void main() {
         updatedJob.status,
         JobStatus.completed,
       ); // Corrected assertion status
+      expect(updatedJob.syncStatus, SyncStatus.synced);
       expect(updatedJob.userId, tUserId); // Should remain the same
     });
   });

@@ -5,6 +5,8 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
 import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import the mapper
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:dartz/dartz.dart'; // Import dartz for Unit
 
 // Type definition for the MultipartFile creator function. This allows injecting
 // a mock creator for testing without needing the actual file system.
@@ -124,6 +126,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         userId: safeCast<String>(json['user_id'], 'user_id'),
         // Use JobMapper to convert the status string to the enum
         status: JobMapper.stringToJobStatus(json['job_status'] as String?),
+        syncStatus: SyncStatus.synced, // API data is considered synced
         createdAt: parseDateTime(json['created_at'], 'created_at'),
         updatedAt: parseDateTime(json['updated_at'], 'updated_at'),
         // Optional fields - allow null if missing or null
@@ -392,6 +395,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
             status: JobMapper.stringToJobStatus(
               jobData['job_status'] as String?,
             ),
+            syncStatus:
+                SyncStatus
+                    .synced, // Newly created job starts as synced since it came from API
             createdAt: DateTime.parse(jobData['created_at'] as String),
             updatedAt: DateTime.parse(jobData['updated_at'] as String),
             text: jobData['text'] as String?,
@@ -534,9 +540,62 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     // and calling the appropriate API endpoints (POST/PATCH/DELETE).
     // Need to handle responses and update local job state accordingly.
     // Need robust error handling for network issues or API errors.
-    _logger.w('syncJobs is not implemented yet');
+    _logger.w('$_tag syncJobs is not implemented yet.');
     // For now, return the input list as a placeholder to satisfy the interface.
     // In a real scenario, this would return the jobs after API interaction (e.g., with server IDs).
     return jobsToSync;
   }
+
+  @override
+  Future<Unit> deleteJob(String serverId) async {
+    final String endpoint = '/jobs/$serverId';
+    _logger.d('$_tag Deleting job with serverId: $serverId from $endpoint');
+
+    try {
+      final options = await _getOptionsWithAuth();
+      final response = await dio.delete(endpoint, options: options);
+
+      // --- Success Case (200 OK or 204 No Content) ---
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _logger.i(
+          '$_tag Successfully deleted job $serverId. Status: ${response.statusCode}',
+        );
+        return unit; // Return Unit on success
+      }
+      // --- Error Case (Non-200/204) ---
+      else {
+        String errorMessage =
+            'Failed to delete job. Status: ${response.statusCode}';
+        if (response.data is Map<String, dynamic> &&
+            (response.data as Map<String, dynamic>).containsKey('error')) {
+          errorMessage =
+              (response.data as Map<String, dynamic>)['error'].toString();
+        }
+        _logger.w(
+          '$_tag Failed to delete job $serverId. Status: ${response.statusCode}, Response: ${response.data}',
+        );
+        throw ApiException(
+          message: errorMessage,
+          statusCode: response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      _logger.e(
+        '$_tag DioException during delete job $serverId: ${e.message}',
+        error: e,
+        stackTrace: e.stackTrace,
+      );
+      throw ServerException();
+    } catch (e, stackTrace) {
+      // Catch other errors (e.g., getting auth options, unexpected)
+      _logger.e(
+        '$_tag Unexpected error during delete job $serverId: ${e.toString()}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw ServerException();
+    }
+  }
+
+  // TODO: Define methods for GET /api/v1/jobs/{id}/documents if needed directly by this layer.
 }

@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart'; // Import dartz
 import 'package:docjet_mobile/core/error/exceptions.dart'; // For potential exceptions
 import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
+import 'package:docjet_mobile/core/platform/file_system.dart'; // Corrected Import FileSystem Service
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import needed for static calls
@@ -9,10 +10,12 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 // import 'package:docjet_mobile/core/network/network_info.dart'; // Removed
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'; // Import Hive model
 
 class JobRepositoryImpl implements JobRepository {
   final JobRemoteDataSource remoteDataSource;
   final JobLocalDataSource localDataSource;
+  final FileSystem fileSystemService; // Corrected type hint
   // final JobMapper mapper; // REMOVED - Mapper methods are static
   // final NetworkInfo networkInfo; // Removed
 
@@ -26,6 +29,7 @@ class JobRepositoryImpl implements JobRepository {
   JobRepositoryImpl({
     required this.remoteDataSource,
     required this.localDataSource,
+    required this.fileSystemService, // Require FileSystem service
     // Default staleness to 1 hour if not provided
     this.stalenessThreshold = const Duration(hours: 1),
     // required this.mapper, // REMOVED
@@ -145,6 +149,7 @@ class JobRepositoryImpl implements JobRepository {
     String? text,
     // String? additionalText, // REMOVED - Not in interface
   }) async {
+    // TODO: Implement UUID generation for new jobs in createJob method
     // TODO: Implement later
     return Left(ServerFailure(message: 'createJob not implemented'));
   }
@@ -153,6 +158,7 @@ class JobRepositoryImpl implements JobRepository {
     required String jobId,
     required Map<String, dynamic> updates,
   }) async {
+    // TODO: Add robust error handling to updateJob method
     // TODO: Implement later
     return Left(ServerFailure(message: 'updateJob not implemented'));
   }
@@ -160,9 +166,11 @@ class JobRepositoryImpl implements JobRepository {
   @override
   Future<Either<Failure, Unit>> syncPendingJobs() async {
     _logger.d('$_tag syncPendingJobs called');
+    List<JobHiveModel> pendingHiveModels = []; // Initialize empty list
+
     try {
-      // 1. Get pending jobs
-      final pendingHiveModels = await localDataSource.getJobsToSync();
+      // 1. Get pending jobs (includes pending and pendingDeletion)
+      pendingHiveModels = await localDataSource.getJobsToSync();
       _logger.d(
         '$_tag Found ${pendingHiveModels.length} jobs pending sync locally.',
       );
@@ -172,69 +180,202 @@ class JobRepositoryImpl implements JobRepository {
         return const Right(unit); // Nothing to do
       }
 
-      // 2. Map to Job entities for remote sync
+      // 2. Map to Job entities
       final jobsToSync = JobMapper.fromHiveModelList(pendingHiveModels);
-
-      // 3. Call remote sync (currently mocked in test)
-      // In real implementation, this would involve try/catch for Server/ApiExceptions
       _logger.d(
-        '$_tag Attempting to sync ${jobsToSync.length} jobs with remote...',
-      );
-      final syncedJobs = await remoteDataSource.syncJobs(jobsToSync);
-      _logger.i(
-        '$_tag Remote sync successful. Received ${syncedJobs.length} updated jobs.',
+        '$_tag Mapped ${jobsToSync.length} Hive models to Job entities.',
       );
 
-      // 4. Update local status and save updated job data (handle potential errors)
-      // This simple version assumes full success and updates all
-      for (final syncedJob in syncedJobs) {
+      // 3. Iterate and sync each job individually
+      for (final job in jobsToSync) {
+        _logger.d(
+          '$_tag Processing job ${job.localId} (ServerId: ${job.serverId}, SyncStatus: ${job.syncStatus})',
+        );
+
         try {
-          // Save the potentially updated job data from the server
-          final syncedHiveModel = JobMapper.toHiveModel(syncedJob);
-          await localDataSource.saveJobHiveModel(syncedHiveModel);
+          if (job.syncStatus == SyncStatus.pendingDeletion) {
+            // --- Handle Deletion ---
+            _logger.d('$_tag Job ${job.localId} marked for deletion.');
+            if (job.serverId != null) {
+              // Only call API if it was ever synced
+              _logger.d(
+                '$_tag Calling remoteDataSource.deleteJob for serverId ${job.serverId}',
+              );
+              await remoteDataSource.deleteJob(job.serverId!);
+              _logger.i(
+                '$_tag Successfully deleted job on remote server: ${job.serverId}',
+              );
+            } else {
+              _logger.d(
+                '$_tag Job ${job.localId} was never synced. Skipping remote delete.',
+              );
+            }
+            // Delete locally regardless of remote status (if never synced or remote delete succeeded)
+            await localDataSource.deleteJobHiveModel(job.localId);
+            _logger.i('$_tag Successfully deleted job locally: ${job.localId}');
+            // Delete associated audio file if path exists
+            if (job.audioFilePath != null && job.audioFilePath!.isNotEmpty) {
+              try {
+                _logger.d(
+                  '$_tag Attempting to delete audio file: ${job.audioFilePath}',
+                );
+                await fileSystemService.deleteFile(job.audioFilePath!);
+                _logger.i(
+                  '$_tag Successfully deleted audio file: ${job.audioFilePath}',
+                );
+              } catch (e, stackTrace) {
+                _logger.w(
+                  '$_tag Failed to delete audio file ${job.audioFilePath}: $e. Continuing...',
+                  error: e,
+                  stackTrace: stackTrace,
+                );
+              }
+            }
+          } else if (job.syncStatus == SyncStatus.pending) {
+            // --- Handle Creation or Update ---
+            Job syncedJob; // To hold the result from remote operation
+            if (job.serverId == null) {
+              // --- Create New Job ---
+              _logger.d(
+                '$_tag Job ${job.localId} is new. Calling createJob...',
+              );
+              syncedJob = await remoteDataSource.createJob(
+                userId:
+                    job.userId, // Assuming userId is available on the entity
+                audioFilePath:
+                    job.audioFilePath!, // Assuming audioFilePath is present
+                text: job.text,
+                additionalText: job.additionalText,
+              );
+              _logger.i(
+                '$_tag Successfully created job on remote. ServerId: ${syncedJob.serverId}, LocalId: ${job.localId}',
+              );
+              // IMPORTANT: The returned syncedJob might have a different localId
+              // if the remote source doesn't echo it back. We MUST ensure
+              // the localId from the *original* job is used for updates.
+              // We merge the serverId into the original job entity.
+              syncedJob = job.copyWith(
+                serverId: syncedJob.serverId,
+                syncStatus: SyncStatus.synced,
+              );
+            } else {
+              // --- Update Existing Job ---
+              _logger.d(
+                '$_tag Job ${job.localId} exists (ServerId: ${job.serverId}). Calling updateJob...',
+              );
+              // Need to determine what fields to send for update.
+              // For now, sending editable fields. A better approach might involve
+              // tracking changed fields specifically.
+              final updates = {
+                'text': job.text,
+                'additionalText': job.additionalText,
+                'displayTitle': job.displayTitle,
+                // Add other updatable fields here based on API contract
+              };
+              syncedJob = await remoteDataSource.updateJob(
+                jobId: job.serverId!,
+                updates: updates,
+              );
+              _logger.i(
+                '$_tag Successfully updated job on remote: ${job.serverId}',
+              );
+              // Merge updates back, ensure localId and serverId are preserved.
+              syncedJob = job.copyWith(
+                // Assuming remote returns the *full* updated entity
+                status: syncedJob.status,
+                updatedAt: syncedJob.updatedAt,
+                displayTitle: syncedJob.displayTitle,
+                displayText: syncedJob.displayText,
+                errorCode: syncedJob.errorCode,
+                errorMessage: syncedJob.errorMessage,
+                text: syncedJob.text,
+                additionalText: syncedJob.additionalText,
+                syncStatus: SyncStatus.synced, // Mark as synced
+              );
+            }
 
-          // Update sync status to synced *after* saving
+            // --- Post-Sync Update (for Create/Update) ---
+            _logger.d(
+              '$_tag Saving updated job data and status locally for ${syncedJob.localId}',
+            );
+            final syncedHiveModel = JobMapper.toHiveModel(syncedJob);
+            await localDataSource.saveJobHiveModel(
+              syncedHiveModel,
+            ); // Save updated data
+            await localDataSource.updateJobSyncStatus(
+              syncedJob.localId, // Use the original localId
+              SyncStatus.synced,
+            ); // Mark as synced *after* successful save
+            _logger.d(
+              '$_tag Successfully updated local data and status for job ${syncedJob.localId}.',
+            );
+          } else {
+            // Should not happen if getJobsToSync is correct, but log anyway
+            _logger.w(
+              '$_tag Job ${job.localId} has unexpected syncStatus: ${job.syncStatus}. Skipping.',
+            );
+          }
+        } on ApiException catch (e) {
+          _logger.e(
+            '$_tag ApiException syncing job ${job.localId}: ${e.message}, Status: ${e.statusCode}. Marking as error.',
+          );
+          // Mark job as error on API failure
           await localDataSource.updateJobSyncStatus(
-            syncedJob.localId, // Use ID from the synced job entity
-            SyncStatus.synced,
+            job.localId,
+            SyncStatus.error,
           );
-          _logger.d(
-            '$_tag Updated local status to synced for job ${syncedJob.localId}.',
+        } on ServerException catch (e) {
+          _logger.e(
+            '$_tag ServerException syncing job ${job.localId}: ${e.message}. Marking as error.',
           );
+          // Mark job as error on server failure
+          await localDataSource.updateJobSyncStatus(
+            job.localId,
+            SyncStatus.error,
+          );
+        } on CacheException catch (e) {
+          _logger.e(
+            '$_tag CacheException during post-sync update for job ${job.localId}: ${e.toString()}. Status may be inconsistent.',
+            error: e,
+          );
+          // Don't return Failure here, allow loop to continue for other jobs
         } catch (e, stackTrace) {
           _logger.e(
-            '$_tag Error updating local status/data for synced job ${syncedJob.localId}: $e',
+            '$_tag Unexpected error syncing job ${job.localId}: ${e.toString()}. Marking as error.',
             error: e,
             stackTrace: stackTrace,
           );
-          // Decide how to handle partial failures. For now, just log and continue.
-          // Could potentially mark this specific job with SyncStatus.error
+          // Mark job as error on unexpected failure
+          await localDataSource.updateJobSyncStatus(
+            job.localId,
+            SyncStatus.error,
+          );
         }
-      }
+      } // End of loop
 
-      _logger.i('$_tag syncPendingJobs completed successfully.');
+      _logger.i('$_tag syncPendingJobs iteration completed.');
       return const Right(unit);
-    } on ApiException catch (e) {
-      _logger.e(
-        '$_tag ApiException during sync: ${e.message}, Status: ${e.statusCode}',
-      );
-      // Depending on the error, might need to mark jobs as error
-      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
-    } on ServerException catch (e) {
-      _logger.e('$_tag ServerException during sync: ${e.message}');
-      return Left(ServerFailure(message: e.message ?? 'Sync failed'));
     } on CacheException catch (e) {
-      _logger.e('$_tag CacheException during sync process: ${e.toString()}');
-      return Left(CacheFailure('Cache error during sync: ${e.toString()}'));
-    } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error during syncPendingJobs: ${e.toString()}',
+        '$_tag CacheException fetching pending jobs: ${e.toString()}. Aborting sync.',
+      );
+      return Left(
+        CacheFailure('Cache error fetching pending jobs: ${e.toString()}'),
+      );
+    } catch (e, stackTrace) {
+      // Catch errors during the initial fetch or mapping
+      _logger.e(
+        '$_tag Unexpected error during initial phase of syncPendingJobs: ${e.toString()}',
         error: e,
         stackTrace: stackTrace,
       );
       return Left(
-        ServerFailure(message: 'An unexpected error occurred during sync'),
+        ServerFailure(
+          message: 'An unexpected error occurred during sync setup',
+        ),
       );
     }
   }
 }
+
+// TODO: Add server-side deletion detection logic to getJobs method - comparing server response with locally synced jobs

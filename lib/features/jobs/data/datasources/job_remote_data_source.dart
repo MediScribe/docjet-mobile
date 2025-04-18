@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
+import 'package:dartz/dartz.dart';
 
 // Abstract interface for interacting with the remote Job API.
 // Defines the contract for fetching and creating jobs over the network.
@@ -44,6 +45,13 @@ abstract class JobRemoteDataSource {
   /// Throws: [ServerException] or [ApiException] if the batch sync fails.
   /// Note: The implementation needs to handle potential partial failures if the API supports it.
   Future<List<Job>> syncJobs(List<Job> jobsToSync);
+
+  /// Deletes a job via the API using its server-assigned ID.
+  /// Corresponds to `DELETE /api/v1/jobs/{id}`.
+  /// Requires the `serverId` of the job to delete.
+  /// Throws a [ServerException] or [ApiException] for all error cases.
+  /// Returns `Unit` on success.
+  Future<Unit> deleteJob(String serverId);
 
   // TODO: Define methods for GET /api/v1/jobs/{id}/documents if needed directly by this layer.
 }
