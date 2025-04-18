@@ -523,12 +523,12 @@ This bottom-up implementation plan follows Test-Driven Development principles, f
    - GREEN: Add package to pubspec.yaml, run pub get
    - REFACTOR: Ensure tests are clean and meaningful
 
-2. ❌ ~~**Create File Service:**~~ **Use existing FileSystem service:**
+2. ✅ **COMPLETED** - ~~Create File Service:~~ **Use existing FileSystem service:**
    - RED: Write tests verifying FileSystem interaction
    - GREEN: Ensure we can use the existing implementation
    - REFACTOR: Clean up tests
 
-3. ❌ **Update `SyncStatus` enum:**
+3. ✅ **COMPLETED** - Update `SyncStatus` enum:
    - RED: Write tests expecting the new `pendingDeletion` value
    - GREEN: Add the value to enum, run code generation
    - REFACTOR: Ensure enum has clear documentation

@@ -19,6 +19,8 @@ class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
         return SyncStatus.synced;
       case 2:
         return SyncStatus.error;
+      case 3:
+        return SyncStatus.pendingDeletion;
       default:
         return SyncStatus.pending;
     }
@@ -35,6 +37,9 @@ class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
         break;
       case SyncStatus.error:
         writer.writeByte(2);
+        break;
+      case SyncStatus.pendingDeletion:
+        writer.writeByte(3);
         break;
     }
   }

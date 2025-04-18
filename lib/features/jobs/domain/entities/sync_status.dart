@@ -16,4 +16,8 @@ enum SyncStatus {
   /// An error occurred during the last sync attempt for this item.
   @HiveField(2)
   error,
+
+  /// The item has been marked for deletion locally and needs to be deleted on the backend.
+  @HiveField(3)
+  pendingDeletion,
 }
