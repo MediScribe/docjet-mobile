@@ -1,7 +1,8 @@
-import '../models/job_hive_model.dart';
-import '../../domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
 
-// Maps between the domain Job entity and the Hive JobHiveModel DTO
+// Maps between the domain Job entity, Hive JobHiveModel DTO, and API JobApiDTO
 class JobMapper {
   // Cannot be instantiated
   JobMapper._();
@@ -50,5 +51,51 @@ class JobMapper {
   // We might not need this direction often, but good to have
   static List<JobHiveModel> toHiveModelList(List<Job> jobs) {
     return jobs.map(toHiveModel).toList();
+  }
+
+  // --- API DTO Mapping ---
+  static Job fromApiDto(JobApiDTO dto) {
+    return Job(
+      id: dto.id,
+      status: dto.jobStatus, // Map string status directly for now
+      createdAt: dto.createdAt,
+      updatedAt: dto.updatedAt,
+      userId: dto.userId,
+      displayTitle: dto.displayTitle,
+      displayText: dto.displayText,
+      errorCode: dto.errorCode,
+      errorMessage: dto.errorMessage,
+      text: dto.text,
+      additionalText: dto.additionalText,
+      audioFilePath:
+          null, // API DTO doesn't contain audio file path information
+    );
+  }
+
+  static List<Job> fromApiDtoList(List<JobApiDTO> dtos) {
+    // Handle null or empty lists gracefully
+    if (dtos.isEmpty) {
+      return [];
+    }
+    // Map each DTO in the list using the fromApiDto method
+    return dtos.map(fromApiDto).toList();
+  }
+
+  // --- Reverse API DTO Mapping ---
+  static JobApiDTO toApiDto(Job job) {
+    return JobApiDTO(
+      id: job.id,
+      userId: job.userId,
+      jobStatus: job.status, // Map string status directly
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      displayTitle: job.displayTitle,
+      displayText: job.displayText,
+      errorCode: job.errorCode,
+      errorMessage: job.errorMessage,
+      text: job.text,
+      additionalText: job.additionalText,
+      // Note: audioFilePath from Job entity is not sent to the API DTO
+    );
   }
 }

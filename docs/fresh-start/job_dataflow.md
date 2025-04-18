@@ -183,9 +183,10 @@ This section tracks the current implementation status of components in the Jobs 
   - Implement caching strategy (freshness policy, offline support)
   - Handle proper error cases and fallback strategies
 
-- ❌ **MEDIUM PRIORITY** - Extend JobMapper with API DTO support
-  - Add fromApiDto/toApiDto methods
-  - Add list mapping methods for ApiDTO
+- ✅ **COMPLETED** - Extend JobMapper with API DTO support (data/mappers/job_mapper.dart)
+  - Implemented `fromApiDto` and `toApiDto`
+  - Implemented `fromApiDtoList`
+  - Skipped `toApiDtoList` as likely not needed for batch updates
 
 - ❌ **LOW PRIORITY** - Pagination support in RemoteDataSource
   - Add pagination parameters to API calls
@@ -198,4 +199,5 @@ This section tracks the current implementation status of components in the Jobs 
 ### Implementation Notes
 - ApiJobRemoteDataSourceImpl currently maps JSON directly to Job entities in _mapJsonToJob
 - No freshness policy is implemented yet (deciding when local data is stale)
-- No explicit error recovery strategy implemented for network failures 
+- No explicit error recovery strategy implemented for network failures
+- ❌ **REFACTOR (Debt)** - Refactor `status` fields (`Job.status`, `JobHiveModel.status`, `JobApiDTO.jobStatus`) to use a type-safe `JobStatus` enum instead of `String` to prevent runtime errors from typos and improve clarity. This requires changes in entity, models, DTO, mapper, and potentially repository/datasources depending on logic. 
