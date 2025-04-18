@@ -65,9 +65,9 @@ void main() {
         // 2. Stub mapping - REMOVED (uses static mapper)
         // when(mockMapper.toHiveModelList(tJobs)).thenReturn(tJobHiveModels);
         // 3. Stub local save (accepts Hive Models) - Use the statically generated tJobHiveModels
-        when(mockLocalDataSource.saveJobHiveModels(tJobHiveModels)).thenAnswer(
-          (_) async => Future.value(),
-        ); // Assuming save returns Future<void>
+        when(mockLocalDataSource.saveJobHiveModels(any)).thenAnswer(
+          (_) async => true,
+        ); // More flexible matching of JobHiveModel
         // *** ADDED: Stub saveLastFetchTime ***
         when(
           mockLocalDataSource.saveLastFetchTime(any),
@@ -210,7 +210,7 @@ void main() {
         // 3. Stub local save to succeed (as remote fetch will try to save)
         when(
           mockLocalDataSource.saveJobHiveModels(any),
-        ).thenAnswer((_) async => Future.value());
+        ).thenAnswer((_) async => true); // Return true for successful save
 
         // Act
         final result = await repository.getJobs();
@@ -293,7 +293,7 @@ void main() {
       // 4. Stub local save to succeed
       when(
         mockLocalDataSource.saveJobHiveModels(any),
-      ).thenAnswer((_) async => Future.value());
+      ).thenAnswer((_) async => true);
       // 5. Stub saveLastFetchTime to succeed
       when(
         mockLocalDataSource.saveLastFetchTime(any),

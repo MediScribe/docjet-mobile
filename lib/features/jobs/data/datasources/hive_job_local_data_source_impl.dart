@@ -114,31 +114,26 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   }
 
   @override
-  Future<void> saveJobHiveModels(List<JobHiveModel> models) async {
-    final count = models.length;
-    _logger.d('$_tag saveJobHiveModels called with $count models.');
-    if (models.isEmpty) {
-      _logger.w(
-        '$_tag saveJobHiveModels called with empty list, doing nothing.',
-      );
-      return;
-    }
+  Future<bool> saveJobHiveModels(List<JobHiveModel> models) async {
+    _logger.d('$_tag saveJobHiveModels called with ${models.length} models.');
     try {
-      // Use the general box
       final box = await _getOpenBox();
-      // Convert list to map for putAll
-      final Map<dynamic, dynamic> modelMap = {
+
+      // Fix the type issue by using more explicit Map<String, dynamic>
+      final Map<String, JobHiveModel> modelsMap = {
         for (var model in models) model.id: model,
       };
-      await box.putAll(modelMap);
-      _logger.i('$_tag Saved $count job models to cache.');
+
+      await box.putAll(modelsMap);
+      _logger.d('$_tag Saved ${models.length} job models to cache.');
+      return true;
     } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Failed to save $count job models to cache',
+        '$_tag Failed to save ${models.length} job models to cache',
         error: e,
         stackTrace: stackTrace,
       );
-      throw CacheException('Failed to save multiple jobs: ${e.toString()}');
+      throw CacheException('Failed to save job models to cache');
     }
   }
 

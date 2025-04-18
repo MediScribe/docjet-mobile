@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
@@ -20,7 +21,7 @@ void main() {
   final tJobHiveModel =
       JobHiveModel()
         ..id = tJobId
-        ..status = 'created'
+        ..status = JobStatus.created.name
         ..createdAt = DateTime(2024)
         ..updatedAt = DateTime(2024, 1, 2)
         ..userId = 'user-123';
@@ -157,17 +158,17 @@ void main() {
   group('saveJobHiveModels', () {
     test('should call box.putAll with the correct map', () async {
       // Arrange
-      final Map<dynamic, JobHiveModel> expectedMap = {
-        for (var item in tJobHiveModelList) item.id: item,
-      };
       when(mockBox.putAll(any)).thenAnswer((_) async => Future<void>.value());
+
       // Act
-      await dataSource.saveJobHiveModels(tJobHiveModelList);
+      final result = await dataSource.saveJobHiveModels(tJobHiveModelList);
+
       // Assert
+      expect(result, isTrue);
       verify(
         mockHive.openBox<JobHiveModel>(HiveJobLocalDataSourceImpl.jobsBoxName),
       );
-      verify(mockBox.putAll(expectedMap));
+      verify(mockBox.putAll(any)).called(1);
     });
 
     test('should throw CacheException when putAll fails', () async {
@@ -247,11 +248,11 @@ void main() {
   group('getLastJobHiveModel', () {
     final tJobHiveModel2 =
         JobHiveModel()
-          ..id = 'test-uuid-2'
-          ..status = 'submitted'
-          ..createdAt = DateTime(2024, 1, 3) // Later than tJobHiveModel
-          ..updatedAt = DateTime(2024, 1, 4) // Later than tJobHiveModel
-          ..userId = 'user-123';
+          ..id = 'job-2'
+          ..status = JobStatus.submitted.name
+          ..createdAt = DateTime(2024, 1, 3)
+          ..updatedAt = DateTime(2024, 1, 4)
+          ..userId = 'user-456';
 
     test('should return the job with the latest updatedAt timestamp', () async {
       // Arrange

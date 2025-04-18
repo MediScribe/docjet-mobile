@@ -176,15 +176,14 @@ class MockJobLocalDataSource extends _i1.Mock
       ) as _i4.Future<void>);
 
   @override
-  _i4.Future<void> saveJobHiveModels(List<_i6.JobHiveModel>? models) =>
+  _i4.Future<bool> saveJobHiveModels(List<_i6.JobHiveModel>? models) =>
       (super.noSuchMethod(
         Invocation.method(
           #saveJobHiveModels,
           [models],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i4.Future<bool>.value(false),
+      ) as _i4.Future<bool>);
 
   @override
   _i4.Future<void> deleteJobHiveModel(String? id) => (super.noSuchMethod(

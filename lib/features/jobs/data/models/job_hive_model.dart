@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 
 part 'job_hive_model.g.dart'; // Hive generator directive
 
@@ -12,7 +13,7 @@ class JobHiveModel extends HiveObject {
   late String id; // UUID
 
   @HiveField(1)
-  late String status;
+  late String status; // Stored as String, but mapped to/from JobStatus enum
 
   @HiveField(2)
   late DateTime createdAt;
@@ -50,6 +51,16 @@ class JobHiveModel extends HiveObject {
   // Default constructor (required by Hive for generation)
   JobHiveModel();
 
-  // Optional: Add a constructor to initialize fields if needed,
-  // but Hive primarily uses the generated adapter for instantiation.
+  // Helper method to get status as enum
+  JobStatus getStatusEnum() {
+    return JobStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == status.toLowerCase(),
+      orElse: () => JobStatus.error,
+    );
+  }
+
+  // Helper method to set status from enum
+  void setStatusEnum(JobStatus jobStatus) {
+    status = jobStatus.name;
+  }
 }

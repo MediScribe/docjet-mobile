@@ -8,6 +8,8 @@ import 'dart:typed_data' as _i6;
 
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i8;
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'
+    as _i10;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i9;
 import 'package:hive/hive.dart' as _i2;
@@ -754,6 +756,24 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
         Invocation.getter(#isInBox),
         returnValue: false,
       ) as bool);
+
+  @override
+  _i10.JobStatus getStatusEnum() => (super.noSuchMethod(
+        Invocation.method(
+          #getStatusEnum,
+          [],
+        ),
+        returnValue: _i10.JobStatus.created,
+      ) as _i10.JobStatus);
+
+  @override
+  void setStatusEnum(_i10.JobStatus? jobStatus) => super.noSuchMethod(
+        Invocation.method(
+          #setStatusEnum,
+          [jobStatus],
+        ),
+        returnValueForMissingStub: null,
+      );
 
   @override
   _i3.Future<void> save() => (super.noSuchMethod(

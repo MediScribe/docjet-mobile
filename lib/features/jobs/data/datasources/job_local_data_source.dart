@@ -20,10 +20,12 @@ abstract class JobLocalDataSource {
   /// Throws a [CacheException] on failure.
   Future<void> saveJobHiveModel(JobHiveModel model);
 
-  /// Saves a list of [JobHiveModel] objects to the cache.
-  /// Useful for batch updates (e.g., after fetching from API).
-  /// Throws a [CacheException] on failure.
-  Future<void> saveJobHiveModels(List<JobHiveModel> models);
+  /// Saves a list of JobHiveModel objects directly to local storage.
+  ///
+  /// Used for batch save operations.
+  /// Throws [CacheException] on error.
+  /// Returns true if operation was successful.
+  Future<bool> saveJobHiveModels(List<JobHiveModel> models);
 
   /// Deletes a single Job model by its ID from the cache.
   /// Throws a [CacheException] on failure.

@@ -403,70 +403,37 @@ void main() {
   });
 
   group('Job Datasources Integration Tests', () {
-    test(
-      'RemoteDataSource - createJob successfully posts data and returns Job entity',
-      () async {
-        // Arrange
+    group('RemoteDataSource - createJob', () {
+      test('successfully posts data and returns Job entity', () async {
+        // Arrange: Create a test file
         final tempDir = await Directory.systemTemp.createTemp('test_audio_');
         final testFile = File(p.join(tempDir.path, 'test_audio.mp3'));
         await testFile.writeAsString('dummy audio content');
 
-        logger.i('$tag Created test file at: ${testFile.path}');
-        logger.i(
-          '$tag File exists: ${await testFile.exists()}, size: ${await testFile.length()} bytes',
+        // Act
+        final result = await remoteDataSource.createJob(
+          userId: 'fake-user-id-123',
+          audioFilePath: testFile.path,
+          text: 'Optional transcription text',
+          additionalText: 'Additional context',
         );
 
-        const text = 'Optional transcription text';
-        const additionalText = 'Additional context';
+        // Assert
+        expect(result, isA<Job>());
+        expect(result.id, isNotEmpty);
+        expect(result.userId, 'fake-user-id-123');
+        expect(
+          result.status,
+          JobStatus.submitted,
+        ); // Use enum value instead of string
 
-        try {
-          // Act - Just call the repository method directly as intended
-          final Job createdJob = await remoteDataSource.createJob(
-            userId: _testUserId,
-            audioFilePath: testFile.path,
-            text: text,
-            additionalText: additionalText,
-          );
+        // Clean up
+        await tempDir.delete(recursive: true);
+      });
+    });
 
-          // Assert
-          expect(createdJob, isA<Job>());
-          expect(createdJob.userId, _testUserId);
-          expect(createdJob.status, 'submitted');
-          expect(createdJob.text, text);
-          expect(createdJob.additionalText, additionalText);
-          expect(createdJob.id, isNotEmpty);
-          expect(createdJob.createdAt, isA<DateTime>());
-          expect(createdJob.updatedAt, isA<DateTime>());
-        } on ApiException catch (e) {
-          // Remove the skipping behavior - we want the test to fail properly
-          logger.e(
-            '$tag Got error from server: ${e.message}, statusCode: ${e.statusCode}',
-          );
-          // Add more diagnostic logging to help debug
-          logger.e('$tag Check these common issues:');
-          logger.e(
-            '$tag 1. Content-Type header is being manually set (should be left to Dio)',
-          );
-          logger.e('$tag 2. Missing or incorrect "user_id" field in FormData');
-          logger.e('$tag 3. Missing or improperly formatted "audio_file"');
-          logger.e(
-            '$tag 4. URL concatenation issues (check for double slashes)',
-          );
-
-          // Fail the test so we get proper error reports
-          fail('API request failed with ${e.statusCode}: ${e.message}');
-        } catch (e) {
-          logger.e('$tag Unexpected error: $e');
-          rethrow;
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
-      },
-    );
-
-    test(
-      'RemoteDataSource - fetchJobs successfully retrieves a list of jobs',
-      () async {
+    group('RemoteDataSource - fetchJobs', () {
+      test('successfully retrieves a list of jobs', () async {
         // Arrange: Create a job first so the list isn't empty
         final tempDir = await Directory.systemTemp.createTemp(
           'test_audio_fetch_',
@@ -506,12 +473,11 @@ void main() {
 
         // Cleanup
         await tempDir.delete(recursive: true);
-      },
-    );
+      });
+    });
 
-    test(
-      'RemoteDataSource - fetchJobById successfully retrieves a specific job',
-      () async {
+    group('RemoteDataSource - fetchJobById', () {
+      test('successfully retrieves a specific job', () async {
         // Arrange: Create a job first
         final tempDir = await Directory.systemTemp.createTemp(
           'test_audio_fetch_id_',
@@ -535,7 +501,7 @@ void main() {
         expect(fetchedJob, isA<Job>());
         expect(fetchedJob.id, createdJob.id);
         expect(fetchedJob.userId, _testUserId);
-        expect(fetchedJob.status, 'submitted'); // Initial status
+        expect(fetchedJob.status, JobStatus.submitted); // Use enum value
         expect(fetchedJob.text, text);
         expect(fetchedJob.createdAt.isBefore(DateTime.now()), isTrue);
         expect(
@@ -545,30 +511,11 @@ void main() {
 
         // Cleanup
         await tempDir.delete(recursive: true);
-      },
-    );
+      });
+    });
 
-    test(
-      'RemoteDataSource - fetchJobById throws ApiException for non-existent job ID',
-      () async {
-        // Arrange
-        const nonExistentJobId = 'this-id-does-not-exist';
-
-        // Act & Assert
-        expect(
-          () => remoteDataSource.fetchJobById(nonExistentJobId),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.statusCode, 'statusCode', 404)
-                .having((e) => e.message, 'message', contains('not found')),
-          ),
-        );
-      },
-    );
-
-    test(
-      'RemoteDataSource - updateJob successfully updates job fields',
-      () async {
+    group('RemoteDataSource - updateJob', () {
+      test('successfully updates job fields', () async {
         // Arrange: Create a job first
         final tempDir = await Directory.systemTemp.createTemp(
           'test_audio_update_',
@@ -605,10 +552,7 @@ void main() {
         expect(updatedJob.text, updatedText);
         expect(updatedJob.displayTitle, updatedDisplayTitle);
         expect(updatedJob.displayText, updatedDisplayText);
-        expect(
-          updatedJob.status,
-          'transcribed',
-        ); // Status changes on display text update
+        expect(updatedJob.status, JobStatus.transcribed); // Use enum value
         expect(updatedJob.updatedAt.isAfter(originalUpdatedAt), isTrue);
 
         // Assert: Fetch the job again to verify persistence (in mock server memory)
@@ -618,11 +562,32 @@ void main() {
         expect(fetchedAfterUpdate.text, updatedText);
         expect(fetchedAfterUpdate.displayTitle, updatedDisplayTitle);
         expect(fetchedAfterUpdate.displayText, updatedDisplayText);
-        expect(fetchedAfterUpdate.status, 'transcribed');
+        expect(
+          fetchedAfterUpdate.status,
+          JobStatus.transcribed,
+        ); // Use enum value
         expect(fetchedAfterUpdate.updatedAt, updatedJob.updatedAt);
 
         // Cleanup
         await tempDir.delete(recursive: true);
+      });
+    });
+
+    test(
+      'RemoteDataSource - fetchJobById throws ApiException for non-existent job ID',
+      () async {
+        // Arrange
+        const nonExistentJobId = 'this-id-does-not-exist';
+
+        // Act & Assert
+        expect(
+          () => remoteDataSource.fetchJobById(nonExistentJobId),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', 404)
+                .having((e) => e.message, 'message', contains('not found')),
+          ),
+        );
       },
     );
 
