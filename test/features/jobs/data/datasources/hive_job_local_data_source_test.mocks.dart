@@ -705,6 +705,18 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
       );
 
   @override
+  List<Object?> get props => (super.noSuchMethod(
+        Invocation.getter(#props),
+        returnValue: <Object?>[],
+      ) as List<Object?>);
+
+  @override
+  bool get stringify => (super.noSuchMethod(
+        Invocation.getter(#stringify),
+        returnValue: false,
+      ) as bool);
+
+  @override
   bool get isInBox => (super.noSuchMethod(
         Invocation.getter(#isInBox),
         returnValue: false,

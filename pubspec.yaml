@@ -38,7 +38,7 @@ dependencies:
   # Core Dependencies from old project
   logger: ^2.5.0
   get_it: ^8.0.3
-  equatable: ^2.0.5
+  equatable: ^2.0.7
   path: ^1.9.0 # Using 1.9.0 instead of 1.9.1 from original list
   path_provider: ^2.1.2
   permission_handler: ^12.0.0+1

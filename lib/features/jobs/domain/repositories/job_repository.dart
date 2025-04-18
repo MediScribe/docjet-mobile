@@ -42,4 +42,11 @@ abstract class JobRepository {
   /// Returns [Right(unit)] on success (even if some individual jobs failed to sync but the overall process completed).
   /// Returns [Left<Failure>] if a critical error occurs during the process (e.g., unable to reach remote).
   Future<Either<Failure, Unit>> syncPendingJobs();
+
+  /// Marks a job for deletion locally by setting its syncStatus to `pendingDeletion`.
+  /// The actual deletion from local cache and remote server happens during the sync process.
+  /// Takes the [jobId] (which should be the localId) of the job to delete.
+  /// Returns [Right(unit)] on success (job marked for deletion).
+  /// Returns [Left<Failure>] if the job is not found or on cache errors.
+  Future<Either<Failure, Unit>> deleteJob(String jobId);
 }

@@ -558,4 +558,59 @@ class JobRepositoryImpl implements JobRepository {
       );
     }
   }
+
+  // --- ADDED: Implementation for deleteJob ---
+  @override
+  Future<Either<Failure, Unit>> deleteJob(String jobId) async {
+    _logger.d('$_tag deleteJob called for localId: $jobId');
+    try {
+      // 1. Get the job model from local storage
+      _logger.d('$_tag Fetching job $jobId from local data source...');
+      final jobModel = await localDataSource.getJobHiveModelById(jobId);
+
+      if (jobModel == null) {
+        _logger.w('$_tag Job $jobId not found in local cache for deletion.');
+        return Left(CacheFailure('Job with id $jobId not found'));
+      }
+
+      // 2. Create updated model with pendingDeletion status
+      //    We have to manually create it as JobHiveModel might not have copyWith
+      final updatedModel = JobHiveModel(
+        localId: jobModel.localId,
+        serverId: jobModel.serverId,
+        createdAt: jobModel.createdAt,
+        updatedAt:
+            DateTime.now()
+                .toIso8601String(), // Update timestamp on modification
+        text: jobModel.text,
+        audioFilePath: jobModel.audioFilePath,
+        status: jobModel.status,
+        syncStatus: SyncStatus.pendingDeletion.index, // Set to pendingDeletion
+      );
+
+      // 3. Save the updated model back to local storage
+      _logger.d(
+        '$_tag Saving job $jobId with syncStatus=pendingDeletion back to local store...',
+      );
+      await localDataSource.saveJobHiveModel(updatedModel);
+      _logger.i('$_tag Successfully marked job $jobId for deletion locally.');
+
+      // 4. Return success (Unit indicates operation was accepted)
+      return const Right(unit); // Use dartz unit
+    } on CacheException catch (e, stackTrace) {
+      _logger.e(
+        '$_tag CacheException during deleteJob for $jobId: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(CacheFailure('Failed to mark job for deletion: $e'));
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Unexpected error during deleteJob for $jobId: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(ServerFailure(message: 'An unexpected error occurred: $e'));
+    }
+  }
 }

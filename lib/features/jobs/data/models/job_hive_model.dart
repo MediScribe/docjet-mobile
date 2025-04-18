@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:equatable/equatable.dart'; // Import equatable
 // import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'; // No longer needed directly
 // import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // No longer needed directly
 
@@ -7,8 +8,15 @@ part 'job_hive_model.g.dart'; // Hive generator directive
 // Data Transfer Object (DTO) specifically for storing Job data in Hive.
 // Includes Hive annotations (`@HiveType`, `@HiveField`) required for persistence,
 // separating these details from the pure domain `Job` entity.
+//
+// NOTE: We use EquatableMixin for value equality in tests, but Hive requires mutable fields,
+// creating an inherent conflict with Equatable's immutability expectations.
+// This is a common conflict that must be ignored when using Hive with Equatable.
+// ignore: must_be_immutable // Required because HiveObject fields are not final
 @HiveType(typeId: 0) // Use the same typeId as the original Job attempt
-class JobHiveModel extends HiveObject {
+// ignore: must_be_immutable
+class JobHiveModel extends HiveObject with EquatableMixin {
+  // Extend HiveObject and mixin EquatableMixin
   @HiveField(0)
   late String localId; // UUID
 
@@ -71,6 +79,29 @@ class JobHiveModel extends HiveObject {
 
   // Default constructor (required by Hive for generation) - keep it for generator
   // JobHiveModel();
+
+  // --- ADDED: Equatable props ---
+  @override
+  List<Object?> get props => [
+    localId,
+    status,
+    createdAt,
+    updatedAt,
+    userId,
+    displayTitle,
+    displayText,
+    errorCode,
+    errorMessage,
+    audioFilePath,
+    text,
+    additionalText,
+    syncStatus,
+    serverId,
+  ];
+
+  // Ensure toString from Equatable is used
+  @override
+  bool get stringify => true;
 
   // Remove helper methods - no longer needed
   // Helper method to get status as enum

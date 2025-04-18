@@ -10,14 +10,14 @@ import 'dart:typed_data' as _i12;
 import 'package:dartz/dartz.dart' as _i3;
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i11;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
-    as _i8;
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
     as _i6;
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
+    as _i10;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
-    as _i9;
+    as _i8;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
-    as _i10;
+    as _i9;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i15;
 import 'package:uuid/data.dart' as _i14;
@@ -78,15 +78,155 @@ class _FakeUuidValue_3 extends _i1.SmartFake implements _i5.UuidValue {
         );
 }
 
+/// A class which mocks [JobLocalDataSource].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobLocalDataSource extends _i1.Mock
+    implements _i6.JobLocalDataSource {
+  @override
+  _i7.Future<List<_i8.JobHiveModel>> getAllJobHiveModels() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getAllJobHiveModels,
+          [],
+        ),
+        returnValue:
+            _i7.Future<List<_i8.JobHiveModel>>.value(<_i8.JobHiveModel>[]),
+        returnValueForMissingStub:
+            _i7.Future<List<_i8.JobHiveModel>>.value(<_i8.JobHiveModel>[]),
+      ) as _i7.Future<List<_i8.JobHiveModel>>);
+
+  @override
+  _i7.Future<_i8.JobHiveModel?> getJobHiveModelById(String? id) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobHiveModelById,
+          [id],
+        ),
+        returnValue: _i7.Future<_i8.JobHiveModel?>.value(),
+        returnValueForMissingStub: _i7.Future<_i8.JobHiveModel?>.value(),
+      ) as _i7.Future<_i8.JobHiveModel?>);
+
+  @override
+  _i7.Future<void> saveJobHiveModel(_i8.JobHiveModel? model) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #saveJobHiveModel,
+          [model],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<bool> saveJobHiveModels(List<_i8.JobHiveModel>? models) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #saveJobHiveModels,
+          [models],
+        ),
+        returnValue: _i7.Future<bool>.value(false),
+        returnValueForMissingStub: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
+
+  @override
+  _i7.Future<void> deleteJobHiveModel(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJobHiveModel,
+          [id],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> clearAllJobHiveModels() => (super.noSuchMethod(
+        Invocation.method(
+          #clearAllJobHiveModels,
+          [],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<_i8.JobHiveModel?> getLastJobHiveModel() => (super.noSuchMethod(
+        Invocation.method(
+          #getLastJobHiveModel,
+          [],
+        ),
+        returnValue: _i7.Future<_i8.JobHiveModel?>.value(),
+        returnValueForMissingStub: _i7.Future<_i8.JobHiveModel?>.value(),
+      ) as _i7.Future<_i8.JobHiveModel?>);
+
+  @override
+  _i7.Future<DateTime?> getLastFetchTime() => (super.noSuchMethod(
+        Invocation.method(
+          #getLastFetchTime,
+          [],
+        ),
+        returnValue: _i7.Future<DateTime?>.value(),
+        returnValueForMissingStub: _i7.Future<DateTime?>.value(),
+      ) as _i7.Future<DateTime?>);
+
+  @override
+  _i7.Future<void> saveLastFetchTime(DateTime? time) => (super.noSuchMethod(
+        Invocation.method(
+          #saveLastFetchTime,
+          [time],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<List<_i8.JobHiveModel>> getJobsToSync() => (super.noSuchMethod(
+        Invocation.method(
+          #getJobsToSync,
+          [],
+        ),
+        returnValue:
+            _i7.Future<List<_i8.JobHiveModel>>.value(<_i8.JobHiveModel>[]),
+        returnValueForMissingStub:
+            _i7.Future<List<_i8.JobHiveModel>>.value(<_i8.JobHiveModel>[]),
+      ) as _i7.Future<List<_i8.JobHiveModel>>);
+
+  @override
+  _i7.Future<void> updateJobSyncStatus(
+    String? id,
+    _i9.SyncStatus? status,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateJobSyncStatus,
+          [
+            id,
+            status,
+          ],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<List<_i8.JobHiveModel>> getSyncedJobHiveModels() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getSyncedJobHiveModels,
+          [],
+        ),
+        returnValue:
+            _i7.Future<List<_i8.JobHiveModel>>.value(<_i8.JobHiveModel>[]),
+        returnValueForMissingStub:
+            _i7.Future<List<_i8.JobHiveModel>>.value(<_i8.JobHiveModel>[]),
+      ) as _i7.Future<List<_i8.JobHiveModel>>);
+}
+
 /// A class which mocks [JobRemoteDataSource].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobRemoteDataSource extends _i1.Mock
-    implements _i6.JobRemoteDataSource {
-  MockJobRemoteDataSource() {
-    _i1.throwOnMissingStub(this);
-  }
-
+    implements _i10.JobRemoteDataSource {
   @override
   _i7.Future<List<_i2.Job>> fetchJobs() => (super.noSuchMethod(
         Invocation.method(
@@ -94,6 +234,7 @@ class MockJobRemoteDataSource extends _i1.Mock
           [],
         ),
         returnValue: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+        returnValueForMissingStub: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
       ) as _i7.Future<List<_i2.Job>>);
 
   @override
@@ -103,6 +244,13 @@ class MockJobRemoteDataSource extends _i1.Mock
           [id],
         ),
         returnValue: _i7.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #fetchJobById,
+            [id],
+          ),
+        )),
+        returnValueForMissingStub: _i7.Future<_i2.Job>.value(_FakeJob_0(
           this,
           Invocation.method(
             #fetchJobById,
@@ -142,6 +290,19 @@ class MockJobRemoteDataSource extends _i1.Mock
             },
           ),
         )),
+        returnValueForMissingStub: _i7.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #createJob,
+            [],
+            {
+              #userId: userId,
+              #audioFilePath: audioFilePath,
+              #text: text,
+              #additionalText: additionalText,
+            },
+          ),
+        )),
       ) as _i7.Future<_i2.Job>);
 
   @override
@@ -169,6 +330,17 @@ class MockJobRemoteDataSource extends _i1.Mock
             },
           ),
         )),
+        returnValueForMissingStub: _i7.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #updateJob,
+            [],
+            {
+              #jobId: jobId,
+              #updates: updates,
+            },
+          ),
+        )),
       ) as _i7.Future<_i2.Job>);
 
   @override
@@ -179,6 +351,7 @@ class MockJobRemoteDataSource extends _i1.Mock
           [jobsToSync],
         ),
         returnValue: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+        returnValueForMissingStub: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
       ) as _i7.Future<List<_i2.Job>>);
 
   @override
@@ -194,155 +367,20 @@ class MockJobRemoteDataSource extends _i1.Mock
             [serverId],
           ),
         )),
+        returnValueForMissingStub: _i7.Future<_i3.Unit>.value(_FakeUnit_1(
+          this,
+          Invocation.method(
+            #deleteJob,
+            [serverId],
+          ),
+        )),
       ) as _i7.Future<_i3.Unit>);
-}
-
-/// A class which mocks [JobLocalDataSource].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockJobLocalDataSource extends _i1.Mock
-    implements _i8.JobLocalDataSource {
-  MockJobLocalDataSource() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i7.Future<List<_i9.JobHiveModel>> getAllJobHiveModels() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAllJobHiveModels,
-          [],
-        ),
-        returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
-
-  @override
-  _i7.Future<_i9.JobHiveModel?> getJobHiveModelById(String? id) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getJobHiveModelById,
-          [id],
-        ),
-        returnValue: _i7.Future<_i9.JobHiveModel?>.value(),
-      ) as _i7.Future<_i9.JobHiveModel?>);
-
-  @override
-  _i7.Future<void> saveJobHiveModel(_i9.JobHiveModel? model) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #saveJobHiveModel,
-          [model],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<bool> saveJobHiveModels(List<_i9.JobHiveModel>? models) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #saveJobHiveModels,
-          [models],
-        ),
-        returnValue: _i7.Future<bool>.value(false),
-      ) as _i7.Future<bool>);
-
-  @override
-  _i7.Future<void> deleteJobHiveModel(String? id) => (super.noSuchMethod(
-        Invocation.method(
-          #deleteJobHiveModel,
-          [id],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<void> clearAllJobHiveModels() => (super.noSuchMethod(
-        Invocation.method(
-          #clearAllJobHiveModels,
-          [],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<_i9.JobHiveModel?> getLastJobHiveModel() => (super.noSuchMethod(
-        Invocation.method(
-          #getLastJobHiveModel,
-          [],
-        ),
-        returnValue: _i7.Future<_i9.JobHiveModel?>.value(),
-      ) as _i7.Future<_i9.JobHiveModel?>);
-
-  @override
-  _i7.Future<DateTime?> getLastFetchTime() => (super.noSuchMethod(
-        Invocation.method(
-          #getLastFetchTime,
-          [],
-        ),
-        returnValue: _i7.Future<DateTime?>.value(),
-      ) as _i7.Future<DateTime?>);
-
-  @override
-  _i7.Future<void> saveLastFetchTime(DateTime? time) => (super.noSuchMethod(
-        Invocation.method(
-          #saveLastFetchTime,
-          [time],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<List<_i9.JobHiveModel>> getJobsToSync() => (super.noSuchMethod(
-        Invocation.method(
-          #getJobsToSync,
-          [],
-        ),
-        returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
-
-  @override
-  _i7.Future<void> updateJobSyncStatus(
-    String? id,
-    _i10.SyncStatus? status,
-  ) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #updateJobSyncStatus,
-          [
-            id,
-            status,
-          ],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<List<_i9.JobHiveModel>> getSyncedJobHiveModels() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getSyncedJobHiveModels,
-          [],
-        ),
-        returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
 }
 
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
-  MockFileSystem() {
-    _i1.throwOnMissingStub(this);
-  }
-
   @override
   _i7.Future<_i4.FileStat> stat(String? path) => (super.noSuchMethod(
         Invocation.method(
@@ -350,6 +388,14 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           [path],
         ),
         returnValue: _i7.Future<_i4.FileStat>.value(_FakeFileStat_2(
+          this,
+          Invocation.method(
+            #stat,
+            [path],
+          ),
+        )),
+        returnValueForMissingStub:
+            _i7.Future<_i4.FileStat>.value(_FakeFileStat_2(
           this,
           Invocation.method(
             #stat,
@@ -365,6 +411,7 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           [path],
         ),
         returnValue: _i7.Future<bool>.value(false),
+        returnValueForMissingStub: _i7.Future<bool>.value(false),
       ) as _i7.Future<bool>);
 
   @override
@@ -384,6 +431,7 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           [path],
         ),
         returnValue: _i7.Future<bool>.value(false),
+        returnValueForMissingStub: _i7.Future<bool>.value(false),
       ) as _i7.Future<bool>);
 
   @override
@@ -409,6 +457,7 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           [path],
         ),
         returnValue: _i7.Stream<_i4.FileSystemEntity>.empty(),
+        returnValueForMissingStub: _i7.Stream<_i4.FileSystemEntity>.empty(),
       ) as _i7.Stream<_i4.FileSystemEntity>);
 
   @override
@@ -435,6 +484,7 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           [path],
         ),
         returnValue: _i7.Future<List<int>>.value(<int>[]),
+        returnValueForMissingStub: _i7.Future<List<int>>.value(<int>[]),
       ) as _i7.Future<List<int>>);
 }
 
@@ -442,10 +492,6 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockUuid extends _i1.Mock implements _i13.Uuid {
-  MockUuid() {
-    _i1.throwOnMissingStub(this);
-  }
-
   @override
   String v1({
     Map<String, dynamic>? options,
@@ -461,6 +507,17 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v1,
+            [],
+            {
+              #options: options,
+              #config: config,
+            },
+          ),
+        ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
           this,
           Invocation.method(
             #v1,
@@ -491,6 +548,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -508,6 +566,17 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v1obj,
+            [],
+            {
+              #options: options,
+              #config: config,
+            },
+          ),
+        ),
+        returnValueForMissingStub: _FakeUuidValue_3(
           this,
           Invocation.method(
             #v1obj,
@@ -545,6 +614,17 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
             },
           ),
         ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v4,
+            [],
+            {
+              #options: options,
+              #config: config,
+            },
+          ),
+        ),
       ) as String);
 
   @override
@@ -565,6 +645,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -582,6 +663,17 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v4obj,
+            [],
+            {
+              #options: options,
+              #config: config,
+            },
+          ),
+        ),
+        returnValueForMissingStub: _FakeUuidValue_3(
           this,
           Invocation.method(
             #v4obj,
@@ -627,6 +719,20 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
             },
           ),
         ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v5,
+            [
+              namespace,
+              name,
+            ],
+            {
+              #options: options,
+              #config: config,
+            },
+          ),
+        ),
       ) as String);
 
   @override
@@ -653,6 +759,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -688,6 +795,20 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
             },
           ),
         ),
+        returnValueForMissingStub: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v5obj,
+            [
+              namespace,
+              name,
+            ],
+            {
+              #options: options,
+              #config: config,
+            },
+          ),
+        ),
       ) as _i5.UuidValue);
 
   @override
@@ -698,6 +819,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           {#config: config},
         ),
         returnValue: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v6,
+            [],
+            {#config: config},
+          ),
+        ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
           this,
           Invocation.method(
             #v6,
@@ -723,6 +852,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -740,6 +870,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
             {#config: config},
           ),
         ),
+        returnValueForMissingStub: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v6obj,
+            [],
+            {#config: config},
+          ),
+        ),
       ) as _i5.UuidValue);
 
   @override
@@ -750,6 +888,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           {#config: config},
         ),
         returnValue: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v7,
+            [],
+            {#config: config},
+          ),
+        ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
           this,
           Invocation.method(
             #v7,
@@ -775,6 +921,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -792,6 +939,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
             {#config: config},
           ),
         ),
+        returnValueForMissingStub: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v7obj,
+            [],
+            {#config: config},
+          ),
+        ),
       ) as _i5.UuidValue);
 
   @override
@@ -802,6 +957,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           {#config: config},
         ),
         returnValue: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v8,
+            [],
+            {#config: config},
+          ),
+        ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
           this,
           Invocation.method(
             #v8,
@@ -827,6 +990,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -844,6 +1008,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
             {#config: config},
           ),
         ),
+        returnValueForMissingStub: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v8obj,
+            [],
+            {#config: config},
+          ),
+        ),
       ) as _i5.UuidValue);
 
   @override
@@ -854,6 +1026,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           {#config: config},
         ),
         returnValue: _i15.dummyValue<String>(
+          this,
+          Invocation.method(
+            #v8g,
+            [],
+            {#config: config},
+          ),
+        ),
+        returnValueForMissingStub: _i15.dummyValue<String>(
           this,
           Invocation.method(
             #v8g,
@@ -879,6 +1059,7 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           },
         ),
         returnValue: <int>[],
+        returnValueForMissingStub: <int>[],
       ) as List<int>);
 
   @override
@@ -889,6 +1070,14 @@ class MockUuid extends _i1.Mock implements _i13.Uuid {
           {#config: config},
         ),
         returnValue: _FakeUuidValue_3(
+          this,
+          Invocation.method(
+            #v8gobj,
+            [],
+            {#config: config},
+          ),
+        ),
+        returnValueForMissingStub: _FakeUuidValue_3(
           this,
           Invocation.method(
             #v8gobj,
