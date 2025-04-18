@@ -1,18 +1,17 @@
 import 'package:dartz/dartz.dart'; // Import dartz
 import 'package:docjet_mobile/core/error/exceptions.dart'; // For potential exceptions
 import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
-import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
 import 'package:docjet_mobile/core/platform/file_system.dart'; // Corrected Import FileSystem Service
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import needed for static calls
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
-// import 'package:docjet_mobile/core/network/network_info.dart'; // Removed
-import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'; // Import Hive model
-import 'package:uuid/uuid.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+import 'package:uuid/uuid.dart';
 
 class JobRepositoryImpl implements JobRepository {
   final JobRemoteDataSource remoteDataSource;
@@ -210,9 +209,83 @@ class JobRepositoryImpl implements JobRepository {
     required String jobId,
     required Map<String, dynamic> updates,
   }) async {
-    // TODO: Add robust error handling to updateJob method
-    // TODO: Implement later
-    return Left(ServerFailure(message: 'updateJob not implemented'));
+    _logger.d(
+      '$_tag updateJob called for localId: $jobId with updates: $updates',
+    );
+    try {
+      // 1. Fetch the existing job model
+      _logger.d('$_tag Fetching existing job model for $jobId...');
+      final existingModel = await localDataSource.getJobHiveModelById(jobId);
+
+      if (existingModel == null) {
+        _logger.w('$_tag Job with localId $jobId not found in local cache.');
+        return Left(CacheFailure('Job with ID $jobId not found'));
+      }
+      _logger.d('$_tag Found existing job model for $jobId.');
+
+      // 2. Create the updated model (manual copy and update)
+      // IMPORTANT: Do NOT modify existingModel directly if it's managed by Hive
+      final updatedModel = JobHiveModel(
+        // Copy existing fields
+        localId: existingModel.localId,
+        serverId: existingModel.serverId,
+        userId: existingModel.userId,
+        status: existingModel.status, // Status isn't changed by this method
+        createdAt: existingModel.createdAt,
+        audioFilePath: existingModel.audioFilePath,
+        text: existingModel.text, // Keep original text unless updated
+        additionalText: existingModel.additionalText,
+        errorCode: existingModel.errorCode,
+        errorMessage: existingModel.errorMessage,
+
+        // Apply specific updates
+        displayTitle:
+            updates.containsKey('displayTitle')
+                ? updates['displayTitle'] as String?
+                : existingModel.displayTitle,
+        displayText:
+            updates.containsKey('displayText')
+                ? updates['displayText'] as String?
+                : existingModel.displayText,
+        // Add more updatable fields here as needed...
+
+        // Critical updates: syncStatus and updatedAt
+        syncStatus: SyncStatus.pending.index, // Mark as pending
+        updatedAt: DateTime.now().toIso8601String(), // Update timestamp
+      );
+      _logger.d(
+        '$_tag Created updated job model for $jobId. Status: ${updatedModel.syncStatus}',
+      );
+
+      // 3. Save the updated model
+      _logger.d('$_tag Saving updated job model for $jobId...');
+      await localDataSource.saveJobHiveModel(updatedModel);
+      _logger.i('$_tag Successfully saved updated job $jobId locally.');
+
+      // 4. Map back to Job entity and return
+      final updatedJobEntity = JobMapper.fromHiveModel(updatedModel);
+      return Right(updatedJobEntity);
+    } on CacheException catch (e, stackTrace) {
+      // Catch potential errors during fetch or save
+      _logger.e(
+        '$_tag CacheException during updateJob for $jobId: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(CacheFailure('Failed to update job $jobId: ${e.message}'));
+    } catch (e, stackTrace) {
+      // Catch any other unexpected errors
+      _logger.e(
+        '$_tag Unexpected error during updateJob for $jobId: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(
+        UnknownFailure(
+          'An unexpected error occurred while updating job $jobId: ${e.toString()}',
+        ),
+      );
+    }
   }
 
   @override

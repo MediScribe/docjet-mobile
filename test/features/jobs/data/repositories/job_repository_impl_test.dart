@@ -50,20 +50,33 @@ void main() {
   });
 
   // Sample data for testing
-  final tJob = Job(
-    localId: 'job1',
+  // Use the same JobHiveModel for consistency in tests needing it
+  final tExistingJobHiveModel = JobHiveModel(
+    localId: 'job1-local-id',
+    serverId: 'job1-server-id', // Assume it has been synced before
     userId: 'user123',
-    status: JobStatus.completed, // USE ENUM
-    syncStatus: SyncStatus.synced, // Add required sync status
-    displayTitle: 'Test Job 1',
-    audioFilePath: '/path/to/test.mp3', // Example local path
-    createdAt: DateTime.parse('2023-01-01T10:00:00Z'),
-    updatedAt: DateTime.parse('2023-01-01T11:00:00Z'),
+    status: JobStatus.completed.index, // Store enum index
+    syncStatus: SyncStatus.synced.index, // Store enum index
+    displayTitle: 'Original Title',
+    audioFilePath: '/path/to/test.mp3',
+    createdAt:
+        DateTime.parse(
+          '2023-01-01T10:00:00Z',
+        ).toIso8601String(), // Store as String
+    updatedAt:
+        DateTime.parse(
+          '2023-01-01T11:00:00Z',
+        ).toIso8601String(), // Store as String
+    displayText: 'Original display text', // Use existing field
+    text: 'Original text',
   );
+
+  // Map the Hive model to a Job entity for use in tests expecting Job
+  final tJob = JobMapper.fromHiveModel(tExistingJobHiveModel);
   final tJobs = [tJob];
 
-  // Use the static mapper method directly to create the expected hive models for assertion
-  final tJobHiveModels = JobMapper.toHiveModelList(tJobs);
+  // Note: tJobHiveModels is less useful now, create specific models as needed
+  // final tJobHiveModels = JobMapper.toHiveModelList(tJobs);
 
   group('getJobs', () {
     test(
@@ -182,15 +195,27 @@ void main() {
 
     test('should return locally cached jobs when cache is not empty', () async {
       // Arrange
-      // 1. Stub local fetch to return some cached data (JobHiveModel list)
+      // 1. Stub local fetch to return some cached data (Create a model for this case)
+      final cachedHiveModel = JobHiveModel(
+        localId: 'cached-job-local',
+        serverId: 'cached-job-server',
+        userId: 'user456',
+        status: JobStatus.transcribing.index,
+        syncStatus: SyncStatus.synced.index,
+        displayTitle: 'Cached Job',
+        createdAt:
+            DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
+        updatedAt:
+            DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
+      );
+      final cachedJob = JobMapper.fromHiveModel(cachedHiveModel);
+
       when(mockLocalDataSource.getAllJobHiveModels()).thenAnswer(
-        (_) async => tJobHiveModels,
-      ); // Use the pre-defined hive models
-      // *** ADDED: Stub getLastFetchTime to return a recent timestamp (cache is fresh) ***
+        (_) async => [cachedHiveModel], // Return the specific model instance
+      );
       when(
         mockLocalDataSource.getLastFetchTime(),
       ).thenAnswer((_) async => DateTime.now());
-      // 2. NO need to stub remote or local save for this path
 
       // Act
       final result = await repository.getJobs();
@@ -199,7 +224,7 @@ void main() {
       // 1. Check the result using dartz Either equality (which respects Equatable)
       result.fold(
         (failure) => fail('Expected Right (cached jobs), got Left: $failure'),
-        (jobs) => expect(jobs, tJobs), // Compare the list content
+        (jobs) => expect(jobs, [cachedJob]), // Compare with the mapped entity
       );
       // 2. Verify local get WAS called
       verify(mockLocalDataSource.getAllJobHiveModels()).called(1);
@@ -296,10 +321,13 @@ void main() {
     test('should fetch from remote when local cache is stale', () async {
       // Arrange
       final staleTime = DateTime.now().subtract(const Duration(hours: 2));
-      // 1. Stub local get to return non-empty list
-      when(
-        mockLocalDataSource.getAllJobHiveModels(),
-      ).thenAnswer((_) async => tJobHiveModels);
+      // 1. Stub local get to return non-empty list - Use the CORRECT type!
+      final tExistingHiveModels = JobMapper.toHiveModelList(
+        tJobs,
+      ); // Map Job list to Hive list
+      when(mockLocalDataSource.getAllJobHiveModels()).thenAnswer(
+        (_) async => tExistingHiveModels,
+      ); // Return List<JobHiveModel>
       // 2. Stub getLastFetchTime to return a stale time
       when(
         mockLocalDataSource.getLastFetchTime(),
@@ -481,25 +509,25 @@ void main() {
     const tAudioPath = '/path/to/new_audio.mp3';
     const tText = 'This is the transcript text.';
     const tLocalId = 'generated-uuid-123';
-    final tNow =
-        DateTime.now(); // Use a fixed time for predictable creation/update times
+    // final tNow =
+    //     DateTime.now(); // Use a fixed time for predictable creation/update times
 
     // Expected Job entity to be created and returned
-    final tNewJobEntity = Job(
-      localId: tLocalId,
-      serverId: null, // Server ID is null initially
-      userId: '', // Assuming userId might be added later or defaulted
-      status: JobStatus.created, // Initial status
-      syncStatus: SyncStatus.pending, // Must be pending
-      displayTitle: '', // Assuming title generation happens elsewhere or later
-      audioFilePath: tAudioPath,
-      text: tText,
-      createdAt: tNow,
-      updatedAt: tNow,
-    );
+    // final tNewJobEntity = Job(
+    //   localId: tLocalId,
+    //   serverId: null, // Server ID is null initially
+    //   userId: '', // Assuming userId might be added later or defaulted
+    //   status: JobStatus.created, // Initial status
+    //   syncStatus: SyncStatus.pending, // Must be pending
+    //   displayTitle: '', // Assuming title generation happens elsewhere or later
+    //   audioFilePath: tAudioPath,
+    //   text: tText,
+    //   createdAt: tNow,
+    //   updatedAt: tNow,
+    // );
 
     // Expected Hive model to be saved (use static mapper)
-    final tNewJobHiveModel = JobMapper.toHiveModel(tNewJobEntity);
+    // final tNewJobHiveModel = JobMapper.toHiveModel(tNewJobEntity);
 
     test(
       'should generate a localId, create a pending job entity, save it locally, and return the entity',
@@ -608,6 +636,176 @@ void main() {
   group('deleteJob', () {
     // ... existing code ...
   }); // End of deleteJob group
+
+  group('updateJob', () {
+    test(
+      'should fetch existing job, update fields, set syncStatus to pending, and save',
+      () async {
+        // Arrange
+        final jobId = tExistingJobHiveModel.localId;
+        const updatedTitle = 'Updated Title';
+        const updatedDisplayText = 'Updated display text';
+        final updates = {
+          'displayTitle': updatedTitle,
+          'displayText': updatedDisplayText, // Use existing field
+          // Note: status updates would likely happen via a separate mechanism/endpoint
+        };
+
+        // 1. Stub local fetch to return the existing model using the CORRECT method name
+        when(
+          mockLocalDataSource.getJobHiveModelById(jobId),
+        ).thenAnswer((_) async => tExistingJobHiveModel);
+
+        // 2. Stub local save to succeed
+        when(
+          mockLocalDataSource.saveJobHiveModel(any),
+        ).thenAnswer((_) async => true);
+
+        // Act
+        final result = await repository.updateJob(
+          jobId: jobId,
+          updates: updates,
+        );
+
+        // Assert
+        // 1. Check the result is success (Right(Job))
+        expect(result, isA<Right<Failure, Job>>());
+        result.fold((failure) => fail('Expected success, got $failure'), (
+          updatedJob,
+        ) {
+          // Verify the returned Job entity has the updates
+          expect(updatedJob.displayTitle, updatedTitle);
+          expect(updatedJob.displayText, updatedDisplayText);
+          expect(
+            updatedJob.syncStatus,
+            SyncStatus.pending,
+          ); // Should be pending
+          expect(updatedJob.localId, jobId);
+          expect(updatedJob.serverId, tExistingJobHiveModel.serverId);
+          // Check that updatedAt was likely updated (tricky to test exact value without mocking time)
+          expect(
+            updatedJob.updatedAt.isAfter(tJob.updatedAt),
+            isTrue,
+            reason: 'updatedAt should be newer after update',
+          );
+        });
+
+        // 2. Verify local fetch was called using the CORRECT method name
+        verify(mockLocalDataSource.getJobHiveModelById(jobId)).called(1);
+
+        // 3. Verify local save was called with the *correctly updated* model
+        final verification = verify(
+          mockLocalDataSource.saveJobHiveModel(captureAny),
+        );
+        verification.called(1);
+        final capturedModel = verification.captured.single as JobHiveModel;
+
+        // Deep check the captured argument - ensure it reflects the updates
+        expect(capturedModel.localId, jobId);
+        expect(capturedModel.serverId, tExistingJobHiveModel.serverId);
+        expect(capturedModel.userId, tExistingJobHiveModel.userId);
+        expect(
+          capturedModel.status,
+          tExistingJobHiveModel.status,
+        ); // Status shouldn't change here
+        expect(
+          capturedModel.syncStatus,
+          SyncStatus.pending.index, // CRITICAL: Check syncStatus index
+          reason: 'SyncStatus should be pending after update',
+        );
+        expect(capturedModel.displayTitle, updatedTitle);
+        expect(capturedModel.displayText, updatedDisplayText);
+        expect(
+          capturedModel.audioFilePath,
+          tExistingJobHiveModel.audioFilePath,
+        );
+        expect(
+          capturedModel.text,
+          tExistingJobHiveModel.text,
+        ); // Other fields unchanged
+        // Check updatedAt string was updated (we expect ISO8601 format)
+        expect(
+          DateTime.parse(
+            capturedModel.updatedAt!,
+          ).isAfter(DateTime.parse(tExistingJobHiveModel.updatedAt!)),
+          isTrue,
+          reason: 'updatedAt timestamp string should be newer after update',
+        );
+        expect(capturedModel.createdAt, tExistingJobHiveModel.createdAt);
+
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockRemoteDataSource);
+        verifyNoMoreInteractions(mockFileSystem);
+        verifyNoMoreInteractions(mockUuid);
+      },
+    );
+
+    test(
+      'should return CacheFailure when local data source fails to get the job',
+      () async {
+        // Arrange
+        final jobId = 'non-existent-job-id';
+        final updates = {'displayTitle': 'Doesnt matter'};
+        // Use CORRECT method name
+        when(
+          mockLocalDataSource.getJobHiveModelById(jobId),
+        ).thenThrow(CacheException('Not found'));
+
+        // Act
+        final result = await repository.updateJob(
+          jobId: jobId,
+          updates: updates,
+        );
+
+        // Assert
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected failure, got success'),
+        );
+        // Use CORRECT method name
+        verify(mockLocalDataSource.getJobHiveModelById(jobId)).called(1);
+        verifyNever(mockLocalDataSource.saveJobHiveModel(any));
+        verifyNoMoreInteractions(mockLocalDataSource);
+      },
+    );
+
+    test(
+      'should return CacheFailure when local data source fails to save the job',
+      () async {
+        // Arrange
+        final jobId = tExistingJobHiveModel.localId;
+        final updates = {'displayTitle': 'Updated Title'};
+        // Use CORRECT method name
+        when(
+          mockLocalDataSource.getJobHiveModelById(jobId),
+        ).thenAnswer((_) async => tExistingJobHiveModel);
+        when(
+          mockLocalDataSource.saveJobHiveModel(any),
+        ).thenThrow(CacheException('Disk full'));
+
+        // Act
+        final result = await repository.updateJob(
+          jobId: jobId,
+          updates: updates,
+        );
+
+        // Assert
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected failure, got success'),
+        );
+        // Use CORRECT method name
+        verify(mockLocalDataSource.getJobHiveModelById(jobId)).called(1);
+        verify(
+          mockLocalDataSource.saveJobHiveModel(any),
+        ).called(1); // Save was attempted
+        verifyNoMoreInteractions(mockLocalDataSource);
+      },
+    );
+  }); // END group('updateJob')
 
   group('syncPendingJobs', () {
     // ... existing code ...
