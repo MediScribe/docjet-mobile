@@ -11,11 +11,14 @@ import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.d
 // import 'package:docjet_mobile/core/network/network_info.dart'; // Removed
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'; // Import Hive model
+import 'package:uuid/uuid.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 
 class JobRepositoryImpl implements JobRepository {
   final JobRemoteDataSource remoteDataSource;
   final JobLocalDataSource localDataSource;
   final FileSystem fileSystemService; // Corrected type hint
+  final Uuid uuid;
   // final JobMapper mapper; // REMOVED - Mapper methods are static
   // final NetworkInfo networkInfo; // Removed
 
@@ -30,6 +33,7 @@ class JobRepositoryImpl implements JobRepository {
     required this.remoteDataSource,
     required this.localDataSource,
     required this.fileSystemService, // Require FileSystem service
+    required this.uuid,
     // Default staleness to 1 hour if not provided
     this.stalenessThreshold = const Duration(hours: 1),
     // required this.mapper, // REMOVED
@@ -149,9 +153,57 @@ class JobRepositoryImpl implements JobRepository {
     String? text,
     // String? additionalText, // REMOVED - Not in interface
   }) async {
-    // TODO: Implement UUID generation for new jobs in createJob method
-    // TODO: Implement later
-    return Left(ServerFailure(message: 'createJob not implemented'));
+    _logger.d('$_tag createJob called with path: $audioFilePath');
+    try {
+      // 1. Generate localId using Uuid
+      final localId = uuid.v4();
+      _logger.d('$_tag Generated localId: $localId');
+
+      // 2. Create Job entity
+      final now = DateTime.now();
+      final newJob = Job(
+        localId: localId,
+        serverId: null, // No serverId yet
+        userId: '', // Default or get from auth service later
+        status: JobStatus.created, // Initial status
+        syncStatus: SyncStatus.pending, // Mark as pending sync
+        displayTitle: '', // Default or generate later
+        audioFilePath: audioFilePath,
+        text: text, // Use provided text
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // 3. Map to Hive model
+      final hiveModel = JobMapper.toHiveModel(newJob);
+
+      // 4. Save to local data source
+      _logger.d('$_tag Saving new job $localId to local data source...');
+      await localDataSource.saveJobHiveModel(hiveModel);
+      _logger.i('$_tag Successfully saved new job $localId locally.');
+
+      // 5. Return the created Job entity
+      return Right(newJob);
+    } on CacheException catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to save new job to local cache: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(CacheFailure('Failed to save job locally: ${e.message}'));
+    } catch (e, stackTrace) {
+      // Catch any other unexpected errors during creation process
+      _logger.e(
+        '$_tag Unexpected error during createJob: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(
+        UnknownFailure(
+          'An unexpected error occurred while creating the job: ${e.toString()}',
+        ),
+      );
+    }
   }
 
   Future<Either<Failure, Job>> updateJob({
