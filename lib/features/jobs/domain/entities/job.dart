@@ -1,9 +1,10 @@
 import 'package:equatable/equatable.dart'; // Add Equatable for value comparison
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import the enum
 
 // Represents a single recording job and its metadata. This is the pure Domain Entity with no persistence concerns.
 class Job extends Equatable {
   final String id; // UUID
-  final String status; // Consider using an Enum here later
+  final JobStatus status; // USE ENUM INSTEAD OF STRING
   final DateTime createdAt;
   final DateTime updatedAt;
   final String userId; // UUID
@@ -18,7 +19,7 @@ class Job extends Equatable {
 
   const Job({
     required this.id,
-    required this.status,
+    required this.status, // USE ENUM INSTEAD OF STRING
     required this.createdAt,
     required this.updatedAt,
     required this.userId,
@@ -35,7 +36,7 @@ class Job extends Equatable {
   @override
   List<Object?> get props => [
     id,
-    status,
+    status, // USE ENUM INSTEAD OF STRING
     createdAt,
     updatedAt,
     userId,
@@ -51,7 +52,7 @@ class Job extends Equatable {
   // Optional: Add copyWith if needed for state management
   Job copyWith({
     String? id,
-    String? status,
+    JobStatus? status, // USE ENUM INSTEAD OF STRING
     DateTime? createdAt,
     DateTime? updatedAt,
     String? userId,
@@ -65,7 +66,7 @@ class Job extends Equatable {
   }) {
     return Job(
       id: id ?? this.id,
-      status: status ?? this.status,
+      status: status ?? this.status, // USE ENUM INSTEAD OF STRING
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       userId: userId ?? this.userId,

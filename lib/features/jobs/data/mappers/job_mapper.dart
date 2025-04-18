@@ -1,19 +1,51 @@
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
 
 // Maps between the domain Job entity, Hive JobHiveModel DTO, and API JobApiDTO
 class JobMapper {
   // Cannot be instantiated
   JobMapper._();
 
+  // Logger setup
+  static final Logger _logger = LoggerFactory.getLogger(JobMapper);
+  static final String _tag = logTag(JobMapper);
+
+  // --- Status Conversion Helpers ---
+
+  /// Converts JobStatus enum to its string representation for storage/API.
+  static String jobStatusToString(JobStatus status) {
+    return status
+        .name; // Use the enum's built-in name property (e.g., JobStatus.completed.name == 'completed')
+  }
+
+  /// Converts a status string (from API/Hive) to JobStatus enum.
+  /// Defaults to JobStatus.error if the string is unknown or invalid.
+  static JobStatus stringToJobStatus(String? statusString) {
+    if (statusString == null) return JobStatus.error;
+    try {
+      return JobStatus.values.firstWhere(
+        (e) => e.name.toLowerCase() == statusString.toLowerCase(),
+      );
+    } catch (e) {
+      // Log the error properly
+      _logger.e(
+        '$_tag Unknown JobStatus string received: $statusString. Defaulting to error.',
+        error: e,
+      );
+      return JobStatus.error;
+    }
+  }
+
+  // --- Hive Model Mapping ---
+
   static JobHiveModel toHiveModel(Job job) {
-    // Create an empty model first, then assign fields.
-    // This is often necessary because HiveObject properties might not be assignable via constructor.
     final model =
         JobHiveModel()
           ..id = job.id
-          ..status = job.status
+          ..status = jobStatusToString(job.status) // Use helper
           ..createdAt = job.createdAt
           ..updatedAt = job.updatedAt
           ..userId = job.userId
@@ -24,13 +56,14 @@ class JobMapper {
           ..audioFilePath = job.audioFilePath
           ..text = job.text
           ..additionalText = job.additionalText;
+    // Note: syncStatus is managed separately in the DataSource/Repository
     return model;
   }
 
   static Job fromHiveModel(JobHiveModel model) {
     return Job(
       id: model.id,
-      status: model.status,
+      status: stringToJobStatus(model.status), // Use helper
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       userId: model.userId,
@@ -48,7 +81,6 @@ class JobMapper {
     return models.map(fromHiveModel).toList();
   }
 
-  // We might not need this direction often, but good to have
   static List<JobHiveModel> toHiveModelList(List<Job> jobs) {
     return jobs.map(toHiveModel).toList();
   }
@@ -57,7 +89,7 @@ class JobMapper {
   static Job fromApiDto(JobApiDTO dto) {
     return Job(
       id: dto.id,
-      status: dto.jobStatus, // Map string status directly for now
+      status: stringToJobStatus(dto.jobStatus), // Use helper
       createdAt: dto.createdAt,
       updatedAt: dto.updatedAt,
       userId: dto.userId,
@@ -73,20 +105,17 @@ class JobMapper {
   }
 
   static List<Job> fromApiDtoList(List<JobApiDTO> dtos) {
-    // Handle null or empty lists gracefully
     if (dtos.isEmpty) {
       return [];
     }
-    // Map each DTO in the list using the fromApiDto method
     return dtos.map(fromApiDto).toList();
   }
 
-  // --- Reverse API DTO Mapping ---
   static JobApiDTO toApiDto(Job job) {
     return JobApiDTO(
       id: job.id,
       userId: job.userId,
-      jobStatus: job.status, // Map string status directly
+      jobStatus: jobStatusToString(job.status), // Use helper
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
       displayTitle: job.displayTitle,
@@ -95,7 +124,6 @@ class JobMapper {
       errorMessage: job.errorMessage,
       text: job.text,
       additionalText: job.additionalText,
-      // Note: audioFilePath from Job entity is not sent to the API DTO
     );
   }
 }
