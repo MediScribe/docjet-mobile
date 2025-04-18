@@ -35,4 +35,13 @@ abstract class JobLocalDataSource {
   /// Gets the last saved Job model (e.g. by updated_at)
   /// Throws a [CacheException] on failure.
   Future<JobHiveModel?> getLastJobHiveModel();
+
+  /// Gets the timestamp of the last successful fetch from the remote source.
+  /// Returns null if no fetch has ever been recorded.
+  /// Throws a [CacheException] if unable to access the cache.
+  Future<DateTime?> getLastFetchTime();
+
+  /// Saves the timestamp of the last successful fetch.
+  /// Throws a [CacheException] on failure.
+  Future<void> saveLastFetchTime(DateTime time);
 }

@@ -67,6 +67,10 @@ void main() {
         when(mockLocalDataSource.saveJobHiveModels(tJobHiveModels)).thenAnswer(
           (_) async => Future.value(),
         ); // Assuming save returns Future<void>
+        // *** ADDED: Stub saveLastFetchTime ***
+        when(
+          mockLocalDataSource.saveLastFetchTime(any),
+        ).thenAnswer((_) async => Future.value());
 
         // Act
         final result = await repository.getJobs(); // Call the repository method
@@ -85,7 +89,9 @@ void main() {
         verify(mockLocalDataSource.saveJobHiveModels(any)).called(1);
         // 4. Verify local get WAS called
         verify(mockLocalDataSource.getAllJobHiveModels()).called(1);
-        // 5. Verify no other interactions occurred with the mocks (mapper interaction removed)
+        // 5. Verify saveLastFetchTime was called
+        verify(mockLocalDataSource.saveLastFetchTime(any)).called(1);
+        // 6. Verify no other interactions occurred with the mocks (mapper interaction removed)
         verifyNoMoreInteractions(mockRemoteDataSource);
         verifyNoMoreInteractions(mockLocalDataSource);
         // verifyNoMoreInteractions(mockMapper); // REMOVED
@@ -163,6 +169,10 @@ void main() {
       when(mockLocalDataSource.getAllJobHiveModels()).thenAnswer(
         (_) async => tJobHiveModels,
       ); // Use the pre-defined hive models
+      // *** ADDED: Stub getLastFetchTime to return a recent timestamp (cache is fresh) ***
+      when(
+        mockLocalDataSource.getLastFetchTime(),
+      ).thenAnswer((_) async => DateTime.now());
       // 2. NO need to stub remote or local save for this path
 
       // Act
@@ -176,11 +186,13 @@ void main() {
       );
       // 2. Verify local get WAS called
       verify(mockLocalDataSource.getAllJobHiveModels()).called(1);
-      // 3. Verify remote fetch was NOT called
+      // 3. Verify getLastFetchTime was called
+      verify(mockLocalDataSource.getLastFetchTime()).called(1);
+      // 4. Verify remote fetch was NOT called
       verifyNever(mockRemoteDataSource.fetchJobs());
-      // 4. Verify local save was NOT called
+      // 5. Verify local save was NOT called
       verifyNever(mockLocalDataSource.saveJobHiveModels(any));
-      // 5. Verify no other interactions occurred
+      // 6. Verify no other interactions occurred
       verifyNoMoreInteractions(mockRemoteDataSource);
     });
 
@@ -214,7 +226,9 @@ void main() {
         verify(mockRemoteDataSource.fetchJobs()).called(1);
         // 4. Verify local save was called
         verify(mockLocalDataSource.saveJobHiveModels(any)).called(1);
-        // 5. Verify no other interactions occurred
+        // 5. Verify saveLastFetchTime was called
+        verify(mockLocalDataSource.saveLastFetchTime(any)).called(1);
+        // 6. Verify no other interactions occurred
         verifyNoMoreInteractions(mockRemoteDataSource);
         verifyNoMoreInteractions(mockLocalDataSource);
       },
@@ -234,6 +248,10 @@ void main() {
         when(
           mockLocalDataSource.saveJobHiveModels(any),
         ).thenThrow(CacheException('Disk full'));
+        // *** MODIFIED: Stub saveLastFetchTime to SUCCEED (repo logic changed) ***
+        when(mockLocalDataSource.saveLastFetchTime(any)).thenAnswer(
+          (_) async => Future.value(),
+        ); // Should succeed even if saveJobHiveModels fails
 
         // Act
         final result = await repository.getJobs();
@@ -250,7 +268,9 @@ void main() {
         verify(mockRemoteDataSource.fetchJobs()).called(1);
         // 4. Verify local save was called (even though it threw)
         verify(mockLocalDataSource.saveJobHiveModels(any)).called(1);
-        // 5. Verify no other interactions occurred
+        // 5. Verify saveLastFetchTime was called (even though saveJobHiveModels failed)
+        verify(mockLocalDataSource.saveLastFetchTime(any)).called(1);
+        // 6. Verify no other interactions occurred
         verifyNoMoreInteractions(mockRemoteDataSource);
         verifyNoMoreInteractions(mockLocalDataSource);
       },

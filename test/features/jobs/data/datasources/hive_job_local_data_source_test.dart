@@ -6,14 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/error/exceptions.dart';
 
 // Generate mocks for Box AND HiveInterface
-@GenerateMocks([Box, HiveInterface])
+@GenerateMocks([Box<dynamic>, HiveInterface])
 import 'hive_job_local_data_source_test.mocks.dart';
 
 void main() {
   late HiveJobLocalDataSourceImpl dataSource;
-  late MockBox<JobHiveModel> mockJobBox;
+  late MockBox<dynamic> mockBox;
   late MockHiveInterface mockHiveInterface; // Mock HiveInterface
   late Directory testTempDir;
 
@@ -57,24 +58,21 @@ void main() {
   });
 
   setUp(() async {
-    mockJobBox = MockBox<JobHiveModel>();
+    mockBox = MockBox<dynamic>();
     mockHiveInterface = MockHiveInterface(); // Instantiate mock Hive
 
-    // Stub the HiveInterface methods to return the mock box
+    // Stub the HiveInterface methods to return the mock dynamic box
     when(
       mockHiveInterface.isBoxOpen(HiveJobLocalDataSourceImpl.jobsBoxName),
     ).thenReturn(true);
     when(
-      mockHiveInterface.box<JobHiveModel>(
-        HiveJobLocalDataSourceImpl.jobsBoxName,
-      ),
-    ).thenReturn(mockJobBox);
-    // Stub openBox for completeness, though isBoxOpen should make it unnecessary in current impl
+      mockHiveInterface.box<dynamic>(HiveJobLocalDataSourceImpl.jobsBoxName),
+    ).thenReturn(mockBox);
     when(
-      mockHiveInterface.openBox<JobHiveModel>(
+      mockHiveInterface.openBox<dynamic>(
         HiveJobLocalDataSourceImpl.jobsBoxName,
       ),
-    ).thenAnswer((_) async => mockJobBox);
+    ).thenAnswer((_) async => mockBox);
 
     // Instantiate dataSource with the mock HiveInterface
     dataSource = HiveJobLocalDataSourceImpl(hive: mockHiveInterface);
@@ -82,7 +80,7 @@ void main() {
 
   tearDown(() async {
     // Reset mocks
-    reset(mockJobBox);
+    reset(mockBox);
     reset(mockHiveInterface);
   });
 
@@ -91,41 +89,47 @@ void main() {
       test('should call Box.put with the correct key and value', () async {
         // Arrange
         // Stub the put method to simulate successful save
-        when(mockJobBox.put(any, any)).thenAnswer((_) async => Future.value());
+        when(mockBox.put(any, any)).thenAnswer((_) async => Future.value());
 
         // Act
         await dataSource.saveJobHiveModel(tJobHiveModel);
 
         // Assert
-        verify(mockJobBox.put(tJobHiveModel.id, tJobHiveModel)).called(1);
+        verify(mockBox.put(tJobHiveModel.id, tJobHiveModel)).called(1);
       });
 
       // TODO: Add test for HiveError during save
     });
 
     group('getAllJobHiveModels', () {
-      test('should return list of JobHiveModel from the box', () async {
-        // Arrange
-        when(mockJobBox.values).thenReturn(tJobHiveModelList);
+      test(
+        'should return list of JobHiveModel from the box, filtering out other types',
+        () async {
+          // Arrange
+          // Include a non-JobHiveModel value in the mock return
+          final dynamicValues = [tJobHiveModel, 123456789]; // Job + timestamp
+          when(mockBox.values).thenReturn(dynamicValues);
 
-        // Act
-        final result = await dataSource.getAllJobHiveModels();
+          // Act
+          final result = await dataSource.getAllJobHiveModels();
 
-        // Assert
-        expect(result, equals(tJobHiveModelList));
-        verify(mockJobBox.values).called(1);
-      });
+          // Assert
+          // Expect only the JobHiveModel list
+          expect(result, equals(tJobHiveModelList));
+          verify(mockBox.values).called(1);
+        },
+      );
 
       test('should return empty list when box is empty', () async {
         // Arrange
-        when(mockJobBox.values).thenReturn([]);
+        when(mockBox.values).thenReturn([]);
 
         // Act
         final result = await dataSource.getAllJobHiveModels();
 
         // Assert
         expect(result, isEmpty);
-        verify(mockJobBox.values).called(1);
+        verify(mockBox.values).called(1);
       });
 
       // TODO: Add test for HiveError during getAll
@@ -134,28 +138,34 @@ void main() {
     group('getJobHiveModelById', () {
       test('should return JobHiveModel when found in the box', () async {
         // Arrange
-        when(mockJobBox.get(tJobHiveModel.id)).thenReturn(tJobHiveModel);
+        when(mockBox.get(tJobHiveModel.id)).thenReturn(tJobHiveModel);
 
         // Act
         final result = await dataSource.getJobHiveModelById(tJobHiveModel.id);
 
         // Assert
         expect(result, equals(tJobHiveModel));
-        verify(mockJobBox.get(tJobHiveModel.id)).called(1);
+        verify(mockBox.get(tJobHiveModel.id)).called(1);
       });
 
-      test('should return null when job ID is not found in the box', () async {
-        // Arrange
-        const nonExistentId = 'non-existent-id';
-        when(mockJobBox.get(nonExistentId)).thenReturn(null);
+      test(
+        'should return null when ID exists but value is not a JobHiveModel',
+        () async {
+          // Arrange
+          const otherKey =
+              HiveJobLocalDataSourceImpl
+                  .jobsBoxName; // Use box name as a dummy key
+          const otherValue = 12345; // Simulate timestamp or other data
+          when(mockBox.get(otherKey)).thenReturn(otherValue);
 
-        // Act
-        final result = await dataSource.getJobHiveModelById(nonExistentId);
+          // Act
+          final result = await dataSource.getJobHiveModelById(otherKey);
 
-        // Assert
-        expect(result, isNull);
-        verify(mockJobBox.get(nonExistentId)).called(1);
-      });
+          // Assert
+          expect(result, isNull);
+          verify(mockBox.get(otherKey)).called(1);
+        },
+      );
 
       // TODO: Add test for HiveError during getById
     });
@@ -163,33 +173,161 @@ void main() {
     group('deleteJobHiveModel', () {
       test('should call Box.delete with the correct key', () async {
         // Arrange
-        when(mockJobBox.delete(any)).thenAnswer((_) async => Future.value());
+        when(mockBox.delete(any)).thenAnswer((_) async => Future.value());
 
         // Act
         await dataSource.deleteJobHiveModel(tJobHiveModel.id);
 
         // Assert
-        verify(mockJobBox.delete(tJobHiveModel.id)).called(1);
+        verify(mockBox.delete(tJobHiveModel.id)).called(1);
       });
 
       // TODO: Add test for HiveError during delete
     });
 
     group('clearAllJobHiveModels', () {
-      test('should call Box.clear', () async {
+      test('should call Box.clear and restore timestamp if present', () async {
         // Arrange
-        // Stub clear to return the number of items deleted (e.g., 1)
-        when(mockJobBox.clear()).thenAnswer((_) async => 1);
+        const timestampKey =
+            'lastFetchTimestamp'; // Ensure this matches implementation
+        const timestampValue = 1672531200000; // Example timestamp milliseconds
+        // Stub get to return timestamp
+        when(mockBox.get(timestampKey)).thenReturn(timestampValue);
+        // Stub clear to return the number of items deleted (e.g., 2: job + timestamp)
+        when(mockBox.clear()).thenAnswer((_) async => 2);
+        // Stub put to simulate restoring timestamp
+        when(
+          mockBox.put(timestampKey, timestampValue),
+        ).thenAnswer((_) async => Future.value());
 
         // Act
         await dataSource.clearAllJobHiveModels();
 
         // Assert
-        verify(mockJobBox.clear()).called(1);
+        verify(mockBox.get(timestampKey)).called(1);
+        verify(mockBox.clear()).called(1);
+        verify(
+          mockBox.put(timestampKey, timestampValue),
+        ).called(1); // Verify timestamp restore
       });
+
+      test(
+        'should call Box.clear and NOT restore timestamp if not present',
+        () async {
+          // Arrange
+          const timestampKey =
+              'lastFetchTimestamp'; // Ensure this matches implementation
+          // Stub get to return null (no timestamp)
+          when(mockBox.get(timestampKey)).thenReturn(null);
+          // Stub clear to return the number of items deleted (e.g., 1: just a job)
+          when(mockBox.clear()).thenAnswer((_) async => 1);
+          // NO need to stub put for timestamp
+
+          // Act
+          await dataSource.clearAllJobHiveModels();
+
+          // Assert
+          verify(mockBox.get(timestampKey)).called(1);
+          verify(mockBox.clear()).called(1);
+          verifyNever(
+            mockBox.put(timestampKey, any),
+          ); // Verify timestamp restore NOT called
+        },
+      );
 
       // TODO: Add test for HiveError during clear
     });
+
+    // --- ADDED: Tests for timestamp methods ---
+    group('saveLastFetchTime', () {
+      final tTime = DateTime.now();
+      const tKey = 'lastFetchTimestamp';
+      final tMillis = tTime.toUtc().millisecondsSinceEpoch;
+
+      test(
+        'should call box.put with correct key and timestamp in millis',
+        () async {
+          // Arrange
+          when(mockBox.put(any, any)).thenAnswer((_) async => Future.value());
+
+          // Act
+          await dataSource.saveLastFetchTime(tTime);
+
+          // Assert
+          verify(mockBox.put(tKey, tMillis)).called(1);
+        },
+      );
+
+      test('should throw CacheException when box.put throws', () async {
+        // Arrange
+        final hiveError = HiveError('Failed to write');
+        when(mockBox.put(any, any)).thenThrow(hiveError);
+
+        // Act
+        final call = dataSource.saveLastFetchTime;
+
+        // Assert
+        expect(() => call(tTime), throwsA(isA<CacheException>()));
+      });
+    });
+
+    group('getLastFetchTime', () {
+      const tKey = 'lastFetchTimestamp';
+      final tTime = DateTime.now();
+      final tMillis = tTime.toUtc().millisecondsSinceEpoch;
+
+      test('should return DateTime when timestamp exists in box', () async {
+        // Arrange
+        when(mockBox.get(tKey)).thenReturn(tMillis);
+
+        // Act
+        final result = await dataSource.getLastFetchTime();
+
+        // Assert
+        // Compare millisecondsSinceEpoch for equality as DateTime objects might differ slightly
+        expect(result?.millisecondsSinceEpoch, equals(tMillis));
+        verify(mockBox.get(tKey)).called(1);
+      });
+
+      test('should return null when timestamp key does not exist', () async {
+        // Arrange
+        when(mockBox.get(tKey)).thenReturn(null);
+
+        // Act
+        final result = await dataSource.getLastFetchTime();
+
+        // Assert
+        expect(result, isNull);
+        verify(mockBox.get(tKey)).called(1);
+      });
+
+      test('should return null when value for key is not an int', () async {
+        // Arrange
+        when(
+          mockBox.get(tKey),
+        ).thenReturn('not-a-timestamp'); // Return wrong type
+
+        // Act
+        final result = await dataSource.getLastFetchTime();
+
+        // Assert
+        expect(result, isNull);
+        verify(mockBox.get(tKey)).called(1);
+      });
+
+      test('should throw CacheException when box.get throws', () async {
+        // Arrange
+        final hiveError = HiveError('Failed to read');
+        when(mockBox.get(tKey)).thenThrow(hiveError);
+
+        // Act
+        final call = dataSource.getLastFetchTime;
+
+        // Assert
+        expect(call, throwsA(isA<CacheException>()));
+      });
+    });
+    // --- END: Added tests ---
 
     // TODO: Add tests for getJobsToSync
     // TODO: Add tests for updateJobSyncStatus

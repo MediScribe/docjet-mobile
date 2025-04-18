@@ -88,16 +88,22 @@ class JobRepositoryImpl implements JobRepository {
       // 2. Map to Hive Models (using static mapper)
       final hiveModels = JobMapper.toHiveModelList(remoteJobs);
 
-      // 3. Save to local cache (fire and forget for now, or basic try/catch logging)
+      // 3. Try to save jobs to local cache (log warning on failure)
       try {
         _logger.i('$_tag Saving ${hiveModels.length} jobs to local cache...');
         await localDataSource.saveJobHiveModels(hiveModels);
-        // --- ADDED: Save fetch time after saving data ---
-        await localDataSource.saveLastFetchTime(DateTime.now());
-        _logger.i('$_tag Successfully saved jobs and fetch time to cache.');
+        _logger.i('$_tag Successfully saved jobs to cache.');
       } on CacheException catch (e) {
         // Log the cache write failure as a warning but don't fail the operation
-        _logger.w('$_tag Failed to save jobs or fetch time to cache: $e');
+        _logger.w('$_tag Failed to save jobs to cache: $e');
+      }
+
+      // --- ADDED: Always try save fetch time after successful remote fetch ---
+      try {
+        await localDataSource.saveLastFetchTime(DateTime.now());
+        _logger.i('$_tag Successfully saved fetch time to cache.');
+      } on CacheException catch (e) {
+        _logger.w('$_tag Failed to save fetch time to cache: $e');
       }
 
       // 4. Return success with fetched data

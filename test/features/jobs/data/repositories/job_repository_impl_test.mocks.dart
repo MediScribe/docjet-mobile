@@ -212,4 +212,23 @@ class MockJobLocalDataSource extends _i1.Mock
         ),
         returnValue: _i4.Future<_i6.JobHiveModel?>.value(),
       ) as _i4.Future<_i6.JobHiveModel?>);
+
+  @override
+  _i4.Future<DateTime?> getLastFetchTime() => (super.noSuchMethod(
+        Invocation.method(
+          #getLastFetchTime,
+          [],
+        ),
+        returnValue: _i4.Future<DateTime?>.value(),
+      ) as _i4.Future<DateTime?>);
+
+  @override
+  _i4.Future<void> saveLastFetchTime(DateTime? time) => (super.noSuchMethod(
+        Invocation.method(
+          #saveLastFetchTime,
+          [time],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
 }
