@@ -104,17 +104,14 @@ class MockAuthCredentialsProvider extends Mock
   @override
   Future<String?> getRefreshToken() async => 'fake-refresh-token-from-test';
 
-  @override
   Future<String?> getUserId() async => _testUserId;
 
-  @override
   Future<void> saveCredentials({
     String? accessToken,
     String? refreshToken,
     String? userId,
   }) async {}
 
-  @override
   Future<void> clearCredentials() async {}
 }
 
@@ -174,7 +171,7 @@ class DioDiagnosticInterceptor extends Interceptor {
       '$tag 🔶 RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}',
     );
     logger.i('$tag Response headers:');
-    response.headers.forEach?.call((k, v) => logger.i('$tag   $k: $v'));
+    response.headers.forEach.call((k, v) => logger.i('$tag   $k: $v'));
 
     try {
       logger.i('$tag Response: ${response.data}');
@@ -205,10 +202,10 @@ class DioDiagnosticInterceptor extends Interceptor {
 }
 
 void main() {
-  final Logger _logger = LoggerFactory.getLogger(
+  final Logger logger = LoggerFactory.getLogger(
     'JobDatasourcesIntegrationTest',
   );
-  final String _tag = logTag('JobDatasourcesIntegrationTest');
+  final String tag = logTag('JobDatasourcesIntegrationTest');
 
   // Define the port (make it a constant)
   const int mockServerPort = 8080;
@@ -221,10 +218,10 @@ void main() {
   late MockAuthCredentialsProvider mockAuthProvider;
 
   setUpAll(() async {
-    _logger.i('$_tag Setting up integration tests...');
+    logger.i('$tag Setting up integration tests...');
 
     // --- Force kill any process listening on the mock server port ---
-    _logger.i('$_tag Attempting to clear port $mockServerPort...');
+    logger.i('$tag Attempting to clear port $mockServerPort...');
     try {
       // Find process IDs listening on the port
       final lsofResult = await Process.run('lsof', ['-ti', ':$mockServerPort']);
@@ -235,28 +232,28 @@ void main() {
                 .split('\n')
                 .where((pid) => pid.isNotEmpty)
                 .toList();
-        _logger.w(
-          '$_tag Found processes on port $mockServerPort: $pids. Killing...',
+        logger.w(
+          '$tag Found processes on port $mockServerPort: $pids. Killing...',
         );
         for (final pid in pids) {
           final killResult = await Process.run('kill', ['-9', pid]);
           if (killResult.exitCode == 0) {
-            _logger.i('$_tag Killed process $pid.');
+            logger.i('$tag Killed process $pid.');
           } else {
-            _logger.w(
-              '$_tag Failed to kill process $pid. Stderr: ${killResult.stderr}',
+            logger.w(
+              '$tag Failed to kill process $pid. Stderr: ${killResult.stderr}',
             );
           }
         }
         // Wait a moment for ports to free up
         await Future.delayed(const Duration(milliseconds: 500));
       } else {
-        _logger.i('$_tag Port $mockServerPort appears to be clear.');
+        logger.i('$tag Port $mockServerPort appears to be clear.');
       }
     } catch (e, stackTrace) {
       // Log error but continue, server start might still succeed or fail clearly
-      _logger.e(
-        '$_tag Error trying to clear port $mockServerPort',
+      logger.e(
+        '$tag Error trying to clear port $mockServerPort',
         error: e,
         stackTrace: stackTrace,
       );
@@ -264,41 +261,41 @@ void main() {
     // ------------------------------------------------------------------
 
     // 1. Set up a temporary directory for Hive
-    _logger.d('$_tag Initializing Hive...');
+    logger.d('$tag Initializing Hive...');
     testTempDir = await Directory.systemTemp.createTemp('hive_test_');
     Hive.init(testTempDir.path);
-    _logger.d('$_tag Hive initialized in: ${testTempDir.path}');
+    logger.d('$tag Hive initialized in: ${testTempDir.path}');
 
     // 2. Register Hive Adapters
-    _logger.d('$_tag Registering Hive adapters...');
+    logger.d('$tag Registering Hive adapters...');
     if (!Hive.isAdapterRegistered(JobHiveModelAdapter().typeId)) {
       Hive.registerAdapter(JobHiveModelAdapter());
-      _logger.d('$_tag Registered JobHiveModelAdapter.');
+      logger.d('$tag Registered JobHiveModelAdapter.');
     }
 
     // 3. Open Hive boxes
-    _logger.d('$_tag Opening Hive boxes...');
+    logger.d('$tag Opening Hive boxes...');
     jobBox = await Hive.openBox<JobHiveModel>(
       HiveJobLocalDataSourceImpl.jobsBoxName,
     );
-    _logger.d('$_tag Opened box: ${HiveJobLocalDataSourceImpl.jobsBoxName}');
+    logger.d('$tag Opened box: ${HiveJobLocalDataSourceImpl.jobsBoxName}');
 
     // 4. Start the mock server
-    _logger.i('$_tag Starting mock server on port $mockServerPort...');
+    logger.i('$tag Starting mock server on port $mockServerPort...');
     try {
       mockServerProcess = await Process.start('dart', [
         _mockServerPath,
       ], workingDirectory: Directory.current.path);
-      _logger.i('$_tag Mock server started (PID: ${mockServerProcess?.pid})');
+      logger.i('$tag Mock server started (PID: ${mockServerProcess?.pid})');
       mockServerProcess?.stdout
           .transform(utf8.decoder)
-          .listen((line) => _logger.d('$_tag SERVER STDOUT: $line'));
+          .listen((line) => logger.d('$tag SERVER STDOUT: $line'));
       mockServerProcess?.stderr
           .transform(utf8.decoder)
-          .listen((line) => _logger.e('$_tag SERVER STDERR: $line'));
+          .listen((line) => logger.e('$tag SERVER STDERR: $line'));
 
       // Wait a bit longer for the server to be ready - 5 seconds to be safe
-      _logger.i('$_tag Waiting for server to initialize...');
+      logger.i('$tag Waiting for server to initialize...');
       await Future.delayed(const Duration(seconds: 5));
 
       // Simple check to see if server is responding
@@ -316,54 +313,54 @@ void main() {
         );
 
         if (response.statusCode == 200) {
-          _logger.i('$_tag Mock server responded successfully.');
+          logger.i('$tag Mock server responded successfully.');
         } else {
-          _logger.w(
-            '$_tag Mock server returned unexpected status: ${response.statusCode}',
+          logger.w(
+            '$tag Mock server returned unexpected status: ${response.statusCode}',
           );
         }
       } catch (e) {
-        _logger.w('$_tag Health check failed: $e');
+        logger.w('$tag Health check failed: $e');
       } finally {
         healthCheckDio.close();
       }
     } catch (e, stackTrace) {
-      _logger.e(
-        '$_tag Error starting mock server',
+      logger.e(
+        '$tag Error starting mock server',
         error: e,
         stackTrace: stackTrace,
       );
       mockServerProcess?.kill();
       throw Exception('Failed to start mock server: $e');
     }
-    _logger.i('$_tag Setup complete.');
+    logger.i('$tag Setup complete.');
   });
 
   tearDownAll(() async {
-    _logger.i('$_tag Tearing down integration tests...');
-    _logger.i('$_tag Stopping mock server (PID: ${mockServerProcess?.pid})...');
+    logger.i('$tag Tearing down integration tests...');
+    logger.i('$tag Stopping mock server (PID: ${mockServerProcess?.pid})...');
     mockServerProcess?.kill(ProcessSignal.sigterm);
     await Future.delayed(const Duration(seconds: 2));
     mockServerProcess?.kill(ProcessSignal.sigkill);
-    _logger.i('$_tag Mock server stopped.');
+    logger.i('$tag Mock server stopped.');
 
-    _logger.d('$_tag Closing Hive boxes...');
+    logger.d('$tag Closing Hive boxes...');
     await jobBox.close();
     await Hive.close();
-    _logger.d('$_tag Cleaning up Hive test directory...');
+    logger.d('$tag Cleaning up Hive test directory...');
     try {
       if (await testTempDir.exists()) {
         await testTempDir.delete(recursive: true);
-        _logger.i('$_tag Cleaned up Hive test directory: ${testTempDir.path}');
+        logger.i('$tag Cleaned up Hive test directory: ${testTempDir.path}');
       }
     } catch (e, stackTrace) {
-      _logger.e(
-        '$_tag Error cleaning up Hive test directory',
+      logger.e(
+        '$tag Error cleaning up Hive test directory',
         error: e,
         stackTrace: stackTrace,
       );
     }
-    _logger.i('$_tag Teardown complete.');
+    logger.i('$tag Teardown complete.');
   });
 
   setUp(() {
@@ -387,7 +384,7 @@ void main() {
         requestHeader: true,
         responseHeader: true,
         error: true,
-        logPrint: (obj) => _logger.d('$_tag DIO LOG: $obj'),
+        logPrint: (obj) => logger.d('$tag DIO LOG: $obj'),
       ),
     );
 
@@ -413,9 +410,9 @@ void main() {
         final testFile = File(p.join(tempDir.path, 'test_audio.mp3'));
         await testFile.writeAsString('dummy audio content');
 
-        _logger.i('$_tag Created test file at: ${testFile.path}');
-        _logger.i(
-          '$_tag File exists: ${await testFile.exists()}, size: ${await testFile.length()} bytes',
+        logger.i('$tag Created test file at: ${testFile.path}');
+        logger.i(
+          '$tag File exists: ${await testFile.exists()}, size: ${await testFile.length()} bytes',
         );
 
         const text = 'Optional transcription text';
@@ -441,26 +438,24 @@ void main() {
           expect(createdJob.updatedAt, isA<DateTime>());
         } on ApiException catch (e) {
           // Remove the skipping behavior - we want the test to fail properly
-          _logger.e(
-            '$_tag Got error from server: ${e.message}, statusCode: ${e.statusCode}',
+          logger.e(
+            '$tag Got error from server: ${e.message}, statusCode: ${e.statusCode}',
           );
           // Add more diagnostic logging to help debug
-          _logger.e('$_tag Check these common issues:');
-          _logger.e(
-            '$_tag 1. Content-Type header is being manually set (should be left to Dio)',
+          logger.e('$tag Check these common issues:');
+          logger.e(
+            '$tag 1. Content-Type header is being manually set (should be left to Dio)',
           );
-          _logger.e(
-            '$_tag 2. Missing or incorrect "user_id" field in FormData',
-          );
-          _logger.e('$_tag 3. Missing or improperly formatted "audio_file"');
-          _logger.e(
-            '$_tag 4. URL concatenation issues (check for double slashes)',
+          logger.e('$tag 2. Missing or incorrect "user_id" field in FormData');
+          logger.e('$tag 3. Missing or improperly formatted "audio_file"');
+          logger.e(
+            '$tag 4. URL concatenation issues (check for double slashes)',
           );
 
           // Fail the test so we get proper error reports
           fail('API request failed with ${e.statusCode}: ${e.message}');
         } catch (e) {
-          _logger.e('$_tag Unexpected error: $e');
+          logger.e('$tag Unexpected error: $e');
           rethrow;
         } finally {
           await tempDir.delete(recursive: true);
@@ -483,7 +478,7 @@ void main() {
           audioFilePath: testFile.path,
           text: text,
         );
-        _logger.i('$_tag Created job for fetchJobs test: ${createdJob.id}');
+        logger.i('$tag Created job for fetchJobs test: ${createdJob.id}');
 
         // Act
         final List<Job> jobs = await remoteDataSource.fetchJobs();
@@ -528,7 +523,7 @@ void main() {
           audioFilePath: testFile.path,
           text: text,
         );
-        _logger.i('$_tag Created job for fetchJobById test: ${createdJob.id}');
+        logger.i('$tag Created job for fetchJobById test: ${createdJob.id}');
 
         // Act
         final Job fetchedJob = await remoteDataSource.fetchJobById(
@@ -584,7 +579,7 @@ void main() {
           audioFilePath: testFile.path,
           text: 'Original Text',
         );
-        _logger.i('$_tag Created job for updateJob test: ${createdJob.id}');
+        logger.i('$tag Created job for updateJob test: ${createdJob.id}');
         final originalUpdatedAt = createdJob.updatedAt;
 
         // Updates to apply
