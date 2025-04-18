@@ -1,43 +1,46 @@
 # Job Feature Architecture
 
 ```mermaid
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 graph TD
     subgraph "Presentation Layer (UI, State Management)"
-        UI -->|Uses| AppService(Application Service / Use Cases)
+        UI --> |Uses| AppService(Application Service / Use Cases)
+        
     end
 
     subgraph "Domain Layer (Core Logic, Entities)"
         AppService -->|Uses| JobRepositoryInterface(JobRepository Interface)
-        JobEntity((Job Entity\n- Pure Dart\n- Equatable))
+        JobEntity((Job Entity<br>- Pure Dart<br>- Equatable))
         JobRepositoryInterface -- Defines --> JobEntity
     end
 
     subgraph "Data Layer (Implementation Details)"
-        JobRepositoryImpl(JobRepositoryImpl\n- Implements JobRepository\n- Orchestrates Sync) -->|Implements| JobRepositoryInterface
+        JobRepositoryImpl(JobRepositoryImpl<br>Implements JobRepository<br>Orchestrates Sync) -->|Implements| JobRepositoryInterface
         JobRepositoryImpl -->|Depends on| JobLocalDSInterface(JobLocalDataSource Interface)
         JobRepositoryImpl -->|Depends on| JobRemoteDSInterface(JobRemoteDataSource Interface)
 
         subgraph "Local Persistence (Hive)"
-            HiveJobLocalDS(HiveJobLocalDataSourceImpl\n- Implements JobLocalDSInterface) -->|Implements| JobLocalDSInterface
+            HiveJobLocalDS(HiveJobLocalDataSourceImpl<br>- Implements JobLocalDSInterface) -->|Implements| JobLocalDSInterface
             HiveJobLocalDS -->|Uses| JobMapper(JobMapper)
             HiveJobLocalDS -->|Uses| HiveBox([Hive Box])
-            JobMapper -->|Maps to/from| JobHiveModel((JobHiveModel DTO\n- Hive Annotations))
+            JobMapper -->|Maps to/from| JobHiveModel((JobHiveModel DTO<br>- Hive Annotations))
             JobMapper -->|Maps to/from| JobEntity
             JobHiveModel -- Stored in --> HiveBox
         end
 
         subgraph "Remote API"
-            ApiJobRemoteDS(ApiJobRemoteDataSourceImpl\n- Implements JobRemoteDSInterface) -->|Implements| JobRemoteDSInterface
-            ApiJobRemoteDS -->|Uses| HttpClient([HTTP Client\n- dio/http])
-            ApiJobRemoteDS -->|Talks to| RestAPI{REST API\n/api/v1/jobs}
+            ApiJobRemoteDS(ApiJobRemoteDataSourceImpl<br>- Implements JobRemoteDSInterface) -->|Implements| JobRemoteDSInterface
+            ApiJobRemoteDS -->|Uses| HttpClient([HTTP Client<br>- dio/http])
+            ApiJobRemoteDS -->|Talks to| RestAPI{REST API<br>/api/v1/jobs}
             %% ApiJobRemoteDS -->|Maps JSON to/from| JobEntity %% Potentially needs ApiDTO later
         end
     end
 
-    %% Styling for clarity
-    classDef domain fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef data fill:#ccf,stroke:#333,stroke-width:2px;
-    classDef presentation fill:#cfc,stroke:#333,stroke-width:2px;
+    %% Styling for clarity with improved contrast
+    classDef invisible fill:none,stroke:none;
+    classDef domain fill:#E64A45,stroke:#222,stroke-width:2px,color:#fff,padding:15px;
+    classDef data fill:#4285F4,stroke:#222,stroke-width:2px,color:#fff;
+    classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
 
     class JobEntity,JobRepositoryInterface domain;
     class JobRepositoryImpl,JobLocalDSInterface,JobRemoteDSInterface,HiveJobLocalDS,ApiJobRemoteDS,JobMapper,JobHiveModel,HiveBox,HttpClient,RestAPI data;
@@ -57,7 +60,7 @@ graph TD
     end
 
     subgraph "Domain Layer"
-        AuthService -->|Defines| User((User Entity\n- Pure Dart\n- Equatable))
+        AuthService -->|Defines| User((User Entity<br>- Pure Dart<br>- Equatable))
         AuthService -->|Uses| AuthCredProvider(AuthCredentialsProvider Interface)
     end
 
@@ -72,7 +75,7 @@ graph TD
         AuthCredProviderImpl -->|Reads API Key From| DotEnv([.env File via flutter_dotenv])
         AuthCredProviderImpl -->|Stores/Reads JWT| SecureStorage([FlutterSecureStorage])
         
-        AuthApiClient -->|Uses| HttpClient([HTTP Client\n- dio/http])
+        AuthApiClient -->|Uses| HttpClient([HTTP Client<br>- dio/http])
         AuthApiClient -->|Gets API Key from| AuthCredProvider
         
         AuthInterceptor -->|Intercepts 401 Errors| HttpClient
@@ -82,11 +85,11 @@ graph TD
         HttpClient -->|Makes Requests to| AuthAPI{REST API /api/v1/auth/login /api/v1/auth/refresh-session}
     end
 
-    %% Styling
-    classDef domain fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef data fill:#ccf,stroke:#333,stroke-width:2px;
-    classDef presentation fill:#cfc,stroke:#333,stroke-width:2px;
-    classDef external fill:#eee,stroke:#333,stroke-width:1px;
+    %% Styling with improved contrast
+    classDef domain fill:#E64A45,stroke:#222,stroke-width:2px,color:#fff,padding:15px;
+    classDef data fill:#4285F4,stroke:#222,stroke-width:2px,color:#fff;
+    classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
+    classDef external fill:#9E9E9E,stroke:#222,stroke-width:1px,color:#fff;
 
     class UI,AuthState presentation;
     class AuthService,User,AuthCredProvider domain;
@@ -99,6 +102,17 @@ graph TD
 This sequence diagram illustrates the authentication process from login to using authenticated endpoints.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 
+  'primaryColor': '#E64A45', 
+  'primaryTextColor': '#fff', 
+  'primaryBorderColor': '#222', 
+  'lineColor': '#4285F4', 
+  'secondaryColor': '#0F9D58', 
+  'tertiaryColor': '#9E9E9E',
+  'actorLineColor': '#e0e0e0',
+  'noteBkgColor': '#8C5824',      
+  'noteTextColor': '#fff'       
+}}}%%
 sequenceDiagram
     participant UI as UI
     participant AuthSvc as AuthService
@@ -108,6 +122,7 @@ sequenceDiagram
     participant API as Auth API
 
     %% Login Flow
+    rect rgb(80, 80, 80, 0.2)
     Note over UI,API: Login Flow
     UI->>AuthSvc: login(email, password)
     AuthSvc->>ApiClient: login(email, password)
@@ -121,8 +136,10 @@ sequenceDiagram
     AuthSvc->>CredProvider: setRefreshToken(token)
     AuthSvc->>AuthSvc: Create User entity
     AuthSvc-->>UI: User entity
+    end
     
     %% Using an authenticated endpoint (success)
+    rect rgb(15, 157, 88, 0.2)
     Note over UI,API: Using an authenticated endpoint (success case)
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -134,8 +151,10 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
+    end
     
     %% Token Refresh Flow (automatic)
+    rect rgb(66, 133, 244, 0.2)
     Note over UI,API: Automatic Token Refresh (when JWT expires)
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -158,13 +177,16 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
+    end
     
     %% Logout Flow
+    rect rgb(230, 74, 69, 0.2)
     Note over UI,API: Logout Flow
     UI->>AuthSvc: logout()
     AuthSvc->>CredProvider: deleteAccessToken()
     AuthSvc->>CredProvider: deleteRefreshToken()
     AuthSvc-->>UI: Logout successful
+    end
 ```
 
 ## Authentication Components
@@ -223,3 +245,64 @@ State management for authentication, connecting UI to domain services:
 - `checkAuthStatus()` - Verifies authentication on app startup
 
 The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status. 
+
+## Color Scheme Guidelines
+
+These color guidelines should be used consistently across all diagrams in the documentation to maintain visual consistency and improve readability.
+
+### Layer Colors
+
+| Layer            | Color                                     | Hex Code  | Usage                                       |
+|------------------|-------------------------------------------|-----------|---------------------------------------------|
+| Presentation     | Green                                     | `#0F9D58` | UI components, state management, screens    |
+| Domain           | Red                                       | `#E64A45` | Core business entities, interfaces, services|
+| Data             | Blue                                      | `#4285F4` | Repositories, data sources, API clients     |
+| External         | Gray                                      | `#9E9E9E` | External services, 3rd party integrations   |
+
+### Applying Colors in Diagrams
+
+#### For Flowcharts and Class Diagrams
+```
+classDef domain fill:#E64A45,stroke:#222,stroke-width:2px,color:#fff,padding:15px;
+classDef data fill:#4285F4,stroke:#222,stroke-width:2px,color:#fff;
+classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
+classDef external fill:#9E9E9E,stroke:#222,stroke-width:1px,color:#fff;
+
+class [YourDomainNodes] domain;
+class [YourDataNodes] data;
+class [YourPresentationNodes] presentation;
+class [YourExternalNodes] external;
+```
+
+#### For Sequence Diagrams
+Use the init directive with theme variables:
+```
+%%{init: {'theme': 'base', 'themeVariables': { 
+  'primaryColor': '#E64A45', 
+  'primaryTextColor': '#fff', 
+  'primaryBorderColor': '#222', 
+  'lineColor': '#4285F4', 
+  'secondaryColor': '#0F9D58', 
+  'tertiaryColor': '#9E9E9E',
+  'actorLineColor': '#e0e0e0',
+  'noteBkgColor': '#8C5824',      
+  'noteTextColor': '#fff'       
+}}}%%
+```
+
+For colored sections, use the rect syntax with semi-transparent colors:
+```
+rect rgb(15, 157, 88, 0.2)
+... content ...
+end
+```
+
+### Flow Section Colors
+
+| Flow Type        | Color                                     | RGB Value with Opacity      |
+|------------------|-------------------------------------------|---------------------------- |
+| Login Flow       | Gray                                      | `rgb(80, 80, 80, 0.2)`      |
+| Success Case     | Green                                     | `rgb(15, 157, 88, 0.2)`     |
+| Refresh Flow     | Blue                                      | `rgb(66, 133, 244, 0.2)`    |
+| Logout Flow      | Red                                       | `rgb(230, 74, 69, 0.2)`     |
+| Error Flow       | Orange (suggested)                        | `rgb(230, 162, 60, 0.2)`    |
