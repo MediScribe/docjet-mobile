@@ -8,6 +8,8 @@ import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Im
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 // import 'package:docjet_mobile/core/network/network_info.dart'; // Removed
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 
 class JobRepositoryImpl implements JobRepository {
   final JobRemoteDataSource remoteDataSource;
@@ -154,5 +156,88 @@ class JobRepositoryImpl implements JobRepository {
   }) async {
     // TODO: Implement later
     return Left(ServerFailure(message: 'updateJob not implemented'));
+  }
+
+  @override
+  Future<Either<Failure, void>> syncPendingJobs() async {
+    // TODO: Implement sync logic based on the test
+    // Placeholder implementation to satisfy the interface and initial test setup
+    _logger.i('$_tag syncPendingJobs called - Placeholder Implementation');
+    try {
+      // 1. Get pending jobs
+      final pendingHiveModels = await localDataSource.getJobsToSync();
+      _logger.d(
+        '$_tag Found ${pendingHiveModels.length} jobs pending sync locally.',
+      );
+
+      if (pendingHiveModels.isEmpty) {
+        _logger.i('$_tag No pending jobs to sync. Exiting.');
+        return const Right(unit); // Nothing to do
+      }
+
+      // 2. Map to Job entities for remote sync
+      final jobsToSync = JobMapper.fromHiveModelList(pendingHiveModels);
+
+      // 3. Call remote sync (currently mocked in test)
+      // In real implementation, this would involve try/catch for Server/ApiExceptions
+      _logger.d(
+        '$_tag Attempting to sync ${jobsToSync.length} jobs with remote...',
+      );
+      final syncedJobs = await remoteDataSource.syncJobs(jobsToSync);
+      _logger.i(
+        '$_tag Remote sync successful. Received ${syncedJobs.length} updated jobs.',
+      );
+
+      // 4. Update local status and save updated job data (handle potential errors)
+      // This simple version assumes full success and updates all
+      for (final syncedJob in syncedJobs) {
+        try {
+          // Save the potentially updated job data from the server
+          final syncedHiveModel = JobMapper.toHiveModel(syncedJob);
+          await localDataSource.saveJobHiveModel(syncedHiveModel);
+
+          // Update sync status to synced *after* saving
+          await localDataSource.updateJobSyncStatus(
+            syncedJob.id, // Use ID from the synced job entity
+            SyncStatus.synced,
+          );
+          _logger.d(
+            '$_tag Updated local status to synced for job ${syncedJob.id}.',
+          );
+        } catch (e, stackTrace) {
+          _logger.e(
+            '$_tag Error updating local status/data for synced job ${syncedJob.id}: $e',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          // Decide how to handle partial failures. For now, just log and continue.
+          // Could potentially mark this specific job with SyncStatus.error
+        }
+      }
+
+      _logger.i('$_tag syncPendingJobs completed successfully.');
+      return const Right(unit);
+    } on ApiException catch (e) {
+      _logger.e(
+        '$_tag ApiException during sync: ${e.message}, Status: ${e.statusCode}',
+      );
+      // Depending on the error, might need to mark jobs as error
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } on ServerException catch (e) {
+      _logger.e('$_tag ServerException during sync: ${e.message}');
+      return Left(ServerFailure(message: e.message ?? 'Sync failed'));
+    } on CacheException catch (e) {
+      _logger.e('$_tag CacheException during sync process: ${e.toString()}');
+      return Left(CacheFailure('Cache error during sync: ${e.toString()}'));
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Unexpected error during syncPendingJobs: ${e.toString()}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(
+        ServerFailure(message: 'An unexpected error occurred during sync'),
+      );
+    }
   }
 }

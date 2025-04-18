@@ -26,4 +26,12 @@ abstract class JobRepository {
   });
 
   // TODO: Define methods for updating or deleting jobs if needed later based on UI requirements.
+
+  /// Attempts to synchronize locally pending jobs with the remote server.
+  /// Fetches jobs marked as `SyncStatus.pending` from the local cache,
+  /// sends them to the remote data source, and updates their local status
+  /// (e.g., to `synced` or `error`) based on the outcome.
+  /// Returns [Right(unit)] on success (even if some individual jobs failed to sync but the overall process completed).
+  /// Returns [Left<Failure>] if a critical error occurs during the process (e.g., unable to reach remote).
+  Future<Either<Failure, void>> syncPendingJobs();
 }

@@ -132,6 +132,16 @@ class MockJobRemoteDataSource extends _i1.Mock
           ),
         )),
       ) as _i4.Future<_i2.Job>);
+
+  @override
+  _i4.Future<List<_i2.Job>> syncJobs(List<_i2.Job>? jobsToSync) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #syncJobs,
+          [jobsToSync],
+        ),
+        returnValue: _i4.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+      ) as _i4.Future<List<_i2.Job>>);
 }
 
 /// A class which mocks [JobLocalDataSource].

@@ -36,5 +36,14 @@ abstract class JobRemoteDataSource {
     required Map<String, dynamic> updates,
   });
 
+  /// Sends a list of locally created/modified jobs to the backend for synchronization.
+  /// Typically used for offline-first scenarios.
+  /// Input: A list of [Job] entities that need syncing (e.g., status = pending).
+  /// Returns: A list of [Job] entities as they are after synchronization on the backend
+  /// (potentially with updated IDs, statuses, timestamps).
+  /// Throws: [ServerException] or [ApiException] if the batch sync fails.
+  /// Note: The implementation needs to handle potential partial failures if the API supports it.
+  Future<List<Job>> syncJobs(List<Job> jobsToSync);
+
   // TODO: Define methods for GET /api/v1/jobs/{id}/documents if needed directly by this layer.
 }

@@ -8,6 +8,9 @@ import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import the enum
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'; // Import SyncStatus
+// CORRECTED: Import JobHiveModel
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -327,6 +330,123 @@ void main() {
     // TODO: Add test case for handling known network unavailability (offline first behavior)
     // TODO: Add test case for returning stale data as fallback when remote fetch fails
   });
+
+  // --- NEW GROUP: syncPendingJobs ---
+  group('syncPendingJobs', () {
+    final tPendingJob = Job(
+      id: 'pendingJob1',
+      userId: 'user123',
+      status:
+          JobStatus
+              .created, // CORRECTED: Use a valid JobStatus (assuming 'created')
+      displayTitle: 'Pending Job Sync Test',
+      audioFilePath: '/local/pending.mp3',
+      createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
+      updatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      // Sync status should be handled by the Hive model, not Job entity directly for this test
+    );
+    // The local data source deals with Hive Models
+    // CORRECTED: Instantiate JobHiveModel and assign fields
+    final tBaseHiveModel = JobMapper.toHiveModel(tPendingJob);
+    final tPendingJobHiveModel =
+        JobHiveModel()
+          ..id = tBaseHiveModel.id
+          ..userId = tBaseHiveModel.userId
+          ..status =
+              tBaseHiveModel
+                  .status // Mapper already converted to string
+          ..createdAt = tBaseHiveModel.createdAt
+          ..updatedAt = tBaseHiveModel.updatedAt
+          ..displayTitle = tBaseHiveModel.displayTitle
+          ..displayText = tBaseHiveModel.displayText
+          ..errorCode = tBaseHiveModel.errorCode
+          ..errorMessage = tBaseHiveModel.errorMessage
+          ..text = tBaseHiveModel.text
+          ..additionalText = tBaseHiveModel.additionalText
+          ..audioFilePath = tBaseHiveModel.audioFilePath
+          // Explicitly set syncStatus for the test
+          ..syncStatus = SyncStatus.pending;
+    final tPendingJobsHiveList = [tPendingJobHiveModel];
+    // Assume remote sync returns the updated/synced job entity
+    final tSyncedJob = tPendingJob.copyWith(
+      /* potentially updated fields from backend */
+    ); // For simplicity, assume no changes from backend for now
+
+    test(
+      'should fetch pending jobs from local, sync with remote, and update local status to synced on success',
+      () async {
+        // Arrange
+        // 1. Stub localDataSource.getJobsToSync to return pending jobs
+        when(
+          mockLocalDataSource.getJobsToSync(),
+        ).thenAnswer((_) async => tPendingJobsHiveList);
+        // 2. Stub remoteDataSource.syncJobs to succeed (we need to define this method in the interface/mock)
+        // Assuming syncJobs takes List<Job> and returns List<Job> (synced versions)
+        when(
+          mockRemoteDataSource.syncJobs(any),
+        ).thenAnswer((_) async => [tSyncedJob]);
+        // 3. Stub localDataSource.updateJobSyncStatus to succeed for each synced job
+        when(
+          mockLocalDataSource.updateJobSyncStatus(
+            tPendingJobHiveModel.id,
+            SyncStatus.synced,
+          ),
+        ).thenAnswer((_) async => Future.value());
+        // 4. Stub localDataSource.saveJobHiveModel to succeed for the updated job from remote
+        when(mockLocalDataSource.saveJobHiveModel(any)).thenAnswer(
+          (_) async => Future.value(),
+        ); // Using `any` as the synced job might be different instance
+
+        // Act
+        // Assuming JobRepositoryImpl will have a syncPendingJobs method returning Either<Failure, void> or similar
+        final result = await repository.syncPendingJobs();
+
+        // Assert
+        // 1. Check result is Right (success)
+        expect(result, isA<Right<Failure, void>>());
+        // 2. Verify localDataSource.getJobsToSync was called
+        verify(mockLocalDataSource.getJobsToSync()).called(1);
+        // 3. Verify remoteDataSource.syncJobs was called with the mapped Job entities
+        // We need to map HiveModels -> JobEntities before passing to remote
+        final captured =
+            verify(mockRemoteDataSource.syncJobs(captureAny)).captured;
+        // Expecting a list containing one Job matching tPendingJob
+        expect(captured.single, isA<List<Job>>());
+        expect(captured.single.length, 1);
+        // Compare relevant fields as direct object comparison might fail due to different instances/syncStatus
+        expect(captured.single.first.id, tPendingJob.id);
+        expect(captured.single.first.audioFilePath, tPendingJob.audioFilePath);
+
+        // 4. Verify localDataSource.updateJobSyncStatus was called for the job ID with SyncStatus.synced
+        verify(
+          mockLocalDataSource.updateJobSyncStatus(
+            tPendingJobHiveModel.id,
+            SyncStatus.synced,
+          ),
+        ).called(1);
+        // 5. Verify localDataSource.saveJobHiveModel was called to save the updated job from remote
+        // CORRECTED: Use argThat with safe type check and casting
+        verify(
+          mockLocalDataSource.saveJobHiveModel(
+            argThat(
+              predicate<dynamic>((arg) {
+                return arg is JobHiveModel && arg.id == tSyncedJob.id;
+              }),
+            ),
+          ),
+        ).called(1);
+
+        // 6. Verify no other interactions
+        verifyNoMoreInteractions(mockRemoteDataSource);
+        // Allow multiple interactions with localDataSource as specified above
+      },
+    );
+
+    // TODO: Add test case for sync failure (remote throws exception) -> updates status to error
+    // TODO: Add test case for partial sync success/failure
+    // TODO: Add test case when there are no pending jobs to sync
+  });
+  // --- END NEW GROUP ---
 
   // Add groups for other methods like getJobById, createJob etc. later
 }
