@@ -4,6 +4,7 @@ import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import the mapper
 
 // Type definition for the MultipartFile creator function. This allows injecting
 // a mock creator for testing without needing the actual file system.
@@ -121,8 +122,8 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       return Job(
         id: safeCast<String>(json['id'], 'id'),
         userId: safeCast<String>(json['user_id'], 'user_id'),
-        // Map 'job_status' from API to 'status' in entity
-        status: safeCast<String>(json['job_status'], 'job_status'),
+        // Use JobMapper to convert the status string to the enum
+        status: JobMapper.stringToJobStatus(json['job_status'] as String?),
         createdAt: parseDateTime(json['created_at'], 'created_at'),
         updatedAt: parseDateTime(json['updated_at'], 'updated_at'),
         // Optional fields - allow null if missing or null
@@ -347,15 +348,13 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     String? text,
     String? additionalText,
   }) async {
-    // Restore original endpoint
     const String endpoint = '/jobs';
-
     _logger.d(
-      '$_tag createJob called with userId: $userId, audioFilePath: $audioFilePath, text: $text, additionalText: $additionalText',
+      '$_tag Creating job for user $userId with audio $audioFilePath at $endpoint',
     );
 
     try {
-      // Restore original call to helper
+      // Prepare FormData using the helper method
       final formData = await _createJobFormData(
         userId: userId,
         audioFilePath: audioFilePath,
@@ -363,33 +362,61 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         additionalText: additionalText,
       );
 
-      // --- Make API Call ---
-      _logger.d('$_tag Sending POST request to $endpoint');
-
-      // Restore original options fetching
+      // Get options WITHOUT specifying json content type
       final options = await _getOptionsWithAuth(isJsonRequest: false);
 
+      // Post the form data
       final response = await dio.post(
         endpoint,
         data: formData,
         options: options,
       );
 
-      // --- Handle Response ---
-      // Restore original Success Case (201 Created or 200 OK)
+      // --- Success Case (201 Created or 200 OK) ---
       if ((response.statusCode == 201 || response.statusCode == 200) &&
           response.data != null) {
-        // Restore original success handling
         _logger.i(
-          '$_tag createJob successful (${response.statusCode}). Response data: ${response.data}',
+          '$_tag Job created successfully (${response.statusCode}). Response: ${response.data}',
         );
-        // API returns the created job object wrapped in "data"
+
+        // API wraps the job object in a "data" key
         final Map<String, dynamic> jobData = response.data['data'];
-        return _mapJsonToJob(jobData);
+
+        // Manually map the response JSON to a Job entity
+        // TODO: Consider using JobApiDTO and JobMapper here for consistency
+        try {
+          return Job(
+            id: jobData['id'] as String,
+            userId: jobData['user_id'] as String,
+            // Use JobMapper to convert the status string to the enum
+            status: JobMapper.stringToJobStatus(
+              jobData['job_status'] as String?,
+            ),
+            createdAt: DateTime.parse(jobData['created_at'] as String),
+            updatedAt: DateTime.parse(jobData['updated_at'] as String),
+            text: jobData['text'] as String?,
+            additionalText: jobData['additional_text'] as String?,
+            // Fields not present in create response according to spec
+            displayTitle: null,
+            displayText: null,
+            errorCode: null,
+            errorMessage: null,
+            audioFilePath: audioFilePath, // Keep the original path
+          );
+        } catch (e, stackTrace) {
+          _logger.e(
+            '$_tag Failed to parse createJob response JSON: $jobData',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          throw ApiException(
+            message:
+                'Failed to process server response after job creation: ${e.toString()}',
+          );
+        }
       }
-      // Restore original Error Case (Non-201/200)
+      // --- Error Case (Non-201/200) ---
       else {
-        // Restore original error handling
         _logger.w(
           '$_tag createJob received unexpected status: ${response.statusCode}. Response data: ${response.data}',
         );
@@ -399,7 +426,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         );
       }
     }
-    // Restore original Dio/Network Error Case
+    // --- Dio/Network Error Case ---
     on DioException catch (e) {
       _logger.e(
         '$_tag DioException in createJob: ${e.message}',
@@ -411,7 +438,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         statusCode: e.response?.statusCode,
       );
     }
-    // Restore original Other Unexpected Error Case
+    // --- Other Unexpected Error Case ---
     catch (e, stackTrace) {
       _logger.e(
         '$_tag Unexpected error in createJob: ${e.toString()}',

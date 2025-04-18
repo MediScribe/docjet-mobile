@@ -5,6 +5,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Impo
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'; // Will not exist yet
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import the enum
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart'; // Import mockito annotations
 import 'package:mockito/mockito.dart';
@@ -81,7 +82,7 @@ void main() {
   final tJobEntity = Job(
     id: tJobId,
     userId: tUserId,
-    status: "completed", // Mapping from job_status
+    status: JobStatus.completed, // Assert Enum
     errorCode: null,
     errorMessage: null,
     createdAt: DateTime.parse("2024-01-15T10:00:00.000Z"),
@@ -241,7 +242,10 @@ void main() {
         // Act
         final result = await dataSource.fetchJobs();
         // Assert
-        expect(result, equals(tJobList));
+        expect(
+          result,
+          equals(tJobList),
+        ); // tJobList uses tJobEntity, which now has Enum
         // Verify options were captured and headers are correct
         final capturedOptions =
             verify(
@@ -344,6 +348,44 @@ void main() {
     // responses or exceptions correctly. This keeps the unit test focused on
     // the logic within `ApiJobRemoteDataSourceImpl` itself.
     // -------------------- //
+    // Test data for createJob response
+    final tCreateJobResponseJson = {
+      "data": {
+        "id": "new-job-uuid-789",
+        "user_id": tUserId,
+        "job_status": "submitted", // API returns string
+        "created_at": "2024-01-16T12:00:00.000Z",
+        "updated_at": "2024-01-16T12:00:00.000Z",
+        "text": "Uploaded text",
+        "additional_text": null,
+        // Spec says display_title and display_text are null in create response
+        "display_title": null,
+        "display_text": null,
+      },
+    };
+
+    // Expected Job entity corresponding to tCreateJobResponseJson
+    // Updated to match the actual implementation logic:
+    // - Uses status from response (mapped to enum)
+    // - Uses timestamps from response
+    // - Uses text/additionalText from response
+    // - Uses displayTitle/displayText from response (which are null)
+    // - Uses audioFilePath passed into the createJob call
+    // - Error fields are null
+    final tCreatedJobEntity = Job(
+      id: "new-job-uuid-789",
+      userId: tUserId,
+      status: JobStatus.submitted, // Expect Enum based on "submitted"
+      createdAt: DateTime.parse("2024-01-16T12:00:00.000Z"),
+      updatedAt: DateTime.parse("2024-01-16T12:00:00.000Z"),
+      text: "Uploaded text", // From response
+      additionalText: null, // From response
+      displayTitle: null, // From response
+      displayText: null, // From response
+      errorCode: null, // Not in response
+      errorMessage: null, // Not in response
+      audioFilePath: tAudioPath, // From input parameter to createJob
+    );
 
     // Helper to setup successful POST mock
     void setUpMockPostSuccess(dynamic responseBody) {
@@ -395,8 +437,8 @@ void main() {
         ).thenAnswer((_) async => testToken);
 
         setUpMockPostSuccess(
-          tJobJson,
-        ); // Use tJobJson as the success response body
+          tCreateJobResponseJson,
+        ); // Use tCreateJobResponseJson as the success response body
 
         // Act
         final result = await dataSource.createJob(
@@ -409,7 +451,10 @@ void main() {
         );
 
         // Assert
-        expect(result, equals(tJobEntity)); // Expect the parsed Job entity
+        expect(
+          result,
+          equals(tCreatedJobEntity),
+        ); // Expect the parsed Job entity
 
         // --- Verify the call to dio.post --- //
         final captured =
@@ -578,46 +623,44 @@ void main() {
   // --- Tests for updateJob --- //
   group('updateJob', () {
     final tUpdatePayload = {
-      'text': 'Updated notes',
+      'text': 'Updated transcript text',
       'display_title': 'Updated Title',
-      'display_text': 'Updated snippet...',
     };
 
-    // Define an expected Job entity after the update
-    // Assume the API returns the full, updated job object
-    final tUpdatedJobEntity = Job(
-      id: tJobId, // Same job ID
-      userId: tUserId, // Same user ID
-      status: "transcribed", // Example status after update
-      errorCode: null,
-      errorMessage: null,
-      createdAt: DateTime.parse(
-        "2024-01-15T10:00:00.000Z",
-      ), // Original creation time
-      updatedAt: DateTime.parse("2024-01-15T12:00:00.000Z"), // New updated time
-      text: tUpdatePayload['text'] as String,
-      additionalText: "More info", // Assuming this wasn't updated
-      displayTitle: tUpdatePayload['display_title'] as String,
-      displayText: tUpdatePayload['display_text'] as String,
-      audioFilePath: null,
-    );
-
-    // Corresponding JSON response for the updated job
-    final tUpdatedJobJson = {
+    // Test data for updateJob response (assuming API returns the updated job)
+    final tUpdateJobResponseJson = {
       "data": {
-        "id": tUpdatedJobEntity.id,
-        "user_id": tUpdatedJobEntity.userId,
-        "job_status": tUpdatedJobEntity.status,
-        "error_code": tUpdatedJobEntity.errorCode,
-        "error_message": tUpdatedJobEntity.errorMessage,
-        "created_at": tUpdatedJobEntity.createdAt.toIso8601String(),
-        "updated_at": tUpdatedJobEntity.updatedAt.toIso8601String(),
-        "text": tUpdatedJobEntity.text,
-        "additional_text": tUpdatedJobEntity.additionalText,
-        "display_title": tUpdatedJobEntity.displayTitle,
-        "display_text": tUpdatedJobEntity.displayText,
+        "id": tJobId,
+        "user_id": tUserId,
+        "job_status": "transcribed", // API returns string
+        "error_code": null,
+        "error_message": null,
+        "created_at":
+            "2024-01-15T10:00:00.000Z", // Assume timestamps might update
+        "updated_at": "2024-01-16T13:00:00.000Z",
+        "text": "Updated transcript text",
+        "additional_text": "More info", // Assume unchanged
+        "display_title": "Updated Title",
+        "display_text":
+            "Patient presented with symptoms...", // Assume unchanged
       },
     };
+
+    // Expected Job entity corresponding to tUpdateJobResponseJson
+    final tUpdatedJobEntity = Job(
+      id: tJobId,
+      userId: tUserId,
+      status: JobStatus.transcribed, // Expect Enum
+      errorCode: null,
+      errorMessage: null,
+      createdAt: DateTime.parse("2024-01-15T10:00:00.000Z"),
+      updatedAt: DateTime.parse("2024-01-16T13:00:00.000Z"),
+      text: "Updated transcript text",
+      additionalText: "More info",
+      displayTitle: "Updated Title",
+      displayText: "Patient presented with symptoms...",
+      audioFilePath: null, // Not relevant for update response
+    );
 
     // Helper to setup successful PATCH mock
     void setUpMockPatchSuccess(
@@ -664,7 +707,7 @@ void main() {
     }
 
     test(
-      'should perform PATCH request with data and return updated Job on 200 success',
+      'should perform PATCH request on /jobs/{id} with JSON data and return Job on 200 success',
       () async {
         // Arrange
         const testApiKey = 'test-api-key';
@@ -677,7 +720,7 @@ void main() {
         ).thenAnswer((_) async => testToken);
 
         final path = '/jobs/$tJobId';
-        setUpMockPatchSuccess(path, tUpdatePayload, tUpdatedJobJson);
+        setUpMockPatchSuccess(path, tUpdatePayload, tUpdateJobResponseJson);
 
         // Act
         final result = await dataSource.updateJob(
@@ -686,7 +729,10 @@ void main() {
         );
 
         // Assert
-        expect(result, equals(tUpdatedJobEntity));
+        expect(
+          result,
+          equals(tUpdatedJobEntity),
+        ); // Compare with the expected Enum entity
 
         // Verify the call was made once with the right parameters
         // Use specific payload for data, and anyNamed for options

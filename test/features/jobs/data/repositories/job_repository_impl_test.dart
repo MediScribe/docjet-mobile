@@ -7,6 +7,7 @@ import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
 // Import the now-existing implementation
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import the enum
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -37,7 +38,7 @@ void main() {
   final tJob = Job(
     id: 'job1',
     userId: 'user123',
-    status: 'completed', // Consider using enum later as per REFACTOR note
+    status: JobStatus.completed, // USE ENUM
     displayTitle: 'Test Job 1',
     audioFilePath: '/path/to/test.mp3', // Example local path
     createdAt: DateTime.parse('2023-01-01T10:00:00Z'),
