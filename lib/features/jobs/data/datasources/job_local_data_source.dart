@@ -59,5 +59,12 @@ abstract class JobLocalDataSource {
   /// Throws a [CacheException] if the job is not found or on cache access errors.
   Future<void> updateJobSyncStatus(String id, SyncStatus status);
 
+  /// Retrieves all Job models that have been successfully synced with the server
+  /// (i.e., have `SyncStatus.synced` and a non-null `serverId`).
+  /// Used by the repository for server-side deletion checks.
+  /// Returns a list of [JobHiveModel].
+  /// Throws a [CacheException] if unable to access the cache.
+  Future<List<JobHiveModel>> getSyncedJobHiveModels();
+
   // TODO: Add getSyncedJobs method to fetch only server-synced jobs with serverId
 }

@@ -378,6 +378,7 @@ This section tracks the current implementation status of components in the Jobs 
 - ✅ Basic JobMapper (for Hive models only) (lib/features/jobs/data/mappers/job_mapper.dart)
 - ✅ JobApiDTO (lib/features/jobs/data/models/job_api_dto.dart)
 - ✅ SyncStatus enum (lib/features/jobs/domain/entities/sync_status.dart)
+- ✅ **COMPLETED** - Server-side deletion detection
 
 ### TODO Components
 - ✅ **EXISTING NEEDS UPDATE** - JobRepositoryImpl (lib/features/jobs/data/repositories/job_repository_impl.dart)
@@ -492,6 +493,8 @@ When fetching jobs from the server:
 4. These jobs are immediately deleted locally (including associated audio files)
 5. This is appropriate because jobs are ephemeral processing entities with natural end-of-life
 
+**IMPORTANT: Jobs with `SyncStatus.pending` or `SyncStatus.pendingDeletion` are intentionally ignored during this check.** This prevents accidental deletion of jobs that have been created locally but not yet synced to the server, ensuring no data loss occurs before the job has a chance to be synchronized.
+
 #### Audio File Management
 
 1. Audio files are stored locally when jobs are created
@@ -502,8 +505,6 @@ When fetching jobs from the server:
 #### Required Changes
 
 *   Extend `JobHiveModel` with:
-    * ~~`everSynced` boolean field (defaults to `false`)~~
-    * ~~`isDeleted` boolean field (defaults to `false`)~~
     * `localId` field (UUID, generated client-side, never changes)
     * `serverId` field (nullable until first sync, assigned by server)
 *   Add corresponding mapping in `JobMapper`
@@ -584,14 +585,19 @@ This bottom-up implementation plan follows Test-Driven Development principles, f
     - GREEN: Implement logic for each case
     - REFACTOR: Extract common code into helper methods
 
-13. ❌ **TODO** - Add server-side deletion detection to `getJobs`:
+13. ✅ **COMPLETED** - Add server-side deletion detection to `getJobs`:
     - RED: Write tests for comparing server vs local data
     - GREEN: Implement detection and deletion logic
     - REFACTOR: Ensure clean error handling
 
+14. ❌ **TODO** - Implement test file for deleteJob functionality:
+    - Write unit tests for `test/features/jobs/data/repositories/job_repository_impl/delete_job_test.dart`
+    - Test all scenarios (delete synced job, delete unsynced job, handle errors)
+    - Validate audio file deletion logic
+
 #### Level 5: Integration Testing
 
-14. ❌ **TODO** - Create integration tests:
+15. ❌ **TODO** - Create integration tests:
     - Create workflow tests covering the full job lifecycle
     - Test edge cases and error scenarios
     - Verify correct interaction between components
@@ -624,7 +630,12 @@ During our implementation of the job synchronization system, we made several key
    - error: Sync failed for this job
    - pendingDeletion: Marked for deletion on next sync
 
-Still to be implemented are the createJob and updateJob methods that users will interact with, along with server-side deletion detection and integration tests.
+6. **Server-side Deletion Detection**: We've implemented the logic to detect jobs deleted on the server:
+   - When fetching from remote, we compare server IDs with locally synced jobs
+   - Jobs that exist locally (with synced status) but aren't returned by the server are deleted
+   - We properly ignore pending jobs during this check to prevent data loss
+
+Still to be implemented are the remaining tests including the delete_job_test.dart file and integration tests.
 
 This plan ensures each component is properly tested in isolation before integrating into the larger system.
 

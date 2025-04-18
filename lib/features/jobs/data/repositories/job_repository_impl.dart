@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart'; // Import dartz
 import 'package:docjet_mobile/core/error/exceptions.dart'; // For potential exceptions
 import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
@@ -28,6 +30,9 @@ class JobRepositoryImpl implements JobRepository {
   // --- ADDED: Staleness threshold ---
   final Duration stalenessThreshold;
 
+  // Define cache duration
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
   JobRepositoryImpl({
     required this.remoteDataSource,
     required this.localDataSource,
@@ -41,100 +46,163 @@ class JobRepositoryImpl implements JobRepository {
 
   @override
   Future<Either<Failure, List<Job>>> getJobs() async {
+    _logger.d('$_tag Attempting to fetch jobs from local cache...');
     try {
-      // 1. Try fetching from local cache first
-      _logger.i('$_tag Attempting to fetch jobs from local cache...');
-      final localHiveModels = await localDataSource.getAllJobHiveModels();
+      final localJobs = await localDataSource.getAllJobHiveModels();
+      _logger.d(
+        '$_tag Cache hit with ${localJobs.length} items. Checking freshness...',
+      );
+      final lastFetchTime = await localDataSource.getLastFetchTime();
 
-      // 2. Check if cache has data AND if it's fresh
-      if (localHiveModels.isNotEmpty) {
-        _logger.i(
-          '$_tag Cache hit with ${localHiveModels.length} items. Checking freshness...',
-        );
-        // --- ADDED: Staleness check ---
-        final lastFetchTime = await localDataSource.getLastFetchTime();
-        if (lastFetchTime != null &&
-            DateTime.now().difference(lastFetchTime) <= stalenessThreshold) {
-          _logger.i('$_tag Cache is fresh. Returning local data.');
-          // Map HiveModels to Job Entities and return
-          final localJobs = JobMapper.fromHiveModelList(localHiveModels);
-          return Right(localJobs);
-        } else {
-          _logger.i(
-            '$_tag Cache is stale (last fetch: $lastFetchTime) or fetch time unknown. Fetching remote.',
-          );
-          // Proceed to fetch from remote if cache is stale or timestamp is missing
-          return await _getJobsFromRemote();
-        }
-        // --- END: Staleness check ---
+      if (localJobs.isNotEmpty &&
+          lastFetchTime != null &&
+          DateTime.now().difference(lastFetchTime) < _cacheDuration) {
+        _logger.d('$_tag Cache is fresh. Returning local data.');
+        return Right(JobMapper.fromHiveModelList(localJobs));
       } else {
-        _logger.i(
-          '$_tag Cache miss or empty. Proceeding to fetch from remote.',
+        _logger.d(
+          '$_tag Cache is stale (last fetch: $lastFetchTime) or fetch time unknown. Fetching remote.',
         );
-        // Proceed to fetch from remote if cache is empty
         return await _getJobsFromRemote();
       }
-    } on CacheException catch (e) {
-      _logger.w('$_tag Cache read error: $e. Proceeding to fetch from remote.');
-      // If cache read fails, fallback to remote fetch
+    } on CacheException catch (e, stackTrace) {
+      _logger.w(
+        '$_tag Cache read error: $e. Proceeding to fetch from remote.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Fallback to remote fetch if local cache fails
       return await _getJobsFromRemote();
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Unexpected error during getJobs: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(ServerFailure(message: 'An unexpected error occurred: $e'));
     }
-    // Removed the outer try-catch for remote exceptions, handled in _getJobsFromRemote
   }
 
   /// Helper function to fetch jobs from remote, save to cache, and return.
   /// This contains the logic previously in the main try block of getJobs.
   Future<Either<Failure, List<Job>>> _getJobsFromRemote() async {
-    _logger.i('$_tag Fetching jobs from remote data source...');
+    _logger.d('$_tag Fetching jobs from remote data source...');
     try {
       // 1. Fetch from remote
       final remoteJobs = await remoteDataSource.fetchJobs();
-      _logger.i(
+      _logger.d(
         '$_tag Successfully fetched ${remoteJobs.length} jobs from remote.',
       );
 
-      // 2. Map to Hive Models (using static mapper)
-      final hiveModels = JobMapper.toHiveModelList(remoteJobs);
+      // 2. Fetch locally synced jobs for comparison
+      _logger.d('$_tag Fetching locally synced jobs for deletion check...');
+      final localSyncedHiveJobs =
+          await localDataSource.getSyncedJobHiveModels();
+      _logger.d(
+        '$_tag Found ${localSyncedHiveJobs.length} locally synced jobs for comparison.',
+      );
 
-      // 3. Try to save jobs to local cache (log warning on failure)
-      try {
-        _logger.i('$_tag Saving ${hiveModels.length} jobs to local cache...');
-        await localDataSource.saveJobHiveModels(hiveModels);
-        _logger.i('$_tag Successfully saved jobs to cache.');
-      } on CacheException catch (e) {
-        // Log the cache write failure as a warning but don't fail the operation
-        _logger.w('$_tag Failed to save jobs to cache: $e');
+      // 3. Identify server-side deletions
+      final remoteJobServerIds = remoteJobs.map((job) => job.serverId).toSet();
+      _logger.d('$_tag Remote job server IDs: $remoteJobServerIds');
+
+      for (final localJob in localSyncedHiveJobs) {
+        if (localJob.serverId != null &&
+            !remoteJobServerIds.contains(localJob.serverId) &&
+            localJob.syncStatus == SyncStatus.synced.index) {
+          // This job exists locally and is synced, but wasn't returned by the server -> delete it
+          // IMPORTANT: We only delete jobs that are in SyncStatus.synced state
+          _logger.i(
+            '$_tag Deleting local job (localId: ${localJob.localId}, serverId: ${localJob.serverId}) detected as deleted on server.',
+          );
+          try {
+            await localDataSource.deleteJobHiveModel(localJob.localId);
+            _logger.d(
+              '$_tag Successfully deleted job ${localJob.localId} from local DB.',
+            );
+
+            // Attempt to delete associated audio file
+            if (localJob.audioFilePath != null &&
+                localJob.audioFilePath!.isNotEmpty) {
+              _logger.d(
+                '$_tag Attempting to delete audio file: ${localJob.audioFilePath}',
+              );
+              try {
+                await fileSystemService.deleteFile(localJob.audioFilePath!);
+                _logger.d(
+                  '$_tag Successfully deleted audio file: ${localJob.audioFilePath}',
+                );
+              } catch (fileError, fileStackTrace) {
+                _logger.e(
+                  '$_tag Failed to delete audio file ${localJob.audioFilePath} for server-deleted job ${localJob.localId}. Continuing sync.',
+                  error: fileError,
+                  stackTrace: fileStackTrace,
+                );
+                // Do not rethrow, allow sync to continue
+              }
+            }
+          } catch (dbError, dbStackTrace) {
+            // Log DB deletion error, but proceed to save server data if possible
+            _logger.e(
+              '$_tag Failed to delete local job ${localJob.localId} from DB during server-side deletion check. Proceeding.',
+              error: dbError,
+              stackTrace: dbStackTrace,
+            );
+          }
+        }
       }
 
-      // --- ADDED: Always try save fetch time after successful remote fetch ---
+      // 4. Save the fetched remote jobs to local cache
+      _logger.d('$_tag Saving ${remoteJobs.length} jobs to local cache...');
+      try {
+        final hiveModelsToSave = JobMapper.toHiveModelList(remoteJobs);
+        await localDataSource.saveJobHiveModels(hiveModelsToSave);
+        _logger.d('$_tag Successfully saved jobs to cache.');
+      } catch (e, stackTrace) {
+        _logger.w(
+          '$_tag Failed to save jobs to cache: $e. Returning remote data anyway.',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        // Non-fatal: Log and continue, returning the fetched data
+      }
+
+      // 5. Save the fetch timestamp
       try {
         await localDataSource.saveLastFetchTime(DateTime.now());
-        _logger.i('$_tag Successfully saved fetch time to cache.');
-      } on CacheException catch (e) {
-        _logger.w('$_tag Failed to save fetch time to cache: $e');
+        _logger.d('$_tag Successfully saved fetch time to cache.');
+      } catch (e, stackTrace) {
+        _logger.w(
+          '$_tag Failed to save fetch time to cache: $e',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        // Non-fatal: Log and continue
       }
 
-      // 4. Return success with fetched data
       return Right(remoteJobs);
-    } on ServerException catch (e) {
-      _logger.e('$_tag ServerException during remote fetch: ${e.message}');
-      return Left(
-        ServerFailure(message: e.message ?? 'An unknown server error occurred'),
-      );
-    } on ApiException catch (e) {
+    } on ApiException catch (e, stackTrace) {
       _logger.e(
         '$_tag ApiException during remote fetch: ${e.message}, Status: ${e.statusCode}',
-      );
-      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
-    } catch (e, stackTrace) {
-      _logger.e(
-        '$_tag Unexpected error during remote fetch: ${e.toString()}', // Only pass message
         error: e,
         stackTrace: stackTrace,
       );
-      return Left(
-        ServerFailure(message: 'An unexpected error occurred: ${e.toString()}'),
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } on ServerException catch (e, stackTrace) {
+      _logger.e(
+        '$_tag ServerException during remote fetch: ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
       );
+      return Left(ServerFailure(message: e.message));
+    } catch (e, stackTrace) {
+      // Catch any other unexpected errors
+      _logger.e(
+        '$_tag Unexpected error during remote fetch: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(ServerFailure(message: 'An unexpected error occurred: $e'));
     }
   }
 
@@ -185,26 +253,22 @@ class JobRepositoryImpl implements JobRepository {
       return Right(newJob);
     } on CacheException catch (e, stackTrace) {
       _logger.e(
-        '$_tag Failed to save new job to local cache: $e',
+        '$_tag CacheException during createJob: ${e.message}',
         error: e,
         stackTrace: stackTrace,
       );
-      return Left(CacheFailure('Failed to save job locally: ${e.message}'));
+      return Left(CacheFailure('Failed to save new job locally: ${e.message}'));
     } catch (e, stackTrace) {
-      // Catch any other unexpected errors during creation process
       _logger.e(
         '$_tag Unexpected error during createJob: $e',
         error: e,
         stackTrace: stackTrace,
       );
-      return Left(
-        UnknownFailure(
-          'An unexpected error occurred while creating the job: ${e.toString()}',
-        ),
-      );
+      return Left(ServerFailure(message: 'An unexpected error occurred: $e'));
     }
   }
 
+  @override
   Future<Either<Failure, Job>> updateJob({
     required String jobId,
     required Map<String, dynamic> updates,
@@ -213,10 +277,9 @@ class JobRepositoryImpl implements JobRepository {
       '$_tag updateJob called for localId: $jobId with updates: $updates',
     );
     try {
-      // 1. Fetch the existing job model
       _logger.d('$_tag Fetching existing job model for $jobId...');
+      // 1. Get existing job model from local storage
       final existingModel = await localDataSource.getJobHiveModelById(jobId);
-
       if (existingModel == null) {
         _logger.w('$_tag Job with localId $jobId not found in local cache.');
         return Left(CacheFailure('Job with ID $jobId not found'));
@@ -266,7 +329,6 @@ class JobRepositoryImpl implements JobRepository {
       final updatedJobEntity = JobMapper.fromHiveModel(updatedModel);
       return Right(updatedJobEntity);
     } on CacheException catch (e, stackTrace) {
-      // Catch potential errors during fetch or save
       _logger.e(
         '$_tag CacheException during updateJob for $jobId: $e',
         error: e,
@@ -274,17 +336,12 @@ class JobRepositoryImpl implements JobRepository {
       );
       return Left(CacheFailure('Failed to update job $jobId: ${e.message}'));
     } catch (e, stackTrace) {
-      // Catch any other unexpected errors
       _logger.e(
         '$_tag Unexpected error during updateJob for $jobId: $e',
         error: e,
         stackTrace: stackTrace,
       );
-      return Left(
-        UnknownFailure(
-          'An unexpected error occurred while updating job $jobId: ${e.toString()}',
-        ),
-      );
+      return Left(ServerFailure(message: 'An unexpected error occurred: $e'));
     }
   }
 
@@ -502,5 +559,3 @@ class JobRepositoryImpl implements JobRepository {
     }
   }
 }
-
-// TODO: Add server-side deletion detection logic to getJobs method - comparing server response with locally synced jobs

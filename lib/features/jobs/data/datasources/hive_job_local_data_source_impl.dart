@@ -354,4 +354,29 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       );
     }
   }
+
+  @override
+  Future<List<JobHiveModel>> getSyncedJobHiveModels() async {
+    _logger.d('$_tag getSyncedJobHiveModels called');
+    try {
+      final box = await _getOpenBox();
+      final syncedModels =
+          box.values.whereType<JobHiveModel>().where((model) {
+            // Check if serverId is not null AND syncStatus is synced
+            return model.serverId != null &&
+                model.syncStatus == SyncStatus.synced.index;
+          }).toList();
+      _logger.d(
+        '$_tag Found ${syncedModels.length} models with SyncStatus.synced and non-null serverId.',
+      );
+      return syncedModels;
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to get synced job models from cache',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw CacheException('Failed to get synced job models: ${e.toString()}');
+    }
+  }
 }

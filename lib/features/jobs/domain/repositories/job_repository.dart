@@ -25,7 +25,15 @@ abstract class JobRepository {
     // userId is handled by the implementation
   });
 
-  // TODO: Define methods for updating or deleting jobs if needed later based on UI requirements.
+  /// Updates an existing job based on its [jobId] (which should be the localId).
+  /// Applies the provided [updates] map to the job's data.
+  /// Marks the job's syncStatus as `pending`.
+  /// Returns the updated [Right<Job>] on success.
+  /// Returns [Left<Failure>] if the job is not found or on update/cache errors.
+  Future<Either<Failure, Job>> updateJob({
+    required String jobId,
+    required Map<String, dynamic> updates,
+  });
 
   /// Attempts to synchronize locally pending jobs with the remote server.
   /// Fetches jobs marked as `SyncStatus.pending` from the local cache,
@@ -33,5 +41,5 @@ abstract class JobRepository {
   /// (e.g., to `synced` or `error`) based on the outcome.
   /// Returns [Right(unit)] on success (even if some individual jobs failed to sync but the overall process completed).
   /// Returns [Left<Failure>] if a critical error occurs during the process (e.g., unable to reach remote).
-  Future<Either<Failure, void>> syncPendingJobs();
+  Future<Either<Failure, Unit>> syncPendingJobs();
 }
