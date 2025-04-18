@@ -9,7 +9,6 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 // import 'package:docjet_mobile/core/network/network_info.dart'; // Removed
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 
 class JobRepositoryImpl implements JobRepository {
   final JobRemoteDataSource remoteDataSource;
@@ -159,10 +158,8 @@ class JobRepositoryImpl implements JobRepository {
   }
 
   @override
-  Future<Either<Failure, void>> syncPendingJobs() async {
-    // TODO: Implement sync logic based on the test
-    // Placeholder implementation to satisfy the interface and initial test setup
-    _logger.i('$_tag syncPendingJobs called - Placeholder Implementation');
+  Future<Either<Failure, Unit>> syncPendingJobs() async {
+    _logger.d('$_tag syncPendingJobs called');
     try {
       // 1. Get pending jobs
       final pendingHiveModels = await localDataSource.getJobsToSync();

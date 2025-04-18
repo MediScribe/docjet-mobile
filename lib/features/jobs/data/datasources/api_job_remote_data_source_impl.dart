@@ -525,4 +525,18 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       );
     }
   }
+
+  @override
+  Future<List<Job>> syncJobs(List<Job> jobsToSync) async {
+    // TODO: Implement actual sync logic with the backend API.
+    // This will likely involve iterating through jobsToSync,
+    // determining if it's a create/update/delete based on status and serverId,
+    // and calling the appropriate API endpoints (POST/PATCH/DELETE).
+    // Need to handle responses and update local job state accordingly.
+    // Need robust error handling for network issues or API errors.
+    _logger.w('syncJobs is not implemented yet');
+    // For now, return the input list as a placeholder to satisfy the interface.
+    // In a real scenario, this would return the jobs after API interaction (e.g., with server IDs).
+    return jobsToSync;
+  }
 }
