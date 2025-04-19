@@ -20,6 +20,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -390,6 +391,12 @@ class MockNetworkInfo extends _i1.Mock implements _i10.NetworkInfo {
         Invocation.getter(#isConnected),
         returnValue: _i6.Future<bool>.value(false),
       ) as _i6.Future<bool>);
+
+  @override
+  _i6.Stream<bool> get onConnectivityChanged => (super.noSuchMethod(
+        Invocation.getter(#onConnectivityChanged),
+        returnValue: _i6.Stream<bool>.empty(),
+      ) as _i6.Stream<bool>);
 }
 
 /// A class which mocks [FileSystem].
@@ -493,4 +500,19 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
         ),
         returnValue: _i6.Future<List<int>>.value(<int>[]),
       ) as _i6.Future<List<int>>);
+
+  @override
+  String resolvePath(String? path) => (super.noSuchMethod(
+        Invocation.method(
+          #resolvePath,
+          [path],
+        ),
+        returnValue: _i13.dummyValue<String>(
+          this,
+          Invocation.method(
+            #resolvePath,
+            [path],
+          ),
+        ),
+      ) as String);
 }

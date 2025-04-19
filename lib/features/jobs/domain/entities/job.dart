@@ -19,6 +19,8 @@ class Job extends Equatable {
   audioFilePath; // Path to the locally stored audio file before upload
   final String? text; // Optional text submitted with audio
   final String? additionalText; // Optional extra metadata
+  final int retryCount; // New: Number of sync retry attempts
+  final DateTime? lastSyncAttemptAt; // New: Timestamp of the last sync attempt
 
   const Job({
     required this.localId,
@@ -35,6 +37,8 @@ class Job extends Equatable {
     this.audioFilePath,
     this.text,
     this.additionalText,
+    this.retryCount = 0, // New: Default to 0
+    this.lastSyncAttemptAt, // New: Nullable
   });
 
   // Equatable props for value comparison
@@ -54,6 +58,8 @@ class Job extends Equatable {
     audioFilePath,
     text,
     additionalText,
+    retryCount, // New
+    lastSyncAttemptAt, // New
   ];
 
   // Optional: Add copyWith if needed for state management
@@ -72,6 +78,8 @@ class Job extends Equatable {
     String? audioFilePath,
     String? text,
     String? additionalText,
+    int? retryCount, // New
+    DateTime? lastSyncAttemptAt, // New
   }) {
     return Job(
       localId: localId ?? this.localId,
@@ -88,6 +96,8 @@ class Job extends Equatable {
       audioFilePath: audioFilePath ?? this.audioFilePath,
       text: text ?? this.text,
       additionalText: additionalText ?? this.additionalText,
+      retryCount: retryCount ?? this.retryCount, // New
+      lastSyncAttemptAt: lastSyncAttemptAt ?? this.lastSyncAttemptAt, // New
     );
   }
 }

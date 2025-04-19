@@ -239,6 +239,7 @@ void main() {
     test('should map JobHiveModel to Job entity correctly', () {
       // Arrange
       final now = DateTime.now();
+      final lastSyncTime = now.subtract(const Duration(minutes: 5));
       final localId = uuid.v4();
       final serverId = 'server-id-from-hive';
       final hiveModel = JobHiveModel(
@@ -249,11 +250,16 @@ void main() {
         syncStatus: SyncStatus.error.index, // Stored as int
         createdAt: now.toIso8601String(),
         updatedAt: now.toIso8601String(),
-        displayTitle: 'Hive Job',
-        text: 'Hive Text',
-        audioFilePath: '/path/to/hive/audio.aac',
+        displayTitle: 'Hive Title',
+        displayText: 'Hive Text',
         errorCode: 404,
-        errorMessage: 'Not Found in Hive?',
+        errorMessage: 'Not Found',
+        audioFilePath: 'hive/path/audio.aac',
+        text: 'Hive Job Text',
+        additionalText: 'Hive Additional',
+        retryCount: 3, // Test retry count mapping
+        lastSyncAttemptAt:
+            lastSyncTime.toIso8601String(), // Test datetime mapping
       );
 
       // Act
@@ -266,65 +272,72 @@ void main() {
       expect(jobEntity.userId, 'user-from-hive');
       expect(jobEntity.status, JobStatus.generating);
       expect(jobEntity.syncStatus, SyncStatus.error);
-      expect(jobEntity.createdAt, now);
-      expect(jobEntity.updatedAt, now);
-      expect(jobEntity.displayTitle, 'Hive Job');
-      expect(jobEntity.text, 'Hive Text');
-      expect(jobEntity.audioFilePath, '/path/to/hive/audio.aac');
+      expect(jobEntity.createdAt.toIso8601String(), now.toIso8601String());
+      expect(jobEntity.updatedAt.toIso8601String(), now.toIso8601String());
+      expect(jobEntity.displayTitle, 'Hive Title');
+      expect(jobEntity.displayText, 'Hive Text');
       expect(jobEntity.errorCode, 404);
-      expect(jobEntity.errorMessage, 'Not Found in Hive?');
+      expect(jobEntity.errorMessage, 'Not Found');
+      expect(jobEntity.audioFilePath, 'hive/path/audio.aac');
+      expect(jobEntity.text, 'Hive Job Text');
+      expect(jobEntity.additionalText, 'Hive Additional');
+      expect(jobEntity.retryCount, 3); // Verify retry count
+      expect(
+        jobEntity.lastSyncAttemptAt?.toIso8601String(),
+        lastSyncTime.toIso8601String(),
+      ); // Verify datetime
     });
 
     test(
-      'should map JobHiveModel with null serverId to Job entity correctly',
+      'should map JobHiveModel with null retry/syncTime to Job entity with defaults',
       () {
         // Arrange
         final now = DateTime.now();
         final localId = uuid.v4();
         final hiveModel = JobHiveModel(
           localId: localId,
-          serverId: null, // Server ID is null
-          userId: 'local-only-user',
+          userId: 'user-defaults',
           status: JobStatus.created.index,
           syncStatus: SyncStatus.pending.index,
           createdAt: now.toIso8601String(),
           updatedAt: now.toIso8601String(),
-          audioFilePath: '/path/to/local/audio.aac',
+          // retryCount and lastSyncAttemptAt are null
         );
 
         // Act
         final jobEntity = JobMapper.fromHiveModel(hiveModel);
 
         // Assert
-        expect(jobEntity.localId, localId);
-        expect(jobEntity.serverId, null); // Verify null serverId
-        expect(jobEntity.userId, 'local-only-user');
-        expect(jobEntity.status, JobStatus.created);
+        expect(jobEntity.retryCount, 0); // Should default to 0
+        expect(jobEntity.lastSyncAttemptAt, isNull); // Should be null
         expect(jobEntity.syncStatus, SyncStatus.pending);
-        expect(jobEntity.createdAt, now);
-        expect(jobEntity.updatedAt, now);
-        expect(jobEntity.audioFilePath, '/path/to/local/audio.aac');
+        expect(jobEntity.status, JobStatus.created);
       },
     );
 
-    test('should map Job entity to JobHiveModel correctly', () {
+    test('should map Job entity back to JobHiveModel correctly', () {
       // Arrange
       final now = DateTime.now();
+      final lastSyncTime = now.subtract(const Duration(hours: 1));
       final localId = uuid.v4();
       final serverId = 'server-id-to-hive';
       final jobEntity = Job(
         localId: localId,
         serverId: serverId,
         userId: 'user-to-hive',
-        status: JobStatus.transcribed,
+        status: JobStatus.completed,
         syncStatus: SyncStatus.synced,
         createdAt: now,
         updatedAt: now,
-        displayTitle: 'Entity Job',
-        text: 'Entity Text',
-        audioFilePath: '/path/to/entity/audio.m4a',
-        errorCode: 500,
-        errorMessage: 'Server Error during sync',
+        displayTitle: 'Entity Title',
+        displayText: 'Entity Text',
+        errorCode: null,
+        errorMessage: null,
+        audioFilePath: 'entity/path/audio.ogg',
+        text: 'Entity Job Text',
+        additionalText: 'Entity Additional',
+        retryCount: 5, // Test retry count mapping
+        lastSyncAttemptAt: lastSyncTime, // Test datetime mapping
       );
 
       // Act
@@ -335,46 +348,50 @@ void main() {
       expect(hiveModel.localId, localId);
       expect(hiveModel.serverId, serverId);
       expect(hiveModel.userId, 'user-to-hive');
-      expect(hiveModel.status, JobStatus.transcribed.index); // Stored as int
-      expect(hiveModel.syncStatus, SyncStatus.synced.index); // Stored as int
+      expect(hiveModel.status, JobStatus.completed.index);
+      expect(hiveModel.syncStatus, SyncStatus.synced.index);
       expect(hiveModel.createdAt, now.toIso8601String());
       expect(hiveModel.updatedAt, now.toIso8601String());
-      expect(hiveModel.displayTitle, 'Entity Job');
-      expect(hiveModel.text, 'Entity Text');
-      expect(hiveModel.audioFilePath, '/path/to/entity/audio.m4a');
-      expect(hiveModel.errorCode, 500);
-      expect(hiveModel.errorMessage, 'Server Error during sync');
+      expect(hiveModel.displayTitle, 'Entity Title');
+      expect(hiveModel.displayText, 'Entity Text');
+      expect(hiveModel.errorCode, null);
+      expect(hiveModel.errorMessage, null);
+      expect(hiveModel.audioFilePath, 'entity/path/audio.ogg');
+      expect(hiveModel.text, 'Entity Job Text');
+      expect(hiveModel.additionalText, 'Entity Additional');
+      expect(hiveModel.retryCount, 5); // Verify retry count
+      expect(
+        hiveModel.lastSyncAttemptAt,
+        lastSyncTime.toIso8601String(),
+      ); // Verify datetime string
     });
 
     test(
-      'should map Job entity with null serverId to JobHiveModel correctly',
+      'should map Job entity with null retry/syncTime back to JobHiveModel',
       () {
         // Arrange
         final now = DateTime.now();
         final localId = uuid.v4();
         final jobEntity = Job(
           localId: localId,
-          serverId: null, // Server ID is null
-          userId: 'local-only-user-to-hive',
-          status: JobStatus.pendingDeletion, // Example status
-          syncStatus: SyncStatus.pendingDeletion,
+          serverId: null,
+          userId: 'user-nulls-to-hive',
+          status: JobStatus.created,
+          syncStatus: SyncStatus.pending,
           createdAt: now,
           updatedAt: now,
-          audioFilePath: '/path/to/pending/delete/audio.m4a',
+          // retryCount defaults to 0 in entity
+          lastSyncAttemptAt: null, // Explicitly null
         );
 
         // Act
         final hiveModel = JobMapper.toHiveModel(jobEntity);
 
         // Assert
-        expect(hiveModel.localId, localId);
-        expect(hiveModel.serverId, null); // Verify null serverId
-        expect(hiveModel.userId, 'local-only-user-to-hive');
-        expect(hiveModel.status, JobStatus.pendingDeletion.index);
-        expect(hiveModel.syncStatus, SyncStatus.pendingDeletion.index);
-        expect(hiveModel.createdAt, now.toIso8601String());
-        expect(hiveModel.updatedAt, now.toIso8601String());
-        expect(hiveModel.audioFilePath, '/path/to/pending/delete/audio.m4a');
+        expect(hiveModel.retryCount, 0); // Should be 0
+        expect(hiveModel.lastSyncAttemptAt, isNull); // Should be null
+        expect(hiveModel.syncStatus, SyncStatus.pending.index);
+        expect(hiveModel.status, JobStatus.created.index);
       },
     );
 
@@ -382,6 +399,7 @@ void main() {
       // Arrange
       final now1 = DateTime.now();
       final now2 = now1.add(const Duration(minutes: 5));
+      final lastSyncTime1 = now1.subtract(const Duration(days: 1));
       final localId1 = uuid.v4();
       final serverId1 = 'server1';
       final localId2 = uuid.v4(); // No serverId for second job
@@ -395,6 +413,8 @@ void main() {
           syncStatus: SyncStatus.synced.index,
           createdAt: now1.toIso8601String(),
           updatedAt: now1.toIso8601String(),
+          retryCount: 1,
+          lastSyncAttemptAt: lastSyncTime1.toIso8601String(),
         ),
         JobHiveModel(
           localId: localId2,
@@ -405,6 +425,7 @@ void main() {
           createdAt: now2.toIso8601String(),
           updatedAt: now2.toIso8601String(),
           audioFilePath: 'path/local.wav',
+          // retryCount and lastSyncAttemptAt are null
         ),
       ];
 
@@ -419,20 +440,28 @@ void main() {
       expect(entityList[0].serverId, serverId1);
       expect(entityList[0].status, JobStatus.completed);
       expect(entityList[0].syncStatus, SyncStatus.synced);
-      expect(entityList[0].createdAt, now1);
+      expect(entityList[0].createdAt.toIso8601String(), now1.toIso8601String());
+      expect(entityList[0].retryCount, 1);
+      expect(
+        entityList[0].lastSyncAttemptAt?.toIso8601String(),
+        lastSyncTime1.toIso8601String(),
+      );
 
       expect(entityList[1].localId, localId2);
       expect(entityList[1].serverId, isNull);
       expect(entityList[1].status, JobStatus.created);
       expect(entityList[1].syncStatus, SyncStatus.pending);
-      expect(entityList[1].createdAt, now2);
+      expect(entityList[1].createdAt.toIso8601String(), now2.toIso8601String());
       expect(entityList[1].audioFilePath, 'path/local.wav');
+      expect(entityList[1].retryCount, 0); // Default
+      expect(entityList[1].lastSyncAttemptAt, isNull);
     });
 
     test('should map a list of Job entities to a list of JobHiveModels', () {
       // Arrange
       final now1 = DateTime.now();
       final now2 = now1.add(const Duration(minutes: 5));
+      final lastSyncTime1 = now1.subtract(const Duration(days: 1));
       final localId1 = uuid.v4();
       final serverId1 = 'server1-to-hive';
       final localId2 = uuid.v4(); // No serverId for second job
@@ -447,6 +476,8 @@ void main() {
           createdAt: now1,
           updatedAt: now1,
           errorMessage: 'Failed hard',
+          retryCount: 4,
+          lastSyncAttemptAt: lastSyncTime1,
         ),
         Job(
           localId: localId2,
@@ -457,6 +488,7 @@ void main() {
           createdAt: now2,
           updatedAt: now2,
           audioFilePath: 'path/local-entity.wav',
+          // retryCount defaults to 0, lastSyncAttemptAt is null
         ),
       ];
 
@@ -473,6 +505,8 @@ void main() {
       expect(hiveList[0].syncStatus, SyncStatus.error.index);
       expect(hiveList[0].createdAt, now1.toIso8601String());
       expect(hiveList[0].errorMessage, 'Failed hard');
+      expect(hiveList[0].retryCount, 4);
+      expect(hiveList[0].lastSyncAttemptAt, lastSyncTime1.toIso8601String());
 
       expect(hiveList[1].localId, localId2);
       expect(hiveList[1].serverId, isNull);
@@ -480,6 +514,8 @@ void main() {
       expect(hiveList[1].syncStatus, SyncStatus.pending.index);
       expect(hiveList[1].createdAt, now2.toIso8601String());
       expect(hiveList[1].audioFilePath, 'path/local-entity.wav');
+      expect(hiveList[1].retryCount, 0); // Default
+      expect(hiveList[1].lastSyncAttemptAt, isNull);
     });
   });
 

@@ -58,6 +58,8 @@ void main() {
 
     test('should have correct props for Equatable comparison', () {
       // Arrange
+      final tRetryCount = 3;
+      final tLastSyncAttemptAt = tNow.subtract(const Duration(minutes: 10));
       final job = Job(
         localId: tLocalId,
         serverId: tServerId,
@@ -73,15 +75,16 @@ void main() {
         audioFilePath: '/path/to/audio.aac',
         text: 'Submitted text',
         additionalText: 'More info',
+        retryCount: tRetryCount,
+        lastSyncAttemptAt: tLastSyncAttemptAt,
       );
 
       // Assert
-      // This test will fail until localId and serverId are added to props
       expect(
         job.props,
         equals([
-          tLocalId, // New
-          tServerId, // New
+          tLocalId,
+          tServerId,
           JobStatus.completed,
           SyncStatus.synced,
           tNow,
@@ -94,6 +97,8 @@ void main() {
           '/path/to/audio.aac',
           'Submitted text',
           'More info',
+          tRetryCount,
+          tLastSyncAttemptAt,
         ]),
       );
     });

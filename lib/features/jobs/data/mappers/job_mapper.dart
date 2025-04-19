@@ -21,10 +21,15 @@ class JobMapper {
   static Job fromHiveModel(JobHiveModel model) {
     final jobStatus = _intToJobStatus(model.status);
     final syncStatus = _intToSyncStatus(model.syncStatus);
-    DateTime? createdAt, updatedAt;
+    DateTime? createdAt, updatedAt, lastSyncAttemptAt;
     try {
       createdAt = DateTime.tryParse(model.createdAt ?? '');
       updatedAt = DateTime.tryParse(model.updatedAt ?? '');
+      // Parse nullable DateTime from ISO string
+      lastSyncAttemptAt =
+          model.lastSyncAttemptAt != null
+              ? DateTime.tryParse(model.lastSyncAttemptAt!)
+              : null;
     } catch (e) {
       _logger.e(
         '$_tag Error parsing dates from Hive model: ${model.localId}',
@@ -47,6 +52,9 @@ class JobMapper {
       audioFilePath: model.audioFilePath,
       text: model.text,
       additionalText: model.additionalText,
+      // Default retryCount to 0 if null in Hive model
+      retryCount: model.retryCount ?? 0,
+      lastSyncAttemptAt: lastSyncAttemptAt,
     );
   }
 
@@ -67,6 +75,9 @@ class JobMapper {
       audioFilePath: entity.audioFilePath,
       text: entity.text,
       additionalText: entity.additionalText,
+      retryCount: entity.retryCount,
+      // Store nullable DateTime as ISO string or null
+      lastSyncAttemptAt: entity.lastSyncAttemptAt?.toIso8601String(),
     );
     return model;
   }

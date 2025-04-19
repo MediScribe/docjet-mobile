@@ -13,11 +13,15 @@ enum SyncStatus {
   @HiveField(1)
   synced,
 
-  /// An error occurred during the last sync attempt for this item.
+  /// The item has been marked for deletion locally and needs to be deleted on the backend.
   @HiveField(2)
+  pendingDeletion,
+
+  /// An error occurred during the last sync attempt for this item.
+  @HiveField(3)
   error,
 
-  /// The item has been marked for deletion locally and needs to be deleted on the backend.
-  @HiveField(3)
-  pendingDeletion,
+  /// Sync failed permanently after exceeding retry limit
+  @HiveField(4)
+  failed,
 }

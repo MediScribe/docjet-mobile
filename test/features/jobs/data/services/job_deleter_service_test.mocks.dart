@@ -17,6 +17,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i11;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -356,4 +357,19 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
         ),
         returnValue: _i6.Future<List<int>>.value(<int>[]),
       ) as _i6.Future<List<int>>);
+
+  @override
+  String resolvePath(String? path) => (super.noSuchMethod(
+        Invocation.method(
+          #resolvePath,
+          [path],
+        ),
+        returnValue: _i11.dummyValue<String>(
+          this,
+          Invocation.method(
+            #resolvePath,
+            [path],
+          ),
+        ),
+      ) as String);
 }

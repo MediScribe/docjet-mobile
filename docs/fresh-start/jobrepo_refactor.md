@@ -627,19 +627,18 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 -   [x] **9. Job Data Flow Improvements:** (From job_dataflow.md)
     -   [x] Add `JobUpdateData` validation (avoid empty updates)
     -   [x] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
-    -   [ ] Improve Tracing/Logging across services
 
 -   [ ] **10. Error Recovery Implementation:**
     -   [ ] **10.1 Update Job Entity and Models:** (Foundation)
-        -   [ ] Add `retryCount` field (int, defaults to 0) to `Job` entity class
-        -   [ ] Add `lastSyncAttemptAt` field (DateTime?, nullable) to `Job` entity class 
-        -   [ ] Add `SyncStatus.failed` to the `SyncStatus` enum
-        -   [ ] Update `Job.copyWith()` to support new fields
-        -   [ ] Update `JobHiveModel` with corresponding fields
-        -   [ ] Update `JobMapper` to handle the new fields in both directions
+        -   [x] Add `retryCount` field (int, defaults to 0) to `Job` entity class
+        -   [x] Add `lastSyncAttemptAt` field (DateTime?, nullable) to `Job` entity class 
+        -   [x] Add `SyncStatus.failed` to the `SyncStatus` enum
+        -   [x] Update `Job.copyWith()` to support new fields
+        -   [x] Update `JobHiveModel` with corresponding fields
+        -   [x] Update `JobMapper` to handle the new fields in both directions
 
-    -   [ ] **10.2 Create Sync Configuration:** (Constants used by multiple components)
-        -   [ ] Create `lib/features/jobs/data/config/job_sync_config.dart` with constants:
+    -   [x] **10.2 Create Sync Configuration:** (Constants used by multiple components)
+        -   [x] Create `lib/features/jobs/data/config/job_sync_config.dart` with constants:
           ```dart
           const int MAX_RETRY_ATTEMPTS = 5;
           const Duration RETRY_BACKOFF_BASE = Duration(minutes: 1);

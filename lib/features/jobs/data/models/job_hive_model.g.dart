@@ -31,13 +31,15 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       additionalText: fields[11] as String?,
       syncStatus: fields[12] as int?,
       serverId: fields[13] as String?,
+      retryCount: fields[14] as int?,
+      lastSyncAttemptAt: fields[15] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, JobHiveModel obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.localId)
       ..writeByte(1)
@@ -65,7 +67,11 @@ class JobHiveModelAdapter extends TypeAdapter<JobHiveModel> {
       ..writeByte(12)
       ..write(obj.syncStatus)
       ..writeByte(13)
-      ..write(obj.serverId);
+      ..write(obj.serverId)
+      ..writeByte(14)
+      ..write(obj.retryCount)
+      ..writeByte(15)
+      ..write(obj.lastSyncAttemptAt);
   }
 
   @override
