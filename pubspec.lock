@@ -30,6 +30,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.11.3"
+  ansicolor:
+    dependency: transitive
+    description:
+      name: ansicolor
+      sha256: "50e982d500bc863e1d703448afdbf9e5a72eb48840a4f766fa361ffd6877055f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3"
   args:
     dependency: transitive
     description:
@@ -134,6 +142,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
+  cli_config:
+    dependency: transitive
+    description:
+      name: cli_config
+      sha256: ac20a183a07002b700f0c25e61b7ee46b23c309d76ab7b7640a028f18e4d99ec
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.0"
   clock:
     dependency: transitive
     description:
@@ -182,6 +198,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  coverage:
+    dependency: "direct dev"
+    description:
+      name: coverage
+      sha256: "9086475ef2da7102a0c0a4e37e1e30707e7fb7b6d28c209f559a9c5f8ce42016"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.12.0"
   crypto:
     dependency: transitive
     description:
@@ -190,6 +214,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.6"
+  csslib:
+    dependency: transitive
+    description:
+      name: csslib
+      sha256: "09bad715f418841f976c77db72d5398dc1253c21fb9c0c7f0b0b985860b2d58e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -214,6 +246,23 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0+6.11.0"
+  dart_code_metrics:
+    dependency: "direct dev"
+    description:
+      path: "."
+      ref: master
+      resolved-ref: "38329ad9dd39520905293693fad27ac769079aef"
+      url: "https://github.com/steeple-org/flutter_package_dart_code_metrics.git"
+    source: git
+    version: "5.7.6"
+  dart_code_metrics_presets:
+    dependency: transitive
+    description:
+      name: dart_code_metrics_presets
+      sha256: "30b7bcaec9de4e8c5f7a41eea7f8e2fa52ad30729f4435a3b4fcf460abb327fe"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.22.0"
   dart_style:
     dependency: transitive
     description:
@@ -263,7 +312,7 @@ packages:
     source: hosted
     version: "2.0.7"
   fake_async:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: fake_async
       sha256: "6a95e56b2449df2273fd8c45a662d6947ce1ebb7aafe80e550a3f68297f3cacc"
@@ -453,6 +502,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+  html:
+    dependency: transitive
+    description:
+      name: html
+      sha256: "9475be233c437f0e3637af55e7702cbbe5c23a68bd56e8a5fa2d426297b7c6c8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.15.5+1"
   http:
     dependency: transitive
     description:
@@ -773,6 +830,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.1"
+  process:
+    dependency: transitive
+    description:
+      name: process
+      sha256: "107d8be718f120bbba9dcd1e95e3bd325b1b4a4f07db64154635ba03f2567a0d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.3"
   pub_semver:
     dependency: transitive
     description:
@@ -781,6 +846,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  pub_updater:
+    dependency: transitive
+    description:
+      name: pub_updater
+      sha256: "54e8dc865349059ebe7f163d6acce7c89eb958b8047e6d6e80ce93b13d7c9e60"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.0"
   pubspec_parse:
     dependency: transitive
     description:
@@ -866,6 +939,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.5"
+  source_maps:
+    dependency: transitive
+    description:
+      name: source_maps
+      sha256: "190222579a448b03896e0ca6eca5998fa810fda630c1d65e2f78b3f638f54812"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.13"
   source_span:
     dependency: transitive
     description:

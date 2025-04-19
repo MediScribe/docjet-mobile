@@ -604,10 +604,12 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Implement `syncPendingJobs` and `_permanentlyDeleteJob` helper
     -   [x] Write tests for `syncSingleJob` (steal from `sync_pending_jobs_test.dart`) --> *Success and Error cases done*
     -   [x] Implement `syncSingleJob`
+
 -   [x] **6. JobRepository:**
     -   [x] Clean up `JobRepository` interface (`lib/features/jobs/domain/repositories/job_repository.dart`)
     -   [x] Implement `JobRepositoryImpl` (`lib/features/jobs/data/repositories/job_repository_impl.dart`)
     -   [x] Write/Update tests for `JobRepositoryImpl` (verify delegation)
+
 -   [x] **7. Integration & Cleanup:**
     -   [x] Update DI Container (`lib/core/di/injection_container.dart` or similar)
     -   [x] Move old `JobLocalDataSource` and `JobRemoteDataSource` tests/mocks to `_backup_old_tests` folder
@@ -659,11 +661,14 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
            lastSyncAttemptAt.isBefore(DateTime.now().subtract(baseBackoffDuration * pow(2, retryCount))))
           ```
 
-    -   [ ] **10.5 Update JobSyncService:** (Core sync logic)
-        -   [ ] Import `dart:math` for `pow` function
-        -   [ ] Modify `syncPendingJobs()` to fetch and process retry-eligible jobs
-        -   [ ] Update error handling in `syncSingleJob()` to track retry attempts
-        -   [ ] Add unit tests for retry functionality
+    -   [x] **10.5 Update JobSyncService:** (Core sync logic)
+        -   [x] Import `dart:math` for `pow` function
+        -   [x] Modify `syncPendingJobs()` to fetch and process retry-eligible jobs
+        -   [x] Update error handling in `syncSingleJob()` to track retry attempts
+        -   [x] Add unit tests for retry functionality
+        -   [ ] Create `_handleSyncError(Job job, Exception e)` helper method to reduce duplicated error handling code
+        -   [ ] Add strategic comments explaining retry logic and backoff strategy
+        -   [ ] Create integration test in `job_sync_integration_test.dart` that simulates complete job lifecycle with retries
 
     -   [ ] **10.6 Add Reset Failed Jobs Feature:** (Recovery option)
         -   [ ] Add `resetFailedJob(String localId)` method to `JobSyncService`
