@@ -77,10 +77,10 @@ class JobWriterService {
       // 1. Fetch the existing job
       final existingJob = await _localDataSource.getJobById(localId);
 
-      // TODO: Add validation from job_dataflow.md - return early if no changes?
-      // if (!updates.hasChanges) {
-      //   return Right(existingJob); // Or Left(NoOpFailure())?
-      // }
+      // Add validation: return early if no actual changes are provided
+      if (!updates.hasChanges) {
+        return Right(existingJob); // Return the unchanged job directly
+      }
 
       // 2. Apply updates and mark for sync
       final updatedJob = existingJob.copyWith(

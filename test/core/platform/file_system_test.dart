@@ -499,7 +499,7 @@ void main() {
       'resolvePath should replace backslashes and normalize ../ correctly',
       () async {
         // Arrange
-        final inputPath = 'relative\mixed/../file.txt'; // Mixed separators
+        final inputPath = 'relativemixed/../file.txt'; // Mixed separators
         final expectedPath = p.context.normalize(
           p.context.join(Directory(fakeDocumentsPath).path, 'file.txt'),
         ); // Should resolve to <tempDir>/file.txt

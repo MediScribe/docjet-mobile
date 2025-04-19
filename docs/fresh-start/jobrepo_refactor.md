@@ -624,8 +624,8 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] **Register** `JobRemoteDataSourceImpl` (`ApiJobRemoteDataSourceImpl` exists)
     -   [x] Verify `dart analyze` is clean (no errors after registration) --> **Done, ignoring one spurious unused import warning.**
 
--   [ ] **9. Job Data Flow Improvements:** (From job_dataflow.md)
-    -   [ ] Add `JobUpdateData` validation (avoid empty updates)
+-   [x] **9. Job Data Flow Improvements:** (From job_dataflow.md)
+    -   [x] Add `JobUpdateData` validation (avoid empty updates)
     -   [ ] Implement Error Recovery (retries, backoff for `SyncStatus.error`)
     -   [ ] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
     -   [ ] Improve Tracing/Logging across services

@@ -223,6 +223,49 @@ void main() {
       );
 
       test(
+        'should return original job and not save if JobUpdateData has no changes',
+        () async {
+          // Arrange
+          // 1. Stub local fetch to return the existing job
+          when(
+            mockLocalDataSource.getJobById(tLocalId),
+          ).thenAnswer((_) async => tExistingJob);
+          // 2. Create an empty JobUpdateData (no fields set)
+          const emptyUpdateData = JobUpdateData();
+
+          // Act
+          final result = await service.updateJob(
+            localId: tLocalId,
+            updates: emptyUpdateData,
+          );
+
+          // Assert
+          // 1. Check the result is Right(original Job)
+          expect(result, isA<Right<Failure, Job>>());
+          result.fold(
+            (failure) =>
+                fail('Expected success with original job, got $failure'),
+            (returnedJob) {
+              // Verify the returned job is identical to the original
+              expect(returnedJob, tExistingJob);
+              // Explicitly check syncStatus hasn't changed
+              expect(returnedJob.syncStatus, tExistingJob.syncStatus);
+            },
+          );
+
+          // 2. Verify local fetch was called once
+          verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+
+          // 3. Verify local save was NEVER called
+          verifyNever(mockLocalDataSource.saveJob(any));
+
+          // 4. Verify no other interactions
+          verifyNoMoreInteractions(mockLocalDataSource);
+          verifyNoMoreInteractions(mockUuid);
+        },
+      );
+
+      test(
         'should return CacheFailure when fetching the original job fails',
         () async {
           // Arrange
