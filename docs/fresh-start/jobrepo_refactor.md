@@ -499,7 +499,7 @@ class JobUpdateData {
 ```
 lib/
   features/
-    job/
+    jobs/
       data/
         repositories/
           job_repository.dart             # Interface definition
@@ -566,6 +566,55 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 5. **Update DI Container**: Register services and repository with dependencies
 6. **Update Usage Sites**: Replace Map<String, dynamic> with JobUpdateData, etc.
 7. **Comprehensive Testing**: Test each service in isolation with focused unit tests
+
+## TODO List - Hard Bob Style
+
+-   [ ] **1. Setup:**
+    -   [ ] Create file structure under `lib/features/jobs/data/services/`
+    -   [ ] Create `JobUpdateData` model (`lib/features/jobs/data/models/job_update_data.dart`)
+-   [ ] **2. JobReaderService:**
+    -   [ ] Create `job_reader_service.dart`
+    -   [ ] Create `job_reader_service_test.dart`
+    -   [ ] Write tests for `getJobs` (steal from `get_jobs_test.dart`)
+    -   [ ] Implement `getJobs`
+    -   [ ] Write tests for `getJobById` (steal from `get_jobs_test.dart`)
+    -   [ ] Implement `getJobById`
+    -   [ ] Write tests for `getJobsByStatus` (new functionality)
+    -   [ ] Implement `getJobsByStatus`
+-   [ ] **3. JobWriterService:**
+    -   [ ] Create `job_writer_service.dart`
+    -   [ ] Create `job_writer_service_test.dart`
+    -   [ ] Write tests for `createJob` (steal from `create_job_test.dart`)
+    -   [ ] Implement `createJob`
+    -   [ ] Write tests for `updateJob` (steal from `update_job_test.dart`)
+    -   [ ] Implement `updateJob`
+    -   [ ] Write tests for `updateJobSyncStatus` (new functionality)
+    -   [ ] Implement `updateJobSyncStatus`
+-   [ ] **4. JobDeleterService:**
+    -   [ ] Create `job_deleter_service.dart`
+    -   [ ] Create `job_deleter_service_test.dart`
+    -   [ ] Write tests for `deleteJob` (steal from `delete_job_test.dart`)
+    -   [ ] Implement `deleteJob`
+    -   [ ] Write tests for `permanentlyDeleteJob` (new functionality)
+    -   [ ] Implement `permanentlyDeleteJob`
+-   [ ] **5. JobSyncService:**
+    -   [ ] Create `job_sync_service.dart`
+    -   [ ] Create `job_sync_service_test.dart`
+    -   [ ] Write tests for `syncPendingJobs` (steal from `sync_pending_jobs_test.dart`)
+    -   [ ] Implement `syncPendingJobs` and `_permanentlyDeleteJob` helper
+    -   [ ] Write tests for `syncSingleJob` (steal from `sync_pending_jobs_test.dart`)
+    -   [ ] Implement `syncSingleJob`
+-   [ ] **6. JobRepository:**
+    -   [ ] Clean up `JobRepository` interface (`lib/features/jobs/data/repositories/job_repository.dart`)
+    -   [ ] Implement `JobRepositoryImpl` (`lib/features/jobs/data/repositories/job_repository_impl.dart`)
+    -   [ ] Write/Update tests for `JobRepositoryImpl` (verify delegation)
+-   [ ] **7. Integration & Cleanup:**
+    -   [ ] Update DI Container (`lib/core/injection/injection.dart` or similar)
+    -   [ ] Update Usage Sites (This is the tricky part - find where `JobRepository` is used)
+    -   [ ] Run `dart analyze --fatal-infos` and fix ALL issues
+    -   [ ] Run `./scripts/list_failed_tests.sh` and ensure all tests pass
+    -   [ ] Final review of the plan document (`jobrepo_refactor.md`)
+    -   [ ] Hard Bob Commit
 
 ## Testing Approach
 
