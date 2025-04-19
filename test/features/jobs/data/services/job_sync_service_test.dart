@@ -91,6 +91,36 @@ void main() {
     updatedAt: DateTime.now(), // Server sets the update timestamp
   );
 
+  // Sample data for a job pending deletion (with serverId)
+  final tJobPendingDeletionWithServerId = Job(
+    localId: 'deleteMe-local',
+    serverId: 'deleteMe-server', // Has a server ID
+    userId: 'user789',
+    status: JobStatus.completed,
+    syncStatus: SyncStatus.pendingDeletion, // Marked for deletion
+    displayTitle: 'Job To Be Deleted',
+    audioFilePath: '/local/delete_me.mp3',
+    text: 'Final text',
+    additionalText: null,
+    createdAt: DateTime.now().subtract(const Duration(days: 2)),
+    updatedAt: DateTime.now().subtract(const Duration(days: 1)),
+  );
+
+  // Sample data for a job pending deletion (local only, no serverId)
+  // final tJobPendingDeletionLocalOnly = Job(
+  //   localId: 'deleteMeLocalOnly-local',
+  //   serverId: null, // No server ID
+  //   userId: 'user101',
+  //   status: JobStatus.created,
+  //   syncStatus: SyncStatus.pendingDeletion, // Marked for deletion
+  //   displayTitle: 'Local Only Job To Delete',
+  //   audioFilePath: '/local/delete_me_local.mp3',
+  //   text: 'Draft text',
+  //   additionalText: null,
+  //   createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+  //   updatedAt: DateTime.now().subtract(const Duration(hours: 1)),
+  // );
+
   group('syncPendingJobs', () {
     test(
       'should sync NEW pending job: call remote create, save synced job locally',
@@ -171,6 +201,125 @@ void main() {
         verifyNever(mockLocalDataSource.deleteJob(any));
 
         // Verify no more interactions
+        verifyNoMoreInteractions(mockNetworkInfo);
+        verifyNoMoreInteractions(mockRemoteDataSource);
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockFileSystem);
+      },
+    );
+
+    test(
+      'should sync PENDING DELETION job (with serverId): call remote delete, then permanently delete locally',
+      () async {
+        // Arrange
+        // 1. Network is connected
+        when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+        // 2. Local source returns empty list for pending creations/updates
+        when(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+        ).thenAnswer((_) async => []);
+
+        // 3. Local source returns the job pending deletion
+        when(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+        ).thenAnswer((_) async => [tJobPendingDeletionWithServerId]);
+
+        // 4. Remote source deleteJob succeeds
+        when(
+          mockRemoteDataSource.deleteJob(
+            tJobPendingDeletionWithServerId.serverId!,
+          ),
+        ).thenAnswer((_) async => unit); // Expect serverId
+
+        // 5. Local source getJobById succeeds (needed by _permanentlyDeleteJob)
+        //    ** CRITICAL MOCK: Needed for file deletion lookup **
+        when(
+          mockLocalDataSource.getJobById(
+            tJobPendingDeletionWithServerId.localId,
+          ),
+        ).thenAnswer((_) async => tJobPendingDeletionWithServerId);
+
+        // 6. Local source deleteJob succeeds
+        when(
+          mockLocalDataSource.deleteJob(
+            tJobPendingDeletionWithServerId.localId,
+          ),
+        ).thenAnswer((_) async => unit);
+
+        // 7. File system deleteFile succeeds
+        when(
+          mockFileSystem.deleteFile(
+            tJobPendingDeletionWithServerId.audioFilePath!,
+          ),
+        ).thenAnswer((_) async => unit);
+
+        // Act
+        final result = await service.syncPendingJobs();
+
+        // Assert
+        // 1. Verify result is Right(unit)
+        expect(result, equals(const Right(unit)));
+
+        // 2. Verify network check
+        verify(mockNetworkInfo.isConnected).called(1);
+
+        // 3. Verify local source queried for pending and pending deletion
+        verify(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+        ).called(1);
+        verify(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+        ).called(1);
+
+        // 4. Verify remote delete was called with SERVER ID
+        verify(
+          mockRemoteDataSource.deleteJob(
+            tJobPendingDeletionWithServerId.serverId!,
+          ),
+        ).called(1);
+
+        // 5. Verify local delete was called with LOCAL ID (via _permanentlyDeleteJob)
+        verify(
+          mockLocalDataSource.deleteJob(
+            tJobPendingDeletionWithServerId.localId,
+          ),
+        ).called(1);
+
+        // 6. Verify file deletion was called with the correct path (via _permanentlyDeleteJob)
+        verify(
+          mockFileSystem.deleteFile(
+            tJobPendingDeletionWithServerId.audioFilePath!,
+          ),
+        ).called(1);
+
+        // 7. Verify local getJobById was called (needed by _permanentlyDeleteJob before deleting file)
+        verify(
+          mockLocalDataSource.getJobById(
+            tJobPendingDeletionWithServerId.localId,
+          ),
+        ).called(1);
+
+        // 8. Verify no create/update operations happened
+        verifyNever(
+          mockRemoteDataSource.createJob(
+            userId: anyNamed('userId'),
+            audioFilePath: anyNamed('audioFilePath'),
+            text: anyNamed('text'),
+            additionalText: anyNamed('additionalText'),
+          ),
+        );
+        verifyNever(
+          mockRemoteDataSource.updateJob(
+            jobId: anyNamed('jobId'),
+            updates: anyNamed('updates'),
+          ),
+        );
+        verifyNever(
+          mockLocalDataSource.saveJob(any),
+        ); // No saves during deletion
+
+        // 9. Verify no more interactions
         verifyNoMoreInteractions(mockNetworkInfo);
         verifyNoMoreInteractions(mockRemoteDataSource);
         verifyNoMoreInteractions(mockLocalDataSource);

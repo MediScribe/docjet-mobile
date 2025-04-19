@@ -600,7 +600,7 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 -   [x] **5. JobSyncService:**
     -   [x] Create `job_sync_service.dart`
     -   [x] Create `job_sync_service_test.dart`
-    -   [x] Write tests for `syncPendingJobs` (steal from `sync_pending_jobs_test.dart`) --> *Partially done - one test written*
+    -   [x] Write tests for `syncPendingJobs` (steal from `sync_pending_jobs_test.dart`) --> *Partially done - one test written* --> **UPDATE: Added deletion test**
     -   [x] Implement `syncPendingJobs` and `_permanentlyDeleteJob` helper
     -   [x] Write tests for `syncSingleJob` (steal from `sync_pending_jobs_test.dart`) --> *Success and Error cases done*
     -   [x] Implement `syncSingleJob`
