@@ -569,19 +569,19 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 
 ## TODO List - Hard Bob Style
 
--   [ ] **1. Setup:**
-    -   [ ] Create file structure under `lib/features/jobs/data/services/`
-    -   [ ] Create `JobUpdateData` model (`lib/features/jobs/data/models/job_update_data.dart`)
--   [ ] **2. JobReaderService:**
-    -   [ ] Create `job_reader_service.dart`
-    -   [ ] Create `job_reader_service_test.dart`
-    -   [ ] Write tests for `getJobs` (steal from `get_jobs_test.dart`)
-    -   [ ] Implement `getJobs`
-    -   [ ] Write tests for `getJobById` (steal from `get_jobs_test.dart`)
-    -   [ ] Implement `getJobById`
-    -   [ ] Write tests for `getJobsByStatus` (new functionality)
-    -   [ ] Implement `getJobsByStatus`
--   [ ] **3. JobWriterService:**
+-   [x] **1. Setup:**
+    -   [x] Create file structure under `lib/features/jobs/data/services/`
+    -   [x] Create `JobUpdateData` model (`lib/features/jobs/data/models/job_update_data.dart`)
+-   [x] **2. JobReaderService:**
+    -   [x] Create `job_reader_service.dart`
+    -   [x] Create `job_reader_service_test.dart`
+    -   [x] Write tests for `getJobs` (steal from `get_jobs_test.dart`)
+    -   [x] Implement `getJobs`
+    -   [x] Write tests for `getJobById` (steal from `get_jobs_test.dart`)
+    -   [x] Implement `getJobById`
+    -   [x] Write tests for `getJobsByStatus` (new functionality)
+    -   [x] Implement `getJobsByStatus`
+-   [] **3. JobWriterService:**
     -   [ ] Create `job_writer_service.dart`
     -   [ ] Create `job_writer_service_test.dart`
     -   [ ] Write tests for `createJob` (steal from `create_job_test.dart`)
