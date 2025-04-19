@@ -3,26 +3,27 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i7;
-import 'dart:io' as _i4;
-import 'dart:typed_data' as _i12;
+import 'dart:async' as _i5;
+import 'dart:io' as _i3;
+import 'dart:typed_data' as _i14;
 
-import 'package:dartz/dartz.dart' as _i3;
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i11;
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
-    as _i6;
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
+import 'package:dartz/dartz.dart' as _i2;
+import 'package:docjet_mobile/core/error/failures.dart' as _i6;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i13;
+import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart'
     as _i10;
-import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
+import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'
+    as _i11;
+import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart'
+    as _i4;
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart'
+    as _i12;
+import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'
     as _i9;
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i7;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i15;
-import 'package:uuid/data.dart' as _i14;
-import 'package:uuid/uuid.dart' as _i13;
-import 'package:uuid/uuid_value.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -38,8 +39,8 @@ import 'package:uuid/uuid_value.dart' as _i5;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeJob_0 extends _i1.SmartFake implements _i2.Job {
-  _FakeJob_0(
+class _FakeEither_0<L, R> extends _i1.SmartFake implements _i2.Either<L, R> {
+  _FakeEither_0(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -48,8 +49,8 @@ class _FakeJob_0 extends _i1.SmartFake implements _i2.Job {
         );
 }
 
-class _FakeUnit_1 extends _i1.SmartFake implements _i3.Unit {
-  _FakeUnit_1(
+class _FakeFileStat_1 extends _i1.SmartFake implements _i3.FileStat {
+  _FakeFileStat_1(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -58,391 +59,300 @@ class _FakeUnit_1 extends _i1.SmartFake implements _i3.Unit {
         );
 }
 
-class _FakeFileStat_2 extends _i1.SmartFake implements _i4.FileStat {
-  _FakeFileStat_2(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-class _FakeUuidValue_3 extends _i1.SmartFake implements _i5.UuidValue {
-  _FakeUuidValue_3(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-/// A class which mocks [JobLocalDataSource].
+/// A class which mocks [JobReaderService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockJobLocalDataSource extends _i1.Mock
-    implements _i6.JobLocalDataSource {
-  MockJobLocalDataSource() {
+class MockJobReaderService extends _i1.Mock implements _i4.JobReaderService {
+  MockJobReaderService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i7.Future<_i2.Job> getJobById(String? localId) => (super.noSuchMethod(
+  _i5.Future<_i2.Either<_i6.Failure, List<_i7.Job>>> getJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobs,
+          [],
+        ),
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, List<_i7.Job>>>.value(
+            _FakeEither_0<_i6.Failure, List<_i7.Job>>(
+          this,
+          Invocation.method(
+            #getJobs,
+            [],
+          ),
+        )),
+      ) as _i5.Future<_i2.Either<_i6.Failure, List<_i7.Job>>>);
+
+  @override
+  _i5.Future<_i2.Either<_i6.Failure, _i7.Job>> getJobById(String? localId) =>
+      (super.noSuchMethod(
         Invocation.method(
           #getJobById,
           [localId],
         ),
-        returnValue: _i7.Future<_i2.Job>.value(_FakeJob_0(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i7.Job>(
           this,
           Invocation.method(
             #getJobById,
             [localId],
           ),
         )),
-      ) as _i7.Future<_i2.Job>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>);
 
   @override
-  _i7.Future<_i3.Unit> saveJob(_i2.Job? job) => (super.noSuchMethod(
-        Invocation.method(
-          #saveJob,
-          [job],
-        ),
-        returnValue: _i7.Future<_i3.Unit>.value(_FakeUnit_1(
-          this,
-          Invocation.method(
-            #saveJob,
-            [job],
-          ),
-        )),
-      ) as _i7.Future<_i3.Unit>);
-
-  @override
-  _i7.Future<_i3.Unit> deleteJob(String? localId) => (super.noSuchMethod(
-        Invocation.method(
-          #deleteJob,
-          [localId],
-        ),
-        returnValue: _i7.Future<_i3.Unit>.value(_FakeUnit_1(
-          this,
-          Invocation.method(
-            #deleteJob,
-            [localId],
-          ),
-        )),
-      ) as _i7.Future<_i3.Unit>);
-
-  @override
-  _i7.Future<List<_i2.Job>> getJobsByStatus(_i8.SyncStatus? status) =>
+  _i5.Future<_i2.Either<_i6.Failure, List<_i7.Job>>> getJobsByStatus(
+          _i8.SyncStatus? status) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobsByStatus,
           [status],
         ),
-        returnValue: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
-      ) as _i7.Future<List<_i2.Job>>);
-
-  @override
-  _i7.Future<List<_i9.JobHiveModel>> getAllJobHiveModels() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getAllJobHiveModels,
-          [],
-        ),
-        returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
-
-  @override
-  _i7.Future<_i9.JobHiveModel?> getJobHiveModelById(String? id) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getJobHiveModelById,
-          [id],
-        ),
-        returnValue: _i7.Future<_i9.JobHiveModel?>.value(),
-      ) as _i7.Future<_i9.JobHiveModel?>);
-
-  @override
-  _i7.Future<void> saveJobHiveModel(_i9.JobHiveModel? model) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #saveJobHiveModel,
-          [model],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<bool> saveJobHiveModels(List<_i9.JobHiveModel>? models) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #saveJobHiveModels,
-          [models],
-        ),
-        returnValue: _i7.Future<bool>.value(false),
-      ) as _i7.Future<bool>);
-
-  @override
-  _i7.Future<void> deleteJobHiveModel(String? id) => (super.noSuchMethod(
-        Invocation.method(
-          #deleteJobHiveModel,
-          [id],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<void> clearAllJobHiveModels() => (super.noSuchMethod(
-        Invocation.method(
-          #clearAllJobHiveModels,
-          [],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<_i9.JobHiveModel?> getLastJobHiveModel() => (super.noSuchMethod(
-        Invocation.method(
-          #getLastJobHiveModel,
-          [],
-        ),
-        returnValue: _i7.Future<_i9.JobHiveModel?>.value(),
-      ) as _i7.Future<_i9.JobHiveModel?>);
-
-  @override
-  _i7.Future<DateTime?> getLastFetchTime() => (super.noSuchMethod(
-        Invocation.method(
-          #getLastFetchTime,
-          [],
-        ),
-        returnValue: _i7.Future<DateTime?>.value(),
-      ) as _i7.Future<DateTime?>);
-
-  @override
-  _i7.Future<void> saveLastFetchTime(DateTime? time) => (super.noSuchMethod(
-        Invocation.method(
-          #saveLastFetchTime,
-          [time],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<List<_i9.JobHiveModel>> getJobsToSync() => (super.noSuchMethod(
-        Invocation.method(
-          #getJobsToSync,
-          [],
-        ),
-        returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
-
-  @override
-  _i7.Future<void> updateJobSyncStatus(
-    String? id,
-    _i8.SyncStatus? status,
-  ) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #updateJobSyncStatus,
-          [
-            id,
-            status,
-          ],
-        ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
-
-  @override
-  _i7.Future<List<_i9.JobHiveModel>> getSyncedJobHiveModels() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #getSyncedJobHiveModels,
-          [],
-        ),
-        returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, List<_i7.Job>>>.value(
+            _FakeEither_0<_i6.Failure, List<_i7.Job>>(
+          this,
+          Invocation.method(
+            #getJobsByStatus,
+            [status],
+          ),
+        )),
+      ) as _i5.Future<_i2.Either<_i6.Failure, List<_i7.Job>>>);
 }
 
-/// A class which mocks [JobRemoteDataSource].
+/// A class which mocks [JobWriterService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockJobRemoteDataSource extends _i1.Mock
-    implements _i10.JobRemoteDataSource {
-  MockJobRemoteDataSource() {
+class MockJobWriterService extends _i1.Mock implements _i9.JobWriterService {
+  MockJobWriterService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i7.Future<List<_i2.Job>> fetchJobs() => (super.noSuchMethod(
-        Invocation.method(
-          #fetchJobs,
-          [],
-        ),
-        returnValue: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
-      ) as _i7.Future<List<_i2.Job>>);
-
-  @override
-  _i7.Future<_i2.Job> fetchJobById(String? id) => (super.noSuchMethod(
-        Invocation.method(
-          #fetchJobById,
-          [id],
-        ),
-        returnValue: _i7.Future<_i2.Job>.value(_FakeJob_0(
-          this,
-          Invocation.method(
-            #fetchJobById,
-            [id],
-          ),
-        )),
-      ) as _i7.Future<_i2.Job>);
-
-  @override
-  _i7.Future<_i2.Job> createJob({
-    required String? userId,
+  _i5.Future<_i2.Either<_i6.Failure, _i7.Job>> createJob({
     required String? audioFilePath,
     String? text,
-    String? additionalText,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
           #createJob,
           [],
           {
-            #userId: userId,
             #audioFilePath: audioFilePath,
             #text: text,
-            #additionalText: additionalText,
           },
         ),
-        returnValue: _i7.Future<_i2.Job>.value(_FakeJob_0(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i7.Job>(
           this,
           Invocation.method(
             #createJob,
             [],
             {
-              #userId: userId,
               #audioFilePath: audioFilePath,
               #text: text,
-              #additionalText: additionalText,
             },
           ),
         )),
-      ) as _i7.Future<_i2.Job>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>);
 
   @override
-  _i7.Future<_i2.Job> updateJob({
-    required String? jobId,
-    required Map<String, dynamic>? updates,
+  _i5.Future<_i2.Either<_i6.Failure, _i7.Job>> updateJob({
+    required String? localId,
+    required _i10.JobUpdateData? updates,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
           #updateJob,
           [],
           {
-            #jobId: jobId,
+            #localId: localId,
             #updates: updates,
           },
         ),
-        returnValue: _i7.Future<_i2.Job>.value(_FakeJob_0(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i7.Job>(
           this,
           Invocation.method(
             #updateJob,
             [],
             {
-              #jobId: jobId,
+              #localId: localId,
               #updates: updates,
             },
           ),
         )),
-      ) as _i7.Future<_i2.Job>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>);
 
   @override
-  _i7.Future<List<_i2.Job>> syncJobs(List<_i2.Job>? jobsToSync) =>
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> updateJobSyncStatus({
+    required String? localId,
+    required _i8.SyncStatus? status,
+  }) =>
       (super.noSuchMethod(
         Invocation.method(
-          #syncJobs,
-          [jobsToSync],
+          #updateJobSyncStatus,
+          [],
+          {
+            #localId: localId,
+            #status: status,
+          },
         ),
-        returnValue: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
-      ) as _i7.Future<List<_i2.Job>>);
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #updateJobSyncStatus,
+            [],
+            {
+              #localId: localId,
+              #status: status,
+            },
+          ),
+        )),
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
+}
+
+/// A class which mocks [JobDeleterService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobDeleterService extends _i1.Mock implements _i11.JobDeleterService {
+  MockJobDeleterService() {
+    _i1.throwOnMissingStub(this);
+  }
 
   @override
-  _i7.Future<_i3.Unit> deleteJob(String? serverId) => (super.noSuchMethod(
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> deleteJob(String? localId) =>
+      (super.noSuchMethod(
         Invocation.method(
           #deleteJob,
-          [serverId],
+          [localId],
         ),
-        returnValue: _i7.Future<_i3.Unit>.value(_FakeUnit_1(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #deleteJob,
-            [serverId],
+            [localId],
           ),
         )),
-      ) as _i7.Future<_i3.Unit>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
+
+  @override
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> permanentlyDeleteJob(
+          String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #permanentlyDeleteJob,
+          [localId],
+        ),
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #permanentlyDeleteJob,
+            [localId],
+          ),
+        )),
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
+}
+
+/// A class which mocks [JobSyncService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobSyncService extends _i1.Mock implements _i12.JobSyncService {
+  MockJobSyncService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> syncPendingJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #syncPendingJobs,
+          [],
+        ),
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #syncPendingJobs,
+            [],
+          ),
+        )),
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
+
+  @override
+  _i5.Future<_i2.Either<_i6.Failure, _i7.Job>> syncSingleJob(_i7.Job? job) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #syncSingleJob,
+          [job],
+        ),
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i7.Job>(
+          this,
+          Invocation.method(
+            #syncSingleJob,
+            [job],
+          ),
+        )),
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i7.Job>>);
 }
 
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i13.FileSystem {
   MockFileSystem() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i7.Future<_i4.FileStat> stat(String? path) => (super.noSuchMethod(
+  _i5.Future<_i3.FileStat> stat(String? path) => (super.noSuchMethod(
         Invocation.method(
           #stat,
           [path],
         ),
-        returnValue: _i7.Future<_i4.FileStat>.value(_FakeFileStat_2(
+        returnValue: _i5.Future<_i3.FileStat>.value(_FakeFileStat_1(
           this,
           Invocation.method(
             #stat,
             [path],
           ),
         )),
-      ) as _i7.Future<_i4.FileStat>);
+      ) as _i5.Future<_i3.FileStat>);
 
   @override
-  _i7.Future<bool> fileExists(String? path) => (super.noSuchMethod(
+  _i5.Future<bool> fileExists(String? path) => (super.noSuchMethod(
         Invocation.method(
           #fileExists,
           [path],
         ),
-        returnValue: _i7.Future<bool>.value(false),
-      ) as _i7.Future<bool>);
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
 
   @override
-  _i7.Future<void> deleteFile(String? path) => (super.noSuchMethod(
+  _i5.Future<void> deleteFile(String? path) => (super.noSuchMethod(
         Invocation.method(
           #deleteFile,
           [path],
         ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 
   @override
-  _i7.Future<bool> directoryExists(String? path) => (super.noSuchMethod(
+  _i5.Future<bool> directoryExists(String? path) => (super.noSuchMethod(
         Invocation.method(
           #directoryExists,
           [path],
         ),
-        returnValue: _i7.Future<bool>.value(false),
-      ) as _i7.Future<bool>);
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
 
   @override
-  _i7.Future<void> createDirectory(
+  _i5.Future<void> createDirectory(
     String? path, {
     bool? recursive = false,
   }) =>
@@ -452,24 +362,24 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           [path],
           {#recursive: recursive},
         ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 
   @override
-  _i7.Stream<_i4.FileSystemEntity> listDirectory(String? path) =>
+  _i5.Stream<_i3.FileSystemEntity> listDirectory(String? path) =>
       (super.noSuchMethod(
         Invocation.method(
           #listDirectory,
           [path],
         ),
-        returnValue: _i7.Stream<_i4.FileSystemEntity>.empty(),
-      ) as _i7.Stream<_i4.FileSystemEntity>);
+        returnValue: _i5.Stream<_i3.FileSystemEntity>.empty(),
+      ) as _i5.Stream<_i3.FileSystemEntity>);
 
   @override
-  _i7.Future<void> writeFile(
+  _i5.Future<void> writeFile(
     String? path,
-    _i12.Uint8List? bytes,
+    _i14.Uint8List? bytes,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -479,477 +389,16 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
             bytes,
           ],
         ),
-        returnValue: _i7.Future<void>.value(),
-        returnValueForMissingStub: _i7.Future<void>.value(),
-      ) as _i7.Future<void>);
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 
   @override
-  _i7.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
+  _i5.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
           #readFile,
           [path],
         ),
-        returnValue: _i7.Future<List<int>>.value(<int>[]),
-      ) as _i7.Future<List<int>>);
-}
-
-/// A class which mocks [Uuid].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockUuid extends _i1.Mock implements _i13.Uuid {
-  MockUuid() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  String v1({
-    Map<String, dynamic>? options,
-    _i14.V1Options? config,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v1,
-          [],
-          {
-            #options: options,
-            #config: config,
-          },
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v1,
-            [],
-            {
-              #options: options,
-              #config: config,
-            },
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v1buffer(
-    List<int>? buffer, {
-    Map<String, dynamic>? options,
-    _i14.V1Options? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v1buffer,
-          [buffer],
-          {
-            #options: options,
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v1obj({
-    Map<String, dynamic>? options,
-    _i14.V1Options? config,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v1obj,
-          [],
-          {
-            #options: options,
-            #config: config,
-          },
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v1obj,
-            [],
-            {
-              #options: options,
-              #config: config,
-            },
-          ),
-        ),
-      ) as _i5.UuidValue);
-
-  @override
-  String v4({
-    Map<String, dynamic>? options,
-    _i14.V4Options? config,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v4,
-          [],
-          {
-            #options: options,
-            #config: config,
-          },
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v4,
-            [],
-            {
-              #options: options,
-              #config: config,
-            },
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v4buffer(
-    List<int>? buffer, {
-    Map<String, dynamic>? options,
-    _i14.V4Options? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v4buffer,
-          [buffer],
-          {
-            #options: options,
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v4obj({
-    Map<String, dynamic>? options,
-    _i14.V4Options? config,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v4obj,
-          [],
-          {
-            #options: options,
-            #config: config,
-          },
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v4obj,
-            [],
-            {
-              #options: options,
-              #config: config,
-            },
-          ),
-        ),
-      ) as _i5.UuidValue);
-
-  @override
-  String v5(
-    String? namespace,
-    String? name, {
-    Map<String, dynamic>? options,
-    _i14.V5Options? config,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v5,
-          [
-            namespace,
-            name,
-          ],
-          {
-            #options: options,
-            #config: config,
-          },
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v5,
-            [
-              namespace,
-              name,
-            ],
-            {
-              #options: options,
-              #config: config,
-            },
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v5buffer(
-    String? namespace,
-    String? name,
-    List<int>? buffer, {
-    Map<String, dynamic>? options,
-    _i14.V5Options? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v5buffer,
-          [
-            namespace,
-            name,
-            buffer,
-          ],
-          {
-            #options: options,
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v5obj(
-    String? namespace,
-    String? name, {
-    Map<String, dynamic>? options,
-    _i14.V5Options? config,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v5obj,
-          [
-            namespace,
-            name,
-          ],
-          {
-            #options: options,
-            #config: config,
-          },
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v5obj,
-            [
-              namespace,
-              name,
-            ],
-            {
-              #options: options,
-              #config: config,
-            },
-          ),
-        ),
-      ) as _i5.UuidValue);
-
-  @override
-  String v6({_i14.V6Options? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v6,
-          [],
-          {#config: config},
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v6,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v6buffer(
-    List<int>? buffer, {
-    _i14.V6Options? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v6buffer,
-          [buffer],
-          {
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v6obj({_i14.V6Options? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v6obj,
-          [],
-          {#config: config},
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v6obj,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as _i5.UuidValue);
-
-  @override
-  String v7({_i14.V7Options? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v7,
-          [],
-          {#config: config},
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v7,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v7buffer(
-    List<int>? buffer, {
-    _i14.V7Options? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v7buffer,
-          [buffer],
-          {
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v7obj({_i14.V7Options? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v7obj,
-          [],
-          {#config: config},
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v7obj,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as _i5.UuidValue);
-
-  @override
-  String v8({_i14.V8Options? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v8,
-          [],
-          {#config: config},
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v8,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v8buffer(
-    List<int>? buffer, {
-    _i14.V8Options? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v8buffer,
-          [buffer],
-          {
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v8obj({_i14.V8Options? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v8obj,
-          [],
-          {#config: config},
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v8obj,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as _i5.UuidValue);
-
-  @override
-  String v8g({_i14.V8GenericOptions? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v8g,
-          [],
-          {#config: config},
-        ),
-        returnValue: _i15.dummyValue<String>(
-          this,
-          Invocation.method(
-            #v8g,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as String);
-
-  @override
-  List<int> v8gbuffer(
-    List<int>? buffer, {
-    _i14.V8GenericOptions? config,
-    int? offset = 0,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #v8gbuffer,
-          [buffer],
-          {
-            #config: config,
-            #offset: offset,
-          },
-        ),
-        returnValue: <int>[],
-      ) as List<int>);
-
-  @override
-  _i5.UuidValue v8gobj({_i14.V8GenericOptions? config}) => (super.noSuchMethod(
-        Invocation.method(
-          #v8gobj,
-          [],
-          {#config: config},
-        ),
-        returnValue: _FakeUuidValue_3(
-          this,
-          Invocation.method(
-            #v8gobj,
-            [],
-            {#config: config},
-          ),
-        ),
-      ) as _i5.UuidValue);
+        returnValue: _i5.Future<List<int>>.value(<int>[]),
+      ) as _i5.Future<List<int>>);
 }

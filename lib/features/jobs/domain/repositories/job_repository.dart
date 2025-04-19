@@ -1,52 +1,69 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/job.dart';
+import '../../data/models/job_update_data.dart';
 
-// Abstract interface defining the contract for Job data operations.
-// The domain layer depends on this, implementations are in the data layer.
+/// Manages job data including local persistence, remote sync, and CRUD operations.
+/// This is the single public interface for interacting with job data.
 abstract class JobRepository {
+  /// --- FETCHING OPERATIONS ---
+
   /// Fetches all jobs for the current user.
-  /// Returns [Right<List<Job>>] on success.
-  /// Returns [Left<Failure>] on failure (e.g., ServerFailure, CacheFailure).
+  /// Returns [Right(List<Job>)] containing the list of jobs on success.
+  /// Returns [Left(Failure)] on error (e.g., network or cache issues).
   Future<Either<Failure, List<Job>>> getJobs();
 
-  /// Fetches a single job by its ID.
-  /// Returns [Right<Job>] if found.
-  /// Returns [Left<Failure>] if not found or on other errors.
-  Future<Either<Failure, Job>> getJobById(String id);
+  /// Fetches a single job by its unique local identifier.
+  /// Returns [Right(Job)] if the job is found.
+  /// Returns [Left(Failure)] if the job with the specified [localId] is not found
+  /// or if another error occurs.
+  Future<Either<Failure, Job>> getJobById(String localId);
 
-  /// Creates a new job.
-  /// Takes the path to the locally stored [audioFilePath] and optional [text].
-  /// Returns the newly created [Right<Job>] on success (potentially with status 'created' or 'submitted').
-  /// Returns [Left<Failure>] on failure.
+  /// --- WRITE OPERATIONS ---
+
+  /// Creates a new job locally with the provided audio file path and optional text.
+  /// A unique [localId] is generated and assigned internally.
+  /// The job is initially marked with [SyncStatus.pending].
+  /// Returns [Right(Job)] containing the newly created job object on success.
+  /// Returns [Left(Failure)] if the creation process fails (e.g., cache error).
   Future<Either<Failure, Job>> createJob({
     required String audioFilePath,
     String? text,
-    // userId is handled by the implementation
   });
 
-  /// Updates an existing job based on its [jobId] (which should be the localId).
-  /// Applies the provided [updates] map to the job's data.
-  /// Marks the job's syncStatus as `pending`.
-  /// Returns the updated [Right<Job>] on success.
-  /// Returns [Left<Failure>] if the job is not found or on update/cache errors.
+  /// Updates an existing job identified by its [localId].
+  /// Applies the changes specified in the [updates] object.
+  /// Sets the job's [SyncStatus] to [SyncStatus.pending] to trigger synchronization.
+  /// Returns [Right(Job)] containing the updated job object on success.
+  /// Returns [Left(Failure)] if the job is not found or if the update fails.
   Future<Either<Failure, Job>> updateJob({
-    required String jobId,
-    required Map<String, dynamic> updates,
+    required String localId,
+    required JobUpdateData updates, // Use JobUpdateData instead of Map
   });
 
-  /// Attempts to synchronize locally pending jobs with the remote server.
-  /// Fetches jobs marked as `SyncStatus.pending` from the local cache,
-  /// sends them to the remote data source, and updates their local status
-  /// (e.g., to `synced` or `error`) based on the outcome.
-  /// Returns [Right(unit)] on success (even if some individual jobs failed to sync but the overall process completed).
-  /// Returns [Left<Failure>] if a critical error occurs during the process (e.g., unable to reach remote).
+  /// --- DELETE OPERATIONS ---
+
+  /// Marks a job for deletion locally using its [localId].
+  /// This sets the job's [SyncStatus] to [SyncStatus.pendingDeletion].
+  /// The actual deletion from local storage and the remote server occurs during the sync process.
+  /// Returns [Right(unit)] on successful marking for deletion.
+  /// Returns [Left(Failure)] if the job is not found or if a cache error occurs.
+  Future<Either<Failure, Unit>> deleteJob(String localId);
+
+  /// --- SYNC OPERATIONS ---
+
+  /// Synchronizes all locally pending jobs (created, updated, marked for deletion)
+  /// with the remote server.
+  /// Requires network connectivity.
+  /// Returns [Right(unit)] when the sync process completes, even if individual jobs failed.
+  /// Returns [Left(Failure)] if a critical error occurs (e.g., network failure before starting).
   Future<Either<Failure, Unit>> syncPendingJobs();
 
-  /// Marks a job for deletion locally by setting its syncStatus to `pendingDeletion`.
-  /// The actual deletion from local cache and remote server happens during the sync process.
-  /// Takes the [jobId] (which should be the localId) of the job to delete.
-  /// Returns [Right(unit)] on success (job marked for deletion).
-  /// Returns [Left<Failure>] if the job is not found or on cache errors.
-  Future<Either<Failure, Unit>> deleteJob(String jobId);
+  /// Synchronizes a single specific job with the remote server.
+  /// Handles creation on the server if it's a new job ([serverId] is null) or
+  /// updates the job on the server if it already exists.
+  /// Updates the local job's state (e.g., [serverId], [SyncStatus]) based on the sync result.
+  /// Returns [Right(Job)] with the synchronized job state on success.
+  /// Returns [Left(Failure)] if the synchronization fails (e.g., network or server error).
+  Future<Either<Failure, Job>> syncSingleJob(Job job);
 }
