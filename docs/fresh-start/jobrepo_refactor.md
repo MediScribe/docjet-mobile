@@ -590,8 +590,8 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Implement `updateJob`
     -   [x] Write tests for `updateJobSyncStatus` (new functionality)
     -   [x] Implement `updateJobSyncStatus`
--   [ ] **4. JobDeleterService:**
-    -   [ ] Create `job_deleter_service.dart`
+-   [x] **4. JobDeleterService:**
+    -   [x] Create `job_deleter_service.dart`
 -   [ ] **5. JobSyncService:**
     -   [ ] Create `job_sync_service.dart`
     -   [ ] Create `job_sync_service_test.dart`
