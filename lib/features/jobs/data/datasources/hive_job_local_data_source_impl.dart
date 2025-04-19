@@ -6,6 +6,8 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging he
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'; // Import SyncStatus
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // Import Job entity
 import 'package:dartz/dartz.dart'; // Import dartz for Unit
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import JobMapper
+import 'dart:math'; // Import for pow
 
 class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   final HiveInterface hive;
@@ -416,5 +418,99 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     _logger.d('$_tag getJobsByStatus (New Style) called for status: $status');
     // TODO: Implement logic to filter by status and map to Job entities
     throw UnimplementedError('getJobsByStatus needs proper implementation');
+  }
+
+  // --- ADDED: Implementation for getJobs using Job entity ---
+  @override
+  Future<List<Job>> getJobs() async {
+    _logger.d('$_tag getJobs called (using Job entity)');
+    try {
+      final hiveModels = await getAllJobHiveModels();
+      // FIX: Call static method directly on the class
+      final jobs =
+          hiveModels.map((model) => JobMapper.fromHiveModel(model)).toList();
+      _logger.d('$_tag Mapped ${jobs.length} Hive models to Job entities.');
+      return jobs;
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to get and map jobs from cache',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Re-throw as CacheException, consistent with other methods
+      throw CacheException('Failed to get jobs: ${e.toString()}');
+    }
+  }
+
+  // --- ADDED: Implementation for getJobsToRetry ---
+  @override
+  Future<List<Job>> getJobsToRetry(
+    int maxRetries,
+    Duration baseBackoffDuration,
+  ) async {
+    _logger.d(
+      '$_tag getJobsToRetry called with maxRetries: $maxRetries, baseBackoff: $baseBackoffDuration',
+    );
+    try {
+      final box = await _getOpenBox();
+      final now = DateTime.now(); // Get current time for comparison
+
+      // Filter values, apply retry logic, and map
+      final retryableJobs =
+          box.values
+              .whereType<JobHiveModel>()
+              .where((model) {
+                // 1. Must be in error status
+                if (model.syncStatus != SyncStatus.error.index) {
+                  return false;
+                }
+
+                // 2. Must have retry attempts remaining
+                final retryCount = model.retryCount ?? 0;
+                if (retryCount >= maxRetries) {
+                  return false;
+                }
+
+                // 3. Check backoff duration
+                if (model.lastSyncAttemptAt == null) {
+                  // No last attempt recorded, eligible for retry immediately
+                  return true;
+                }
+
+                // Parse the stored timestamp string
+                final lastAttemptTime = DateTime.tryParse(
+                  model.lastSyncAttemptAt!,
+                );
+                if (lastAttemptTime == null) {
+                  // Invalid timestamp format, treat as eligible to avoid getting stuck
+                  _logger.w(
+                    '$_tag Invalid lastSyncAttemptAt format for job ${model.localId}: ${model.lastSyncAttemptAt}. Considering retryable.',
+                  );
+                  return true;
+                }
+
+                // Calculate the required delay
+                final backoffMultiplier = pow(2, retryCount).toInt();
+                final requiredDelay = baseBackoffDuration * backoffMultiplier;
+                final nextRetryTime = lastAttemptTime.add(requiredDelay);
+
+                // Eligible if current time is after the next calculated retry time
+                return now.isAfter(nextRetryTime);
+              })
+              .map(
+                (model) => JobMapper.fromHiveModel(model),
+              ) // Map to Job entity
+              .toList();
+
+      _logger.d('$_tag Found ${retryableJobs.length} jobs eligible for retry.');
+      return retryableJobs;
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to get jobs eligible for retry from cache',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw CacheException('Failed to get jobs to retry: ${e.toString()}');
+    }
   }
 }

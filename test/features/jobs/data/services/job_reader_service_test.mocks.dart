@@ -61,6 +61,15 @@ class MockJobLocalDataSource extends _i1.Mock
   }
 
   @override
+  _i5.Future<List<_i2.Job>> getJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #getJobs,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+      ) as _i5.Future<List<_i2.Job>>);
+
+  @override
   _i5.Future<_i2.Job> getJobById(String? localId) => (super.noSuchMethod(
         Invocation.method(
           #getJobById,
@@ -111,6 +120,22 @@ class MockJobLocalDataSource extends _i1.Mock
         Invocation.method(
           #getJobsByStatus,
           [status],
+        ),
+        returnValue: _i5.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+      ) as _i5.Future<List<_i2.Job>>);
+
+  @override
+  _i5.Future<List<_i2.Job>> getJobsToRetry(
+    int? maxRetries,
+    Duration? baseBackoffDuration,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsToRetry,
+          [
+            maxRetries,
+            baseBackoffDuration,
+          ],
         ),
         returnValue: _i5.Future<List<_i2.Job>>.value(<_i2.Job>[]),
       ) as _i5.Future<List<_i2.Job>>);

@@ -628,8 +628,8 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Add `JobUpdateData` validation (avoid empty updates)
     -   [x] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
 
--   [ ] **10. Error Recovery Implementation:**
-    -   [ ] **10.1 Update Job Entity and Models:** (Foundation)
+-   [x] **10. Error Recovery Implementation:**
+    -   [x] **10.1 Update Job Entity and Models:** (Foundation)
         -   [x] Add `retryCount` field (int, defaults to 0) to `Job` entity class
         -   [x] Add `lastSyncAttemptAt` field (DateTime?, nullable) to `Job` entity class 
         -   [x] Add `SyncStatus.failed` to the `SyncStatus` enum
@@ -645,12 +645,12 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
           const Duration SYNC_INTERVAL = Duration(seconds: 15);
           ```
 
-    -   [ ] **10.3 Update JobLocalDataSource Interface:** (API contract)
-        -   [ ] Add `Future<List<Job>> getJobsToRetry(int maxRetries, Duration baseBackoffDuration)` to interface
-        -   [ ] Write tests for the new method
+    -   [x] **10.3 Update JobLocalDataSource Interface:** (API contract)
+        -   [x] Add `Future<List<Job>> getJobsToRetry(int maxRetries, Duration baseBackoffDuration)` to interface
+        -   [x] Write tests for the new method
 
-    -   [ ] **10.4 Update HiveJobLocalDataSourceImpl:** (Implementation)
-        -   [ ] Implement `getJobsToRetry` with:
+    -   [x] **10.4 Update HiveJobLocalDataSourceImpl:** (Implementation)
+        -   [x] Implement `getJobsToRetry` with:
           ```dart
           // Return jobs matching these criteria:
           syncStatus == SyncStatus.error &&

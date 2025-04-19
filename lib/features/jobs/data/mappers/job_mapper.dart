@@ -19,8 +19,8 @@ class JobMapper {
 
   /// Maps a JobHiveModel to a JobEntity.
   static Job fromHiveModel(JobHiveModel model) {
-    final jobStatus = _intToJobStatus(model.status);
-    final syncStatus = _intToSyncStatus(model.syncStatus);
+    final JobStatus jobStatus = _intToJobStatus(model.status);
+    final SyncStatus syncStatus = _intToSyncStatus(model.syncStatus);
     DateTime? createdAt, updatedAt, lastSyncAttemptAt;
     try {
       createdAt = DateTime.tryParse(model.createdAt ?? '');

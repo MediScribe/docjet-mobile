@@ -9,6 +9,12 @@ import 'package:dartz/dartz.dart'; // Import dartz for Unit
 abstract class JobLocalDataSource {
   // --- Methods operating on Job Entity (New Style) ---
 
+  /// Retrieves all jobs stored locally.
+  ///
+  /// Returns a list of [Job] entities on success.
+  /// Throws a [CacheException] if an error occurs during retrieval.
+  Future<List<Job>> getJobs();
+
   /// Retrieves a single Job entity by its localId.
   /// Returns the [Job] if found.
   /// Throws a [CacheException] if not found or on cache access errors.
@@ -31,6 +37,23 @@ abstract class JobLocalDataSource {
   /// Returns a list of [Job] entities.
   /// Throws a [CacheException] if unable to access the cache.
   Future<List<Job>> getJobsByStatus(SyncStatus status);
+
+  /// Retrieves jobs that have previously failed synchronization and are eligible for a retry attempt.
+  ///
+  /// Eligibility is determined by:
+  /// - The job's [SyncStatus] being [SyncStatus.error].
+  /// - The job's `retryCount` being less than [maxRetries].
+  /// - The time since the `lastSyncAttemptAt` exceeding the calculated exponential backoff duration
+  ///   (based on [baseBackoffDuration] and `retryCount`).
+  ///
+  /// [maxRetries] The maximum number of retry attempts allowed.
+  /// [baseBackoffDuration] The base duration for the exponential backoff calculation.
+  /// Returns a list of [Job] entities eligible for retry.
+  /// Throws a [CacheException] if an error occurs during retrieval.
+  Future<List<Job>> getJobsToRetry(
+    int maxRetries,
+    Duration baseBackoffDuration,
+  );
 
   // --- Methods operating on JobHiveModel (Old Style - To be refactored/removed?) ---
   // TODO: Review if these are still needed or can be replaced by Job entity methods.
