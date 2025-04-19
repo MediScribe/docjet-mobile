@@ -14,8 +14,8 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 class JobDeleterService {
   final JobLocalDataSource _localDataSource;
   final FileSystem _fileSystem;
+  final Logger _logger = Logger();
 
-  final Logger _logger = LoggerFactory.getLogger(JobDeleterService);
   static final String _tag = logTag(JobDeleterService);
 
   /// Creates an instance of [JobDeleterService].
@@ -38,39 +38,25 @@ class JobDeleterService {
   /// - Returns: [Left(CacheFailure)] if the job with the specified [localId] is not found
   ///   or if there's an error updating the job's status in the local data source.
   Future<Either<Failure, Unit>> deleteJob(String localId) async {
-    _logger.d('$_tag Marking job $localId for deletion.');
+    _logger.i('$_tag Marking job for deletion (localId: $localId)...');
     try {
-      // Retrieve the job entity to ensure it exists before marking for deletion.
-      // Use the Job entity as defined in the interface contract.
-      final Job job = await _localDataSource.getJobById(localId);
-      _logger.d('$_tag Found job $localId to mark for deletion.');
-
-      // Create an updated entity with the pendingDeletion status.
-      final Job jobToDelete = job.copyWith(
-        syncStatus: SyncStatus.pendingDeletion,
-      );
-
-      // Save the updated job entity back to the local data source.
-      // Use the saveJob method from the interface.
+      final job = await _localDataSource.getJobById(localId);
+      final jobToDelete = job.copyWith(syncStatus: SyncStatus.pendingDeletion);
       await _localDataSource.saveJob(jobToDelete);
-      _logger.i('$_tag Successfully marked job $localId for deletion locally.');
+      _logger.i(
+        '$_tag Successfully marked job for deletion (localId: $localId).',
+      );
       return const Right(unit);
-    } on CacheException catch (e, stackTrace) {
-      // Specific handling for when the job is not found in the cache.
-      _logger.w(
-        '$_tag Job with localId $localId not found when trying to mark for deletion.',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      return Left(CacheFailure('Job with localId $localId not found.'));
-    } catch (e, stackTrace) {
-      // Generic catch block for any other unexpected errors during the process.
+    } on CacheException catch (e) {
       _logger.e(
-        '$_tag Error marking job $localId for deletion: $e',
-        error: e,
-        stackTrace: stackTrace,
+        '$_tag Failed to mark job for deletion (localId: $localId): $e',
       );
-      return Left(CacheFailure('Failed to mark job for deletion: $e'));
+      return Left(CacheFailure(e.message ?? 'Failed to find or save job'));
+    } catch (e) {
+      _logger.e(
+        '$_tag Unexpected error marking job for deletion (localId: $localId): $e',
+      );
+      return Left(UnknownFailure('Unexpected error: $e'));
     }
   }
 
@@ -84,85 +70,66 @@ class JobDeleterService {
   ///   File deletion errors are logged but do not result in a [Failure].
   /// - Returns: [Left(CacheFailure)] if the job cannot be found or deleted from the local data source.
   Future<Either<Failure, Unit>> permanentlyDeleteJob(String localId) async {
-    _logger.d('$_tag Attempting to permanently delete job $localId.');
-    Job? job; // To hold the job details before deletion
+    _logger.i(
+      '$_tag Attempting permanent local deletion (localId: $localId)...',
+    );
+    Job job; // Need job details for file path
+
+    // Step 1: Get Job Details (handle not found)
     try {
-      // Retrieve job details first to get the audio file path.
-      // We need this *before* deleting the database record.
-      // Use the Job entity as defined in the interface contract.
       job = await _localDataSource.getJobById(localId);
-      _logger.d('$_tag Found job $localId details for permanent deletion.');
-
-      // Delete the job record from the local data source.
-      // Use the deleteJob method from the interface.
-      await _localDataSource.deleteJob(localId);
-      _logger.i(
-        '$_tag Successfully deleted job $localId from local data source.',
+      _logger.d('$_tag Found job locally, proceeding with deletion.');
+    } on CacheException catch (e) {
+      // Job not found exception is expected if already deleted elsewhere. Treat as success.
+      _logger.w(
+        '$_tag CacheException getting job $localId (Maybe already deleted?): $e',
       );
-
-      // If the job had an associated audio file, attempt to delete it.
-      if (job.audioFilePath != null && job.audioFilePath!.isNotEmpty) {
-        _logger.d(
-          '$_tag Attempting to delete audio file ${job.audioFilePath} for job $localId.',
-        );
-        try {
-          await _fileSystem.deleteFile(job.audioFilePath!);
-          _logger.i(
-            '$_tag Successfully deleted audio file ${job.audioFilePath} for job $localId.',
-          );
-        } catch (e, stackTrace) {
-          // Log the file deletion error but allow the overall operation to succeed.
-          // The primary goal is to remove the database record.
-          _logger.w(
-            '$_tag Failed to delete audio file ${job.audioFilePath} for job $localId: $e',
-            error: e,
-            stackTrace: stackTrace,
-          );
-        }
-      } else {
-        _logger.d('$_tag Job $localId has no audio file path to delete.');
-      }
-
       return const Right(unit);
-    } on CacheException catch (e, stackTrace) {
-      // Handle cases where the job couldn't be found initially or deletion failed.
-      if (job == null) {
-        _logger.w(
-          '$_tag Job with localId $localId not found for permanent deletion.',
-          error: e,
-          stackTrace: stackTrace,
-        );
-        return Left(
-          CacheFailure(
-            'Job with localId $localId not found for permanent deletion.',
-          ),
-        );
-      } else {
-        _logger.e(
-          '$_tag CacheException during permanent deletion of job $localId from DB: $e',
-          error: e,
-          stackTrace: stackTrace,
-        );
-        // Pass the original exception message if available - removed redundant type check
-        final String errorMessage = e.message ?? e.toString();
-        return Left(
-          CacheFailure(
-            'Failed to permanently delete job $localId from cache: $errorMessage',
-          ),
-        );
-      }
-    } catch (e, stackTrace) {
-      // Catch unexpected errors during the database deletion process.
+    } catch (e) {
+      // Any other error fetching job details is a failure.
       _logger.e(
-        '$_tag Unexpected error during permanent deletion of job $localId: $e',
-        error: e,
-        stackTrace: stackTrace,
+        '$_tag Unexpected error fetching job $localId details for deletion: $e',
       );
       return Left(
-        CacheFailure(
-          'Unexpected error during permanent deletion of job $localId: $e',
-        ),
+        CacheFailure('Failed to fetch job details before deletion: $e'),
       );
     }
+
+    // Step 2: Delete from DB (handle failure)
+    try {
+      await _localDataSource.deleteJob(localId);
+      _logger.i(
+        '$_tag Successfully deleted job from local DB (localId: $localId).',
+      );
+    } catch (e) {
+      _logger.e('$_tag Error deleting job $localId from local DB: $e.');
+      // Failure to delete from DB is a critical error for this operation.
+      return Left(
+        CacheFailure('Failed to delete job $localId from local DB: $e'),
+      );
+    }
+
+    // Step 3: Delete File (handle failure non-critically)
+    if (job.audioFilePath != null && job.audioFilePath!.isNotEmpty) {
+      try {
+        _logger.d('$_tag Deleting audio file: ${job.audioFilePath}');
+        await _fileSystem.deleteFile(job.audioFilePath!);
+        _logger.i(
+          '$_tag Successfully deleted audio file: ${job.audioFilePath}.',
+        );
+      } catch (e) {
+        _logger.w(
+          '$_tag Non-critical: Failed to delete audio file (${job.audioFilePath}) for job $localId: $e.',
+        );
+        // Log but don't fail the operation
+      }
+    } else {
+      _logger.d(
+        '$_tag No audio file path found for job $localId, skipping file deletion.',
+      );
+    }
+
+    // If we reached here, DB deletion was successful.
+    return const Right(unit);
   }
 }

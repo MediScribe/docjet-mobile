@@ -121,7 +121,7 @@ abstract class JobRepository {
   /// Processes creates, updates, and deletions
   /// Returns right(unit) when sync process completes
   Future<Either<Failure, Unit>> syncPendingJobs();
-  
+
   /// Syncs a single job with remote server
   /// Returns right(job) with updated state from server
   Future<Either<Failure, Job>> syncSingleJob(Job job);
@@ -592,13 +592,14 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Implement `updateJobSyncStatus`
 -   [x] **4. JobDeleterService:**
     -   [x] Create `job_deleter_service.dart`
--   [ ] **5. JobSyncService:**
-    -   [ ] Create `job_sync_service.dart`
-    -   [ ] Create `job_sync_service_test.dart`
-    -   [ ] Write tests for `syncPendingJobs` (steal from `sync_pending_jobs_test.dart`)
-    -   [ ] Implement `syncPendingJobs` and `_permanentlyDeleteJob` helper
-    -   [ ] Write tests for `syncSingleJob` (steal from `sync_pending_jobs_test.dart`)
-    -   [ ] Implement `syncSingleJob`
+    -   [x] Create `job_deleter_service_test.dart`
+-   [x] **5. JobSyncService:**
+    -   [x] Create `job_sync_service.dart`
+    -   [x] Create `job_sync_service_test.dart`
+    -   [x] Write tests for `syncPendingJobs` (steal from `sync_pending_jobs_test.dart`) --> *Partially done - one test written*
+    -   [x] Implement `syncPendingJobs` and `_permanentlyDeleteJob` helper
+    -   [x] Write tests for `syncSingleJob` (steal from `sync_pending_jobs_test.dart`) --> *Success and Error cases done*
+    -   [x] Implement `syncSingleJob`
 -   [ ] **6. JobRepository:**
     -   [ ] Clean up `JobRepository` interface (`lib/features/jobs/data/repositories/job_repository.dart`)
     -   [ ] Implement `JobRepositoryImpl` (`lib/features/jobs/data/repositories/job_repository_impl.dart`)
