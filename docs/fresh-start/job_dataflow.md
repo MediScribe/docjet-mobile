@@ -482,3 +482,29 @@ When fetching jobs from the server:
 2. Files remain on device as long as their associated job exists
 3. When a job is deleted (either locally initiated or server-detected), its audio file is also deleted
 4. Audio lifecycle is 100% tied to job lifecycle - when the job is gone, the audio is gone 
+
+## Future Improvements - TODOs
+
+The following improvements should be implemented as part of the refactoring effort:
+
+1. **JobUpdateData Validation**:
+   - Add validation logic to prevent sending empty updates
+   - Implement checks to ensure updates contain actual changes
+   - Return early if no changes are detected to avoid unnecessary DB writes and sync operations
+
+2. **Error Recovery**:
+   - Implement automatic retry mechanism for jobs with `SyncStatus.error`
+   - Add exponential backoff for failed jobs
+   - Add maximum retry count before requiring manual intervention
+   - Provide user notification for persistently failing jobs
+
+3. **Concurrent Sync Protection**:
+   - Add mutex/lock mechanism to prevent multiple sync operations running simultaneously
+   - Implement proper queue management for sync requests
+   - Add timeout handling for sync operations that take too long
+
+4. **Tracing/Logging**:
+   - Add comprehensive tracing across all repository operations
+   - Log key events in the sync lifecycle for debugging
+   - Record timing metrics for performance analysis
+   - Implement proper error context for failures 
