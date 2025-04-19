@@ -1,20 +1,23 @@
 // Features - Jobs - Data
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
+import 'package:docjet_mobile/core/interfaces/network_info.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart'; // Actual implementation (IoFileSystem) & Interface
+import 'package:docjet_mobile/core/platform/network_info_impl.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
-// import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source_impl.dart'; // TODO: Implement
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
-// import 'package:docjet_mobile/core/platform/file_system_impl.dart'; // TODO: Implement
-// import 'package:docjet_mobile/core/network/api_client.dart'; // TODO: Implement
-// import 'package:docjet_mobile/core/network/dio_client.dart'; // TODO: Implement
-// import 'package:docjet_mobile/core/services/database/database_service.dart'; // TODO: Implement
-// import 'package:docjet_mobile/core/services/database/hive_database_service.dart'; // TODO: Implement
-// import 'package:docjet_mobile/core/platform/network_info_impl.dart'; // TODO: Implement
 
 // Features - Jobs - Domain
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:get_it/get_it.dart';
+import 'package:path_provider/path_provider.dart'; // Needed for getApplicationDocumentsDirectory
 import 'package:uuid/uuid.dart';
 
 final sl = GetIt.instance;
@@ -52,34 +55,46 @@ Future<void> init() async {
   );
 
   // Data Sources Interfaces (depend on core services like DB, API Client)
-  // TODO: Implement and register JobLocalDataSourceImpl
-  // sl.registerLazySingleton<JobLocalDataSource>(
-  //   () => JobLocalDataSourceImpl(databaseService: sl()),
-  // );
-  // TODO: Implement and register JobRemoteDataSourceImpl
-  // sl.registerLazySingleton<JobRemoteDataSource>(
-  //   () => JobRemoteDataSourceImpl(apiClient: sl()),
-  // );
+  // Register JobLocalDataSourceImpl (using HiveInterface)
+  sl.registerLazySingleton<JobLocalDataSource>(
+    () => HiveJobLocalDataSourceImpl(hive: sl()), // Depends on HiveInterface
+  );
+  // Register JobRemoteDataSourceImpl (using Dio)
+  sl.registerLazySingleton<JobRemoteDataSource>(
+    () => ApiJobRemoteDataSourceImpl(
+      dio: sl(),
+      authCredentialsProvider: sl(),
+    ), // Depends on Dio & AuthProvider
+  );
 
-  // --- Core Dependencies (Examples) ---
+  // --- Core Dependencies ---
 
   // External
   sl.registerLazySingleton<Uuid>(() => const Uuid());
+  sl.registerLazySingleton<Dio>(() => Dio()); // Basic Dio instance
+  sl.registerLazySingleton<Connectivity>(() => Connectivity());
+  // Assume HiveInterface is registered elsewhere (e.g., main.dart during init)
+  // If not, it needs registration: sl.registerLazySingleton<HiveInterface>(() => Hive);
+  // Assume AuthCredentialsProvider is registered elsewhere
+  // If not, it needs registration: sl.registerLazySingleton<AuthCredentialsProvider>(() => YourAuthProviderImpl());
+  // Get document path once during init
+  final appDocDir = await getApplicationDocumentsDirectory();
+  final documentsPath = appDocDir.path;
 
   // Platform Interfaces
-  // TODO: Implement and register FileSystemImpl
-  // sl.registerLazySingleton<FileSystem>(() => FileSystemImpl());
-  // TODO: Implement and register NetworkInfoImpl
-  // sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
+  // Register FileSystem (using IoFileSystem with the actual path)
+  sl.registerLazySingleton<FileSystem>(() => IoFileSystem(documentsPath));
+  // Register NetworkInfo (using NetworkInfoImpl)
+  sl.registerLazySingleton<NetworkInfo>(
+    () => NetworkInfoImpl(sl()),
+  ); // Depends on Connectivity
 
-  // Network Interfaces
-  // TODO: Implement and register ApiClient (e.g., DioClient)
-  // sl.registerLazySingleton<ApiClient>(
-  //   () => DioClient(/* Pass Dio instance if needed */),
-  // );
+  // Network Interfaces - Handled by registering Dio directly
 
-  // Database Interfaces
-  // TODO: Implement and register DatabaseService (e.g., HiveDatabaseService)
-  // sl.registerLazySingleton<DatabaseService>(() => HiveDatabaseService());
-  // TODO: Initialize HiveDatabaseService (e.g., await sl<DatabaseService>().init();)
+  // Database Interfaces - Not needed for this feature
+
+  // TODO: Ensure HiveInterface and AuthCredentialsProvider are registered elsewhere,
+  // likely during app startup before this init() is called.
+  // TODO: Consider Dio setup (interceptors, base URL) if needed.
+  // TODO: Consider Hive setup (init, box opening) if needed.
 }

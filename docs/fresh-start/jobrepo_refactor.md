@@ -616,15 +616,13 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Code cleanup (remove unused imports, dead code, etc.)
     -   [x] Hard Bob Commit
 
-# TODO List (Continued)
-
--   [ ] **8. DI Implementation & Core Services:** (Implement missing core services and register all dependencies)
-    -   [ ] **Register** `Dio` instance (for `ApiJobRemoteDataSourceImpl`)
-    -   [ ] **Register** `FileSystemImpl` (`IoFileSystem` exists in `lib/core/platform/file_system.dart`)
+-   [x] **8. DI Implementation & Core Services:** (Implement missing core services and register all dependencies)
+    -   [x] **Register** `Dio` instance (for `ApiJobRemoteDataSourceImpl`)
+    -   [x] **Register** `FileSystemImpl` (`IoFileSystem` exists in `lib/core/platform/file_system.dart`)
     -   [x] Implement/Register `NetworkInfoImpl` - *Verify if standard implementation exists* --> **Implemented `NetworkInfoImpl` and verified it needs `Connectivity` registration.**
-    -   [ ] **Register** `JobLocalDataSourceImpl` (`HiveJobLocalDataSourceImpl` exists)
-    -   [ ] **Register** `JobRemoteDataSourceImpl` (`ApiJobRemoteDataSourceImpl` exists)
-    -   [ ] Verify `dart analyze` is clean (no errors after registration)
+    -   [x] **Register** `JobLocalDataSourceImpl` (`HiveJobLocalDataSourceImpl` exists)
+    -   [x] **Register** `JobRemoteDataSourceImpl` (`ApiJobRemoteDataSourceImpl` exists)
+    -   [x] Verify `dart analyze` is clean (no errors after registration) --> **Done, ignoring one spurious unused import warning.**
 
 -   [ ] **9. Job Data Flow Improvements:** (From job_dataflow.md)
     -   [ ] Add `JobUpdateData` validation (avoid empty updates)
