@@ -618,15 +618,13 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 
 # TODO List (Continued)
 
--   [ ] **8. DI Implementation & Core Services:** (Implement or stub required services)
-    -   [ ] Implement/Register `DatabaseService` (e.g., `HiveDatabaseService`)
-    -   [ ] Initialize `DatabaseService` in `injection_container.dart`
-    -   [ ] Implement/Register `ApiClient` (e.g., `DioClient`)
-    -   [ ] Implement/Register `FileSystemImpl`
-    -   [ ] Implement/Register `NetworkInfoImpl`
-    -   [ ] Implement/Register `JobLocalDataSourceImpl`
-    -   [ ] Implement/Register `JobRemoteDataSourceImpl`
-    -   [ ] Verify `dart analyze` is clean (no errors)
+-   [ ] **8. DI Implementation & Core Services:** (Implement missing core services and register all dependencies)
+    -   [ ] **Register** `Dio` instance (for `ApiJobRemoteDataSourceImpl`)
+    -   [ ] **Register** `FileSystemImpl` (`IoFileSystem` exists in `lib/core/platform/file_system.dart`)
+    -   [x] Implement/Register `NetworkInfoImpl` - *Verify if standard implementation exists* --> **Implemented `NetworkInfoImpl` and verified it needs `Connectivity` registration.**
+    -   [ ] **Register** `JobLocalDataSourceImpl` (`HiveJobLocalDataSourceImpl` exists)
+    -   [ ] **Register** `JobRemoteDataSourceImpl` (`ApiJobRemoteDataSourceImpl` exists)
+    -   [ ] Verify `dart analyze` is clean (no errors after registration)
 
 -   [ ] **9. Job Data Flow Improvements:** (From job_dataflow.md)
     -   [ ] Add `JobUpdateData` validation (avoid empty updates)
