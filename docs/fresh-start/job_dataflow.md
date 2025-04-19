@@ -2,6 +2,47 @@
 
 This document details the data flow architecture for the Job feature in DocJet Mobile.
 
+> **TLDR:** This is an offline-first architecture with server-side synchronization. Jobs have a dual-ID system (client-generated UUID and server-assigned ID), undergo local-first CRUD operations, are synchronized on a 15-second interval, and can handle network failures with appropriate status tracking. Historical development details can be found in [job_dataflow_development_history.md](./job_dataflow_development_history.md).
+
+## Key Architecture Decisions
+
+1. **Dual-ID System**
+   * `localId`: Client-generated UUID that never changes
+   * `serverId`: Server-assigned ID after first successful sync
+   * Preserves local references while supporting server-generated IDs
+
+2. **Offline-First Operations**
+   * All operations (create/update/delete) happen locally first
+   * Changes are marked with appropriate sync status
+   * Background synchronization pushes changes to server
+
+3. **Individual Job Synchronization**
+   * Each job is processed independently with clear paths for:
+     - Creating new jobs (`serverId == null`)
+     - Updating existing jobs (`serverId != null`)
+     - Deleting jobs (`syncStatus == pendingDeletion`)
+   * Allows for granular error handling per job
+
+4. **Server Authority Model**
+   * Server is the ultimate source of truth
+   * Server data overwrites local data after initial sync
+   * No conflict resolution - server response is accepted as-is
+
+5. **Robust Error Handling**
+   * Per-job error state tracking
+   * Failed jobs are retried in subsequent sync cycles
+   * Sync process continues with other jobs even if one fails
+   * Non-fatal audio file deletion errors
+
+6. **Resource Management**
+   * Audio files tied directly to job lifecycle
+   * Automatic cleanup when jobs are deleted (locally or server-side)
+
+7. **Comprehensive Testing**
+   * Full suite of unit and integration tests
+   * Verified core lifecycle and error handling scenarios
+   * Full implementation details in [job_dataflow_development_history.md](./job_dataflow_development_history.md)
+
 ## Job Feature Architecture Overview
 
 The following diagram illustrates the components and their relationships for the job feature.
@@ -141,8 +182,6 @@ sequenceDiagram
 
 This sequence diagram illustrates the data flow for creating new jobs, updating existing jobs, and synchronizing pending changes with the backend.
 
-> **Note:** This diagram represents the desired target architecture we're working toward. Some flows (particularly deletion handling) are not yet implemented.
-
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 
   'primaryColor': '#E64A45', 
@@ -198,7 +237,7 @@ sequenceDiagram
     JobRepo-->>AppSvc: Updated Job entity
     end
     
-    %% Job Deletion Flow - New Addition
+    %% Job Deletion Flow
     rect rgb(241, 156, 31, 0.2)
     Note over AppSvc, API: Job Deletion - Local First
     AppSvc->>JobRepo: deleteJob(jobId)
@@ -299,7 +338,7 @@ sequenceDiagram
     JobRepo-->>AppSvc: Sync completion (Success/Failure)
     end
     
-    %% Server-Side Deletion Detection - New Addition
+    %% Server-Side Deletion Detection
     rect rgb(142, 68, 173, 0.2)
     Note over AppSvc, API: Server-Side Deletion Detection
     AppSvc->>JobRepo: getJobs() (refresh)
@@ -343,11 +382,25 @@ sequenceDiagram
 ### JobRepositoryImpl
 Orchestrates data operations for Jobs. It decides whether to fetch from the local cache or the remote API, and handles the synchronization between them. Implements the `JobRepositoryInterface`.
 
+Key features:
+* Dual-ID system: Uses `localId` (client-generated UUID) and `serverId` (server-assigned)
+* Individual job sync: Processes each job independently with appropriate operation paths
+* Error handling: Tracks sync failures per job without aborting the entire process
+
 ### HiveJobLocalDataSourceImpl
 Implements the `JobLocalDataSourceInterface`. Responsible for interacting with the local persistence layer (Hive). Uses `JobMapper` to convert between `JobEntity` and `JobHiveModel`.
 
+Key features:
+* Manages sync status tracking
+* Fetch timestamp handling for freshness detection
+* Provides methods to query jobs by sync status
+
 ### ApiJobRemoteDataSourceImpl
-Implements the `JobRemoteDataSourceInterface`. Responsible for communicating with the backend REST API (`/api/v1/jobs`) using an HTTP client. Uses `JobApiDTO` for parsing API responses and `JobMapper` for converting between `JobApiDTO` and `JobEntity`. Also handles syncing individual pending jobs to the API.
+Implements the `JobRemoteDataSourceInterface`. Responsible for communicating with the backend REST API (`/api/v1/jobs`) using an HTTP client. Uses `JobApiDTO` for parsing API responses and `JobMapper` for converting between `JobApiDTO` and `JobEntity`. 
+
+Key features:
+* Handles syncing of individual pending jobs to the API
+* Supports creating, updating, and deleting jobs
 
 ### JobMapper
 Bidirectional mapper that handles transformations between:
@@ -361,81 +414,13 @@ Data Transfer Object specifically for API communication. Mirrors the API's JSON 
 The Hive database box used for local storage.
 
 ### REST API
-The backend endpoint providing job data. Assumed to support GET for fetching, and POST/PUT/PATCH for creating/updating individual jobs via `syncJob`.
+The backend endpoint providing job data. Supports GET for fetching, POST for creating, PUT/PATCH for updating, and DELETE for removing jobs.
 
-## Implementation Status & TODOs
-
-This section tracks the current implementation status of components in the Jobs feature.
-
-### Implemented Components
-- ✅ Job Entity (lib/features/jobs/domain/entities/job.dart)
-- ✅ JobRepository Interface (lib/features/jobs/domain/repositories/job_repository.dart)
-- ✅ JobLocalDataSource Interface (lib/features/jobs/data/datasources/job_local_data_source.dart)
-- ✅ HiveJobLocalDataSourceImpl (lib/features/jobs/data/datasources/hive_job_local_data_source_impl.dart)
-- ✅ JobHiveModel (lib/features/jobs/data/models/job_hive_model.dart)
-- ✅ JobRemoteDataSource Interface (lib/features/jobs/data/datasources/job_remote_data_source.dart)
-- ✅ ApiJobRemoteDataSourceImpl (lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart)
-- ✅ Basic JobMapper (for Hive models only) (lib/features/jobs/data/mappers/job_mapper.dart)
-- ✅ JobApiDTO (lib/features/jobs/data/models/job_api_dto.dart)
-- ✅ SyncStatus enum (lib/features/jobs/domain/entities/sync_status.dart)
-- ✅ **COMPLETED** - Server-side deletion detection
-
-### TODO Components
-- ✅ **EXISTING NEEDS UPDATE** - JobRepositoryImpl (lib/features/jobs/data/repositories/job_repository_impl.dart)
-  - File exists but needs enhancement
-  - ⚠️ **IN PROGRESS** - Implement `syncPendingJobs` using the defined Sync Strategy.
-  - Add support for syncing pending jobs when connectivity is restored (Trigger mechanism TBD)
-
-- ✅ **COMPLETED** - Extend JobMapper with API DTO support (lib/features/jobs/data/mappers/job_mapper.dart)
-  - Implemented `fromApiDto` and `toApiDto`
-  - Implemented `fromApiDtoList`
-  - ✅ **COMPLETED** - Skipped `toApiDtoList` as likely not needed for batch updates
-
-- ✅ **COMPLETED** - Implement JobStatus enum for type-safe status handling
-  - ✅ **COMPLETED** - Create `JobStatus` enum in domain layer
-  - ✅ **COMPLETED** - Update `Job`, `JobHiveModel`, and `JobApiDTO` to use the enum
-  - ✅ **COMPLETED** - Update `JobMapper` to handle conversion between different status formats
-  - ✅ **COMPLETED** - Update any business logic that depends on job status
-
-- ❌ **LOW PRIORITY** - Pagination support in RemoteDataSource
-  - Add pagination parameters to API calls
-  - Implement pagination state tracking
-
-- ❌ **LOW PRIORITY** - Network connectivity detection
-  - Add network state detection before API calls
-  - Implement offline-first behavior
-
-### Implementation Notes
-- ApiJobRemoteDataSourceImpl currently maps JSON directly to Job entities in _mapJsonToJob
-- No freshness policy is implemented yet (deciding when local data is stale)
-- No explicit error recovery strategy implemented for network failures
-- ✅ **COMPLETED** - Added SyncStatus enum tracking to JobHiveModel
-- ✅ **COMPLETED** - Implemented getJobsToSync and updateJobSyncStatus methods in JobLocalDataSource
-
-### Current Implementation Progress
-
-✅ **COMPLETED** - The latest implementation adds support for sync status tracking and timestamp handling:
-
-1. ✅ **COMPLETED** - Updated `JobLocalDataSource` interface to include timestamp methods:
-   - Added `Future<DateTime?> getLastFetchTime();` - Returns when data was last fetched from remote
-   - Added `Future<void> saveLastFetchTime(DateTime time);` - Records when data was fetched
-
-2. ✅ **COMPLETED** - Implemented these methods in `HiveJobLocalDataSourceImpl`:
-   - Store fetch timestamp in Hive using a dedicated key
-   - Handle null cases and type errors for first-time access
-   - Ensure UTC consistency in timestamp handling
-
-3. ✅ **COMPLETED** - Added support for sync status tracking:
-   - Created SyncStatus enum (pending/synced/error)
-   - Extended JobHiveModel with syncStatus field
-   - Added getJobsToSync and updateJobSyncStatus methods to JobLocalDataSource
-   - Implemented methods in HiveJobLocalDataSourceImpl with robust error handling
-
-### Sync Strategy
+## Sync Strategy
 
 This section details the comprehensive synchronization strategy for jobs, covering creation, updates, deletions, and conflict handling.
 
-#### Core Principles
+### Core Principles
 
 1. **Server Authority ("Server Wins")**: 
    - The server is the ultimate source of truth
@@ -447,240 +432,53 @@ This section details the comprehensive synchronization strategy for jobs, coveri
    - Job updates are applied locally first
    - Both are marked with `SyncStatus.pending` until synced
 
-#### Sync Process Details
+### Sync Process Details
 
 1. **Triggering:** 
-   - The `JobRepositoryImpl.syncPendingJobs()` method is called every 15 seconds initially
+   - The `JobRepositoryImpl.syncPendingJobs()` method is called every 15 seconds
    - Repository doesn't trigger itself - external timer/service calls it
    - Future: May add triggers on network reconnect, app foregrounding, etc.
 
 2. **Identify Pending:** 
-   - Repository requests all records with `SyncStatus.pending` from `JobLocalDataSource`
+   - Repository requests all records with `SyncStatus.pending` or `SyncStatus.pendingDeletion` from `JobLocalDataSource`
    - No batching or prioritization - all pending jobs are processed in one go
 
 3. **Sync Logic:**
    - Repository iterates through pending jobs one by one
-   - For each job, it checks the `serverId` field to determine if it's new or an update
    - **New Job Flow** (`serverId == null`, `SyncStatus.pending`):
-     * Calls `JobRemoteDataSource.createJob(job)`
-     * Sends job with client-generated `localId`
+     * Creates job on server with client-generated `localId`
      * Receives response with server-assigned `serverId`
-     * Saves both IDs (never overwriting `localId`)
+     * Saves both IDs locally (never overwriting `localId`)
    - **Update Job Flow** (`serverId != null`, `SyncStatus.pending`):
-     * Calls `JobRemoteDataSource.updateJob(job.serverId, updates)`
+     * Updates job on server using its `serverId`
      * Sends only changed fields to avoid unnecessary updates
    - **Delete Job Flow** (`SyncStatus.pendingDeletion`):
-     * Calls `JobRemoteDataSource.deleteJob(job.serverId ?? job.localId)`
-     * Job remains in local DB until API confirms deletion
+     * Deletes job on server (if it has a `serverId`)
+     * Removes job from local storage
+     * Deletes associated audio file
 
 4. **Success Handling:**
-   - Repository saves server response data locally, updating `serverId` if needed
-   - Never overwrites `localId` (client UUID)
-   - Updates `syncStatus = SyncStatus.synced`
+   - Updates `syncStatus = SyncStatus.synced` after successful API interaction
    - For deleted jobs, removes from local DB after successful API deletion
 
 5. **Error Handling:**
-   - Sets `syncStatus = SyncStatus.error` on network/server errors during an individual job sync attempt.
-   - Jobs in the `error` state **will be retried** on subsequent `syncPendingJobs` cycles alongside `pending` jobs.
-   - Sync process continues with other jobs even if one fails.
-   - No exponential backoff in initial implementation.
+   - Sets `syncStatus = SyncStatus.error` on network/server errors
+   - Jobs in the `error` state are retried on subsequent sync cycles
+   - Sync process continues with other jobs even if one fails
 
-#### Server-Side Deletion Handling
+### Server-Side Deletion Handling
 
 When fetching jobs from the server:
 1. Repository gets full list of jobs from API
 2. Compares with local jobs that have `syncStatus.synced` (ignoring pending ones)
 3. Any jobs previously synced but missing from API response are considered deleted by server
 4. These jobs are immediately deleted locally (including associated audio files)
-5. This is appropriate because jobs are ephemeral processing entities with natural end-of-life
 
-**IMPORTANT: Jobs with `SyncStatus.pending` or `SyncStatus.pendingDeletion` are intentionally ignored during this check.** This prevents accidental deletion of jobs that have been created locally but not yet synced to the server, ensuring no data loss occurs before the job has a chance to be synchronized.
+> **IMPORTANT:** Jobs with `SyncStatus.pending` or `SyncStatus.pendingDeletion` are intentionally ignored during this check to prevent accidental deletion of jobs that have been created locally but not yet synced to the server.
 
-#### Audio File Management
+### Audio File Management
 
 1. Audio files are stored locally when jobs are created
 2. Files remain on device as long as their associated job exists
 3. When a job is deleted (either locally initiated or server-detected), its audio file is also deleted
-4. No separate caching policy or expiration - audio lifecycle is 100% tied to job lifecycle
-
-#### Required Changes
-
-*   Extend `JobHiveModel` with:
-    * `localId` field (UUID, generated client-side, never changes)
-    * `serverId` field (nullable until first sync, assigned by server)
-*   Add corresponding mapping in `JobMapper`
-*   Add `uuid` package dependency for generating UUIDs for new jobs
-*   Implement job deletion flow in Repository and DataSources (using `SyncStatus.pendingDeletion`)
-*   Add audio file deletion when jobs are removed
-*   Update `JobEntity` to support dual-ID system
-
-### TDD Implementation Plan
-
-This bottom-up implementation plan follows Test-Driven Development principles, focusing on isolated components first.
-
-#### Level 1: Zero Dependencies (Isolated Components)
-
-1. ✅ **COMPLETED** - Add `uuid` package:
-   - RED: Write test verifying UUID generation works
-   - GREEN: Add package to pubspec.yaml, run pub get
-   - REFACTOR: Ensure tests are clean and meaningful
-
-2. ✅ **COMPLETED** - Use existing FileSystem service:
-   - RED: Write tests verifying FileSystem interaction
-   - GREEN: Ensure we can use the existing implementation
-   - REFACTOR: Clean up tests
-
-3. ✅ **COMPLETED** - Update `SyncStatus` enum:
-   - RED: Write tests expecting the new `pendingDeletion` value
-   - GREEN: Add the value to enum, run code generation
-   - REFACTOR: Ensure enum has clear documentation
-
-#### Level 2: Basic Models
-
-4. ✅ **COMPLETED** - Update `JobEntity` and `JobHiveModel`:
-   - RED: Write tests for dual-ID support (`localId` and `serverId`)
-   - GREEN: Add fields, run code generation
-   - REFACTOR: Ensure good default values
-
-5. ✅ **COMPLETED** - Update `JobMapper`:
-   - RED: Write tests for mapping between dual-ID models
-   - GREEN: Update mapper implementation
-   - REFACTOR: Ensure consistent mapping
-
-#### Level 3: DataSource Layer
-
-6. ✅ **COMPLETED** - Update `JobLocalDataSource` interface:
-   - RED: Write tests for new methods (getSyncedJobs, deleteJob)
-   - GREEN: Add interface methods
-   - REFACTOR: Ensure clear documentation
-
-7. ✅ **COMPLETED** - Update `HiveJobLocalDataSourceImpl`:
-   - RED: Write tests for implementation of new methods
-   - GREEN: Implement methods
-   - REFACTOR: Ensure robust error handling
-
-#### Level 4: Repository Layer
-
-8. ✅ **COMPLETED** - Update `JobRepositoryImpl` constructor:
-   - RED: Write tests expecting FileSystem dependency
-   - GREEN: Add parameter to constructor
-   - REFACTOR: Ensure defaults for backward compatibility
-
-9. ✅ **COMPLETED** - Implement `createJob` method:
-   - RED: Write tests covering UUID generation, status setting
-   - GREEN: Implement method
-   - REFACTOR: Ensure proper error handling
-
-10. ✅ **COMPLETED** - Implement `updateJob` method:
-    - RED: Write tests for proper status updates
-    - GREEN: Implement method
-    - REFACTOR: Clean up implementation
-
-11. ✅ **COMPLETED** - Implement `deleteJob` method:
-    - RED: Write tests for setting pendingDeletion status
-    - GREEN: Implement method to mark jobs for deletion locally
-    - REFACTOR: Ensure clean error handling
-
-12. ✅ **COMPLETED** - Update `syncPendingJobs` method:
-    - RED: Write tests for all sync scenarios (new/update/delete) using dual-ID system
-    - GREEN: Implement logic for each case
-    - REFACTOR: Extract common code into helper methods
-
-13. ✅ **COMPLETED** - Add server-side deletion detection to `getJobs`:
-    - RED: Write tests for comparing server vs local data
-    - GREEN: Implement detection and deletion logic
-    - REFACTOR: Ensure clean error handling
-
-14. ✅ **COMPLETED** - Implement test file for deleteJob functionality:
-    - Write unit tests for `test/features/jobs/data/repositories/job_repository_impl/delete_job_test.dart`
-    - Test all scenarios (delete synced job, delete unsynced job, handle errors)
-    - Validate proper status setting logic for marked deletions
-
-#### Level 5: Integration Testing
-
-15. ✅ **COMPLETED** - Implement integration tests for Job Repository:
-    - Tests implemented in `test/features/jobs/integration/job_lifecycle_test.dart` using mocks for dependencies (`JobLocalDataSource`, `JobRemoteDataSource`, `FileSystem`, `Uuid`).
-    - Verified core lifecycle scenarios:
-        - ✅ Create → Sync → Update → Sync → Delete → Sync
-        - ✅ Batch operations with mixed states (New, Update, Delete)
-        - ✅ Server-side deletion detection
-        - ✅ Error handling (Network, API, File System failures), including successful retries after failure.
-    - Confirmed repository correctly orchestrates calls to data sources and file system based on job state and API responses.
-
-### Implementation Notes (April 2023)
-
-During our implementation of the job synchronization system, we made several key architecture decisions:
-
-1. **Individual Job Synchronization**: Instead of using a batch sync approach, we now process jobs individually with clear operation paths for:
-   - Creating new jobs (serverId == null)
-   - Updating existing jobs (serverId != null)
-   - Deleting jobs (syncStatus == pendingDeletion)
-
-2. **Audio File Cleanup**: We've integrated the FileSystem service to properly manage audio file resources:
-   - When a job is deleted (either locally or server-initiated), its audio file is also deleted
-   - The file deletion errors are logged but non-fatal to allow sync to proceed
-
-3. **Error Handling**: We've improved error handling with:
-   - Per-job error state tracking
-   - Graceful failure that doesn't abort the entire sync process
-   - Detailed logging for all sync operations
-
-4. **Dual-ID System**: We've fully implemented the dual-ID approach:
-   - localId: Client-generated UUID that never changes
-   - serverId: Server-assigned ID after first successful sync
-
-5. **Sync Status Tracking**: We've updated our sync status enum to properly track:
-   - pending: Local changes awaiting sync
-   - synced: Successfully synchronized with server
-   - error: Sync failed for this job
-   - pendingDeletion: Marked for deletion on next sync
-
-6. **Server-side Deletion Detection**: We've implemented the logic to detect jobs deleted on the server:
-   - When fetching from remote, we compare server IDs with locally synced jobs
-   - Jobs that exist locally (with synced status) but aren't returned by the server are deleted
-   - We properly ignore pending jobs during this check to prevent data loss
-
-7. **Delete Job Implementation**: We've completed the local deletion marking functionality:
-   - Jobs are marked with syncStatus.pendingDeletion instead of being immediately deleted
-   - This enables offline-first deletion with eventual consistency
-   - The actual deletion happens during the sync process for both local and remote persistence
-   - Both synced (with serverId) and unsynced jobs are handled correctly
-
-All tests are now passing for this Job feature, including comprehensive test coverage for the delete functionality and repository integration tests.
-
-## Integration Test Plan (May 2023) - Status: COMPLETED
-
-Integration tests verifying the complete job feature functionality **have been implemented and are passing**. These tests ensure that all components orchestrated by the `JobRepositoryImpl` interact correctly through the full job lifecycle.
-
-### Test File Structure
-
-Tests are implemented in `test/features/jobs/integration/job_lifecycle_test.dart`.
-
-### Test Scenarios Covered
-
-The implemented tests cover the following key scenarios using mocked dependencies:
-
-#### Happy Path Tests
-
-1.  ✅ **Complete Job Lifecycle**: Verified the full workflow from creation to deletion, including sync steps.
-2.  ✅ **Batch Job Operations**: Verified handling of multiple jobs with different sync states (new, updated, deleted) within a single sync cycle.
-3.  ✅ **Server-side Deletion Detection**: Verified the system's ability to detect and handle jobs deleted on the server during a fetch operation.
-
-#### Error Path Tests
-
-4.  ✅ **Network Failures**: Verified graceful handling of connectivity issues, including marking jobs as `error` and successfully retrying them on subsequent sync attempts.
-5.  ✅ **API Errors**: Verified proper handling of server errors, marking jobs as `error`.
-6.  ✅ **File System Errors**: Verified graceful handling of file system issues during deletion (errors logged, job deletion proceeds).
-
-### Implementation Strategy Used
-
-The integration tests utilize `mockito` to configure mocks for `JobLocalDataSource`, `JobRemoteDataSource`, `FileSystem`, and `Uuid`. These mocks simulate realistic behavior, including state persistence for the local data source and error conditions for the remote data source and file system.
-
-This approach allowed for controlled testing conditions, validating that the `JobRepositoryImpl` correctly orchestrates interactions between components according to the defined sync strategy and error handling procedures.
-
-The tests will follow arrange-act-assert patterns:
-1. Setup initial state and mock behaviors
-2. Perform repository operations in sequence
-3. Verify state transitions and interactions between components
-
-Through these integration tests, we'll validate that the Job feature operates correctly as a cohesive system, not just as individual components. 
+4. Audio lifecycle is 100% tied to job lifecycle - when the job is gone, the audio is gone 
