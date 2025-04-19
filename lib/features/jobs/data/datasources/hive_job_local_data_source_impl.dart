@@ -4,6 +4,8 @@ import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'; // Import SyncStatus
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // Import Job entity
+import 'package:dartz/dartz.dart'; // Import dartz for Unit
 
 class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   final HiveInterface hive;
@@ -378,5 +380,41 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       );
       throw CacheException('Failed to get synced job models: ${e.toString()}');
     }
+  }
+
+  // --- Methods operating on Job Entity (New Style) ---
+
+  @override
+  Future<Job> getJobById(String localId) async {
+    _logger.d('$_tag getJobById (New Style) called for id: $localId');
+    // TODO: Implement mapping from JobHiveModel to Job
+    // For now, just throw unimplemented as the implementation needs thought
+    throw UnimplementedError(
+      'getJobById needs proper implementation with mapping',
+    );
+  }
+
+  @override
+  Future<Unit> saveJob(Job job) async {
+    _logger.d('$_tag saveJob (New Style) called for id: ${job.localId}');
+    // TODO: Implement mapping from Job to JobHiveModel
+    // For now, just throw unimplemented as the implementation needs thought
+    throw UnimplementedError(
+      'saveJob needs proper implementation with mapping',
+    );
+  }
+
+  @override
+  Future<Unit> deleteJob(String localId) async {
+    _logger.d('$_tag deleteJob (New Style) called for id: $localId');
+    // TODO: Implement deletion logic, likely using existing deleteJobHiveModel
+    throw UnimplementedError('deleteJob needs proper implementation');
+  }
+
+  @override
+  Future<List<Job>> getJobsByStatus(SyncStatus status) async {
+    _logger.d('$_tag getJobsByStatus (New Style) called for status: $status');
+    // TODO: Implement logic to filter by status and map to Job entities
+    throw UnimplementedError('getJobsByStatus needs proper implementation');
   }
 }

@@ -581,22 +581,17 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Implement `getJobById`
     -   [x] Write tests for `getJobsByStatus` (new functionality)
     -   [x] Implement `getJobsByStatus`
--   [] **3. JobWriterService:**
-    -   [ ] Create `job_writer_service.dart`
-    -   [ ] Create `job_writer_service_test.dart`
-    -   [ ] Write tests for `createJob` (steal from `create_job_test.dart`)
-    -   [ ] Implement `createJob`
-    -   [ ] Write tests for `updateJob` (steal from `update_job_test.dart`)
-    -   [ ] Implement `updateJob`
-    -   [ ] Write tests for `updateJobSyncStatus` (new functionality)
-    -   [ ] Implement `updateJobSyncStatus`
+-   [x] **3. JobWriterService:**
+    -   [x] Create `job_writer_service.dart`
+    -   [x] Create `job_writer_service_test.dart`
+    -   [x] Write tests for `createJob` (steal from `create_job_test.dart`)
+    -   [x] Implement `createJob`
+    -   [x] Write tests for `updateJob` (steal from `update_job_test.dart`)
+    -   [x] Implement `updateJob`
+    -   [x] Write tests for `updateJobSyncStatus` (new functionality)
+    -   [x] Implement `updateJobSyncStatus`
 -   [ ] **4. JobDeleterService:**
     -   [ ] Create `job_deleter_service.dart`
-    -   [ ] Create `job_deleter_service_test.dart`
-    -   [ ] Write tests for `deleteJob` (steal from `delete_job_test.dart`)
-    -   [ ] Implement `deleteJob`
-    -   [ ] Write tests for `permanentlyDeleteJob` (new functionality)
-    -   [ ] Implement `permanentlyDeleteJob`
 -   [ ] **5. JobSyncService:**
     -   [ ] Create `job_sync_service.dart`
     -   [ ] Create `job_sync_service_test.dart`

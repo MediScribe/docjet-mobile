@@ -1,10 +1,40 @@
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart'; // Import CacheException
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // Import Job entity
+import 'package:dartz/dartz.dart'; // Import dartz for Unit
 
 // Abstract interface for interacting with the local job cache (e.g., Hive)
 // This defines the contract for what the local data source must provide.
 abstract class JobLocalDataSource {
+  // --- Methods operating on Job Entity (New Style) ---
+
+  /// Retrieves a single Job entity by its localId.
+  /// Returns the [Job] if found.
+  /// Throws a [CacheException] if not found or on cache access errors.
+  Future<Job> getJobById(String localId);
+
+  /// Saves a single [Job] entity to the cache.
+  /// Maps the Job entity to the appropriate local storage model (e.g., JobHiveModel)
+  /// before saving. Overwrites existing entry with the same localId.
+  /// Returns [unit] on success.
+  /// Throws a [CacheException] on failure.
+  Future<Unit> saveJob(Job job);
+
+  /// Deletes a single Job by its localId.
+  /// Handles mapping or finding the corresponding local storage entry.
+  /// Returns [unit] on success.
+  /// Throws a [CacheException] on failure.
+  Future<Unit> deleteJob(String localId);
+
+  /// Retrieves all jobs with a specific [SyncStatus].
+  /// Returns a list of [Job] entities.
+  /// Throws a [CacheException] if unable to access the cache.
+  Future<List<Job>> getJobsByStatus(SyncStatus status);
+
+  // --- Methods operating on JobHiveModel (Old Style - To be refactored/removed?) ---
+  // TODO: Review if these are still needed or can be replaced by Job entity methods.
+
   /// Retrieves all Job models stored in the local cache.
   /// Returns a list of [JobHiveModel].
   /// Throws a [CacheException] if unable to access the cache.

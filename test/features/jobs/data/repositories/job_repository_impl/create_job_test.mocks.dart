@@ -14,10 +14,10 @@ import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_sour
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
     as _i6;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
-    as _i9;
+    as _i10;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
-    as _i10;
+    as _i9;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i15;
 import 'package:uuid/data.dart' as _i14;
@@ -207,28 +207,83 @@ class MockJobLocalDataSource extends _i1.Mock
   }
 
   @override
-  _i7.Future<List<_i9.JobHiveModel>> getAllJobHiveModels() =>
+  _i7.Future<_i2.Job> getJobById(String? localId) => (super.noSuchMethod(
+        Invocation.method(
+          #getJobById,
+          [localId],
+        ),
+        returnValue: _i7.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #getJobById,
+            [localId],
+          ),
+        )),
+      ) as _i7.Future<_i2.Job>);
+
+  @override
+  _i7.Future<_i3.Unit> saveJob(_i2.Job? job) => (super.noSuchMethod(
+        Invocation.method(
+          #saveJob,
+          [job],
+        ),
+        returnValue: _i7.Future<_i3.Unit>.value(_FakeUnit_1(
+          this,
+          Invocation.method(
+            #saveJob,
+            [job],
+          ),
+        )),
+      ) as _i7.Future<_i3.Unit>);
+
+  @override
+  _i7.Future<_i3.Unit> deleteJob(String? localId) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJob,
+          [localId],
+        ),
+        returnValue: _i7.Future<_i3.Unit>.value(_FakeUnit_1(
+          this,
+          Invocation.method(
+            #deleteJob,
+            [localId],
+          ),
+        )),
+      ) as _i7.Future<_i3.Unit>);
+
+  @override
+  _i7.Future<List<_i2.Job>> getJobsByStatus(_i9.SyncStatus? status) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsByStatus,
+          [status],
+        ),
+        returnValue: _i7.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+      ) as _i7.Future<List<_i2.Job>>);
+
+  @override
+  _i7.Future<List<_i10.JobHiveModel>> getAllJobHiveModels() =>
       (super.noSuchMethod(
         Invocation.method(
           #getAllJobHiveModels,
           [],
         ),
         returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
+            _i7.Future<List<_i10.JobHiveModel>>.value(<_i10.JobHiveModel>[]),
+      ) as _i7.Future<List<_i10.JobHiveModel>>);
 
   @override
-  _i7.Future<_i9.JobHiveModel?> getJobHiveModelById(String? id) =>
+  _i7.Future<_i10.JobHiveModel?> getJobHiveModelById(String? id) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobHiveModelById,
           [id],
         ),
-        returnValue: _i7.Future<_i9.JobHiveModel?>.value(),
-      ) as _i7.Future<_i9.JobHiveModel?>);
+        returnValue: _i7.Future<_i10.JobHiveModel?>.value(),
+      ) as _i7.Future<_i10.JobHiveModel?>);
 
   @override
-  _i7.Future<void> saveJobHiveModel(_i9.JobHiveModel? model) =>
+  _i7.Future<void> saveJobHiveModel(_i10.JobHiveModel? model) =>
       (super.noSuchMethod(
         Invocation.method(
           #saveJobHiveModel,
@@ -239,7 +294,7 @@ class MockJobLocalDataSource extends _i1.Mock
       ) as _i7.Future<void>);
 
   @override
-  _i7.Future<bool> saveJobHiveModels(List<_i9.JobHiveModel>? models) =>
+  _i7.Future<bool> saveJobHiveModels(List<_i10.JobHiveModel>? models) =>
       (super.noSuchMethod(
         Invocation.method(
           #saveJobHiveModels,
@@ -269,13 +324,13 @@ class MockJobLocalDataSource extends _i1.Mock
       ) as _i7.Future<void>);
 
   @override
-  _i7.Future<_i9.JobHiveModel?> getLastJobHiveModel() => (super.noSuchMethod(
+  _i7.Future<_i10.JobHiveModel?> getLastJobHiveModel() => (super.noSuchMethod(
         Invocation.method(
           #getLastJobHiveModel,
           [],
         ),
-        returnValue: _i7.Future<_i9.JobHiveModel?>.value(),
-      ) as _i7.Future<_i9.JobHiveModel?>);
+        returnValue: _i7.Future<_i10.JobHiveModel?>.value(),
+      ) as _i7.Future<_i10.JobHiveModel?>);
 
   @override
   _i7.Future<DateTime?> getLastFetchTime() => (super.noSuchMethod(
@@ -297,19 +352,19 @@ class MockJobLocalDataSource extends _i1.Mock
       ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<_i9.JobHiveModel>> getJobsToSync() => (super.noSuchMethod(
+  _i7.Future<List<_i10.JobHiveModel>> getJobsToSync() => (super.noSuchMethod(
         Invocation.method(
           #getJobsToSync,
           [],
         ),
         returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
+            _i7.Future<List<_i10.JobHiveModel>>.value(<_i10.JobHiveModel>[]),
+      ) as _i7.Future<List<_i10.JobHiveModel>>);
 
   @override
   _i7.Future<void> updateJobSyncStatus(
     String? id,
-    _i10.SyncStatus? status,
+    _i9.SyncStatus? status,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -324,15 +379,15 @@ class MockJobLocalDataSource extends _i1.Mock
       ) as _i7.Future<void>);
 
   @override
-  _i7.Future<List<_i9.JobHiveModel>> getSyncedJobHiveModels() =>
+  _i7.Future<List<_i10.JobHiveModel>> getSyncedJobHiveModels() =>
       (super.noSuchMethod(
         Invocation.method(
           #getSyncedJobHiveModels,
           [],
         ),
         returnValue:
-            _i7.Future<List<_i9.JobHiveModel>>.value(<_i9.JobHiveModel>[]),
-      ) as _i7.Future<List<_i9.JobHiveModel>>);
+            _i7.Future<List<_i10.JobHiveModel>>.value(<_i10.JobHiveModel>[]),
+      ) as _i7.Future<List<_i10.JobHiveModel>>);
 }
 
 /// A class which mocks [FileSystem].
