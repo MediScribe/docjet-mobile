@@ -506,8 +506,6 @@ void main() {
 
         // Act
         final resolvedPath = ioFileSystem.resolvePath(inputPath);
-        print('[TEST LOG] Resolved Path: $resolvedPath');
-        print('[TEST LOG] Expected Path: $expectedPath');
 
         // Assert
         expect(resolvedPath, expectedPath);

@@ -626,7 +626,7 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 
 -   [x] **9. Job Data Flow Improvements:** (From job_dataflow.md)
     -   [x] Add `JobUpdateData` validation (avoid empty updates)
-    -   [ ] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
+    -   [x] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
     -   [ ] Improve Tracing/Logging across services
 
 -   [ ] **10. Error Recovery Implementation:**

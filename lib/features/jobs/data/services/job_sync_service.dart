@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:logger/logger.dart'; // Import Logger
+import 'package:mutex/mutex.dart'; // Import Mutex
 
 /// Service class for job synchronization with remote server
 class JobSyncService {
@@ -16,6 +17,7 @@ class JobSyncService {
   final NetworkInfo _networkInfo;
   final FileSystem _fileSystem;
   final Logger _logger = Logger(); // Add a logger instance
+  final Mutex _syncMutex = Mutex(); // Add mutex for sync control
 
   JobSyncService({
     required JobLocalDataSource localDataSource,
@@ -28,13 +30,23 @@ class JobSyncService {
        _fileSystem = fileSystem;
 
   Future<Either<Failure, Unit>> syncPendingJobs() async {
-    _logger.i('Starting syncPendingJobs...');
-    if (!await _networkInfo.isConnected) {
-      _logger.w('Network offline, skipping sync.');
-      return Left(ServerFailure(message: 'No internet connection'));
+    _logger.i('Attempting to start syncPendingJobs...');
+
+    // Prevent concurrent execution
+    if (_syncMutex.isLocked) {
+      _logger.i('Sync already in progress. Skipping this run.');
+      return const Right(unit);
     }
 
+    await _syncMutex.acquire();
+    _logger.i('Acquired sync lock. Starting sync process.');
+
     try {
+      if (!await _networkInfo.isConnected) {
+        _logger.w('Network offline, skipping sync.');
+        return Left(ServerFailure(message: 'No internet connection'));
+      }
+
       _logger.d('Fetching jobs pending sync...');
       final pendingJobs = await _localDataSource.getJobsByStatus(
         SyncStatus.pending,
@@ -73,7 +85,7 @@ class JobSyncService {
         await _permanentlyDeleteJob(job.localId);
       }
 
-      _logger.i('syncPendingJobs completed successfully.');
+      _logger.i('syncPendingJobs completed successfully inside lock.');
       return const Right(unit);
     } on CacheException catch (e) {
       _logger.e('Cache error during sync: $e');
@@ -84,6 +96,9 @@ class JobSyncService {
     } catch (e) {
       _logger.e('Unexpected error during sync: $e');
       return Left(ServerFailure(message: 'Unexpected error during sync: $e'));
+    } finally {
+      _syncMutex.release();
+      _logger.i('Released sync lock.');
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async'; // Add Completer import
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -326,6 +328,86 @@ void main() {
         verifyNoMoreInteractions(mockFileSystem);
       },
     );
+
+    test('should prevent concurrent execution if sync is already running', () async {
+      // Arrange
+      final completer = Completer<Job>(); // Completer to control sync duration
+
+      // 1. Network is connected
+      when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+      // 2. Local source returns one pending job initially
+      when(
+        mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+      ).thenAnswer((_) async => [tPendingJobNew]);
+      when(
+        mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+      ).thenAnswer((_) async => []);
+
+      // 3. Remote createJob returns the completer's future (simulates delay)
+      when(
+        mockRemoteDataSource.createJob(
+          userId: tPendingJobNew.userId,
+          audioFilePath: tPendingJobNew.audioFilePath!,
+          text: tPendingJobNew.text,
+          additionalText: tPendingJobNew.additionalText,
+        ),
+      ).thenAnswer((_) => completer.future);
+
+      // 4. Local saveJob succeeds after sync
+      when(
+        mockLocalDataSource.saveJob(tSyncedJobFromServer),
+      ).thenAnswer((_) async => unit);
+
+      // Act
+      // Start the first sync but don't await it yet
+      final firstCallFuture = service.syncPendingJobs();
+
+      // Immediately start the second sync
+      final secondCallResult = await service.syncPendingJobs();
+
+      // Now complete the first sync
+      completer.complete(tSyncedJobFromServer);
+
+      // Await the first sync's completion
+      final firstCallResult = await firstCallFuture;
+
+      // Assert
+      // 1. The second call should return immediately (Right(unit) assuming early exit)
+      expect(secondCallResult, equals(const Right(unit)));
+
+      // 2. The first call should complete successfully after the completer finishes
+      expect(firstCallResult, equals(const Right(unit)));
+
+      // 3. Verify network check happened only ONCE (for the first call)
+      verify(mockNetworkInfo.isConnected).called(1);
+
+      // 4. Verify local source queries happened only ONCE (for the first call)
+      verify(mockLocalDataSource.getJobsByStatus(SyncStatus.pending)).called(1);
+      verify(
+        mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+      ).called(1);
+
+      // 5. Verify remote createJob was called only ONCE (for the first call)
+      verify(
+        mockRemoteDataSource.createJob(
+          userId: tPendingJobNew.userId,
+          audioFilePath: tPendingJobNew.audioFilePath!,
+          text: tPendingJobNew.text,
+          additionalText: tPendingJobNew.additionalText,
+        ),
+      ).called(1);
+
+      // 6. Verify local saveJob was called only ONCE (for the first call)
+      verify(mockLocalDataSource.saveJob(tSyncedJobFromServer)).called(1);
+
+      // 7. Verify no other sync-related interactions from the second call attempt
+      verifyNoMoreInteractions(mockNetworkInfo);
+      verifyNoMoreInteractions(mockRemoteDataSource);
+      // Allow the setup mocks and the single saveJob/getJobsByStatus calls
+      verifyNoMoreInteractions(mockLocalDataSource);
+      verifyNoMoreInteractions(mockFileSystem);
+    });
 
     // Add more tests based on sync_pending_jobs_test.dart
   });
