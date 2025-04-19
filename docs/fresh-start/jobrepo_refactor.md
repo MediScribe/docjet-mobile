@@ -626,9 +626,72 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
 
 -   [x] **9. Job Data Flow Improvements:** (From job_dataflow.md)
     -   [x] Add `JobUpdateData` validation (avoid empty updates)
-    -   [ ] Implement Error Recovery (retries, backoff for `SyncStatus.error`)
     -   [ ] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
     -   [ ] Improve Tracing/Logging across services
+
+-   [ ] **10. Error Recovery Implementation:**
+    -   [ ] **10.1 Update Job Entity and Models:** (Foundation)
+        -   [ ] Add `retryCount` field (int, defaults to 0) to `Job` entity class
+        -   [ ] Add `lastSyncAttemptAt` field (DateTime?, nullable) to `Job` entity class 
+        -   [ ] Add `SyncStatus.failed` to the `SyncStatus` enum
+        -   [ ] Update `Job.copyWith()` to support new fields
+        -   [ ] Update `JobHiveModel` with corresponding fields
+        -   [ ] Update `JobMapper` to handle the new fields in both directions
+
+    -   [ ] **10.2 Create Sync Configuration:** (Constants used by multiple components)
+        -   [ ] Create `lib/features/jobs/data/config/job_sync_config.dart` with constants:
+          ```dart
+          const int MAX_RETRY_ATTEMPTS = 5;
+          const Duration RETRY_BACKOFF_BASE = Duration(minutes: 1);
+          const Duration SYNC_INTERVAL = Duration(seconds: 15);
+          ```
+
+    -   [ ] **10.3 Update JobLocalDataSource Interface:** (API contract)
+        -   [ ] Add `Future<List<Job>> getJobsToRetry(int maxRetries, Duration baseBackoffDuration)` to interface
+        -   [ ] Write tests for the new method
+
+    -   [ ] **10.4 Update HiveJobLocalDataSourceImpl:** (Implementation)
+        -   [ ] Implement `getJobsToRetry` with:
+          ```dart
+          // Return jobs matching these criteria:
+          syncStatus == SyncStatus.error &&
+          retryCount < maxRetries &&
+          (lastSyncAttemptAt == null || 
+           lastSyncAttemptAt.isBefore(DateTime.now().subtract(baseBackoffDuration * pow(2, retryCount))))
+          ```
+
+    -   [ ] **10.5 Update JobSyncService:** (Core sync logic)
+        -   [ ] Import `dart:math` for `pow` function
+        -   [ ] Modify `syncPendingJobs()` to fetch and process retry-eligible jobs
+        -   [ ] Update error handling in `syncSingleJob()` to track retry attempts
+        -   [ ] Add unit tests for retry functionality
+
+    -   [ ] **10.6 Add Reset Failed Jobs Feature:** (Recovery option)
+        -   [ ] Add `resetFailedJob(String localId)` method to `JobSyncService`
+        -   [ ] Write tests for the new method
+
+    -   [ ] **10.7 Update JobRepository Interface:** (Public API)
+        -   [ ] Add `resetFailedJob(String localId)` method to interface
+        -   [ ] Update `JobRepositoryImpl` to delegate to `JobSyncService.resetFailedJob`
+
+    -   [ ] **10.8 Implement Background Sync Trigger:**
+        -   [ ] Create `JobSyncTriggerService` in `lib/features/jobs/data/services/job_sync_trigger_service.dart`
+        -   [ ] Add methods: `startPeriodicSync()`, `stopPeriodicSync()`, and `_triggerSync(Timer)`
+        -   [ ] Add tests for `JobSyncTriggerService`
+
+    -   [ ] **10.9 Update Dependency Injection:**
+        -   [ ] Register `JobSyncTriggerService` in DI container
+        -   [ ] Update app initialization to start sync after DI setup
+
+    -   [ ] **10.10 Add App Lifecycle Management:**
+        -   [ ] Create `JobSyncLifecycleObserver` that:
+          - Starts sync when app comes to foreground
+          - Stops sync when app goes to background
+        -   [ ] Register observer with `WidgetsBinding.instance.addObserver`
+
+    -   [ ] **10.11 Update UI for Failed Jobs:** (once UI is in place)
+        -   [ ] Add visual indicator for jobs with `SyncStatus.failed` 
+        -   [ ] Add "Retry" action for failed jobs that calls `jobRepository.resetFailedJob()`
 
 ## Testing Approach
 
