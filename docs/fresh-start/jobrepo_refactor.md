@@ -616,6 +616,24 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Code cleanup (remove unused imports, dead code, etc.)
     -   [x] Hard Bob Commit
 
+# TODO List (Continued)
+
+-   [ ] **8. DI Implementation & Core Services:** (Implement or stub required services)
+    -   [ ] Implement/Register `DatabaseService` (e.g., `HiveDatabaseService`)
+    -   [ ] Initialize `DatabaseService` in `injection_container.dart`
+    -   [ ] Implement/Register `ApiClient` (e.g., `DioClient`)
+    -   [ ] Implement/Register `FileSystemImpl`
+    -   [ ] Implement/Register `NetworkInfoImpl`
+    -   [ ] Implement/Register `JobLocalDataSourceImpl`
+    -   [ ] Implement/Register `JobRemoteDataSourceImpl`
+    -   [ ] Verify `dart analyze` is clean (no errors)
+
+-   [ ] **9. Job Data Flow Improvements:** (From job_dataflow.md)
+    -   [ ] Add `JobUpdateData` validation (avoid empty updates)
+    -   [ ] Implement Error Recovery (retries, backoff for `SyncStatus.error`)
+    -   [ ] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
+    -   [ ] Improve Tracing/Logging across services
+
 ## Testing Approach
 
 ### Unit Testing Service Classes
