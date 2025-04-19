@@ -162,13 +162,6 @@ void main() {
           createdAt: nowIso,
         );
 
-        // Final synced updated job
-        final syncedUpdatedJob = initialJob.copyWith(
-          serverId: serverId,
-          text: updatedText,
-          syncStatus: SyncStatus.synced,
-        );
-
         // Setup mock to return the updated model on second getJobHiveModelById call
         // We need to recreate this with thenReturn for multiple calls
         when(
