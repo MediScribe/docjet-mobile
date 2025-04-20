@@ -2,42 +2,54 @@ import 'package:hive/hive.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
-import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'; // Import SyncStatus
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // Import Job entity
-import 'package:dartz/dartz.dart'; // Import dartz for Unit
-import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import JobMapper
-import 'dart:math'; // Import for pow
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
+import 'dart:math';
 
+/// Concrete implementation of [JobLocalDataSource] using Hive for persistence.
+///
+/// Manages storing, retrieving, and deleting [JobHiveModel] instances,
+/// handling synchronization status, and storing application metadata like
+/// the last fetch timestamp.
 class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   final HiveInterface hive;
-  // Add logger instance
   final Logger _logger = LoggerFactory.getLogger(HiveJobLocalDataSourceImpl);
-  // Define log tag
   static final String _tag = logTag(HiveJobLocalDataSourceImpl);
 
-  // Define a constant for the box name
+  /// Box name for storing [JobHiveModel] objects.
   static const String jobsBoxName = 'jobs';
-  // --- ADDED: Key for storing the last fetch timestamp ---
-  static const String lastFetchTimestampKey =
-      'lastFetchTimestamp'; // Corrected key name
+
+  /// Box name for storing application-level metadata (e.g., timestamps).
+  static const String metadataBoxName = 'app_metadata';
+
+  /// Key within the [metadataBoxName] box for storing the last fetch timestamp
+  /// (as UTC milliseconds since epoch).
+  static const String metadataTimestampKey = 'lastFetchTimestamp';
 
   HiveJobLocalDataSourceImpl({required this.hive});
 
-  // Helper function to safely open and return the box
-  // --- MODIFIED: Returns Box<dynamic> to allow storing timestamp ---
-  Future<Box<dynamic>> _getOpenBox() async {
-    _logger.d('$_tag Attempting to open Hive box: $jobsBoxName');
+  //---------------------------------------------------------------------------
+  // Private Helper Methods
+  //---------------------------------------------------------------------------
+
+  /// Safely opens and returns the Hive box strictly typed for [JobHiveModel].
+  ///
+  /// Handles opening the box if it's not already open.
+  /// Throws [CacheException] if opening fails.
+  Future<Box<JobHiveModel>> _getOpenBox() async {
+    _logger.d('$_tag Attempting to open Hive box: $jobsBoxName (for Jobs)');
     try {
       if (!hive.isBoxOpen(jobsBoxName)) {
         _logger.i('$_tag Box "$jobsBoxName" not open, opening...');
-        // Open as Box<dynamic> to accommodate both JobHiveModel and the timestamp (int)
-        final box = await hive.openBox<dynamic>(jobsBoxName);
+        final box = await hive.openBox<JobHiveModel>(jobsBoxName);
         _logger.i('$_tag Box "$jobsBoxName" opened successfully.');
         return box;
       }
       _logger.d('$_tag Box "$jobsBoxName" already open.');
-      return hive.box<dynamic>(jobsBoxName);
+      return hive.box<JobHiveModel>(jobsBoxName);
     } catch (e, stackTrace) {
       _logger.e(
         '$_tag Failed to open Hive box: $jobsBoxName',
@@ -48,14 +60,45 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
+  /// Safely opens and returns the Hive box used for storing application metadata.
+  ///
+  /// This box is opened as `Box<dynamic>` to accommodate potentially different
+  /// types of metadata in the future.
+  /// Handles opening the box if it's not already open.
+  /// Throws [CacheException] if opening fails.
+  Future<Box<dynamic>> _getMetadataBox() async {
+    _logger.d(
+      '$_tag Attempting to open Hive box: $metadataBoxName (for Metadata)',
+    );
+    try {
+      if (!hive.isBoxOpen(metadataBoxName)) {
+        _logger.i('$_tag Box "$metadataBoxName" not open, opening...');
+        final box = await hive.openBox<dynamic>(metadataBoxName);
+        _logger.i('$_tag Box "$metadataBoxName" opened successfully.');
+        return box;
+      }
+      _logger.d('$_tag Box "$metadataBoxName" already open.');
+      return hive.box<dynamic>(metadataBoxName);
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to open Hive box: $metadataBoxName',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw CacheException('Failed to open metadata box: ${e.toString()}');
+    }
+  }
+
+  //---------------------------------------------------------------------------
+  // JobHiveModel Operations (Legacy/Internal)
+  //---------------------------------------------------------------------------
+
   @override
   Future<List<JobHiveModel>> getAllJobHiveModels() async {
     _logger.d('$_tag getAllJobHiveModels called');
     try {
-      // Use the general box
       final box = await _getOpenBox();
-      // Filter out non-JobHiveModel entries (like our timestamp)
-      final models = box.values.whereType<JobHiveModel>().toList();
+      final models = box.values.toList();
       _logger.d('$_tag Found ${models.length} job models in cache.');
       return models;
     } catch (e, stackTrace) {
@@ -72,19 +115,11 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   Future<JobHiveModel?> getJobHiveModelById(String id) async {
     _logger.d('$_tag getJobHiveModelById called for id: $id');
     try {
-      // Use the general box
       final box = await _getOpenBox();
-      // Get the value and check its type
       final value = box.get(id);
-      if (value is JobHiveModel) {
+      if (value != null) {
         _logger.d('$_tag Found job model with id: $id in cache.');
         return value;
-      } else if (value != null) {
-        // Log if the key exists but isn't a JobHiveModel (e.g., it's the timestamp)
-        _logger.w(
-          '$_tag Value found for id: $id, but it is not a JobHiveModel (Type: ${value.runtimeType}). Returning null.',
-        );
-        return null;
       } else {
         _logger.w('$_tag Job model with id: $id not found in cache.');
         return null;
@@ -103,7 +138,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   Future<void> saveJobHiveModel(JobHiveModel model) async {
     _logger.d('$_tag saveJobHiveModel called for id: ${model.localId}');
     try {
-      // Use the general box because we are writing a JobHiveModel
       final box = await _getOpenBox();
       await box.put(model.localId, model);
       _logger.i('$_tag Saved job model with id: ${model.localId} to cache.');
@@ -122,9 +156,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     _logger.d('$_tag saveJobHiveModels called with ${models.length} models.');
     try {
       final box = await _getOpenBox();
-
-      // Fix the type issue by using more explicit Map<String, dynamic>
-      final Map<String, JobHiveModel> modelsMap = {
+      final Map<dynamic, JobHiveModel> modelsMap = {
         for (var model in models) model.localId: model,
       };
 
@@ -145,7 +177,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   Future<void> deleteJobHiveModel(String id) async {
     _logger.d('$_tag deleteJobHiveModel called for id: $id');
     try {
-      // Use the general box
       final box = await _getOpenBox();
       await box.delete(id);
       _logger.i('$_tag Deleted job model with id: $id from cache.');
@@ -163,22 +194,11 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   Future<void> clearAllJobHiveModels() async {
     _logger.d('$_tag clearAllJobHiveModels called');
     try {
-      // Use the general box
       final box = await _getOpenBox();
-      // Save the timestamp before clearing if it exists
-      final timestamp = box.get(lastFetchTimestampKey);
       final count = await box.clear();
-      // Restore the timestamp if it existed
-      if (timestamp != null) {
-        await box.put(lastFetchTimestampKey, timestamp);
-        _logger.i(
-          '$_tag Cleared Hive box "$jobsBoxName", removed ${count - 1} job entries and restored timestamp.',
-        );
-      } else {
-        _logger.i(
-          '$_tag Cleared Hive box "$jobsBoxName", removed $count entries.',
-        );
-      }
+      _logger.i(
+        '$_tag Cleared Hive box "$jobsBoxName", removed $count job entries.',
+      );
     } catch (e, stackTrace) {
       _logger.e(
         '$_tag Failed to clear Hive box "$jobsBoxName"',
@@ -193,10 +213,8 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   Future<JobHiveModel?> getLastJobHiveModel() async {
     _logger.d('$_tag getLastJobHiveModel called');
     try {
-      // Use general box
       final box = await _getOpenBox();
-      // Filter out non-JobHiveModel entries before processing
-      final jobs = box.values.whereType<JobHiveModel>().toList();
+      final jobs = box.values.toList();
       if (jobs.isEmpty) {
         _logger.d('$_tag No jobs found in cache for getLastJobHiveModel.');
         return null;
@@ -208,11 +226,9 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       // Iterate to find the job with the maximum updatedAt timestamp
       JobHiveModel lastJob = jobs[0]; // Initialize with the first element
       for (int i = 1; i < jobs.length; i++) {
-        // Parse the date strings to DateTime objects for comparison
         final currentDate = DateTime.tryParse(jobs[i].updatedAt ?? '');
         final lastDate = DateTime.tryParse(lastJob.updatedAt ?? '');
 
-        // Only compare if both dates are valid
         if (currentDate != null &&
             lastDate != null &&
             currentDate.isAfter(lastDate)) {
@@ -234,12 +250,16 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
+  //---------------------------------------------------------------------------
+  // Metadata Operations
+  //---------------------------------------------------------------------------
+
   @override
   Future<DateTime?> getLastFetchTime() async {
     _logger.d('$_tag getLastFetchTime called');
     try {
-      final box = await _getOpenBox();
-      final value = box.get(lastFetchTimestampKey);
+      final box = await _getMetadataBox();
+      final value = box.get(metadataTimestampKey);
       if (value == null) {
         _logger.d('$_tag No last fetch timestamp found in cache.');
         return null;
@@ -269,10 +289,9 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   Future<void> saveLastFetchTime(DateTime time) async {
     _logger.d('$_tag saveLastFetchTime called with time: $time');
     try {
-      final box = await _getOpenBox();
-      // --- FIXED: Convert to UTC before getting milliseconds ---
+      final box = await _getMetadataBox();
       final millis = time.toUtc().millisecondsSinceEpoch;
-      await box.put(lastFetchTimestampKey, millis);
+      await box.put(metadataTimestampKey, millis);
       _logger.i('$_tag Saved last fetch timestamp: $millis');
     } catch (e, stackTrace) {
       _logger.e(
@@ -284,7 +303,9 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
-  // --- Sync Status Methods --- //
+  //---------------------------------------------------------------------------
+  // Sync Status Methods
+  //---------------------------------------------------------------------------
 
   @override
   Future<List<JobHiveModel>> getJobsToSync() async {
@@ -293,10 +314,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       final box = await _getOpenBox();
       final pendingJobs =
           box.values
-              .whereType<JobHiveModel>()
-              .where(
-                (job) => job.syncStatus == SyncStatus.pending.index,
-              ) // Compare with index
+              .where((job) => job.syncStatus == SyncStatus.pending.index)
               .toList();
       _logger.d('$_tag Found ${pendingJobs.length} jobs pending sync.');
       return pendingJobs;
@@ -313,22 +331,22 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   @override
   Future<void> updateJobSyncStatus(String id, SyncStatus status) async {
     _logger.d('$_tag updateJobSyncStatus called for id: $id, status: $status');
-    Box<dynamic>? box; // Declare box outside try for use in catch
+    Box<JobHiveModel>? box;
     try {
-      box = await _getOpenBox(); // Assign inside try
+      box = await _getOpenBox();
       final value = box.get(id);
 
-      if (value is JobHiveModel) {
+      if (value != null) {
         _logger.d('$_tag Found job model with id: $id for status update.');
-        value.syncStatus = status.index; // Assign the index, not the enum
-        // --- FIXED: Check isInBox and use put as fallback ---
+        value.syncStatus = status.index;
+        // Use HiveObject's save method if available and in the box, otherwise use box.put.
+        // This handles cases where the object might not be properly linked to the box.
         if (value.isInBox) {
-          await value.save(); // Use HiveObject's save method if in box
+          await value.save();
           _logger.i(
             '$_tag Updated sync status for job $id to $status using model.save().',
           );
         } else {
-          // Fallback if model isn't properly associated with the box
           _logger.w(
             '$_tag Job model $id was not in box, updating using box.put().',
           );
@@ -339,18 +357,15 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
         }
       } else {
         _logger.e('$_tag Job model with id: $id not found for status update.');
-        // --- FIXED: Standardized error message ---
         throw CacheException('Job with id $id not found.');
       }
     } catch (e, stackTrace) {
-      // --- FIXED: Removed redundant CacheException check/rethrow ---
       // Log the specific error encountered
       _logger.e(
         '$_tag Failed to update sync status for job id: $id',
         error: e,
         stackTrace: stackTrace,
       );
-      // --- FIXED: Standardized error message ---
       // Wrap original error message for context if it's not the one we threw
       final originalMessage = (e is CacheException) ? e.message : e.toString();
       throw CacheException(
@@ -365,7 +380,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     try {
       final box = await _getOpenBox();
       final syncedModels =
-          box.values.whereType<JobHiveModel>().where((model) {
+          box.values.where((model) {
             // Check if serverId is not null AND syncStatus is synced
             return model.serverId != null &&
                 model.syncStatus == SyncStatus.synced.index;
@@ -384,49 +399,80 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
-  // --- Methods operating on Job Entity (New Style) ---
+  //---------------------------------------------------------------------------
+  // Job Entity Operations (New Style - Preferred)
+  //---------------------------------------------------------------------------
 
+  /// Retrieves a single [Job] by its [localId].
+  ///
+  /// **Note:** This method is currently unimplemented and requires proper
+  /// mapping from [JobHiveModel] to [Job] and associated testing.
   @override
   Future<Job> getJobById(String localId) async {
     _logger.d('$_tag getJobById (New Style) called for id: $localId');
-    // TODO: Implement mapping from JobHiveModel to Job
-    // For now, just throw unimplemented as the implementation needs thought
-    throw UnimplementedError(
-      'getJobById needs proper implementation with mapping',
-    );
+    // TODO(TDD): Implement getJobById with tests.
+    // Requires fetching JobHiveModel and mapping to Job.
+    // throw UnimplementedError(
+    //   'getJobById needs proper implementation with mapping',
+    // );
+    // Temporary placeholder to satisfy return type until implemented:
+    throw UnimplementedError('getJobById is not implemented yet.');
   }
 
+  /// Saves a [Job] entity to local storage.
+  ///
+  /// **Note:** This method is currently unimplemented and requires proper
+  /// mapping from [Job] to [JobHiveModel] and associated testing.
   @override
   Future<Unit> saveJob(Job job) async {
     _logger.d('$_tag saveJob (New Style) called for id: ${job.localId}');
-    // TODO: Implement mapping from Job to JobHiveModel
-    // For now, just throw unimplemented as the implementation needs thought
-    throw UnimplementedError(
-      'saveJob needs proper implementation with mapping',
-    );
+    // TODO(TDD): Implement saveJob with tests.
+    // Requires mapping Job to JobHiveModel and saving.
+    // throw UnimplementedError(
+    //   'saveJob needs proper implementation with mapping',
+    // );
+    // Temporary placeholder to satisfy return type until implemented:
+    throw UnimplementedError('saveJob is not implemented yet.');
   }
 
+  /// Deletes a [Job] entity from local storage based on its [localId].
+  ///
+  /// **Note:** This method is currently unimplemented. It should likely
+  /// delegate to [deleteJobHiveModel] after ensuring the correct ID mapping.
+  /// Requires associated testing.
   @override
   Future<Unit> deleteJob(String localId) async {
     _logger.d('$_tag deleteJob (New Style) called for id: $localId');
-    // TODO: Implement deletion logic, likely using existing deleteJobHiveModel
-    throw UnimplementedError('deleteJob needs proper implementation');
+    // TODO(TDD): Implement deleteJob with tests.
+    // Should likely delegate to deleteJobHiveModel.
+    // throw UnimplementedError('deleteJob needs proper implementation');
+    // Temporary placeholder to satisfy return type until implemented:
+    throw UnimplementedError('deleteJob is not implemented yet.');
   }
 
+  /// Retrieves a list of [Job] entities matching the specified [SyncStatus].
+  ///
+  /// **Note:** This method is currently unimplemented and requires logic to
+  /// filter by status and map from [JobHiveModel] to [Job] entities.
+  /// Requires associated testing.
   @override
   Future<List<Job>> getJobsByStatus(SyncStatus status) async {
     _logger.d('$_tag getJobsByStatus (New Style) called for status: $status');
-    // TODO: Implement logic to filter by status and map to Job entities
-    throw UnimplementedError('getJobsByStatus needs proper implementation');
+    // TODO(TDD): Implement getJobsByStatus with tests.
+    // Requires fetching models, filtering, and mapping.
+    // throw UnimplementedError('getJobsByStatus needs proper implementation');
+    // Temporary placeholder to satisfy return type until implemented:
+    throw UnimplementedError('getJobsByStatus is not implemented yet.');
   }
 
-  // --- ADDED: Implementation for getJobs using Job entity ---
+  /// Retrieves all jobs from the local cache as [Job] entities.
+  ///
+  /// This method fetches all [JobHiveModel]s and maps them to [Job] entities.
   @override
   Future<List<Job>> getJobs() async {
     _logger.d('$_tag getJobs called (using Job entity)');
     try {
       final hiveModels = await getAllJobHiveModels();
-      // FIX: Call static method directly on the class
       final jobs =
           hiveModels.map((model) => JobMapper.fromHiveModel(model)).toList();
       _logger.d('$_tag Mapped ${jobs.length} Hive models to Job entities.');
@@ -437,12 +483,19 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
         error: e,
         stackTrace: stackTrace,
       );
-      // Re-throw as CacheException, consistent with other methods
       throw CacheException('Failed to get jobs: ${e.toString()}');
     }
   }
 
-  // --- ADDED: Implementation for getJobsToRetry ---
+  /// Retrieves jobs that are in an error state and eligible for a sync retry.
+  ///
+  /// Eligibility is determined by:
+  /// 1. Job's [SyncStatus] must be [SyncStatus.error].
+  /// 2. Job's [retryCount] must be less than [maxRetries].
+  /// 3. The time since the [lastSyncAttemptAt] must exceed the calculated
+  ///    exponential backoff duration (`baseBackoffDuration * 2^retryCount`).
+  ///
+  /// Returns a list of [Job] entities eligible for retry.
   @override
   Future<List<Job>> getJobsToRetry(
     int maxRetries,
@@ -453,12 +506,10 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     );
     try {
       final box = await _getOpenBox();
-      final now = DateTime.now(); // Get current time for comparison
+      final now = DateTime.now();
 
-      // Filter values, apply retry logic, and map
       final retryableJobs =
           box.values
-              .whereType<JobHiveModel>()
               .where((model) {
                 // 1. Must be in error status
                 if (model.syncStatus != SyncStatus.error.index) {
@@ -489,7 +540,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
                   return true;
                 }
 
-                // Calculate the required delay
+                // Calculate the required delay using exponential backoff
                 final backoffMultiplier = pow(2, retryCount).toInt();
                 final requiredDelay = baseBackoffDuration * backoffMultiplier;
                 final nextRetryTime = lastAttemptTime.add(requiredDelay);
@@ -497,9 +548,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
                 // Eligible if current time is after the next calculated retry time
                 return now.isAfter(nextRetryTime);
               })
-              .map(
-                (model) => JobMapper.fromHiveModel(model),
-              ) // Map to Job entity
+              .map((model) => JobMapper.fromHiveModel(model))
               .toList();
 
       _logger.d('$_tag Found ${retryableJobs.length} jobs eligible for retry.');

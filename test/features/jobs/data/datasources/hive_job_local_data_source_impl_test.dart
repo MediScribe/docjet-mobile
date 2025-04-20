@@ -17,22 +17,39 @@ import 'hive_job_local_data_source_impl_test.mocks.dart';
 @GenerateMocks([HiveInterface, Box])
 void main() {
   late MockHiveInterface mockHiveInterface;
-  late MockBox<dynamic> mockBox;
+  late MockBox<JobHiveModel> mockJobsBox;
+  late MockBox<dynamic> mockMetadataBox;
   late HiveJobLocalDataSourceImpl dataSource;
+
+  const String metadataBoxName = 'app_metadata';
+  const String metadataTimestampKey = 'lastFetchTimestamp';
 
   setUp(() {
     mockHiveInterface = MockHiveInterface();
-    mockBox = MockBox<dynamic>();
-    // Instantiate the data source implementation for testing
+    mockJobsBox = MockBox<JobHiveModel>();
+    mockMetadataBox = MockBox<dynamic>();
     dataSource = HiveJobLocalDataSourceImpl(hive: mockHiveInterface);
 
-    // Common stubbing for opening the box
     when(
       mockHiveInterface.isBoxOpen(HiveJobLocalDataSourceImpl.jobsBoxName),
     ).thenReturn(true);
     when(
-      mockHiveInterface.box<dynamic>(HiveJobLocalDataSourceImpl.jobsBoxName),
-    ).thenReturn(mockBox);
+      mockHiveInterface.box<JobHiveModel>(
+        HiveJobLocalDataSourceImpl.jobsBoxName,
+      ),
+    ).thenReturn(mockJobsBox);
+    when(mockHiveInterface.isBoxOpen(metadataBoxName)).thenReturn(true);
+    when(
+      mockHiveInterface.box<dynamic>(metadataBoxName),
+    ).thenReturn(mockMetadataBox);
+    when(
+      mockHiveInterface.openBox<dynamic>(metadataBoxName),
+    ).thenAnswer((_) async => mockMetadataBox);
+    when(
+      mockHiveInterface.openBox<JobHiveModel>(
+        HiveJobLocalDataSourceImpl.jobsBoxName,
+      ),
+    ).thenAnswer((_) async => mockJobsBox);
   });
 
   // --- Test Data Setup ---
@@ -107,19 +124,13 @@ void main() {
     JobMapper.fromHiveModel(job5NotErrorStatus),
   ];
 
-  final allTestModels = [
+  final allTestJobModelsOnly = [
     job1RetryableNoLastAttempt,
     job2RetryableBackoffPassed,
     job3NotRetryableMaxRetries,
     job4NotRetryableBackoffNotPassed,
     job5NotErrorStatus,
-    'not_a_job_model', // Include a non-job entry
-    HiveJobLocalDataSourceImpl.lastFetchTimestampKey, // Include timestamp key
   ];
-
-  // REMOVED: These were defined earlier but removed, causing error
-  // final job1Entity = JobMapper.fromHiveModel(job1RetryableNoLastAttempt);
-  // final job2Entity = JobMapper.fromHiveModel(job2RetryableBackoffPassed);
 
   // Compare based on localId
   final expectedRetryableJobIds = [
@@ -132,7 +143,7 @@ void main() {
       'should return jobs with error status, below max retries, and whose backoff period has passed',
       () async {
         // Arrange
-        when(mockBox.values).thenReturn(allTestModels);
+        when(mockJobsBox.values).thenReturn(allTestJobModelsOnly);
 
         // Act
         final result = await dataSource.getJobsToRetry(
@@ -146,14 +157,11 @@ void main() {
         expect(resultIds, equals(expectedRetryableJobIds));
 
         verify(
-          mockHiveInterface.box<dynamic>(
+          mockHiveInterface.box<JobHiveModel>(
             HiveJobLocalDataSourceImpl.jobsBoxName,
           ),
         );
-        verify(mockBox.values);
-        // REMOVE: Too strict and causing issues
-        // verifyNoMoreInteractions(mockHiveInterface);
-        // verifyNoMoreInteractions(mockBox);
+        verify(mockJobsBox.values);
       },
     );
 
@@ -166,7 +174,7 @@ void main() {
           job4NotRetryableBackoffNotPassed,
           job5NotErrorStatus,
         ];
-        when(mockBox.values).thenReturn(nonRetryableModels);
+        when(mockJobsBox.values).thenReturn(nonRetryableModels);
 
         // Act
         final result = await dataSource.getJobsToRetry(
@@ -177,14 +185,11 @@ void main() {
         // Assert
         expect(result, isEmpty);
         verify(
-          mockHiveInterface.box<dynamic>(
+          mockHiveInterface.box<JobHiveModel>(
             HiveJobLocalDataSourceImpl.jobsBoxName,
           ),
         );
-        verify(mockBox.values);
-        // REMOVE: Too strict
-        // verifyNoMoreInteractions(mockHiveInterface);
-        // verifyNoMoreInteractions(mockBox);
+        verify(mockJobsBox.values);
       },
     );
 
@@ -192,7 +197,7 @@ void main() {
       'should return an empty list if the box is empty or contains no jobs',
       () async {
         // Arrange
-        when(mockBox.values).thenReturn([]); // Empty box
+        when(mockJobsBox.values).thenReturn(<JobHiveModel>[]); // Empty box
 
         // Act
         final result = await dataSource.getJobsToRetry(
@@ -207,7 +212,7 @@ void main() {
 
     test('should throw CacheException when Hive call fails', () async {
       // Arrange
-      when(mockBox.values).thenThrow(Exception('Hive failed miserably'));
+      when(mockJobsBox.values).thenThrow(Exception('Hive failed miserably'));
 
       // Act
       final call = dataSource.getJobsToRetry(tMaxRetries, tBaseBackoff);
@@ -215,12 +220,11 @@ void main() {
       // Assert
       await expectLater(call, throwsA(isA<CacheException>()));
       verify(
-        mockHiveInterface.box<dynamic>(HiveJobLocalDataSourceImpl.jobsBoxName),
+        mockHiveInterface.box<JobHiveModel>(
+          HiveJobLocalDataSourceImpl.jobsBoxName,
+        ),
       );
-      verify(mockBox.values);
-      // REMOVE: Too strict
-      // verifyNoMoreInteractions(mockHiveInterface);
-      // verifyNoMoreInteractions(mockBox);
+      verify(mockJobsBox.values);
     });
   });
 
@@ -235,7 +239,7 @@ void main() {
       // This might require making getAllJobHiveModels public or using a spy.
       // *** Correction: We mock the box.values which getAllJobHiveModels uses! ***
 
-      when(mockBox.values).thenReturn(tJobHiveModelList);
+      when(mockJobsBox.values).thenReturn(tJobHiveModelList);
 
       // Act
       final result = await dataSource.getJobs();
@@ -248,16 +252,18 @@ void main() {
 
       // Verify underlying hive call (indirectly via getAllJobHiveModels -> _getOpenBox -> box.values)
       verify(
-        mockHiveInterface.box<dynamic>(HiveJobLocalDataSourceImpl.jobsBoxName),
+        mockHiveInterface.box<JobHiveModel>(
+          HiveJobLocalDataSourceImpl.jobsBoxName,
+        ),
       ).called(1);
-      verify(mockBox.values).called(1);
+      verify(mockJobsBox.values).called(1);
     });
 
     test(
       'should throw CacheException when underlying Hive call fails',
       () async {
         // Arrange
-        when(mockBox.values).thenThrow(Exception('Hive failed'));
+        when(mockJobsBox.values).thenThrow(Exception('Hive failed'));
 
         // Act
         final call = dataSource.getJobs();
@@ -265,13 +271,135 @@ void main() {
         // Assert
         await expectLater(call, throwsA(isA<CacheException>()));
         verify(
-          mockHiveInterface.box<dynamic>(
+          mockHiveInterface.box<JobHiveModel>(
             HiveJobLocalDataSourceImpl.jobsBoxName,
           ),
         ).called(1);
-        verify(mockBox.values).called(1);
+        verify(mockJobsBox.values).called(1);
       },
     );
+  });
+
+  group('Timestamp Handling (Metadata Box)', () {
+    final tTime = DateTime.now();
+    final tTimestampKey = metadataTimestampKey;
+    final tTimestampMillis = tTime.toUtc().millisecondsSinceEpoch;
+
+    group('saveLastFetchTime', () {
+      test(
+        'should save the timestamp (as UTC epoch millis) into the METADATA box',
+        () async {
+          // Arrange
+          // No specific arrangement needed beyond setUp mocks
+
+          // Act
+          await dataSource.saveLastFetchTime(tTime);
+
+          // Assert
+          // Verify interaction ONLY with the metadata box
+          verify(mockHiveInterface.box<dynamic>(metadataBoxName));
+          verify(
+            mockMetadataBox.put(tTimestampKey, tTimestampMillis),
+          ).called(1);
+
+          // Verify NO interaction with the jobs box for the timestamp key
+          verifyNever(
+            mockJobsBox.put(
+              // Use the OLD key here to ensure it's not written to jobs box
+              'lastFetchTimestamp',
+              any,
+            ),
+          );
+          verifyNever(mockJobsBox.put(tTimestampKey, any));
+        },
+      );
+
+      test('should throw CacheException if metadata box put fails', () async {
+        // Arrange
+        when(
+          mockMetadataBox.put(tTimestampKey, tTimestampMillis),
+        ).thenThrow(Exception('Hive metadata put failed'));
+
+        // Act
+        final call = dataSource.saveLastFetchTime(tTime);
+
+        // Assert
+        await expectLater(call, throwsA(isA<CacheException>()));
+        verify(mockMetadataBox.put(tTimestampKey, tTimestampMillis));
+      });
+    });
+
+    group('getLastFetchTime', () {
+      test(
+        'should retrieve the timestamp from the METADATA box and return as DateTime',
+        () async {
+          // Arrange
+          when(mockMetadataBox.get(tTimestampKey)).thenReturn(tTimestampMillis);
+          final expectedDateTime = DateTime.fromMillisecondsSinceEpoch(
+            tTimestampMillis,
+          );
+
+          // Act
+          final result = await dataSource.getLastFetchTime();
+
+          // Assert
+          expect(result, equals(expectedDateTime));
+          // Verify interaction ONLY with the metadata box
+          verify(mockHiveInterface.box<dynamic>(metadataBoxName));
+          verify(mockMetadataBox.get(tTimestampKey)).called(1);
+          // Verify NO interaction with the jobs box
+          verifyNever(mockJobsBox.get('lastFetchTimestamp'));
+          verifyNever(mockJobsBox.get(tTimestampKey));
+        },
+      );
+
+      test(
+        'should return null if timestamp is not found in METADATA box',
+        () async {
+          // Arrange
+          when(mockMetadataBox.get(tTimestampKey)).thenReturn(null);
+
+          // Act
+          final result = await dataSource.getLastFetchTime();
+
+          // Assert
+          expect(result, isNull);
+          verify(mockMetadataBox.get(tTimestampKey));
+          verifyNever(mockJobsBox.get('lastFetchTimestamp'));
+          verifyNever(mockJobsBox.get(tTimestampKey));
+        },
+      );
+
+      test(
+        'should return null and log warning if timestamp in METADATA box is not int',
+        () async {
+          // Arrange
+          when(mockMetadataBox.get(tTimestampKey)).thenReturn('not an int');
+
+          // Act
+          final result = await dataSource.getLastFetchTime();
+
+          // Assert
+          expect(result, isNull);
+          verify(mockMetadataBox.get(tTimestampKey));
+          // We can't easily verify logs here, but the null return is key
+        },
+      );
+
+      test('should throw CacheException if metadata box get fails', () async {
+        // Arrange
+        when(
+          mockMetadataBox.get(tTimestampKey),
+        ).thenThrow(Exception('Hive metadata get failed'));
+
+        // Act
+        final call = dataSource.getLastFetchTime();
+
+        // Assert
+        await expectLater(call, throwsA(isA<CacheException>()));
+        verify(mockMetadataBox.get(tTimestampKey));
+      });
+    });
   });
 
   // TODO: Add test groups for other methods:
