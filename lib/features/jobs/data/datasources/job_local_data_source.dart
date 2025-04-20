@@ -73,24 +73,9 @@ abstract class JobLocalDataSource {
   /// Throws a [CacheException] on failure.
   Future<void> saveJobHiveModel(JobHiveModel model);
 
-  /// Saves a list of JobHiveModel objects directly to local storage.
-  ///
-  /// Used for batch save operations.
-  /// Throws [CacheException] on error.
-  /// Returns true if operation was successful.
-  Future<bool> saveJobHiveModels(List<JobHiveModel> models);
-
   /// Deletes a single Job model by its ID from the cache.
   /// Throws a [CacheException] on failure.
   Future<void> deleteJobHiveModel(String id);
-
-  /// Clears all Job models from the cache.
-  /// Throws a [CacheException] on failure.
-  Future<void> clearAllJobHiveModels();
-
-  /// Gets the last saved Job model (e.g. by updated_at)
-  /// Throws a [CacheException] on failure.
-  Future<JobHiveModel?> getLastJobHiveModel();
 
   /// Gets the timestamp of the last successful fetch from the remote source.
   /// Returns null if no fetch has ever been recorded.
