@@ -476,11 +476,19 @@ void main() {
       },
     );
 
-    // TODO: Add tests for update sync
-    // TODO: Add tests for delete sync
-    // TODO: Add tests for sync failures (network error, server error)
-    // TODO: Add tests for retry logic
-    // TODO: Add tests for server-side deletion detection
+    // TODO: Test Update Sync: Create -> Sync -> Update -> Sync -> Verify
+
+    // TODO: Test Delete Sync (Local): Create -> Sync -> Delete Loc -> Sync -> Verify gone
+
+    // TODO: Test Sync Failure (Network): Create -> Mock Network Error -> Sync -> Verify Error Status
+
+    // TODO: Test Sync Failure (Server 5xx): Create -> Mock Server 5xx -> Sync -> Verify Error Status
+
+    // TODO: Test Retry Logic: Create -> Fail Sync -> Verify Error -> Wait -> Sync -> Verify Success or Failed
+
+    // TODO: Test Server-Side Deletion Detection: Create -> Sync -> Mock Job Gone -> Sync -> Verify Local Deletion
+
+    // TODO: Test Reset Failed Job: Create -> Fail Sync -> Verify Failed -> Reset -> Verify Pending -> Sync -> Verify Synced
 
     // TODO: Remember to run `flutter pub run build_runner build --delete-conflicting-outputs`
     //       to generate the *.mocks.dart file after fixing these linter errors.
