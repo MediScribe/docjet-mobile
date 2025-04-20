@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
-import '../../../../core/error/failures.dart';
-import '../entities/job.dart';
-import '../../data/models/job_update_data.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
 
 /// Manages job data including local persistence, remote sync, and CRUD operations.
 /// This is the single public interface for interacting with job data.

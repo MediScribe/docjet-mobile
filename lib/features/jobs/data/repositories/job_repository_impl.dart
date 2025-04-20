@@ -1,15 +1,15 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart'; // Import dartz
-import '../../../../core/error/failures.dart'; // Import Failure
-import '../../../../core/utils/log_helpers.dart'; // Import Logger
-import '../../domain/entities/job.dart';
-import '../../domain/repositories/job_repository.dart';
-import '../models/job_update_data.dart';
-import '../services/job_deleter_service.dart';
-import '../services/job_reader_service.dart';
-import '../services/job_sync_orchestrator_service.dart';
-import '../services/job_writer_service.dart';
+import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
 
 /// Main implementation of [JobRepository] that orchestrates operations
 /// by delegating to specialized service classes.

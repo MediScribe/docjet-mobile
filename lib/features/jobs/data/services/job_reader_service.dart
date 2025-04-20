@@ -1,12 +1,12 @@
 import 'package:dartz/dartz.dart';
 
-import '../../../../core/error/exceptions.dart';
-import '../../../../core/error/failures.dart';
-import '../../domain/entities/job.dart';
-import '../../domain/entities/sync_status.dart';
-import '../datasources/job_local_data_source.dart';
-import '../datasources/job_remote_data_source.dart';
-import '../mappers/job_mapper.dart';
+import 'package:docjet_mobile/core/error/exceptions.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
 
 /// Service class for job read operations
 class JobReaderService {
