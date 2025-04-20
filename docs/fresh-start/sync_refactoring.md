@@ -143,22 +143,12 @@ This document outlines the steps to refactor the monolithic `JobSyncService` int
     -   [x] Clarify that backoff eligibility check happens in `LocalDataSource`, while status updates happen in the `ProcessorService`.
     -   [x] Ensure `resetFailedJob` is correctly represented in the repository interface.
 
-## Future TODOs
-
--   [ ] **Performance Optimization for Bulk Operations:**
-    -   [ ] Implement batch processing for multiple jobs with the same sync status
-    -   [ ] Add concurrency control for parallel job processing with configurable limits
-    -   [ ] Optimize database queries by reducing redundant reads/writes during sync
+## Later Future TODOs
 
 -   [ ] **Enhanced Error Resilience:**
     -   [ ] Add circuit breaker pattern to avoid overwhelming failing servers
     -   [ ] Implement more granular error categorization (temporary vs. permanent failures)
     -   [ ] Create specialized handling for common error cases (auth failures, payload issues)
-
--   [ ] **Sync Process Observability:**
-    -   [ ] Add detailed metrics collection (sync success rate, latency, error distribution)
-    -   [ ] Implement a sync status dashboard for debugging and monitoring
-    -   [ ] Create an audit log of all sync operations for troubleshooting
 
 -   [ ] **User Experience Improvements:**
     -   [ ] Provide more granular sync status indicators in the UI
@@ -171,3 +161,15 @@ This document outlines the steps to refactor the monolithic `JobSyncService` int
     -   [ ] Add property-based testing for sync edge cases
     -   [ ] Implement stress tests for large job volumes
     -   [ ] Add performance benchmarks for sync operationsSince no dictation text was provided after the prompt, I cannot perform any editing. If you would like me to edit a dictation transcript, please provide the actual text. 
+
+## Much Later (if, as we'll have 50-100 jobs max at any given time)
+
+-   [ ] **Sync Process Observability:**
+    -   [ ] Add detailed metrics collection (sync success rate, latency, error distribution)
+    -   [ ] Implement a sync status dashboard for debugging and monitoring
+    -   [ ] Create an audit log of all sync operations for troubleshooting
+
+-   [ ] **Performance Optimization for Bulk Operations:**
+    -   [ ] Implement batch processing for multiple jobs with the same sync status
+    -   [ ] Add concurrency control for parallel job processing with configurable limits
+    -   [ ] Optimize database queries by reducing redundant reads/writes during sync

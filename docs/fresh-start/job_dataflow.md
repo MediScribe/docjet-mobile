@@ -4,6 +4,51 @@ This document details the data flow architecture for the Job feature in DocJet M
 
 > **TLDR:** This is an offline-first architecture with server-side synchronization. Jobs have a dual-ID system (client-generated UUID and server-assigned ID), undergo local-first CRUD operations, are synchronized on a 15-second interval, and can handle network failures with appropriate status tracking. Historical development details can be found in [job_dataflow_development_history.md](./job_dataflow_development_history.md).
 
+## Table of Contents
+
+- [Key Architecture Decisions](#key-architecture-decisions)
+- [Job Feature Architecture Overview](#job-feature-architecture-overview)
+- [Job Data Layer Flow](#job-data-layer-flow)
+- [Job Creation, Update, and Sync Flow](#job-creation-update-and-sync-flow)
+- [Job Data Layer Components](#job-data-layer-components)
+  - [Service-Oriented Repository Pattern](#service-oriented-repository-pattern)
+    - [JobRepository Interface](#jobrepository-interface)
+    - [JobRepositoryImpl](#jobrepositoryimpl)
+    - [JobReaderService](#jobreaderservice)
+    - [JobWriterService](#jobwriterservice)
+    - [JobDeleterService](#jobdeleterservice)
+    - [JobSyncOrchestratorService](#jobsyncorchestratorservice)
+    - [JobSyncProcessorService](#jobsyncprocessorservice)
+    - [JobSyncTriggerService](#jobsynctriggerservice)
+  - [Data Sources](#data-sources)
+    - [JobLocalDataSource](#joblocaldatasource)
+    - [JobRemoteDataSource](#jobremotedatasource)
+  - [Job Model Enhancements](#job-model-enhancements)
+    - [SyncStatus Enum](#syncstatus-enum)
+    - [Job Entity](#job-entity)
+- [Sync Strategy](#sync-strategy)
+  - [Core Principles](#core-principles)
+  - [Sync Architecture](#sync-architecture)
+  - [Sync Process Details](#sync-process-details)
+  - [Server-Side Deletion Handling](#server-side-deletion-handling)
+  - [Audio File Management](#audio-file-management)
+- [Background Processing Support](#background-processing-support)
+- [Remaining Improvements](#remaining-improvements)
+- [Synchronization Flow Diagrams](#synchronization-flow-diagrams)
+  - [Sync Orchestration - Job Collection](#sync-orchestration---job-collection)
+  - [Sync Orchestration - Delegation](#sync-orchestration---delegation)
+  - [Processor - New Job Creation](#processor---new-job-creation)
+  - [Processor - Job Update](#processor---job-update)
+  - [Processor - Sync Error Handling](#processor---sync-error-handling)
+  - [Processor - Job Deletion](#processor---job-deletion)
+  - [Processor - Local File Cleanup](#processor---local-file-cleanup)
+  - [Manual Reset of Failed Job](#manual-reset-of-failed-job)
+- [Local-First Operations Flow](#local-first-operations-flow)
+  - [Job Creation Flow](#job-creation-flow)
+  - [Job Update Flow](#job-update-flow)
+  - [Job Deletion Flow](#job-deletion-flow)
+- [Legacy Monolithic Diagram (For Reference)](#legacy-monolithic-diagram-for-reference)
+
 ## Key Architecture Decisions
 
 1. **Dual-ID System**
@@ -163,7 +208,6 @@ sequenceDiagram
     Note over AppSvc, API: Fetching Job List
 
     %% Success Path - Local Data
-    rect 
     Note over AppSvc, API: Success Path - Local Cache Hit
     AppSvc->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
@@ -175,10 +219,8 @@ sequenceDiagram
     LocalDS-->>ReaderSvc: List<JobEntity>
     ReaderSvc-->>JobRepo: Right<List<JobEntity>>
     JobRepo-->>AppSvc: Right<List<JobEntity>>
-    end
     
     %% Refresh Path - Remote Fetch
-    rect 
     Note over AppSvc, API: Refresh Path - Local Cache Miss/Stale
     AppSvc->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
@@ -202,10 +244,8 @@ sequenceDiagram
     LocalDS-->>ReaderSvc: Save Confirmation
     ReaderSvc-->>JobRepo: Right<List<JobEntity>>
     JobRepo-->>AppSvc: Right<List<JobEntity>>
-    end
     
     %% Error Path
-    rect 
     Note over AppSvc, API: Error Path - Network/Server Failure
     AppSvc->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
@@ -219,7 +259,6 @@ sequenceDiagram
     RemoteDS-->>ReaderSvc: Exception/Error
     ReaderSvc-->>JobRepo: Left<Failure>
     JobRepo-->>AppSvc: Left<Failure>
-    end
 ```
 
 ## Job Creation, Update, and Sync Flow
@@ -243,7 +282,6 @@ sequenceDiagram
     participant FileSystem as File System
 
     %% Job Creation Flow
-    rect 
     Note over AppSvc, API: Job Creation - Local First
     AppSvc->>JobRepo: createJob(audioFilePath, text)
     JobRepo->>WriterSvc: createJob(audioFilePath, text)
@@ -258,10 +296,8 @@ sequenceDiagram
     LocalDS-->>WriterSvc: Success
     WriterSvc-->>JobRepo: Right<Job>
     JobRepo-->>AppSvc: Right<Job>
-    end
     
     %% Job Update Flow
-    rect 
     Note over AppSvc, API: Job Update - Local First
     AppSvc->>JobRepo: updateJob(localId, updates)
     JobRepo->>WriterSvc: updateJob(localId, updates)
@@ -288,10 +324,8 @@ sequenceDiagram
     end
     
     JobRepo-->>AppSvc: Right<Job>
-    end
     
     %% Job Deletion Flow
-    rect 
     Note over AppSvc, API: Job Deletion - Local First
     AppSvc->>JobRepo: deleteJob(localId)
     JobRepo->>DeleterSvc: deleteJob(localId)
@@ -311,7 +345,6 @@ sequenceDiagram
     LocalDS-->>DeleterSvc: Success
     DeleterSvc-->>JobRepo: Right<Unit>
     JobRepo-->>AppSvc: Right<Unit>
-    end
 ```
 
 ## Job Data Layer Components
