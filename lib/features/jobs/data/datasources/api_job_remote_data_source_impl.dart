@@ -355,9 +355,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     String? text,
     String? additionalText,
   }) async {
-    const String endpoint = '/api/v1/jobs';
+    final urlPath = '/jobs';
     _logger.d(
-      '$_tag Creating job for user $userId with audio $audioFilePath at $endpoint',
+      '$_tag Creating job for user $userId with audio $audioFilePath at $urlPath',
     );
 
     try {
@@ -374,7 +374,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
       // Post the form data
       final response = await dio.post(
-        endpoint,
+        urlPath,
         data: formData,
         options: options,
       );
@@ -478,16 +478,16 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     required String jobId,
     required Map<String, dynamic> updates,
   }) async {
-    final String endpoint = '/jobs/$jobId';
+    final urlPath = '/jobs/$jobId';
     _logger.d(
-      '$_tag updateJob called for jobId: $jobId with updates: $updates',
+      '$_tag updateJob called for jobId: $jobId with updates: $updates at $urlPath',
     );
 
     try {
       // --- Make API Call ---
       final options = await _getOptionsWithAuth();
       final response = await dio.patch(
-        endpoint,
+        urlPath,
         data: updates, // Send the updates map as the request body
         options: options,
       );
@@ -558,12 +558,12 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
   @override
   Future<Unit> deleteJob(String serverId) async {
-    final String endpoint = '/jobs/$serverId';
-    _logger.d('$_tag Deleting job with serverId: $serverId from $endpoint');
+    final urlPath = '/jobs/$serverId';
+    _logger.d('$_tag Deleting job with serverId: $serverId from $urlPath');
 
     try {
       final options = await _getOptionsWithAuth();
-      final response = await dio.delete(endpoint, options: options);
+      final response = await dio.delete(urlPath, options: options);
 
       // --- Success Case (200 OK or 204 No Content) ---
       if (response.statusCode == 200 || response.statusCode == 204) {

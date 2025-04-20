@@ -120,14 +120,14 @@ Middleware _debugMiddleware() {
 
 // Define the router
 final _router = Router()
-  ..post('/api/v1/auth/login', _loginHandler)
-  ..post('/api/v1/auth/refresh-session', _refreshHandler)
-  ..post('/api/v1/jobs', _createJobHandler)
-  ..get('/api/v1/jobs', _listJobsHandler)
-  ..get('/api/v1/jobs/<jobId>', _getJobByIdHandler)
-  ..get('/api/v1/jobs/<jobId>/documents', _getJobDocumentsHandler)
-  ..patch('/api/v1/jobs/<jobId>', _updateJobHandler)
-  ..delete('/api/v1/jobs/<jobId>', _deleteJobHandler);
+  ..post('/auth/login', _loginHandler)
+  ..post('/auth/refresh-session', _refreshHandler)
+  ..post('/jobs', _createJobHandler)
+  ..get('/jobs', _listJobsHandler)
+  ..get('/jobs/<jobId>', _getJobByIdHandler)
+  ..get('/jobs/<jobId>/documents', _getJobDocumentsHandler)
+  ..patch('/jobs/<jobId>', _updateJobHandler)
+  ..delete('/jobs/<jobId>', _deleteJobHandler);
 
 // Login handler logic
 Future<Response> _loginHandler(Request request) async {
@@ -558,45 +558,23 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   );
 }
 
-// Middleware to check API key
-Middleware _apiKeyMiddleware(String expectedApiKey) {
-  return (Handler innerHandler) {
-    return (Request request) {
-      // DEBUGGING: Log the received API key
-      if (_verboseLoggingEnabled) {
-        print('DEBUG: Received X-API-Key: ${request.headers['x-api-key']}');
-        print('DEBUG: Expected X-API-Key: $expectedApiKey');
-      }
-
-      final apiKey = request.headers['x-api-key'];
-      if (apiKey == null || apiKey != expectedApiKey) {
-        // Return 401 Unauthorized if API key is missing or invalid
-        if (_verboseLoggingEnabled) print('DEBUG: API Key validation failed');
-        return Response(
-          HttpStatus.unauthorized, // 401
-          body: jsonEncode({'error': 'Missing or invalid X-API-Key header'}),
-          headers: {'content-type': 'application/json'},
-        );
-      }
-
-      if (_verboseLoggingEnabled) print('DEBUG: API Key validation successful');
-      // API key is valid, proceed to the next handler
-      return innerHandler(request);
-    };
-  };
-}
-
-// Middleware to check Bearer Token
+// Auth middleware - NOW modified to skip auth routes
 Middleware _authMiddleware() {
   return (Handler innerHandler) {
-    return (Request request) {
-      // Skip auth for login and refresh endpoints
-      if (request.requestedUri.path.endsWith('/auth/login') ||
-          request.requestedUri.path.endsWith('/auth/refresh-session')) {
+    return (Request request) async {
+      // Skip auth check for auth endpoints
+      if (request.requestedUri.path.startsWith('/auth/')) {
+        if (_verboseLoggingEnabled) {
+          print('DEBUG: Auth endpoint detected, skipping auth middleware');
+        }
         return innerHandler(request);
       }
 
-      // DEBUGGING: Log the received Authorization header
+      if (_verboseLoggingEnabled) {
+        print('DEBUG: Non-auth endpoint, applying auth check...');
+      }
+
+      // Authentication check logic (as before)
       if (_verboseLoggingEnabled) {
         print(
             'DEBUG: Received Authorization: ${request.headers['authorization']}');
@@ -605,13 +583,9 @@ Middleware _authMiddleware() {
       final authHeader = request.headers['authorization'];
       bool isValid = false;
       if (authHeader != null && authHeader.startsWith('Bearer ')) {
-        // Basic check: just see if it looks like a Bearer token
-        // In a real app, you'd parse and validate the JWT
         final token = authHeader.substring(7);
         if (token.isNotEmpty) {
           isValid = true;
-          // Optional: Add parsed token/user info to request context
-          // request = request.change(context: {'user': ...});
         }
       }
 
@@ -626,7 +600,42 @@ Middleware _authMiddleware() {
       }
 
       if (_verboseLoggingEnabled) print('DEBUG: Auth validation successful');
-      // Token looks okay, proceed
+      return innerHandler(request);
+    };
+  };
+}
+
+// API Key middleware - NOW modified to skip auth routes
+Middleware _apiKeyMiddleware(String expectedApiKey) {
+  return (Handler innerHandler) {
+    return (Request request) async {
+      // Skip API key check for auth endpoints
+      if (request.requestedUri.path.startsWith('/auth/')) {
+        if (_verboseLoggingEnabled) {
+          print('DEBUG: Auth endpoint detected, skipping API key middleware');
+        }
+        return innerHandler(request);
+      }
+
+      if (_verboseLoggingEnabled) {
+        print('DEBUG: Non-auth endpoint, applying API key check...');
+      }
+
+      final apiKey = request.headers['x-api-key'];
+      if (apiKey != expectedApiKey) {
+        if (_verboseLoggingEnabled) {
+          print(
+              'DEBUG: API Key validation failed. Expected \'$expectedApiKey\', got \'$apiKey\'');
+        }
+        return Response(
+          HttpStatus.unauthorized, // 401
+          body: jsonEncode({'error': 'Missing or invalid X-API-Key header'}),
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (_verboseLoggingEnabled) {
+        print('DEBUG: API Key validation successful.');
+      }
       return innerHandler(request);
     };
   };
@@ -634,27 +643,35 @@ Middleware _authMiddleware() {
 
 // Update Job handler logic
 Future<Response> _updateJobHandler(Request request, String jobId) async {
-  // Authentication and API key are already handled by middleware
-
-  // Check Content-Type
   if (_verboseLoggingEnabled) {
-    print('DEBUG UPDATE: Content-Type is ${request.headers['content-type']}');
+    print(
+        'DEBUG UPDATE JOB: Handler called for jobId: $jobId, Path: ${request.requestedUri.path}, Content-Type: ${request.headers['content-type']}');
   }
-  if (request.headers['content-type'] == null ||
-      !request.headers['content-type']!
-          .toLowerCase()
-          .contains('application/json')) {
+
+  // Content-Type check
+  if (request.headers['content-type']
+          ?.toLowerCase()
+          .startsWith('application/json') !=
+      true) {
+    if (_verboseLoggingEnabled) {
+      print(
+          'DEBUG UPDATE JOB: Invalid Content-Type: ${request.headers['content-type']}');
+    }
     return Response(
       HttpStatus.badRequest, // 400
-      body: jsonEncode({'error': 'Expected Content-Type: application/json'}),
+      body: jsonEncode(
+          {'error': 'Expected Content-Type starting with application/json'}),
       headers: {'content-type': 'application/json'},
     );
   }
 
-  // Find the job index by ID
-  final jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
+  // Find the job by ID
+  int jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
 
   if (jobIndex == -1) {
+    if (_verboseLoggingEnabled) {
+      print('DEBUG UPDATE JOB: Job with ID $jobId not found.');
+    }
     return Response(
       HttpStatus.notFound, // 404
       body: jsonEncode({'error': 'Job with ID $jobId not found'}),
@@ -662,96 +679,96 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
     );
   }
 
-  // Get the existing job data
-  final existingJob = _jobs[jobIndex];
-  Map<String, dynamic> updatedJobData = Map.from(existingJob);
-
-  // Parse the request body
-  String body;
-  Map<String, dynamic> patchData;
+  // Parse the update payload
+  Map<String, dynamic> updatePayload;
   try {
-    body = await request.readAsString();
-    if (_verboseLoggingEnabled) print('DEBUG UPDATE: Request body: $body');
-    patchData = jsonDecode(body) as Map<String, dynamic>;
+    final body = await request.readAsString();
+    if (_verboseLoggingEnabled) {
+      print('DEBUG UPDATE JOB: Received update payload: $body');
+    }
+    updatePayload = jsonDecode(body) as Map<String, dynamic>;
   } catch (e) {
-    if (_verboseLoggingEnabled) print('DEBUG UPDATE: Error parsing body: $e');
+    if (_verboseLoggingEnabled) {
+      print('DEBUG UPDATE JOB: Error parsing update payload: $e');
+    }
     return Response(
-      HttpStatus.badRequest, // 400
-      body: jsonEncode({'error': 'Malformed JSON body: ${e.toString()}'}),
+      HttpStatus.badRequest,
+      body: jsonEncode({'error': 'Malformed JSON payload: $e'}),
       headers: {'content-type': 'application/json'},
     );
   }
 
-  // Apply updates from the patch data
-  bool updated = false;
-  if (patchData.containsKey('text')) {
-    updatedJobData['text'] = patchData['text'];
-    updated = true;
-  }
-  if (patchData.containsKey('display_title')) {
-    updatedJobData['display_title'] = patchData['display_title'];
-    updated = true;
-  }
-  if (patchData.containsKey('display_text')) {
-    updatedJobData['display_text'] = patchData['display_text'];
-    updated = true;
-    // Optionally update status when display fields are set
-    updatedJobData['job_status'] = 'transcribed';
+  // Apply updates
+  final existingJob = _jobs[jobIndex];
+  final updatedJob = Map<String, dynamic>.from(existingJob);
+
+  updatePayload.forEach((key, value) {
+    // Only update keys that exist in the job model (or add if necessary based on real API)
+    // Simple approach: update if key exists or is a known field
+    final knownKeys = [
+      'job_status',
+      'error_code',
+      'error_message',
+      'text',
+      'additional_text',
+      'display_title',
+      'display_text',
+      'transcript'
+    ];
+    if (updatedJob.containsKey(key) || knownKeys.contains(key)) {
+      updatedJob[key] = value;
+      if (_verboseLoggingEnabled) {
+        print('DEBUG UPDATE JOB: Updated $key to $value');
+      }
+    }
+  });
+
+  // Update the timestamp
+  updatedJob['updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+  // Replace the old job with the updated one
+  _jobs[jobIndex] = updatedJob;
+
+  if (_verboseLoggingEnabled) {
+    print('DEBUG UPDATE JOB: Job updated successfully. New state: $updatedJob');
   }
 
-  // Always update the updated_at timestamp if any field was changed
-  if (updated) {
-    updatedJobData['updated_at'] = DateTime.now().toUtc().toIso8601String();
-  }
-
-  // Update the job in the in-memory list
-  _jobs[jobIndex] = updatedJobData;
-
-  // Prepare response data (only include fields present in the updated map)
-  final responseData = Map.from(updatedJobData);
-  // Clean up potentially null internal fields before sending response
-  responseData.removeWhere((key, value) =>
-      key == 'audio_file_path' ||
-      key == 'transcript' ||
-      (key == 'error_code' && value == null) ||
-      (key == 'error_message' && value == null));
-  // Ensure display fields are present even if null after update
-  responseData.putIfAbsent('display_title', () => null);
-  responseData.putIfAbsent('display_text', () => null);
-
+  // Return the full updated job object
   return Response.ok(
-    jsonEncode({'data': responseData}),
+    jsonEncode({'data': updatedJob}),
     headers: {'content-type': 'application/json'},
   );
 }
 
-// Delete job handler
+// Delete Job handler logic
 Future<Response> _deleteJobHandler(Request request, String jobId) async {
   if (_verboseLoggingEnabled) {
-    print('DEBUG: Delete job handler called for jobId: $jobId');
+    print('DEBUG DELETE JOB: Handler called for jobId: $jobId');
   }
 
-  // Find the job index
-  final jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
+  // Find the job by ID
+  final initialLength = _jobs.length;
+  _jobs.removeWhere((job) => job['id'] == jobId);
+  final finalLength = _jobs.length;
 
-  if (jobIndex == -1) {
+  if (initialLength == finalLength) {
+    // Job was not found
     if (_verboseLoggingEnabled) {
-      print('DEBUG DELETE JOB: Job with id $jobId not found.');
+      print('DEBUG DELETE JOB: Job with ID $jobId not found for deletion.');
     }
-    return Response.notFound(
-      jsonEncode({'error': 'Job not found'}),
+    return Response(
+      HttpStatus.notFound, // 404
+      body: jsonEncode({'error': 'Job with ID $jobId not found'}),
       headers: {'content-type': 'application/json'},
     );
   }
 
-  // Remove the job
-  final removedJob = _jobs.removeAt(jobIndex);
   if (_verboseLoggingEnabled) {
-    print('DEBUG DELETE JOB: Successfully removed job: ${removedJob['id']}');
+    print('DEBUG DELETE JOB: Job with ID $jobId deleted successfully.');
   }
 
-  // Return 204 No Content for successful deletion
-  return Response(HttpStatus.noContent);
+  // Return 204 No Content on successful deletion
+  return Response(HttpStatus.noContent); // 204
 }
 
 // Main function now just adds the router, as middleware is applied per-route or globally
@@ -766,30 +783,15 @@ void main(List<String> args) async {
   _verboseLoggingEnabled = argResults['verbose'] as bool;
 
   try {
-    // Main server pipeline
+    // Simplified Main server pipeline
     final handler = const Pipeline()
-        .addMiddleware(logRequests()) // Log requests
-        .addMiddleware(_debugMiddleware()) // Add our debug middleware
-        .addMiddleware(_apiKeyMiddleware(
-            _expectedApiKey)) // Check API Key (applied globally)
-        .addHandler((request) {
-      // Skip auth check for auth endpoints
-      if (request.requestedUri.path.contains('/auth/')) {
-        if (_verboseLoggingEnabled) {
-          print('DEBUG: Auth endpoint detected, skipping auth middleware');
-        }
-        return _router.call(request);
-      }
-
-      if (_verboseLoggingEnabled) {
-        print('DEBUG: Non-auth endpoint, applying auth middleware');
-      }
-      // Apply auth middleware to non-auth endpoints
-      final authProtectedHandler =
-          Pipeline().addMiddleware(_authMiddleware()).addHandler(_router.call);
-
-      return authProtectedHandler(request);
-    });
+        .addMiddleware(logRequests()) // Log requests first
+        .addMiddleware(_debugMiddleware()) // Debug details
+        // Apply API Key and Auth checks conditionally within the middleware
+        .addMiddleware(_apiKeyMiddleware(_expectedApiKey))
+        .addMiddleware(_authMiddleware())
+        // Add the router handler at the end to handle all matched routes
+        .addHandler(_router.call);
 
     // Create server
     final server = await io.serve(handler, 'localhost', port);

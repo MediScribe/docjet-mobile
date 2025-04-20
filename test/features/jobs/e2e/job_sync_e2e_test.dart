@@ -7,6 +7,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
@@ -19,6 +20,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -29,11 +31,11 @@ import 'package:path/path.dart' as p; // Added path import
 import 'package:uuid/uuid.dart';
 
 // Generate mocks for NetworkInfo AND AuthCredentialsProvider
-@GenerateMocks([NetworkInfo, AuthCredentialsProvider])
+@GenerateMocks([NetworkInfo, AuthCredentialsProvider, FileSystem])
 import 'job_sync_e2e_test.mocks.dart';
 
 // Implement the CORRECT FileSystem interface
-class MockFileSystem extends Mock implements FileSystem {}
+// class MockFileSystem extends Mock implements FileSystem {} // REMOVED - Will use generated mock
 
 // --- Test Globals ---
 final sl = GetIt.instance;
@@ -346,6 +348,8 @@ void main() {
     when(
       sl<AuthCredentialsProvider>().getAccessToken(),
     ).thenAnswer((_) async => 'fake-test-token');
+    // Reset FileSystem mock before each test
+    reset(sl<FileSystem>());
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -476,9 +480,235 @@ void main() {
       },
     );
 
-    // TODO: Test Update Sync: Create -> Sync -> Update -> Sync -> Verify
+    // Test Update Sync: Create -> Sync -> Update -> Sync -> Verify
+    test(
+      'should update a job locally, sync the update, and verify the changes',
+      () async {
+        _logger.i('$_tag --- Test: Update and Sync Job ---');
+        final jobRepository = sl<JobRepository>();
+        final localDataSource = sl<JobLocalDataSource>();
 
-    // TODO: Test Delete Sync (Local): Create -> Sync -> Delete Loc -> Sync -> Verify gone
+        // Arrange Part 1: Create and initial sync
+        _logger.d('$_tag Arranging: Creating initial job...');
+        final dummyAudioFileName =
+            'update_test_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
+        final dummyAudioFile = File('${_tempDir.path}/$dummyAudioFileName');
+        await dummyAudioFile.writeAsString('dummy audio content for update');
+        expect(await dummyAudioFile.exists(), isTrue);
+
+        final createResult = await jobRepository.createJob(
+          userId: 'test-user-id-update',
+          audioFilePath: dummyAudioFile.path,
+          text: 'Initial text before update',
+        );
+        expect(
+          createResult.isRight(),
+          isTrue,
+          reason: 'Initial creation failed',
+        );
+        final createdJob = createResult.getOrElse(
+          () => throw Exception('Should have job'),
+        );
+        final localId = createdJob.localId;
+        _logger.d('$_tag Initial job created with localId: $localId');
+
+        _logger.d('$_tag Arranging: Performing initial sync...');
+        final initialSyncResult = await jobRepository.syncPendingJobs();
+        expect(
+          initialSyncResult.isRight(),
+          isTrue,
+          reason: 'Initial sync failed',
+        );
+        await Future.delayed(const Duration(seconds: 2)); // Allow sync time
+
+        final jobAfterInitialSync = await localDataSource.getJobById(localId);
+        expect(jobAfterInitialSync, isNotNull);
+        expect(
+          jobAfterInitialSync.syncStatus,
+          SyncStatus.synced,
+          reason: 'Job should be synced after initial sync',
+        );
+        expect(
+          jobAfterInitialSync.serverId,
+          isNotNull,
+          reason: 'ServerId should be set after initial sync',
+        );
+        final serverId = jobAfterInitialSync.serverId!;
+        _logger.d('$_tag Initial sync complete. ServerId: $serverId');
+
+        // Act: Update the job locally
+        _logger.i('$_tag Acting: Updating job text locally...');
+        final updateDetails = JobUpdateDetails(text: 'Updated test text');
+        final updateResult = await jobRepository.updateJob(
+          localId: localId,
+          updates: updateDetails,
+        );
+
+        // Assert: Verify local update and status change
+        expect(updateResult.isRight(), isTrue, reason: 'Local update failed');
+        final jobAfterLocalUpdate = await localDataSource.getJobById(localId);
+        expect(jobAfterLocalUpdate, isNotNull);
+        expect(
+          jobAfterLocalUpdate.text,
+          'Updated test text',
+          reason: 'Local text should be updated immediately',
+        );
+        expect(
+          jobAfterLocalUpdate.syncStatus,
+          SyncStatus.pending,
+          reason: 'Status should be pending after local update',
+        );
+        _logger.d('$_tag Local update successful, status set to pending.');
+
+        // Act: Trigger synchronization for the update
+        _logger.i('$_tag Acting: Triggering sync for the update...');
+        final updateSyncResult = await jobRepository.syncPendingJobs();
+
+        // Assert: Sync orchestration should report success
+        expect(
+          updateSyncResult.isRight(),
+          isTrue,
+          reason: 'Update sync orchestration failed',
+        );
+
+        // Allow time for async operations
+        _logger.d('$_tag Waiting for update sync operations to complete...');
+        await Future.delayed(const Duration(seconds: 2)); // Adjust if needed
+
+        // Assert: Verify final state in local DB
+        _logger.i('$_tag Verifying final job state after update sync...');
+        final jobFromDbFinal = await localDataSource.getJobById(localId);
+        expect(
+          jobFromDbFinal,
+          isNotNull,
+          reason: 'Job should still exist after update sync',
+        );
+        expect(
+          jobFromDbFinal.syncStatus,
+          SyncStatus.synced,
+          reason: 'Final status should be synced after update sync',
+        );
+        expect(
+          jobFromDbFinal.serverId,
+          serverId,
+          reason: 'ServerId should remain the same',
+        );
+        expect(
+          jobFromDbFinal.text,
+          'Updated test text',
+          reason: 'Final text should be the updated value',
+        );
+        _logger.d('$_tag Job update synced successfully.');
+
+        // Cleanup: Delete the dummy audio file
+        _logger.d('$_tag Cleaning up dummy audio file...');
+        if (await dummyAudioFile.exists()) {
+          await dummyAudioFile.delete();
+        }
+        expect(await dummyAudioFile.exists(), isFalse);
+        _logger.i('$_tag --- Test: Update and Sync Job Complete ---');
+      },
+    );
+
+    // Test Delete Sync (Local): Create -> Sync -> Delete Loc -> Sync -> Verify gone
+    test(
+      'should mark a job for deletion locally, sync the deletion, and remove it locally along with its file',
+      () async {
+        _logger.i('$_tag --- Test: Delete and Sync Job ---');
+        final jobRepository = sl<JobRepository>();
+        final localDataSource = sl<JobLocalDataSource>();
+        final mockFileSystem = sl<FileSystem>() as MockFileSystem;
+
+        // Arrange: Create, sync a job, and create its dummy file
+        _logger.d('$_tag Arranging: Creating and syncing initial job...');
+        final dummyAudioFileName =
+            'delete_test_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
+        final dummyAudioFile = File('${_tempDir.path}/$dummyAudioFileName');
+        await dummyAudioFile.writeAsString('dummy audio content for delete');
+        final audioFilePath = dummyAudioFile.path;
+        expect(await dummyAudioFile.exists(), isTrue);
+
+        final createResult = await jobRepository.createJob(
+          userId: 'test-user-id-delete',
+          audioFilePath: audioFilePath,
+          text: 'Job to be deleted',
+        );
+        expect(
+          createResult.isRight(),
+          isTrue,
+          reason: 'Initial creation failed',
+        );
+        final createdJob = createResult.getOrElse(
+          () => throw Exception('Should have job'),
+        );
+        final localId = createdJob.localId;
+        _logger.d('$_tag Job created locally with localId: $localId');
+
+        final initialSyncResult = await jobRepository.syncPendingJobs();
+        expect(
+          initialSyncResult.isRight(),
+          isTrue,
+          reason: 'Initial sync failed',
+        );
+        await Future.delayed(const Duration(seconds: 2)); // Allow sync time
+
+        final jobAfterInitialSync = await localDataSource.getJobById(localId);
+        expect(jobAfterInitialSync, isNotNull);
+        expect(jobAfterInitialSync.syncStatus, SyncStatus.synced);
+        expect(jobAfterInitialSync.serverId, isNotNull);
+        final serverId = jobAfterInitialSync.serverId!;
+        _logger.d('$_tag Initial sync complete. ServerId: $serverId');
+
+        // Act: Mark job for deletion locally
+        _logger.i('$_tag Acting: Marking job for deletion locally...');
+        final deleteResult = await jobRepository.deleteJob(localId);
+        expect(deleteResult.isRight(), isTrue, reason: 'Local delete failed');
+
+        // Assert: Verify local status is pendingDeletion
+        final jobAfterLocalDelete = await localDataSource.getJobById(localId);
+        expect(jobAfterLocalDelete, isNotNull);
+        expect(
+          jobAfterLocalDelete.syncStatus,
+          SyncStatus.pendingDeletion,
+          reason: 'Status should be pendingDeletion',
+        );
+        _logger.d('$_tag Job marked for deletion locally.');
+
+        // Arrange: Expect file deletion call (returns Future<void>)
+        when(
+          mockFileSystem.deleteFile(audioFilePath),
+        ).thenAnswer((_) async {}); // Correct: Return Future<void>
+
+        // Act: Trigger sync for deletion
+        _logger.i('$_tag Acting: Triggering sync for deletion...');
+        final deleteSyncResult = await jobRepository.syncPendingJobs();
+        expect(
+          deleteSyncResult.isRight(),
+          isTrue,
+          reason: 'Delete sync orchestration failed',
+        );
+
+        // Allow time for async operations (API call, DB delete, file delete)
+        _logger.d('$_tag Waiting for delete sync operations...');
+        await Future.delayed(const Duration(seconds: 2));
+
+        // Assert: Verify job is gone from local DB
+        _logger.i('$_tag Verifying job is removed from local DB...');
+        // Expect CacheException when trying to get deleted job
+        expect(
+          () async => await localDataSource.getJobById(localId),
+          throwsA(isA<CacheException>()),
+          reason:
+              'Getting job by ID should throw CacheException after delete sync',
+        );
+
+        // Assert: Verify file system delete was called
+        _logger.i('$_tag Verifying file deletion...');
+        verify(mockFileSystem.deleteFile(audioFilePath)).called(1);
+
+        _logger.i('$_tag --- Test: Delete and Sync Job Complete ---');
+      },
+    );
 
     // TODO: Test Sync Failure (Network): Create -> Mock Network Error -> Sync -> Verify Error Status
 
