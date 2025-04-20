@@ -148,4 +148,64 @@ class JobSyncOrchestratorService {
       _logger.i('Released sync lock.');
     }
   }
+
+  /// Resets a job stuck in the [SyncStatus.failed] state back to [SyncStatus.pending].
+  ///
+  /// If the job is found and is in the failed state, its status is updated to pending,
+  /// the retry count is reset to 0, and the last sync attempt timestamp is cleared.
+  /// If the job is not found or not in the failed state, it does nothing.
+  /// Returns [Right(unit)] on success (including cases where no action was needed)
+  /// or [Left(Failure)] if a cache error occurs during fetching or saving.
+  Future<Either<Failure, Unit>> resetFailedJob({
+    required String localId,
+  }) async {
+    _logger.i('Attempting to reset job with localId: $localId');
+    try {
+      Job job;
+      try {
+        job = await _localDataSource.getJobById(localId);
+        _logger.d('Found job: ${job.localId}, syncStatus: ${job.syncStatus}');
+      } on CacheException catch (e) {
+        // If the job is not found, it's not an error for the reset operation.
+        // Log it and return success (Right(unit)).
+        _logger.w('Job with localId $localId not found in cache: $e');
+        return const Right(unit);
+      }
+
+      // Only proceed if the job is actually in the failed state
+      if (job.syncStatus == SyncStatus.failed) {
+        _logger.i(
+          'Job ${job.localId} is in failed state. Proceeding with reset.',
+        );
+        final updatedJob = job.copyWith(
+          syncStatus: SyncStatus.pending,
+          retryCount: 0,
+          setLastSyncAttemptAtToNull: true,
+        );
+
+        await _localDataSource.saveJob(updatedJob);
+        _logger.i(
+          'Successfully reset job ${updatedJob.localId} to pending state.',
+        );
+        return const Right(unit);
+      } else {
+        _logger.i(
+          'Job ${job.localId} is not in failed state (${job.syncStatus}). No action taken.',
+        );
+        return const Right(unit); // No action needed, still considered success
+      }
+    } on CacheException catch (e) {
+      // This catches errors during the saveJob call
+      _logger.e(
+        'Cache error during resetFailedJob (save operation) for $localId: $e',
+      );
+      return Left(
+        CacheFailure(e.message ?? 'Failed to save updated job during reset'),
+      );
+    } catch (e) {
+      // Catch any other unexpected errors
+      _logger.e('Unexpected error during resetFailedJob for $localId: $e');
+      return Left(CacheFailure('Unexpected error resetting job: $e'));
+    }
+  }
 }

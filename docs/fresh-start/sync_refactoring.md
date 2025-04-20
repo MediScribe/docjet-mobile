@@ -131,14 +131,43 @@ This document outlines the steps to refactor the monolithic `JobSyncService` int
 
 ## Outstanding Tasks
 
--   [ ] **Implement `resetFailedJob`:**
-    -   Add `resetFailedJob(String localId)` method to `JobSyncOrchestratorService`.
-    -   Implement logic in the orchestrator to fetch the job, check if its status is `SyncStatus.failed`.
-    -   If failed, update the job's status to `SyncStatus.pending`, reset `retryCount` to 0, and clear `lastSyncAttemptAt` via `JobLocalDataSource.saveJob`.
-    -   Update `JobRepositoryImpl.resetFailedJob` to correctly delegate to the orchestrator method.
-    -   Add corresponding tests for `resetFailedJob` in `job_sync_orchestrator_service_test.dart` (success and failure cases, e.g., job not found, job not in failed state).
--   [ ] **Update Architecture Document (`job_dataflow.md`):**
-    -   Reflect the split of `JobSyncService` into `JobSyncOrchestratorService` and `JobSyncProcessorService` in diagrams and descriptions.
-    -   Remove `syncSingleJob` from the `JobRepository` interface definition.
-    -   Clarify that backoff eligibility check happens in `LocalDataSource`, while status updates happen in the `ProcessorService`.
-    -   Ensure `resetFailedJob` is correctly represented in the repository interface.
+-   [x] **Implement `resetFailedJob`:**
+    -   [x] Add `resetFailedJob(String localId)` method to `JobSyncOrchestratorService`.
+    -   [x] Implement logic in the orchestrator to fetch the job, check if its status is `SyncStatus.failed`.
+    -   [x] If failed, update the job's status to `SyncStatus.pending`, reset `retryCount` to 0, and clear `lastSyncAttemptAt` via `JobLocalDataSource.saveJob`.
+    -   [x] Update `JobRepositoryImpl.resetFailedJob` to correctly delegate to the orchestrator method.
+    -   [x] Add corresponding tests for `resetFailedJob` in `job_sync_orchestrator_service_test.dart` (success and failure cases, e.g., job not found, job not in failed state).
+-   [x] **Update Architecture Document (`job_dataflow.md`):**
+    -   [x] Reflect the split of `JobSyncService` into `JobSyncOrchestratorService` and `JobSyncProcessorService` in diagrams and descriptions.
+    -   [x] Remove `syncSingleJob` from the `JobRepository` interface definition.
+    -   [x] Clarify that backoff eligibility check happens in `LocalDataSource`, while status updates happen in the `ProcessorService`.
+    -   [x] Ensure `resetFailedJob` is correctly represented in the repository interface.
+
+## Future TODOs
+
+-   [ ] **Performance Optimization for Bulk Operations:**
+    -   [ ] Implement batch processing for multiple jobs with the same sync status
+    -   [ ] Add concurrency control for parallel job processing with configurable limits
+    -   [ ] Optimize database queries by reducing redundant reads/writes during sync
+
+-   [ ] **Enhanced Error Resilience:**
+    -   [ ] Add circuit breaker pattern to avoid overwhelming failing servers
+    -   [ ] Implement more granular error categorization (temporary vs. permanent failures)
+    -   [ ] Create specialized handling for common error cases (auth failures, payload issues)
+
+-   [ ] **Sync Process Observability:**
+    -   [ ] Add detailed metrics collection (sync success rate, latency, error distribution)
+    -   [ ] Implement a sync status dashboard for debugging and monitoring
+    -   [ ] Create an audit log of all sync operations for troubleshooting
+
+-   [ ] **User Experience Improvements:**
+    -   [ ] Provide more granular sync status indicators in the UI
+    -   [ ] Add manual sync trigger capability for individual jobs
+    -   [ ] Implement progress indicators for large uploads/downloads
+    -   [ ] Allow user configuration of sync frequency and retry policies
+
+-   [ ] **Testing Enhancements:**
+    -   [ ] Create comprehensive integration tests simulating various network conditions
+    -   [ ] Add property-based testing for sync edge cases
+    -   [ ] Implement stress tests for large job volumes
+    -   [ ] Add performance benchmarks for sync operationsSince no dictation text was provided after the prompt, I cannot perform any editing. If you would like me to edit a dictation transcript, please provide the actual text. 

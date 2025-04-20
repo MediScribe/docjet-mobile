@@ -160,5 +160,28 @@ void main() {
         verifyZeroInteractions(mockDeleterService);
       },
     );
+
+    test(
+      'should delegate resetFailedJob to JobSyncOrchestratorService',
+      () async {
+        // Arrange
+        when(
+          mockOrchestratorService.resetFailedJob(localId: anyNamed('localId')),
+        ).thenAnswer(
+          (_) async => const Right(unit),
+        ); // Orchestrator returns Right(unit)
+        // Act
+        await repository.resetFailedJob(tLocalId);
+        // Assert
+        verify(
+          mockOrchestratorService.resetFailedJob(localId: tLocalId),
+        ).called(1);
+        // Verify that NO OTHER services were interacted with
+        verifyNoMoreInteractions(mockOrchestratorService);
+        verifyZeroInteractions(mockReaderService);
+        verifyZeroInteractions(mockWriterService);
+        verifyZeroInteractions(mockDeleterService);
+      },
+    );
   });
 }

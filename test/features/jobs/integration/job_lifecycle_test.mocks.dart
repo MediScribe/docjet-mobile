@@ -269,4 +269,24 @@ class MockJobSyncOrchestratorService extends _i1.Mock
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+
+  @override
+  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> resetFailedJob(
+          {required String? localId}) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #resetFailedJob,
+          [],
+          {#localId: localId},
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i5.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #resetFailedJob,
+            [],
+            {#localId: localId},
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 }

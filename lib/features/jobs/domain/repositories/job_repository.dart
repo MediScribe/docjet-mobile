@@ -59,6 +59,7 @@ abstract class JobRepository {
   /// Returns [Left(Failure)] if a critical error occurs (e.g., network failure before starting).
   Future<Either<Failure, Unit>> syncPendingJobs();
 
-  /// Resets a job stuck in the SyncStatus.failed state back to SyncStatus.pending
-  Future<Either<Failure, Job>> resetFailedJob(String localId);
+  /// Resets a job stuck in the SyncStatus.failed state back to SyncStatus.pending.
+  /// Returns [Right(unit)] on success, [Left(Failure)] otherwise.
+  Future<Either<Failure, Unit>> resetFailedJob(String localId);
 }

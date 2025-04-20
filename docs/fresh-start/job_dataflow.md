@@ -42,6 +42,7 @@ This document details the data flow architecture for the Job feature in DocJet M
 7. **Service-Oriented Architecture**
    * Specialized services with single responsibilities
    * Clear separation between read, write, delete, and sync operations
+   * Split sync responsibility between Orchestrator (what to sync) and Processor (how to sync)
    * Improved testability with focused components
 
 8. **Background Processing Support**
@@ -72,16 +73,19 @@ graph TD
             ReaderService(JobReaderService<br>- Read Operations)
             WriterService(JobWriterService<br>- Write Operations)
             DeleterService(JobDeleterService<br>- Delete Operations)
-            SyncService(JobSyncService<br>- Sync Operations)
+            
+            SyncOrchestrator(JobSyncOrchestratorService<br>- Job collection & sync decisions)
+            SyncProcessor(JobSyncProcessorService<br>- API operations & status updates)
             SyncTrigger(JobSyncTriggerService<br>- 15s Timer & Lifecycle)
             
-            SyncTrigger -->|Calls| SyncService
+            SyncTrigger -->|Calls| SyncOrchestrator
+            SyncOrchestrator -->|Delegates to| SyncProcessor
         end
 
         JobRepositoryImpl -->|Uses| ReaderService
         JobRepositoryImpl -->|Uses| WriterService
         JobRepositoryImpl -->|Uses| DeleterService
-        JobRepositoryImpl -->|Uses| SyncService
+        JobRepositoryImpl -->|Uses| SyncOrchestrator
 
         subgraph "Infrastructure & Data Sources"
             LocalDS[JobLocalDataSource]
@@ -100,10 +104,12 @@ graph TD
         DeleterService -->|Uses| LocalDS
         DeleterService -->|Uses| FileSystem
         
-        SyncService -->|Uses| LocalDS
-        SyncService -->|Uses| RemoteDS
-        SyncService -->|Uses| Network
-        SyncService -->|Uses| FileSystem
+        SyncOrchestrator -->|Uses| LocalDS
+        SyncOrchestrator -->|Uses| Network
+        
+        SyncProcessor -->|Uses| LocalDS
+        SyncProcessor -->|Uses| RemoteDS
+        SyncProcessor -->|Uses| FileSystem
 
         subgraph "Local Persistence (Hive)"
             HiveJobLocalDS(HiveJobLocalDataSourceImpl) -->|Implements| LocalDS
@@ -133,7 +139,7 @@ graph TD
     classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
 
     class JobEntity,JobRepositoryInterface domain;
-    class ReaderService,WriterService,DeleterService,SyncService,SyncTrigger service;
+    class ReaderService,WriterService,DeleterService,SyncOrchestrator,SyncProcessor,SyncTrigger service;
     class JobRepositoryImpl,LocalDS,RemoteDS,HiveJobLocalDS,ApiJobRemoteDS,JobMapper,JobHiveModel,JobApiDTO,HiveBox,HttpClient,RestAPI,Network,UUID,FileSystem data;
     class UI,AppService presentation;
 ```
@@ -143,17 +149,6 @@ graph TD
 This sequence diagram shows the typical flows when the application requests job data, demonstrating how the repository interacts with local and remote data sources.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 
-  'primaryColor': '#E64A45', 
-  'primaryTextColor': '#fff', 
-  'primaryBorderColor': '#222', 
-  'lineColor': '#4285F4', 
-  'secondaryColor': '#0F9D58', 
-  'tertiaryColor': '#9E9E9E',
-  'actorLineColor': '#e0e0e0',
-  'noteBkgColor': '#8C5824',      
-  'noteTextColor': '#fff'       
-}}}%%
 sequenceDiagram
     participant AppSvc as Application Service
     participant JobRepo as JobRepositoryImpl
@@ -168,7 +163,7 @@ sequenceDiagram
     Note over AppSvc, API: Fetching Job List
 
     %% Success Path - Local Data
-    rect rgb(15, 157, 88, 0.2)
+    rect 
     Note over AppSvc, API: Success Path - Local Cache Hit
     AppSvc->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
@@ -183,7 +178,7 @@ sequenceDiagram
     end
     
     %% Refresh Path - Remote Fetch
-    rect rgb(66, 133, 244, 0.2)
+    rect 
     Note over AppSvc, API: Refresh Path - Local Cache Miss/Stale
     AppSvc->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
@@ -210,7 +205,7 @@ sequenceDiagram
     end
     
     %% Error Path
-    rect rgb(230, 162, 60, 0.2)
+    rect 
     Note over AppSvc, API: Error Path - Network/Server Failure
     AppSvc->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
@@ -232,23 +227,13 @@ sequenceDiagram
 This sequence diagram illustrates the data flow for creating new jobs, updating existing jobs, and synchronizing pending changes with the backend.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 
-  'primaryColor': '#E64A45', 
-  'primaryTextColor': '#fff', 
-  'primaryBorderColor': '#222', 
-  'lineColor': '#4285F4', 
-  'secondaryColor': '#0F9D58', 
-  'tertiaryColor': '#9E9E9E',
-  'actorLineColor': '#e0e0e0',
-  'noteBkgColor': '#8C5824',      
-  'noteTextColor': '#fff'       
-}}}%%
 sequenceDiagram
     participant AppSvc as Application Service
     participant JobRepo as JobRepositoryImpl
     participant WriterSvc as JobWriterService
     participant DeleterSvc as JobDeleterService
-    participant SyncSvc as JobSyncService
+    participant SyncOrch as JobSyncOrchestratorService
+    participant SyncProc as JobSyncProcessorService
     participant LocalDS as HiveJobLocalDS
     participant RemoteDS as ApiJobRemoteDS
     participant Mapper as JobMapper
@@ -258,7 +243,7 @@ sequenceDiagram
     participant FileSystem as File System
 
     %% Job Creation Flow
-    rect rgb(15, 157, 88, 0.2)
+    rect 
     Note over AppSvc, API: Job Creation - Local First
     AppSvc->>JobRepo: createJob(audioFilePath, text)
     JobRepo->>WriterSvc: createJob(audioFilePath, text)
@@ -276,7 +261,7 @@ sequenceDiagram
     end
     
     %% Job Update Flow
-    rect rgb(230, 77, 69, 0.2)
+    rect 
     Note over AppSvc, API: Job Update - Local First
     AppSvc->>JobRepo: updateJob(localId, updates)
     JobRepo->>WriterSvc: updateJob(localId, updates)
@@ -306,7 +291,7 @@ sequenceDiagram
     end
     
     %% Job Deletion Flow
-    rect rgb(241, 156, 31, 0.2)
+    rect 
     Note over AppSvc, API: Job Deletion - Local First
     AppSvc->>JobRepo: deleteJob(localId)
     JobRepo->>DeleterSvc: deleteJob(localId)
@@ -327,233 +312,6 @@ sequenceDiagram
     DeleterSvc-->>JobRepo: Right<Unit>
     JobRepo-->>AppSvc: Right<Unit>
     end
-    
-    %% Sync Pending Jobs Flow with Error Recovery
-    rect rgb(66, 133, 244, 0.2)
-    Note over AppSvc, API: Sync Pending Jobs (15-Second Timer)
-    
-    Note over SyncSvc: Timer triggers syncPendingJobs()
-    JobRepo->>SyncSvc: syncPendingJobs()
-    
-    SyncSvc->>LocalDS: getJobsByStatus(SyncStatus.pending)
-    LocalDS->>Hive: Query for SyncStatus.pending
-    Hive-->>LocalDS: List<JobHiveModel>
-    LocalDS->>Mapper: fromHiveModelList(models)
-    Mapper-->>LocalDS: List<Job>
-    LocalDS-->>SyncSvc: List<Job> with pending status
-    
-    SyncSvc->>LocalDS: getJobsByStatus(SyncStatus.pendingDeletion)
-    LocalDS->>Hive: Query for SyncStatus.pendingDeletion
-    Hive-->>LocalDS: List<JobHiveModel>
-    LocalDS->>Mapper: fromHiveModelList(models)
-    Mapper-->>LocalDS: List<Job>
-    LocalDS-->>SyncSvc: List<Job> with pendingDeletion status
-    
-    SyncSvc->>LocalDS: getJobsToRetry(maxRetries, backoffDuration)
-    LocalDS->>Hive: Query jobs with error status eligible for retry
-    Note over LocalDS, Hive: Filter by retryCount < maxRetries and<br/>lastSyncAttemptAt < now-backoff
-    Hive-->>LocalDS: List<JobHiveModel>
-    LocalDS->>Mapper: fromHiveModelList(models)
-    Mapper-->>LocalDS: List<Job>
-    LocalDS-->>SyncSvc: List<Job> eligible for retry
-    
-    Note over SyncSvc: Combine all jobs that need syncing
-    
-    loop For each pending job (including retry-eligible)
-        SyncSvc->>SyncSvc: syncSingleJob(job)
-        
-        alt Job has SyncStatus.pending
-            SyncSvc->>SyncSvc: Check serverId field
-            
-            alt serverId == null (New Job)
-                SyncSvc->>RemoteDS: createJob(job)
-                RemoteDS->>API: POST /api/v1/jobs with audio upload
-                
-                alt API Success
-                    API-->>RemoteDS: Job JSON with server ID
-                    RemoteDS-->>SyncSvc: Job with serverId
-                    
-                    SyncSvc->>LocalDS: saveJob(syncedJob with SyncStatus.synced)
-                    LocalDS->>Hive: Save updated job
-                    Hive-->>LocalDS: Success
-                    LocalDS-->>SyncSvc: Success
-                else API Error
-                    API-->>RemoteDS: Error Response
-                    RemoteDS-->>SyncSvc: Exception
-                    
-                    SyncSvc->>SyncSvc: Increment retryCount, update lastSyncAttemptAt
-                    SyncSvc->>SyncSvc: Check if retryCount >= MAX_RETRIES
-                    
-                    alt Max Retries Exceeded
-                        SyncSvc->>LocalDS: saveJob(job with SyncStatus.failed)
-                    else Retries Remaining
-                        SyncSvc->>LocalDS: saveJob(job with SyncStatus.error)
-                    end
-                    
-                    LocalDS->>Hive: Save job with updated status
-                    Hive-->>LocalDS: Success
-                    LocalDS-->>SyncSvc: Success
-                end
-                
-            else serverId != null (Update)
-                SyncSvc->>RemoteDS: updateJob(job)
-                RemoteDS->>API: PATCH/PUT /api/v1/jobs/{serverId}
-                
-                alt API Success
-                    API-->>RemoteDS: Updated Job JSON
-                    RemoteDS-->>SyncSvc: Updated Job
-                    
-                    SyncSvc->>LocalDS: saveJob(syncedJob with SyncStatus.synced)
-                    LocalDS->>Hive: Save updated job
-                    Hive-->>LocalDS: Success
-                    LocalDS-->>SyncSvc: Success
-                else API Error
-                    API-->>RemoteDS: Error Response
-                    RemoteDS-->>SyncSvc: Exception
-                    
-                    SyncSvc->>SyncSvc: Increment retryCount, update lastSyncAttemptAt
-                    SyncSvc->>SyncSvc: Check if retryCount >= MAX_RETRIES
-                    
-                    alt Max Retries Exceeded
-                        SyncSvc->>LocalDS: saveJob(job with SyncStatus.failed)
-                    else Retries Remaining
-                        SyncSvc->>LocalDS: saveJob(job with SyncStatus.error)
-                    end
-                    
-                    LocalDS->>Hive: Save job with updated status
-                    Hive-->>LocalDS: Success
-                    LocalDS-->>SyncSvc: Success
-                end
-            end
-            
-        else Job has SyncStatus.pendingDeletion
-            alt serverId != null
-                SyncSvc->>RemoteDS: deleteJob(job.serverId)
-                RemoteDS->>API: DELETE /api/v1/jobs/{serverId}
-                alt API Success
-                    API-->>RemoteDS: Success response
-                    RemoteDS-->>SyncSvc: Success
-                else API Error
-                    API-->>RemoteDS: Error Response
-                    RemoteDS-->>SyncSvc: Exception
-                    
-                    SyncSvc->>SyncSvc: Increment retryCount, update lastSyncAttemptAt
-                    SyncSvc->>SyncSvc: Check if retryCount >= MAX_RETRIES
-                    
-                    alt Max Retries Exceeded
-                        SyncSvc->>LocalDS: saveJob(job with SyncStatus.failed)
-                        LocalDS->>Hive: Save job with updated status
-                        Hive-->>LocalDS: Success
-                        LocalDS-->>SyncSvc: Success
-                        Note over SyncSvc: Skip deletion for now
-                    else Retries Remaining
-                        SyncSvc->>LocalDS: saveJob(job with SyncStatus.error)
-                        LocalDS->>Hive: Save job with updated status
-                        Hive-->>LocalDS: Success
-                        LocalDS-->>SyncSvc: Success
-                        Note over SyncSvc: Skip deletion for now
-                    end
-                end
-            else serverId == null (local-only job)
-                Note over SyncSvc: Skip API call for jobs never synced to server
-            end
-            
-            alt Successful API call or local-only job
-                SyncSvc->>SyncSvc: permanentlyDeleteJob(job.localId)
-                SyncSvc->>LocalDS: deleteJob(job.localId)
-                LocalDS->>Hive: Delete from Hive Box
-                Hive-->>LocalDS: Delete Confirmation
-                LocalDS-->>SyncSvc: Success
-                
-                alt Job has audioFilePath
-                    SyncSvc->>FileSystem: deleteFile(audioFilePath)
-                    alt File Deletion Success
-                        FileSystem-->>SyncSvc: Success
-                    else File Deletion Error
-                        FileSystem-->>SyncSvc: Error (logged but not fatal)
-                    end
-                end
-            end
-        end
-    end
-    
-    SyncSvc-->>JobRepo: Right<Unit>
-    end
-    
-    %% Manual Failed Job Reset Flow
-    rect rgb(142, 68, 173, 0.2)
-    Note over AppSvc, API: Manual Reset of Failed Job
-    
-    AppSvc->>JobRepo: resetFailedJob(localId)
-    JobRepo->>SyncSvc: resetFailedJob(localId)
-    SyncSvc->>LocalDS: getJobById(localId)
-    LocalDS->>Hive: Read from Hive Box
-    Hive-->>LocalDS: JobHiveModel
-    LocalDS->>Mapper: fromHiveModel(model)
-    Mapper-->>LocalDS: Job
-    LocalDS-->>SyncSvc: Job
-    
-    alt Job has SyncStatus.failed
-        SyncSvc->>SyncSvc: Reset job to pending state
-        SyncSvc->>LocalDS: saveJob(job with:<br/>- SyncStatus.pending<br/>- retryCount = 0<br/>- lastSyncAttemptAt = null)
-        LocalDS->>Hive: Save reset job
-        Hive-->>LocalDS: Success
-        LocalDS-->>SyncSvc: Success
-        SyncSvc-->>JobRepo: Right<Job>
-        JobRepo-->>AppSvc: Right<Job>
-    else Job not in failed state
-        SyncSvc-->>JobRepo: Left<InvalidOperationFailure>
-        JobRepo-->>AppSvc: Left<InvalidOperationFailure>
-    end
-    end
-    
-    %% Server-Side Deletion Detection
-    rect rgb(94, 53, 177, 0.2)
-    Note over AppSvc, API: Server-Side Deletion Detection
-    AppSvc->>JobRepo: getJobs() (refresh)
-    JobRepo->>ReaderSvc: getJobs()
-    ReaderSvc->>RemoteDS: fetchJobs()
-    RemoteDS->>API: GET /api/v1/jobs
-    API-->>RemoteDS: List of current jobs
-    RemoteDS-->>ReaderSvc: List<Job> with serverIds
-    
-    ReaderSvc->>LocalDS: getJobsByStatus(SyncStatus.synced)
-    LocalDS->>Hive: Query jobs with SyncStatus.synced and serverId != null
-    Hive-->>LocalDS: List<JobHiveModel>
-    LocalDS->>Mapper: fromHiveModelList(models)
-    Mapper-->>LocalDS: List<Job>
-    LocalDS-->>ReaderSvc: List<Job> that were previously synced
-    
-    ReaderSvc->>ReaderSvc: Find jobs with serverId not in server response
-    
-    loop For each job missing from server
-        ReaderSvc->>DeleterSvc: permanentlyDeleteJob(job.localId)
-        DeleterSvc->>LocalDS: deleteJob(job.localId)
-        LocalDS->>Hive: Delete from Hive Box
-        Hive-->>LocalDS: Delete Confirmation
-        LocalDS-->>DeleterSvc: Success
-        
-        alt Job has audioFilePath
-            DeleterSvc->>FileSystem: deleteFile(audioFilePath)
-            alt File Deletion Success
-                FileSystem-->>DeleterSvc: Success
-            else File Deletion Error
-                FileSystem-->>DeleterSvc: Error (logged but not fatal)
-            end
-        end
-        DeleterSvc-->>ReaderSvc: Success
-    end
-    
-    ReaderSvc->>LocalDS: saveJobs(serverJobs)
-    LocalDS->>Mapper: toHiveModelList(jobs)
-    Mapper-->>LocalDS: List<JobHiveModel>
-    LocalDS->>Hive: Save/update jobs from server
-    Hive-->>LocalDS: Save Confirmation
-    LocalDS-->>ReaderSvc: Success
-    
-    ReaderSvc-->>JobRepo: Right<List<Job>>
-    JobRepo-->>AppSvc: Right<List<Job>>
-    end
 ```
 
 ## Job Data Layer Components
@@ -570,7 +328,7 @@ Key methods:
 * Read: `getJobs()`, `getJobById(localId)`
 * Write: `createJob(audioFilePath, text)`, `updateJob(localId, updates)`
 * Delete: `deleteJob(localId)`
-* Sync: `syncPendingJobs()`, `syncSingleJob(job)`, `resetFailedJob(localId)`
+* Sync: `syncPendingJobs()`, `resetFailedJob(localId)`
 
 #### JobRepositoryImpl
 
@@ -581,7 +339,7 @@ class JobRepositoryImpl implements JobRepository {
   final JobReaderService _readerService;
   final JobWriterService _writerService;
   final JobDeleterService _deleterService;
-  final JobSyncService _syncService;
+  final JobSyncOrchestratorService _orchestratorService;
   
   // Methods delegate directly to appropriate service
   Future<Either<Failure, List<Job>>> getJobs() => _readerService.getJobs();
@@ -616,14 +374,27 @@ Key features:
 * Permanently deleting jobs after sync
 * Cleaning up associated audio files
 
-#### JobSyncService
+#### JobSyncOrchestratorService
 
-Handles synchronization between local and remote storage.
+Orchestrates the synchronization process by determining what needs to be synced and delegating the actual sync operations.
 
 Key features:
-* Processing different sync paths (create/update/delete)
+* Collecting jobs that need synchronization (pending, pendingDeletion, retry-eligible)
+* Network connectivity verification
+* Concurrency protection with mutex
+* Delegating individual job processing to the processor service
+* Resetting failed jobs upon user request
+
+#### JobSyncProcessorService
+
+Handles the actual synchronization operations with the remote API.
+
+Key features:
+* Processing different sync paths (create/update/delete) 
+* Making API calls to create, update, or delete jobs
 * Error handling with retry mechanism
-* Exponential backoff for failed operations
+* Updating job status based on sync results
+* Managing audio file cleanup after successful deletion
 
 #### JobSyncTriggerService
 
@@ -680,6 +451,29 @@ This section details the comprehensive synchronization strategy for jobs, coveri
    - Job updates are applied locally first
    - Both are marked with `SyncStatus.pending` until synced
 
+### Sync Architecture
+
+The sync process is split between two specialized services:
+
+1. **JobSyncOrchestratorService**:
+   - Decides *what* to sync and when
+   - Handles concurrency with mutex lock
+   - Collects jobs that need synchronization
+   - Checks network connectivity
+   - Delegates actual sync operations to processor
+   - Provides API for manual reset of failed jobs
+
+2. **JobSyncProcessorService**:
+   - Performs the actual API operations
+   - Updates local job state based on API responses
+   - Handles error conditions and updates job status
+   - Manages associated resources (e.g., audio files)
+
+This separation of concerns allows for:
+- Better testability of the orchestration logic separate from API interactions
+- Clearer responsibility boundaries
+- Reduced risk of race conditions
+
 ### Sync Process Details
 
 1. **Triggering:** 
@@ -687,20 +481,23 @@ This section details the comprehensive synchronization strategy for jobs, coveri
    - Triggers also occur on app foregrounding via lifecycle observer
    - Compatible with platform-specific background workers
 
-2. **Identify Pending:** 
-   - `JobSyncService` gathers three types of jobs to process:
+2. **Orchestration:** 
+   - `JobSyncOrchestratorService` gathers three types of jobs to process:
      * Jobs with `SyncStatus.pending` for creation/update
      * Jobs with `SyncStatus.pendingDeletion` for deletion
      * Jobs with `SyncStatus.error` that meet retry criteria
+   - For each job, it calls the appropriate processor method
+   - Handles concurrency with mutex to prevent parallel sync attempts
 
 3. **Retry Eligibility:**
    - Jobs are eligible for retry when:
      * `syncStatus == SyncStatus.error`
      * `retryCount < MAX_RETRY_ATTEMPTS` (default: 5)
      * Time since last attempt follows exponential backoff: `now - (baseBackoff * 2^retryCount)`
+   - The `JobLocalDataSource` implements the logic for finding retry-eligible jobs
 
-4. **Sync Logic:**
-   - `JobSyncService` processes each job independently based on its status
+4. **Processing:**
+   - `JobSyncProcessorService` handles each job based on its status:
    - **New Job Flow** (`serverId == null`, `SyncStatus.pending`):
      * Creates job on server with client-generated `localId`
      * Receives response with server-assigned `serverId`
@@ -716,7 +513,7 @@ This section details the comprehensive synchronization strategy for jobs, coveri
 
 5. **Error Handling:**
    - When a sync operation fails:
-     * Increments `retryCount`
+     * `JobSyncProcessorService` increments `retryCount`
      * Updates `lastSyncAttemptAt` to current time
      * Sets `syncStatus = SyncStatus.error` if retries remain
      * Sets `syncStatus = SyncStatus.failed` if max retries exceeded
@@ -725,7 +522,10 @@ This section details the comprehensive synchronization strategy for jobs, coveri
 6. **Manual Reset:**
    - Jobs with `SyncStatus.failed` require manual intervention
    - UI displays failed jobs with a retry option
-   - `resetFailedJob(localId)` resets the job to `SyncStatus.pending` with zeroed retry count
+   - `resetFailedJob(localId)` in the `JobSyncOrchestratorService`:
+     * Checks if job exists and has `SyncStatus.failed`
+     * Resets to `SyncStatus.pending` with zeroed retry count
+     * Returns `Right<Unit>` on success or appropriate error
 
 ### Server-Side Deletion Handling
 
@@ -764,4 +564,361 @@ The job feature architecture is designed to work with background processing mech
 
 ## Remaining Improvements
 
-The detailed implementation plan, including outstanding tasks for error recovery, sync triggering, lifecycle management, concurrency protection, and logging, can be found in the [JobRepository Refactoring Plan](./jobrepo_refactor.md). 
+The detailed implementation plan, including outstanding tasks for error recovery, sync triggering, lifecycle management, concurrency protection, and logging, can be found in the [JobRepository Refactoring Plan](./jobrepo_refactor.md).
+
+## Synchronization Flow Diagrams
+
+To make the sync flow clear, we've split it into small, focused sequence diagrams.
+
+### Sync Orchestration - Job Collection
+
+```mermaid
+sequenceDiagram
+    participant JobRepo as JobRepositoryImpl
+    participant Orchestrator as JobSyncOrchestratorService
+    participant Network as NetworkInfo
+    participant LocalDS as LocalDataSource
+    
+    JobRepo->>Orchestrator: syncPendingJobs()
+    Orchestrator->>Orchestrator: acquireLock() (mutex)
+    Orchestrator->>Network: isConnected()
+    Network-->>Orchestrator: true
+    
+    Orchestrator->>LocalDS: getJobsByStatus(SyncStatus.pending)
+    LocalDS-->>Orchestrator: List<Job> pending
+    
+    Orchestrator->>LocalDS: getJobsByStatus(SyncStatus.pendingDeletion)
+    LocalDS-->>Orchestrator: List<Job> pendingDeletion
+    
+    Orchestrator->>LocalDS: getJobsToRetry(maxRetries, backoff)
+    LocalDS-->>Orchestrator: List<Job> retry-eligible
+```
+
+### Sync Orchestration - Delegation
+
+```mermaid
+sequenceDiagram
+    participant Orchestrator as JobSyncOrchestratorService
+    participant Processor as JobSyncProcessorService
+    
+    Note over Orchestrator: With collected jobs
+    
+    loop For each pending/retry job
+        Orchestrator->>Processor: processJobSync(job)
+        Processor-->>Orchestrator: Either<Failure, Unit>
+    end
+    
+    loop For each pendingDeletion job
+        Orchestrator->>Processor: processJobDeletion(job)
+        Processor-->>Orchestrator: Either<Failure, Unit>
+    end
+    
+    Orchestrator->>Orchestrator: releaseLock()
+```
+
+### Processor - New Job Creation 
+
+```mermaid
+sequenceDiagram
+    participant Processor as JobSyncProcessorService
+    participant RemoteDS as RemoteDataSource
+    participant LocalDS as LocalDataSource
+    participant API as REST API
+
+    Note over Processor: New Job (serverId == null)
+    
+    Processor->>RemoteDS: createJob(job)
+    RemoteDS->>API: POST /api/v1/jobs
+    API-->>RemoteDS: Job JSON with serverId
+    RemoteDS-->>Processor: Job with serverId
+    
+    Processor->>LocalDS: saveJob(job with SyncStatus.synced)
+    LocalDS-->>Processor: Success
+```
+
+### Processor - Job Update
+
+```mermaid
+sequenceDiagram
+    participant Processor as JobSyncProcessorService
+    participant RemoteDS as RemoteDataSource
+    participant LocalDS as LocalDataSource
+    participant API as REST API
+
+    Note over Processor: Existing Job (serverId != null)
+    
+    Processor->>RemoteDS: updateJob(job)
+    RemoteDS->>API: PUT /api/v1/jobs/{serverId}
+    API-->>RemoteDS: Updated Job JSON
+    RemoteDS-->>Processor: Updated Job
+    
+    Processor->>LocalDS: saveJob(job with SyncStatus.synced)
+    LocalDS-->>Processor: Success
+```
+
+### Processor - Sync Error Handling
+
+```mermaid
+sequenceDiagram
+    participant Processor as JobSyncProcessorService
+    participant LocalDS as LocalDataSource
+    participant API as REST API
+
+    Note over Processor: API Error Path
+    
+    API-->>Processor: Error Response
+    
+    Processor->>Processor: _handleRemoteSyncFailure(job, error)
+    Note over Processor: Increment retryCount, update<br/>lastSyncAttemptAt
+    
+    alt retryCount >= MAX_RETRIES
+        Processor->>LocalDS: saveJob(with SyncStatus.failed)
+    else Retries Remaining
+        Processor->>LocalDS: saveJob(with SyncStatus.error)
+    end
+```
+
+### Processor - Job Deletion
+
+```mermaid
+sequenceDiagram
+    participant Processor as JobSyncProcessorService
+    participant RemoteDS as RemoteDataSource
+    participant LocalDS as LocalDataSource
+    participant API as REST API
+
+    Note over Processor: Job With ServerId
+    
+    Processor->>RemoteDS: deleteJob(serverId)
+    RemoteDS->>API: DELETE /api/v1/jobs/{serverId}
+    API-->>RemoteDS: Success response
+    RemoteDS-->>Processor: Success
+    
+    Processor->>Processor: _permanentlyDeleteJob(localId)
+    Processor->>LocalDS: deleteJob(localId)
+    LocalDS-->>Processor: Success
+```
+
+### Processor - Local File Cleanup
+
+```mermaid
+sequenceDiagram
+    participant Processor as JobSyncProcessorService
+    participant FileSystem as File System
+
+    Note over Processor: After Job Deletion
+    
+    alt Job has audioFilePath
+        Processor->>FileSystem: deleteFile(audioFilePath)
+        alt File Deletion Success
+            FileSystem-->>Processor: Success
+        else File Deletion Error
+            FileSystem-->>Processor: Error (logged but not fatal)
+        end
+    end
+```
+
+### Manual Reset of Failed Job
+
+```mermaid
+sequenceDiagram
+    participant AppSvc as Application Service
+    participant JobRepo as JobRepositoryImpl
+    participant Orchestrator as JobSyncOrchestratorService
+    participant LocalDS as LocalDataSource
+    
+    AppSvc->>JobRepo: resetFailedJob(localId)
+    JobRepo->>Orchestrator: resetFailedJob(localId)
+    Orchestrator->>LocalDS: getJobById(localId)
+    LocalDS-->>Orchestrator: Job
+    
+    alt Job has SyncStatus.failed
+        Orchestrator->>LocalDS: saveJob(with status=pending,<br/>retryCount=0)
+        LocalDS-->>Orchestrator: Success
+        Orchestrator-->>JobRepo: Right<Unit>
+    else Not Failed
+        Orchestrator-->>JobRepo: Left<InvalidOperationFailure>
+    end
+```
+
+## Local-First Operations Flow
+
+This section illustrates the data flow for creating, updating, and deleting jobs locally before they are synchronized with the backend.
+
+### Job Creation Flow
+
+```mermaid
+sequenceDiagram
+    participant AppSvc as Application Service
+    participant JobRepo as JobRepositoryImpl
+    participant WriterSvc as JobWriterService
+    participant LocalDS as LocalDataSource
+    participant UUID as UUID Generator
+    participant Hive as Hive Box
+    
+    Note over AppSvc, Hive: Job Creation - Local First
+    AppSvc->>JobRepo: createJob(audioFilePath, text)
+    JobRepo->>WriterSvc: createJob(audioFilePath, text)
+    WriterSvc->>UUID: Generate UUID for new job
+    UUID-->>WriterSvc: new localId
+    WriterSvc->>WriterSvc: Create Job entity with:<br/>- localId<br/>- serverId=null<br/>- SyncStatus.pending
+    WriterSvc->>LocalDS: saveJob(job)
+    LocalDS->>Hive: Save to Hive Box (keyed by localId)
+    Hive-->>LocalDS: Save Confirmation
+    LocalDS-->>WriterSvc: Success
+    WriterSvc-->>JobRepo: Right<Job>
+    JobRepo-->>AppSvc: Right<Job>
+```
+
+### Job Update Flow
+
+```mermaid
+sequenceDiagram
+    participant AppSvc as Application Service
+    participant JobRepo as JobRepositoryImpl
+    participant WriterSvc as JobWriterService
+    participant LocalDS as LocalDataSource
+    participant Hive as Hive Box
+    
+    Note over AppSvc, Hive: Job Update - Local First
+    AppSvc->>JobRepo: updateJob(localId, updates)
+    JobRepo->>WriterSvc: updateJob(localId, updates)
+    WriterSvc->>LocalDS: getJobById(localId)
+    LocalDS->>Hive: Read from Hive Box
+    Hive-->>LocalDS: JobHiveModel
+    LocalDS-->>WriterSvc: Job
+    
+    WriterSvc->>WriterSvc: Validate updates.hasChanges
+    
+    alt Updates contain changes
+        WriterSvc->>WriterSvc: Apply updates and set SyncStatus.pending
+        WriterSvc->>LocalDS: saveJob(updatedJob)
+        LocalDS->>Hive: Save to Hive Box
+        Hive-->>LocalDS: Save Confirmation
+        LocalDS-->>WriterSvc: Success
+        WriterSvc-->>JobRepo: Right<Job>
+    else No changes detected
+        WriterSvc-->>JobRepo: Right<Job> (unchanged)
+    end
+    
+    JobRepo-->>AppSvc: Right<Job>
+```
+
+### Job Deletion Flow
+
+```mermaid
+sequenceDiagram
+    participant AppSvc as Application Service
+    participant JobRepo as JobRepositoryImpl
+    participant DeleterSvc as JobDeleterService
+    participant LocalDS as LocalDataSource
+    participant Hive as Hive Box
+    
+    Note over AppSvc, Hive: Job Deletion - Local First
+    AppSvc->>JobRepo: deleteJob(localId)
+    JobRepo->>DeleterSvc: deleteJob(localId)
+    DeleterSvc->>LocalDS: getJobById(localId)
+    LocalDS->>Hive: Read from Hive Box
+    Hive-->>LocalDS: JobHiveModel
+    LocalDS-->>DeleterSvc: Job
+    
+    DeleterSvc->>DeleterSvc: Set SyncStatus.pendingDeletion
+    DeleterSvc->>LocalDS: saveJob(updatedJob)
+    LocalDS->>Hive: Save to Hive Box
+    Hive-->>LocalDS: Save Confirmation
+    LocalDS-->>DeleterSvc: Success
+    DeleterSvc-->>JobRepo: Right<Unit>
+    JobRepo-->>AppSvc: Right<Unit>
+```
+
+## Legacy Monolithic Diagram (For Reference)
+
+This sequence diagram illustrates the old data flow approach before our refactoring to orchestrator/processor pattern.
+
+```mermaid
+sequenceDiagram
+    participant AppSvc as Application Service
+    participant JobRepo as JobRepositoryImpl
+    participant WriterSvc as JobWriterService
+    participant DeleterSvc as JobDeleterService
+    participant SyncOrch as JobSyncOrchestratorService
+    participant SyncProc as JobSyncProcessorService
+    participant LocalDS as HiveJobLocalDS
+    participant RemoteDS as ApiJobRemoteDS
+    participant Mapper as JobMapper
+    participant UUID as UUID Generator
+    participant Hive as Hive Box
+    participant API as REST API
+    participant FileSystem as File System
+
+    %% Job Creation Flow
+    rect 
+    Note over AppSvc, API: Job Creation - Local First
+    AppSvc->>JobRepo: createJob(audioFilePath, text)
+    JobRepo->>WriterSvc: createJob(audioFilePath, text)
+    WriterSvc->>UUID: Generate UUID for new job
+    UUID-->>WriterSvc: new localId
+    WriterSvc->>WriterSvc: Create Job entity with:<br/>- localId<br/>- serverId=null<br/>- SyncStatus.pending
+    WriterSvc->>LocalDS: saveJob(job)
+    LocalDS->>Mapper: toHiveModel(jobEntity)
+    Mapper-->>LocalDS: JobHiveModel
+    LocalDS->>Hive: Save to Hive Box (keyed by localId)
+    Hive-->>LocalDS: Save Confirmation
+    LocalDS-->>WriterSvc: Success
+    WriterSvc-->>JobRepo: Right<Job>
+    JobRepo-->>AppSvc: Right<Job>
+    end
+    
+    %% Job Update Flow
+    rect 
+    Note over AppSvc, API: Job Update - Local First
+    AppSvc->>JobRepo: updateJob(localId, updates)
+    JobRepo->>WriterSvc: updateJob(localId, updates)
+    WriterSvc->>LocalDS: getJobById(localId)
+    LocalDS->>Hive: Read from Hive Box
+    Hive-->>LocalDS: JobHiveModel
+    LocalDS->>Mapper: fromHiveModel(model)
+    Mapper-->>LocalDS: Job
+    LocalDS-->>WriterSvc: Job
+    
+    WriterSvc->>WriterSvc: Validate updates.hasChanges
+    
+    alt Updates contain changes
+        WriterSvc->>WriterSvc: Apply updates and set SyncStatus.pending
+        WriterSvc->>LocalDS: saveJob(updatedJob)
+        LocalDS->>Mapper: toHiveModel(job)
+        Mapper-->>LocalDS: JobHiveModel
+        LocalDS->>Hive: Save to Hive Box
+        Hive-->>LocalDS: Save Confirmation
+        LocalDS-->>WriterSvc: Success
+        WriterSvc-->>JobRepo: Right<Job>
+    else No changes detected
+        WriterSvc-->>JobRepo: Right<Job> (unchanged)
+    end
+    
+    JobRepo-->>AppSvc: Right<Job>
+    end
+    
+    %% Job Deletion Flow
+    rect 
+    Note over AppSvc, API: Job Deletion - Local First
+    AppSvc->>JobRepo: deleteJob(localId)
+    JobRepo->>DeleterSvc: deleteJob(localId)
+    DeleterSvc->>LocalDS: getJobById(localId)
+    LocalDS->>Hive: Read from Hive Box
+    Hive-->>LocalDS: JobHiveModel
+    LocalDS->>Mapper: fromHiveModel(model)
+    Mapper-->>LocalDS: Job
+    LocalDS-->>DeleterSvc: Job
+    
+    DeleterSvc->>DeleterSvc: Set SyncStatus.pendingDeletion
+    DeleterSvc->>LocalDS: saveJob(updatedJob)
+    LocalDS->>Mapper: toHiveModel(job)
+    Mapper-->>LocalDS: JobHiveModel
+    LocalDS->>Hive: Save to Hive Box
+    Hive-->>LocalDS: Save Confirmation
+    LocalDS-->>DeleterSvc: Success
+    DeleterSvc-->>JobRepo: Right<Unit>
+    JobRepo-->>AppSvc: Right<Unit>
+    end
+``` 

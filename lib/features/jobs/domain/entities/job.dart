@@ -80,12 +80,13 @@ class Job extends Equatable {
     String? additionalText,
     int? retryCount, // New
     DateTime? lastSyncAttemptAt, // New
+    bool setLastSyncAttemptAtToNull = false,
   }) {
     return Job(
       localId: localId ?? this.localId,
-      serverId: serverId ?? this.serverId, // New
-      status: status ?? this.status, // USE ENUM INSTEAD OF STRING
-      syncStatus: syncStatus ?? this.syncStatus, // New
+      serverId: serverId ?? this.serverId,
+      status: status ?? this.status,
+      syncStatus: syncStatus ?? this.syncStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       userId: userId ?? this.userId,
@@ -96,8 +97,11 @@ class Job extends Equatable {
       audioFilePath: audioFilePath ?? this.audioFilePath,
       text: text ?? this.text,
       additionalText: additionalText ?? this.additionalText,
-      retryCount: retryCount ?? this.retryCount, // New
-      lastSyncAttemptAt: lastSyncAttemptAt ?? this.lastSyncAttemptAt, // New
+      retryCount: retryCount ?? this.retryCount,
+      lastSyncAttemptAt:
+          setLastSyncAttemptAtToNull
+              ? null
+              : (lastSyncAttemptAt ?? this.lastSyncAttemptAt),
     );
   }
 }

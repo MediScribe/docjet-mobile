@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-import '../job_sync_processor_service_test.mocks.dart'; // Use new mocks file
+import '../job_sync_processor_service_test.mocks.dart';
 import '../job_sync_service_test_helpers.dart'; // Re-use helpers for now
 
 // Generate mocks for JobLocalDataSource, JobRemoteDataSource, FileSystem

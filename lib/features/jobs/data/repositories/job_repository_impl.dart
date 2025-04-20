@@ -91,17 +91,11 @@ class JobRepositoryImpl implements JobRepository {
   }
 
   @override
-  Future<Either<Failure, Job>> resetFailedJob(String localId) {
+  Future<Either<Failure, Unit>> resetFailedJob(String localId) {
     _logger.d(
       'Delegating resetFailedJob for localId: $localId to JobSyncOrchestratorService',
     );
-    // TODO: Correctly delegate to an appropriate method in JobSyncOrchestratorService
-    // This method doesn't exist yet in the orchestrator and needs to be added.
-    // For now, return a temporary failure or implement basic logic if possible.
-    // Example temporary failure:
-    return Future.value(
-      Left(ServerFailure(message: 'resetFailedJob not implemented yet')),
-    );
-    // return _orchestratorService.resetFailedJob(localId); // Correct delegation target (needs creation)
+    // Delegate directly to the orchestrator service's method
+    return _orchestratorService.resetFailedJob(localId: localId);
   }
 }
