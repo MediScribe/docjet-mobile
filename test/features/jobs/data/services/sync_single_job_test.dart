@@ -202,7 +202,9 @@ void main() {
         expect(extractedFailure, isA<ServerFailure>());
         expect(
           (extractedFailure as ServerFailure).message,
-          equals('Create failed'),
+          contains(
+            'Failed to sync job ${initialJob.localId} (retries remain): ${serverException.toString()}',
+          ),
         );
 
         // Verify saveJob was called with the correct error state
@@ -287,7 +289,9 @@ void main() {
         expect(extractedFailure, isA<ServerFailure>());
         expect(
           (extractedFailure as ServerFailure).message,
-          equals('Create failed again'),
+          contains(
+            'Failed to sync job ${initialJob.localId} after max retries: ${serverException.toString()}',
+          ),
         );
 
         final verification = verify(mockLocalDataSource.saveJob(captureAny));
@@ -366,7 +370,9 @@ void main() {
         expect(extractedFailure, isA<ServerFailure>());
         expect(
           (extractedFailure as ServerFailure).message,
-          equals('Update failed'),
+          contains(
+            'Failed to sync job ${initialJob.localId} (retries remain): ${serverException.toString()}',
+          ),
         );
 
         final verification = verify(mockLocalDataSource.saveJob(captureAny));
@@ -449,7 +455,9 @@ void main() {
         expect(extractedFailure, isA<ServerFailure>());
         expect(
           (extractedFailure as ServerFailure).message,
-          equals('Update failed finally'),
+          contains(
+            'Failed to sync job ${initialJob.localId} after max retries: ${serverException.toString()}',
+          ),
         );
 
         final verification = verify(mockLocalDataSource.saveJob(captureAny));
@@ -653,10 +661,10 @@ void main() {
           (failure) => failure,
           (_) => throw StateError('Should be Left, not Right'),
         );
-        expect(extractedFailure, isA<ServerFailure>());
+        expect(extractedFailure, isA<CacheFailure>());
         expect(
-          (extractedFailure as ServerFailure).message,
-          equals('Create failed'),
+          (extractedFailure as CacheFailure).message,
+          equals('Failed to save error state'),
         );
 
         // Verify saveJob was attempted with an error job

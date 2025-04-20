@@ -9,6 +9,7 @@ import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_sour
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import JobStatus
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging utilities
 import 'package:flutter_test/flutter_test.dart';
@@ -16,7 +17,8 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 import 'job_sync_service_test.mocks.dart'; // Assuming mocks are generated here
-import 'job_sync_service_test_helpers.dart';
+// We don't need to import the helpers if we define the constants here.
+// import 'job_sync_service_test_helpers.dart';
 
 // Create a logger instance for test debugging
 final _logger = LoggerFactory.getLogger('SyncPendingJobsTest');
@@ -31,6 +33,94 @@ final _tag = logTag('SyncPendingJobsTest');
 ])
 void main() {
   _logger.i('$_tag Starting syncPendingJobs tests...');
+
+  // --- Test Data Definitions ---
+  final tNow = DateTime.now(); // Use a consistent 'now' for comparisons
+
+  final tPendingJobNew = Job(
+    localId: 'pendingNewJob1',
+    userId: 'user123',
+    status: JobStatus.created, // Use imported JobStatus
+    syncStatus: SyncStatus.pending,
+    displayTitle: 'New Pending Job Sync Test',
+    audioFilePath: '/local/new_pending.mp3',
+    text: 'Some initial text',
+    additionalText: 'Some additional text',
+    createdAt: tNow.subtract(const Duration(minutes: 10)),
+    updatedAt: tNow.subtract(const Duration(minutes: 5)),
+    serverId: null,
+    retryCount: 0,
+    lastSyncAttemptAt: null,
+  );
+
+  final tSyncedJobFromServer = tPendingJobNew.copyWith(
+    serverId: 'serverGeneratedId123',
+    syncStatus: SyncStatus.synced,
+    updatedAt: tNow,
+  );
+
+  final tExistingJobPendingUpdate = Job(
+    localId: 'existingJob1-local',
+    serverId: 'existingJob1-server',
+    userId: 'user456',
+    status: JobStatus.transcribing, // Use imported JobStatus
+    syncStatus: SyncStatus.pending,
+    displayTitle: 'Updated Job Title Locally',
+    audioFilePath: '/local/existing.mp3',
+    text: 'Updated text locally',
+    additionalText: null,
+    createdAt: tNow.subtract(const Duration(days: 1)),
+    updatedAt: tNow.subtract(const Duration(hours: 1)),
+    retryCount: 0,
+    lastSyncAttemptAt: null,
+  );
+
+  final tUpdatedJobFromServer = tExistingJobPendingUpdate.copyWith(
+    syncStatus: SyncStatus.synced,
+    updatedAt: tNow,
+  );
+
+  final tJobPendingDeletionWithServerId = Job(
+    localId: 'deleteMe-local',
+    serverId: 'deleteMe-server',
+    userId: 'user789',
+    status: JobStatus.completed, // Use imported JobStatus
+    syncStatus: SyncStatus.pendingDeletion,
+    displayTitle: 'Job To Be Deleted',
+    audioFilePath: '/local/delete_me.mp3',
+    text: 'Final text',
+    additionalText: null,
+    createdAt: tNow.subtract(const Duration(days: 2)),
+    updatedAt: tNow.subtract(const Duration(days: 1)),
+    retryCount: 0,
+    lastSyncAttemptAt: null,
+  );
+
+  final tJobInErrorRetryEligible = Job(
+    localId: 'errorRetryJob1-local',
+    serverId: 'errorRetryJob1-server',
+    userId: 'userError1',
+    status: JobStatus.transcribing, // Use imported JobStatus
+    syncStatus: SyncStatus.error,
+    displayTitle: 'Job Failed, Ready to Retry',
+    audioFilePath: '/local/error_retry.mp3',
+    text: 'Some text',
+    additionalText: null,
+    createdAt: tNow.subtract(const Duration(hours: 2)),
+    updatedAt: tNow.subtract(const Duration(hours: 1)),
+    retryCount: 2,
+    lastSyncAttemptAt: tNow.subtract(const Duration(minutes: 30)),
+  );
+
+  // Added missing retry job result for the test
+  final tSyncedRetryJob = tJobInErrorRetryEligible.copyWith(
+    syncStatus: SyncStatus.synced,
+    updatedAt: tNow,
+    retryCount: 0, // Reset on success
+    lastSyncAttemptAt: null, // Reset on success
+  );
+
+  // --- End Test Data Definitions ---
 
   late MockJobLocalDataSource mockLocalDataSource;
   late MockJobRemoteDataSource mockRemoteDataSource;
@@ -400,6 +490,15 @@ void main() {
 
       // Arrange
       _logger.d('$_tag Arranging mocks...');
+      // Setup: No pending create/update jobs, no pending deletion jobs
+      when(
+        mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+      ).thenAnswer((_) async => []);
+      when(
+        mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+      ).thenAnswer((_) async => []);
+
+      // Setup: One job eligible for retry
       when(mockLocalDataSource.getJobsToRetry(any, any)).thenAnswer((_) async {
         _logger.d(
           '$_tag Mock getJobsToRetry called, returning [tJobInErrorRetryEligible]',
@@ -407,10 +506,7 @@ void main() {
         return [tJobInErrorRetryEligible];
       });
 
-      // Mock the successful syncSingleJob outcome for the retry job (update)
-      final tSyncedRetryJob = tJobInErrorRetryEligible.copyWith(
-        syncStatus: SyncStatus.synced,
-      );
+      // Mock the successful outcome of updateJob and saveJob for the retry job
       when(
         mockRemoteDataSource.updateJob(
           jobId: tJobInErrorRetryEligible.serverId!,
@@ -442,11 +538,12 @@ void main() {
       verify(
         mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
       ).called(1);
+      // Verify getJobsToRetry was called with the correct config args
       verify(
         mockLocalDataSource.getJobsToRetry(maxRetryAttempts, retryBackoffBase),
       ).called(1);
 
-      // Verify syncSingleJob calls for the retry job
+      // Verify the underlying calls made BY syncSingleJob for the RETRY job
       verify(
         mockRemoteDataSource.updateJob(
           jobId: tJobInErrorRetryEligible.serverId!,
@@ -455,10 +552,27 @@ void main() {
       ).called(1);
       verify(mockLocalDataSource.saveJob(tSyncedRetryJob)).called(1);
 
+      // Verify no other interactions happened
+      verifyNever(
+        mockRemoteDataSource.createJob(
+          userId: anyNamed('userId'),
+          audioFilePath: anyNamed('audioFilePath'),
+          text: anyNamed('text'),
+          additionalText: anyNamed('additionalText'),
+        ),
+      );
+      verifyNever(mockRemoteDataSource.deleteJob(any));
+      verifyNever(mockLocalDataSource.deleteJob(any));
+      verifyNever(mockFileSystem.deleteFile(any));
+
+      // Only 2 saves: the retry job, and the original default mock which shouldn't have triggered
+      // verify(mockLocalDataSource.saveJob(any)).called(1); // Check only the specific save above
+
       verifyNoMoreInteractions(mockNetworkInfo);
       verifyNoMoreInteractions(mockRemoteDataSource);
       verifyNoMoreInteractions(mockLocalDataSource);
       verifyNoMoreInteractions(mockFileSystem);
+
       _logger.i('$_tag Test completed successfully');
     });
 

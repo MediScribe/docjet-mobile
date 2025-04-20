@@ -604,6 +604,12 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] Implement `syncPendingJobs` and `_permanentlyDeleteJob` helper
     -   [x] Write tests for `syncSingleJob` (steal from `sync_pending_jobs_test.dart`) --> *Success and Error cases done*
     -   [x] Implement `syncSingleJob`
+    -   [x] Modify `syncPendingJobs()` to fetch and process retry-eligible jobs
+    -   [x] Update error handling in `syncSingleJob()` to track retry attempts
+    -   [x] Add unit tests for retry functionality
+    -   [x] Create `_handleSyncError(Job job, Exception e)` helper method to reduce duplicated error handling code
+    -   [x] Add strategic comments explaining retry logic and backoff strategy
+    -   [x] Create integration test in `job_sync_integration_test.dart` that simulates complete job lifecycle with retries
 
 -   [x] **6. JobRepository:**
     -   [x] Clean up `JobRepository` interface (`lib/features/jobs/domain/repositories/job_repository.dart`)
@@ -666,9 +672,9 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
         -   [x] Modify `syncPendingJobs()` to fetch and process retry-eligible jobs
         -   [x] Update error handling in `syncSingleJob()` to track retry attempts
         -   [x] Add unit tests for retry functionality
-        -   [ ] Create `_handleSyncError(Job job, Exception e)` helper method to reduce duplicated error handling code
-        -   [ ] Add strategic comments explaining retry logic and backoff strategy
-        -   [ ] Create integration test in `job_sync_integration_test.dart` that simulates complete job lifecycle with retries
+        -   [x] Create `_handleSyncError(Job job, Exception e)` helper method to reduce duplicated error handling code
+        -   [x] Add strategic comments explaining retry logic and backoff strategy
+        -   [x] Create integration test in `job_sync_integration_test.dart` that simulates complete job lifecycle with retries
 
     -   [ ] **10.6 Add Reset Failed Jobs Feature:** (Recovery option)
         -   [ ] Add `resetFailedJob(String localId)` method to `JobSyncService`

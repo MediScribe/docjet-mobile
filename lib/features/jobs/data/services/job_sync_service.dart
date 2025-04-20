@@ -36,7 +36,9 @@ class JobSyncService {
        _fileSystem = fileSystem;
 
   // This function is used only for satisfying the linter regarding dart:math import
-  // Required by the refactoring plan but not directly used in normal operation
+  // Required by the refactoring plan for calculating exponential backoff in tests
+  // and logging the schedule, but the actual backoff delay check happens
+  // in the local data source's getJobsToRetry method.
   int _calculateExponentialBackoff(int retryCount, int baseSeconds) {
     return (baseSeconds * math.pow(2, retryCount)).toInt();
   }
@@ -72,6 +74,10 @@ class JobSyncService {
       _logger.d('Found ${deletionJobs.length} jobs pending deletion.');
 
       // ** Fetch jobs eligible for retry **
+      // We fetch jobs that previously failed (status=error),
+      // haven't exhausted their retries, and whose last attempt
+      // was long enough ago based on an exponential backoff strategy.
+      // The backoff logic (time check) is handled within the local data source.
       _logger.d('Fetching jobs eligible for retry...');
       final retryJobs = await _localDataSource.getJobsToRetry(
         maxRetryAttempts, // Use config constant
@@ -81,19 +87,27 @@ class JobSyncService {
 
       // Log the retry backoff schedule for monitoring purposes
       if (retryJobs.isNotEmpty) {
-        final retrySchedule = [1, 2, 3, 4, 5]
+        final retrySchedule = List.generate(
+              maxRetryAttempts,
+              (index) => index,
+            ) // Generate attempts 0 to max-1
             .map(
               (attempt) => _calculateExponentialBackoff(
-                attempt,
+                attempt, // Use the actual attempt number for calculation
                 retryBackoffBase.inSeconds,
               ),
             )
             .join(', ');
-        _logger.d('Retry backoff schedule (seconds): $retrySchedule');
+        _logger.d(
+          'Retry backoff schedule (seconds for attempts 0-${maxRetryAttempts - 1}): $retrySchedule',
+        );
       }
 
       // ** Combine pending and retry jobs for syncSingleJob processing **
       final jobsToSync = [...pendingJobs, ...retryJobs];
+      _logger.d(
+        'Total jobs to attempt sync (pending + retry): ${jobsToSync.length}',
+      );
 
       // Process creates/updates/retries
       for (final job in jobsToSync) {
@@ -123,28 +137,18 @@ class JobSyncService {
             _logger.e(
               'Failed to delete job on server (serverId: ${job.serverId}): $e. Marking for retry or failure.',
             );
-            // ** Handle deletion error: Update job status locally **
-            final newRetryCount = job.retryCount + 1;
-            final newStatus =
-                newRetryCount >= maxRetryAttempts
-                    ? SyncStatus.failed
-                    : SyncStatus.error;
-            final errorJob = job.copyWith(
-              syncStatus: newStatus,
-              retryCount: newRetryCount,
-              lastSyncAttemptAt: DateTime.now(),
+            // ** Error Handling for Deletion **
+            // If remote deletion fails, we use the same error handling logic
+            // as create/update failures. The job's status will be set to
+            // SyncStatus.error (or SyncStatus.failed if max retries reached),
+            // its retryCount incremented, and lastSyncAttemptAt updated.
+            // It will be picked up again in a future sync cycle by getJobsToRetry.
+            await _handleSyncError(
+              job,
+              e is Exception ? e : Exception(e.toString()),
+              'Remote delete failure',
             );
-            try {
-              await _localDataSource.saveJob(errorJob);
-              _logger.i(
-                'Updated job ${job.localId} status to $newStatus after remote delete failure.',
-              );
-            } catch (saveError) {
-              _logger.e(
-                'Failed to save job status after remote delete failure for ${job.localId}: $saveError',
-              );
-              // Still proceed to potentially delete local-only jobs
-            }
+            // remoteDeleteSuccess remains false
           }
         }
 
@@ -178,6 +182,58 @@ class JobSyncService {
     }
   }
 
+  // Helper method to handle sync errors consistently
+  // This is called whenever a remote operation (create, update, delete) fails.
+  // It updates the job's local state to track the failure and prepare for retry.
+  Future<void> _handleSyncError(
+    // Takes the job, the exception, and a context string for logging.
+    Job job,
+    Exception error,
+    String context,
+  ) async {
+    _logger.e(
+      '$context for localId: ${job.localId} (attempt ${job.retryCount + 1}/$maxRetryAttempts): $error',
+    );
+
+    // Increment retry count.
+    final newRetryCount = job.retryCount + 1;
+    // Determine new status: 'failed' if max retries reached, otherwise back to 'error'.
+    // Jobs in the 'error' state are eligible for retry based on the exponential
+    // backoff strategy checked by `getJobsToRetry`.
+    // Jobs in the 'failed' state will no longer be automatically retried.
+    final newStatus =
+        newRetryCount >= maxRetryAttempts
+            ? SyncStatus.failed
+            : SyncStatus.error;
+    // Update the job locally with the new status, retry count, and timestamp.
+    // The `lastSyncAttemptAt` timestamp is crucial for the backoff calculation.
+    final updatedJob = job.copyWith(
+      syncStatus: newStatus,
+      retryCount: newRetryCount,
+      lastSyncAttemptAt: DateTime.now(),
+    );
+
+    try {
+      await _localDataSource.saveJob(updatedJob);
+      _logger.i(
+        'Updated job ${job.localId} status to $newStatus after $context.',
+      );
+    } catch (saveError) {
+      _logger.e(
+        'CRITICAL: Failed to save job ${job.localId} with status $newStatus after $context: $saveError',
+      );
+      // Rethrow or handle appropriately if saving the error state is critical
+      // Rethrow the CacheException so the caller knows the state update failed.
+      if (saveError is CacheException) {
+        throw saveError;
+      }
+      // Optionally, wrap other errors if needed, but CacheException is the focus.
+      throw CacheException(
+        'Failed to save error state for job ${job.localId} after $context',
+      );
+    }
+  }
+
   Future<Either<Failure, Job>> syncSingleJob(Job job) async {
     try {
       Job remoteJob;
@@ -207,14 +263,15 @@ class JobSyncService {
         );
 
         // TODO: Use JobUpdateData instead of raw map when available
+        // Prepare the update payload. This should ideally be more structured.
         final updates = <String, dynamic>{
           'status': job.status.name,
           if (job.displayTitle != null) 'display_title': job.displayTitle,
           if (job.text != null) 'text': job.text,
           if (job.additionalText != null) 'additional_text': job.additionalText,
-          // Add other updatable fields
+          // Note: Sync-related fields (retryCount, lastSyncAttemptAt, syncStatus)
+          // are managed locally and are NOT sent in the update payload.
         };
-
         remoteJob = await _remoteDataSource.updateJob(
           jobId: job.serverId!,
           updates: updates,
@@ -222,89 +279,75 @@ class JobSyncService {
         _logger.d('Remote update successful. Saving synced job locally.');
       }
 
-      // Save successful sync result (could be create or update)
-      await _localDataSource.saveJob(remoteJob);
-      return Right(remoteJob);
-    } on ServerException catch (e) {
-      _logger.e(
-        'ServerException during syncSingleJob for localId: ${job.localId}: $e',
+      // ** Success Path **
+      // Update local job with server details (especially serverId if it was null)
+      // and mark as synced. Reset retry count and timestamp upon success.
+      final updatedJob = job.copyWith(
+        serverId:
+            remoteJob.serverId ??
+            job.serverId, // Keep local if server didn't return one
+        syncStatus: SyncStatus.synced,
+        // ** CORRECTLY MERGE FIELDS FROM REMOTE JOB **
+        // Overwrite local fields with the server's authoritative state if provided.
+        // Keep original local data if remote data is null (shouldn't happen often).
+        status: remoteJob.status, // Use status from remote job
+        displayTitle: remoteJob.displayTitle ?? job.displayTitle,
+        text: remoteJob.text ?? job.text,
+        additionalText: remoteJob.additionalText ?? job.additionalText,
+        // Use the server's updatedAt timestamp if available, otherwise keep local.
+        // This assumes the server sends back an updatedAt timestamp.
+        // If remoteJob doesn't have updatedAt, we should perhaps use DateTime.now().
+        // Let's assume for now remoteJob always provides it after a successful sync.
+        updatedAt: remoteJob.updatedAt,
+
+        // Crucially, reset retry state on successful sync.
+        retryCount: 0,
+        lastSyncAttemptAt: null,
       );
-      // ** Handle Sync Error: Update retry count and status **
-      final newRetryCount = job.retryCount + 1;
-      final newStatus =
-          newRetryCount >= maxRetryAttempts
-              ? SyncStatus.failed
-              : SyncStatus.error;
-      final errorJob = job.copyWith(
-        syncStatus: newStatus,
-        retryCount: newRetryCount,
-        lastSyncAttemptAt: DateTime.now(),
-      );
-      try {
-        await _localDataSource.saveJob(errorJob);
-        _logger.i(
-          'Updated job ${job.localId} status to $newStatus after ServerException.',
-        );
-      } catch (saveError) {
-        _logger.e(
-          'Failed to save job with error status after ServerException: $saveError',
-        );
-      }
-      return Left(
-        ServerFailure(message: e.message ?? 'Server error during sync'),
-      );
+
+      await _localDataSource.saveJob(updatedJob);
+      _logger.i('Successfully synced and saved job ${updatedJob.localId}');
+      return Right(updatedJob);
     } on CacheException catch (e) {
-      _logger.e(
-        'CacheException during syncSingleJob for localId: ${job.localId}: $e',
+      // If saving the successfully synced job locally fails, it's a local cache issue.
+      // Do NOT treat this as a remote failure (don't call _handleSyncError).
+      _logger.e('Cache error saving synced job ${job.localId} locally: $e');
+      return Left(
+        CacheFailure(e.message ?? 'Local cache error saving synced job'),
       );
-      // ** Handle Sync Error: Update retry count and status (treat like ServerException) **
-      final newRetryCount = job.retryCount + 1;
-      final newStatus =
-          newRetryCount >= maxRetryAttempts
-              ? SyncStatus.failed
-              : SyncStatus.error;
-      final errorJob = job.copyWith(
-        syncStatus: newStatus,
-        retryCount: newRetryCount,
-        lastSyncAttemptAt: DateTime.now(),
-      );
-      try {
-        await _localDataSource.saveJob(errorJob);
-        _logger.i(
-          'Updated job ${job.localId} status to $newStatus after CacheException.',
-        );
-      } catch (saveError) {
-        _logger.e(
-          'Failed to save job with error status after CacheException: $saveError',
-        );
-      }
-      return Left(CacheFailure(e.message ?? 'Cache error during sync'));
     } catch (e) {
-      _logger.e(
-        'Unexpected error during syncSingleJob for localId: ${job.localId}: $e',
-      );
-      // ** Handle Sync Error: Update retry count and status (treat like ServerException) **
-      final newRetryCount = job.retryCount + 1;
-      final newStatus =
-          newRetryCount >= maxRetryAttempts
-              ? SyncStatus.failed
-              : SyncStatus.error;
-      final errorJob = job.copyWith(
-        syncStatus: newStatus,
-        retryCount: newRetryCount,
-        lastSyncAttemptAt: DateTime.now(),
-      );
+      // ** Failure Path for Remote Operations **
+      // Use the helper method to handle the error, update local state,
+      // and prepare for potential retry ONLY for remote errors.
+      final errorException = e is Exception ? e : Exception(e.toString());
       try {
-        await _localDataSource.saveJob(errorJob);
-        _logger.i(
-          'Updated job ${job.localId} status to $newStatus after unexpected error.',
+        await _handleSyncError(
+          job,
+          errorException,
+          job.serverId == null
+              ? 'Remote create failure'
+              : 'Remote update failure',
         );
-      } catch (saveError) {
+      } on CacheException catch (cacheError) {
+        // If _handleSyncError itself failed to save the error state, return CacheFailure
         _logger.e(
-          'Failed to save job with error status after unexpected error: $saveError',
+          'CacheException occurred while trying to save error state for job ${job.localId}: $cacheError',
+        );
+        return Left(
+          CacheFailure(cacheError.message ?? 'Failed to save error state'),
         );
       }
-      return Left(ServerFailure(message: 'Unexpected error syncing job: $e'));
+
+      // If _handleSyncError succeeded, construct the original ServerFailure message
+      final bool maxRetriesReached = job.retryCount + 1 >= maxRetryAttempts;
+      final String retryContext =
+          maxRetriesReached ? 'after max retries' : '(retries remain)';
+      final failureMessage =
+          'Failed to sync job ${job.localId} $retryContext: $errorException';
+
+      // Return a failure, indicating this specific job sync failed.
+      // The overall syncPendingJobs process will still complete.
+      return Left(ServerFailure(message: failureMessage));
     }
   }
 
