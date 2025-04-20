@@ -1,266 +1,56 @@
 import 'dart:async';
-import 'dart:convert';
+// import 'dart:convert'; // No longer needed directly
 import 'dart:io';
+import 'package:path/path.dart' as p; // Added path import back
 
-import 'package:dio/dio.dart';
-import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
-import 'package:docjet_mobile/core/interfaces/network_info.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
+// import 'package:dio/dio.dart'; // Handled by DI setup
+// import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Mocked via DI
+// import 'package:docjet_mobile/core/interfaces/network_info.dart'; // Mocked via DI
+import 'package:docjet_mobile/core/platform/file_system.dart'; // Still needed for MockFileSystem type
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
-import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
-import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
+// import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'; // DI
+// import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart'; // DI
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // Needed for type
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // DI
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'; // Needed for type
+// import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart'; // DI
+// import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'; // DI
+// import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart'; // DI
+// import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'; // DI
+// import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart'; // DI
+// import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'; // DI
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
-import 'package:path/path.dart' as p; // Added path import
+// import 'package:mockito/annotations.dart'; // Moved to helpers
+import 'package:mockito/mockito.dart'; // Still needed for verify
+// import 'package:path/path.dart' as p; // Moved to helpers
 import 'package:uuid/uuid.dart';
 
-// Generate mocks for NetworkInfo AND AuthCredentialsProvider
-@GenerateMocks([NetworkInfo, AuthCredentialsProvider, FileSystem])
-import 'job_sync_e2e_test.mocks.dart';
+// Import the setup helpers
+import 'e2e_setup_helpers.dart';
+// Import the generated mocks FROM the helper file
+import 'e2e_setup_helpers.mocks.dart';
 
-// Implement the CORRECT FileSystem interface
-// class MockFileSystem extends Mock implements FileSystem {} // REMOVED - Will use generated mock
-
-// --- Test Globals ---
-final sl = GetIt.instance;
-final _logger = LoggerFactory.getLogger('JobSyncE2eTest');
-final _tag = logTag('JobSyncE2eTest');
-const String _mockApiKey = 'test-api-key'; // As per mock_api_server README
+// --- Test Globals (Managed by helpers) ---
+final sl = GetIt.instance; // Keep for easy access in tests
+final _logger = LoggerFactory.getLogger(testSuiteName); // Use helper's logger
+final _tag = logTag(testSuiteName); // Use helper's tag
 Process? _mockServerProcess;
 late Directory _tempDir;
 late Box<JobHiveModel> _jobBox;
-late String _dynamicMockServerUrl; // Store the dynamic URL
-late int _mockServerPort; // Store the dynamic port
+// Note: dynamicMockServerUrl and mockServerPort are managed within setUpAll
 
-// --- Server Management Helpers (Adapted from mock_api_server/test/test_helpers.dart) ---
+// Remove duplicate mock generation
+// @GenerateMocks([NetworkInfo, AuthCredentialsProvider, FileSystem])
+// import 'job_sync_e2e_test.mocks.dart';
 
-// Path to server executable (relative to mock_api_server directory, accessed from project root)
-const String _mockServerScriptRelativePath = 'mock_api_server/bin/server.dart';
-
-// Helper to print logs with a consistent prefix
-void _logHelper(String testSuite, String message) {
-  // Use the existing logger
-  _logger.d('[$testSuite Helper] $message');
-}
-
-/// Clears the specified port and starts the mock server.
-///
-/// Returns a record containing the started [Process] object and the assigned port number.
-/// Requires the test suite name for logging.
-Future<(Process?, int)> _startMockServer(String testSuiteName) async {
-  _logHelper(testSuiteName, 'Starting mock server management...');
-
-  // Find an available port
-  int assignedPort = 0;
-  try {
-    final serverSocket = await ServerSocket.bind(
-      InternetAddress.loopbackIPv4,
-      0,
-    );
-    assignedPort = serverSocket.port;
-    await serverSocket.close(); // Close the socket immediately
-    _logHelper(testSuiteName, 'Found available port: $assignedPort');
-  } catch (e, stackTrace) {
-    _logHelper(testSuiteName, 'Error finding available port: $e $stackTrace');
-    rethrow; // Fail setup if we can't get a port
-  }
-
-  // Start the server
-  _logHelper(testSuiteName, 'Starting mock server on port $assignedPort...');
-  Process? process;
-  try {
-    // Determine working directory (should be project root where flutter test runs)
-    String workingDir = Directory.current.path;
-    // The script path is relative to the project root
-    final serverScriptPath = p.join(workingDir, _mockServerScriptRelativePath);
-
-    // Verify script exists before attempting to start
-    if (!await File(serverScriptPath).exists()) {
-      final errorMsg = 'Mock server script not found at: $serverScriptPath';
-      _logHelper(testSuiteName, errorMsg);
-      throw FileSystemException(errorMsg);
-    }
-
-    _logHelper(testSuiteName, 'Using script: $serverScriptPath in $workingDir');
-
-    process = await Process.start(
-      'dart', // Use system dart
-      [serverScriptPath, '--port', assignedPort.toString()],
-      // Working directory should be project root
-      // workingDirectory: workingDir,
-    );
-    _logHelper(testSuiteName, 'Mock server started (PID: ${process.pid})');
-
-    // Pipe server output to test logger
-    process.stdout.transform(utf8.decoder).listen((line) {
-      final trimmed = line.trim();
-      if (trimmed.isNotEmpty) {
-        _logHelper(testSuiteName, '[MockServer OUT] $trimmed');
-      }
-    });
-    process.stderr.transform(utf8.decoder).listen((line) {
-      final trimmed = line.trim();
-      if (trimmed.isNotEmpty) {
-        _logger.e('[$testSuiteName Helper] [MockServer ERR] $trimmed');
-      }
-    });
-
-    _logHelper(
-      testSuiteName,
-      'Waiting 3 seconds for server...',
-    ); // Reduced wait
-    await Future.delayed(const Duration(seconds: 3));
-    _logHelper(testSuiteName, 'Server should be ready.');
-    return (process, assignedPort);
-  } catch (e, stackTrace) {
-    _logHelper(testSuiteName, 'Error starting mock server: $e $stackTrace');
-    process?.kill();
-    rethrow; // Propagate error to fail setup
-  }
-}
-
-/// Stops the mock server process gracefully.
-///
-/// Requires the [Process] object and test suite name for logging.
-Future<void> _stopMockServer(String testSuiteName, Process? process) async {
-  if (process == null) {
-    _logHelper(testSuiteName, 'No server process to stop.');
-    return;
-  }
-  _logHelper(testSuiteName, 'Stopping mock server (PID: ${process.pid})...');
-  final killed = process.kill(ProcessSignal.sigterm);
-  if (!killed) {
-    _logHelper(testSuiteName, 'SIGTERM failed, sending SIGKILL...');
-    process.kill(ProcessSignal.sigkill);
-  }
-  // Add a timeout for exit code
-  try {
-    await process.exitCode.timeout(const Duration(seconds: 2));
-    _logHelper(testSuiteName, 'Mock server process exited.');
-  } on TimeoutException {
-    _logHelper(
-      testSuiteName,
-      'Server did not exit after SIGTERM/SIGKILL, may be orphaned.',
-    );
-  }
-}
-
-/// Sets up Dependency Injection container
-Future<void> _setupDI() async {
-  _logger.i('$_tag Setting up Dependency Injection...');
-  await sl.reset();
-
-  // --- External Dependencies ---
-  sl.registerLazySingleton<Dio>(() {
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: _dynamicMockServerUrl,
-        headers: {
-          'X-API-Key': _mockApiKey,
-          'Authorization': 'Bearer fake-test-token', // Mock server accepts any
-        },
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-      ),
-    );
-    // Optional: Add interceptors for logging, etc.
-    // dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
-    return dio;
-  });
-
-  // Use generated mocks
-  sl.registerLazySingleton<NetworkInfo>(() => MockNetworkInfo());
-  when(sl<NetworkInfo>().isConnected).thenAnswer((_) async => true);
-  sl.registerLazySingleton<AuthCredentialsProvider>(
-    () => MockAuthCredentialsProvider(),
-  );
-  // Stub the mock provider to return dummy credentials
-  when(
-    sl<AuthCredentialsProvider>().getApiKey(),
-  ).thenAnswer((_) async => _mockApiKey);
-  when(
-    sl<AuthCredentialsProvider>().getAccessToken(),
-  ).thenAnswer((_) async => 'fake-test-token');
-
-  sl.registerLazySingleton<Uuid>(() => const Uuid());
-  // Register MockFileSystem for the CORRECT FileSystem type
-  sl.registerLazySingleton<FileSystem>(() => MockFileSystem());
-  sl.registerLazySingleton<HiveInterface>(() => Hive);
-
-  // --- Data Sources ---
-  sl.registerLazySingleton<JobLocalDataSource>(
-    () => HiveJobLocalDataSourceImpl(hive: sl()),
-  );
-  // Provide required dependencies based on actual constructor
-  sl.registerLazySingleton<JobRemoteDataSource>(
-    () => ApiJobRemoteDataSourceImpl(
-      dio: sl(),
-      authCredentialsProvider: sl(),
-      // We don't need a custom multipart creator for this test
-    ),
-  );
-
-  // --- Mappers ---
-  // JobMapper uses static methods, no need to register in GetIt
-  // sl.registerLazySingleton<JobMapper>(() => JobMapper(uuidGenerator: sl()));
-
-  // --- Services ---
-  // Services should now resolve correctly if their dependencies are met
-  sl.registerLazySingleton<JobReaderService>(
-    () => JobReaderService(localDataSource: sl(), remoteDataSource: sl()),
-  );
-  sl.registerLazySingleton<JobWriterService>(
-    () => JobWriterService(localDataSource: sl(), uuid: sl()),
-  );
-  // Ensure services get the registered FileSystem type (handled by GetIt)
-  sl.registerLazySingleton<JobDeleterService>(
-    () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),
-  );
-  sl.registerLazySingleton<JobSyncProcessorService>(
-    () => JobSyncProcessorService(
-      localDataSource: sl(),
-      remoteDataSource: sl(),
-      fileSystem: sl(),
-    ),
-  );
-  sl.registerLazySingleton<JobSyncOrchestratorService>(
-    () => JobSyncOrchestratorService(
-      localDataSource: sl(),
-      processorService: sl<JobSyncProcessorService>(),
-      networkInfo: sl(),
-    ),
-  );
-
-  // --- Repository ---
-  sl.registerLazySingleton<JobRepository>(
-    () => JobRepositoryImpl(
-      readerService: sl(),
-      writerService: sl(),
-      deleterService: sl(),
-      orchestratorService: sl<JobSyncOrchestratorService>(),
-    ),
-  );
-
-  sl.registerLazySingleton<Box<JobHiveModel>>(() => _jobBox);
-
-  _logger.i('$_tag Dependency Injection setup complete.');
-}
+// REMOVE ALL HELPER FUNCTIONS (_logHelper, _startMockServer, _stopMockServer, _setupDI)
+// ... existing code ...
 
 void main() {
   // Make sure testWidgets uses the right binding for network calls
@@ -268,65 +58,44 @@ void main() {
 
   setUpAll(() async {
     // --- Logging Setup ---
-    LoggerFactory.setLogLevel('JobSyncE2eTest', Level.debug);
+    LoggerFactory.setLogLevel(
+      testSuiteName,
+      Level.debug,
+    ); // Use constant from helper
     _logger.i('$_tag --- Starting E2E Test Suite --- GOGO');
 
-    // --- Mock Server Setup ---
+    // --- Mock Server Setup (using helper) ---
     _logger.i('$_tag Starting mock server...');
-    final serverResult = await _startMockServer('JobSyncE2eTest');
+    final serverResult = await startMockServer();
     _mockServerProcess = serverResult.$1;
-    _mockServerPort = serverResult.$2;
+    final mockServerPort = serverResult.$2;
     if (_mockServerProcess == null) {
       throw Exception('Mock server process failed to start.');
     }
-    _dynamicMockServerUrl = 'http://localhost:$_mockServerPort';
+    final dynamicMockServerUrl = 'http://localhost:$mockServerPort';
     _logger.i(
-      '$_tag Mock server started on $_dynamicMockServerUrl (PID: ${_mockServerProcess?.pid})',
+      '$_tag Mock server started on $dynamicMockServerUrl (PID: ${_mockServerProcess?.pid})',
     );
 
-    // --- Hive Setup ---
-    _logger.i('$_tag Initializing Hive for testing...');
-    // Use path_provider to get a temporary directory suitable for testing
-    _tempDir = await Directory.systemTemp.createTemp('hive_e2e_test_');
-    _logger.d('$_tag Hive temp directory: ${_tempDir.path}');
-    Hive.init(_tempDir.path);
+    // --- Hive Setup (using helper) ---
+    final hiveResult = await setupHive();
+    _tempDir = hiveResult.$1;
+    _jobBox = hiveResult.$2;
 
-    // Register Adapters (Essential!)
-    if (!Hive.isAdapterRegistered(JobHiveModelAdapter().typeId)) {
-      Hive.registerAdapter(JobHiveModelAdapter());
-    }
-    if (!Hive.isAdapterRegistered(SyncStatusAdapter().typeId)) {
-      Hive.registerAdapter(SyncStatusAdapter());
-    }
-
-    _jobBox = await Hive.openBox<JobHiveModel>('jobs');
-    _logger.i('$_tag Hive initialized and jobBox opened.');
-
-    // --- DI Setup (AFTER server URL is known) ---
-    await _setupDI();
+    // --- DI Setup (using helper, AFTER server URL and jobBox are known) ---
+    await setupDI(dynamicMockServerUrl, _jobBox);
   });
 
   tearDownAll(() async {
     _logger.i('$_tag --- Tearing Down E2E Test Suite ---');
-    // --- DI Teardown ---
-    _logger.i('$_tag Resetting Dependency Injection container...');
-    await sl.reset();
-    _logger.i('$_tag DI container reset.');
+    // --- DI Teardown (using helper) ---
+    await teardownDI();
 
-    // --- Hive Teardown ---
-    _logger.i('$_tag Closing Hive...');
-    await _jobBox.compact(); // Optional cleanup
-    await Hive.close();
-    // Delete the temporary directory
-    try {
-      await _tempDir.delete(recursive: true);
-      _logger.i('$_tag Hive temporary directory deleted.');
-    } catch (e) {
-      _logger.w('$_tag Error deleting Hive temp directory: $e');
-    }
+    // --- Hive Teardown (using helper) ---
+    await teardownHive(_tempDir, _jobBox);
 
-    // --- Mock Server Teardown ---
-    await _stopMockServer('JobSyncE2eTest', _mockServerProcess);
+    // --- Mock Server Teardown (using helper) ---
+    await stopMockServer(_mockServerProcess);
 
     _logger.i('$_tag --- E2E Test Suite Teardown Complete ---');
   });
@@ -338,18 +107,8 @@ void main() {
     // Clear the job box before each test to ensure isolation
     await _jobBox.clear();
     _logger.d('$_tag Job box cleared.');
-    // Reset and re-stub mocks
-    reset(sl<NetworkInfo>());
-    when(sl<NetworkInfo>().isConnected).thenAnswer((_) async => true);
-    reset(sl<AuthCredentialsProvider>());
-    when(
-      sl<AuthCredentialsProvider>().getApiKey(),
-    ).thenAnswer((_) async => _mockApiKey);
-    when(
-      sl<AuthCredentialsProvider>().getAccessToken(),
-    ).thenAnswer((_) async => 'fake-test-token');
-    // Reset FileSystem mock before each test
-    reset(sl<FileSystem>());
+    // Reset mocks using helper
+    resetTestMocks();
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -370,7 +129,6 @@ void main() {
       _logger.i('$_tag Dummy test passed.');
     });
 
-    // TODO: Add actual MVT test case here
     // MVT: Create job locally, sync to mock server, verify status and serverId
     test(
       'should create a job locally and sync it successfully with the mock server',
@@ -382,7 +140,8 @@ void main() {
         // Arrange: Create a dummy audio file
         final dummyAudioFileName =
             'test_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
-        final dummyAudioFile = File('${_tempDir.path}/$dummyAudioFileName');
+        // Use _tempDir which is correctly initialized in setUpAll
+        final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio content');
         _logger.d('$_tag Created dummy audio file: ${dummyAudioFile.path}');
         expect(await dummyAudioFile.exists(), isTrue);
@@ -492,7 +251,8 @@ void main() {
         _logger.d('$_tag Arranging: Creating initial job...');
         final dummyAudioFileName =
             'update_test_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
-        final dummyAudioFile = File('${_tempDir.path}/$dummyAudioFileName');
+        // Use _tempDir
+        final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio content for update');
         expect(await dummyAudioFile.exists(), isTrue);
 
@@ -617,13 +377,15 @@ void main() {
         _logger.i('$_tag --- Test: Delete and Sync Job ---');
         final jobRepository = sl<JobRepository>();
         final localDataSource = sl<JobLocalDataSource>();
-        final mockFileSystem = sl<FileSystem>() as MockFileSystem;
+        final mockFileSystem =
+            sl<FileSystem>() as MockFileSystem; // Use the imported mock type
 
         // Arrange: Create, sync a job, and create its dummy file
         _logger.d('$_tag Arranging: Creating and syncing initial job...');
         final dummyAudioFileName =
             'delete_test_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
-        final dummyAudioFile = File('${_tempDir.path}/$dummyAudioFileName');
+        // Use _tempDir
+        final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio content for delete');
         final audioFilePath = dummyAudioFile.path;
         expect(await dummyAudioFile.exists(), isTrue);
