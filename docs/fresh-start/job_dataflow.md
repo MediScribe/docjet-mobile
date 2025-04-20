@@ -7,6 +7,7 @@ This document details the data flow architecture for the Job feature in DocJet M
 ## Table of Contents
 
 - [Key Architecture Decisions](#key-architecture-decisions)
+- [Directory Structure](#directory-structure)
 - [Job Feature Architecture Overview](#job-feature-architecture-overview)
 - [Job Data Layer Flow](#job-data-layer-flow)
 - [Job Creation, Update, and Sync Flow](#job-creation-update-and-sync-flow)
@@ -94,6 +95,46 @@ This document details the data flow architecture for the Job feature in DocJet M
    * Explicit sync triggering mechanism
    * App lifecycle aware (foreground/background transitions)
    * Compatible with platform-specific background workers
+
+## Directory Structure
+
+### Feature Location
+The Job feature is located at: `lib/features/jobs/` (plural)
+
+### Key Components
+- **Repository Interface**: `lib/features/jobs/domain/repositories/job_repository.dart`
+- **Repository Implementation**: `lib/features/jobs/data/repositories/job_repository_impl.dart`
+- **Domain Entities**: `lib/features/jobs/domain/entities/`
+  - `job.dart`
+  - `job_update_details.dart`
+  - `sync_status.dart`
+
+### Service Layer 
+All services located in: `lib/features/jobs/data/services/`
+- `job_sync_trigger_service.dart` - Periodic sync triggering
+- `job_sync_orchestrator_service.dart` - Orchestrates what to sync
+- `job_sync_processor_service.dart` - Handles API operations
+- `job_reader_service.dart` - Read operations
+- `job_writer_service.dart` - Write operations 
+- `job_deleter_service.dart` - Delete operations
+
+### Data Sources
+- **Local**: `lib/features/jobs/data/datasources/job_local_data_source.dart`
+- **Remote**: `lib/features/jobs/data/datasources/job_remote_data_source.dart`
+- **Implementations**:
+  - `lib/features/jobs/data/datasources/hive_job_local_data_source_impl.dart`
+  - `lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart`
+
+### Models and Mappers
+- **Models**: `lib/features/jobs/data/models/`
+  - `job_hive_model.dart`
+  - `job_api_dto.dart`
+- **Mappers**: `lib/features/jobs/data/mappers/job_mapper.dart`
+
+### Tests
+Test files are located at: `test/features/jobs/data/services/`
+- Each service has corresponding test files
+- Mock files are generated with `@GenerateMocks` annotations
 
 ## Job Feature Architecture Overview
 
