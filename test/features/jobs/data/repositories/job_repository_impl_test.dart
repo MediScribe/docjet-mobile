@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -52,7 +53,8 @@ void main() {
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   );
-  const tUpdateData = JobUpdateData(text: 'Updated text');
+  const tUpdateDetails = JobUpdateDetails(text: 'new text');
+  const tExpectedUpdateData = JobUpdateData(text: 'new text');
   final tJobList = [tJob];
 
   // --- Tests ---
@@ -108,25 +110,31 @@ void main() {
       verifyZeroInteractions(mockOrchestratorService);
     });
 
-    test('should delegate updateJob to JobWriterService', () async {
-      // Arrange
-      when(
-        mockWriterService.updateJob(
-          localId: anyNamed('localId'),
-          updates: anyNamed('updates'),
-        ),
-      ).thenAnswer((_) async => Right(tJob));
-      // Act
-      await repository.updateJob(localId: tLocalId, updates: tUpdateData);
-      // Assert
-      verify(
-        mockWriterService.updateJob(localId: tLocalId, updates: tUpdateData),
-      ).called(1);
-      verifyNoMoreInteractions(mockWriterService);
-      verifyZeroInteractions(mockReaderService);
-      verifyZeroInteractions(mockDeleterService);
-      verifyZeroInteractions(mockOrchestratorService);
-    });
+    test(
+      'should delegate updateJob to JobWriterService with mapped data',
+      () async {
+        // Arrange
+        when(
+          mockWriterService.updateJob(
+            localId: anyNamed('localId'),
+            updates: anyNamed('updates'),
+          ),
+        ).thenAnswer((_) async => Right(tJob));
+        // Act
+        await repository.updateJob(localId: tLocalId, updates: tUpdateDetails);
+        // Assert
+        verify(
+          mockWriterService.updateJob(
+            localId: tLocalId,
+            updates: tExpectedUpdateData,
+          ),
+        ).called(1);
+        verifyNoMoreInteractions(mockWriterService);
+        verifyZeroInteractions(mockReaderService);
+        verifyZeroInteractions(mockDeleterService);
+        verifyZeroInteractions(mockOrchestratorService);
+      },
+    );
 
     test('should delegate deleteJob to JobDeleterService', () async {
       // Arrange

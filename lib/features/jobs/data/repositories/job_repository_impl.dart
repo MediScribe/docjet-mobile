@@ -6,6 +6,7 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
@@ -66,12 +67,13 @@ class JobRepositoryImpl implements JobRepository {
   @override
   Future<Either<Failure, Job>> updateJob({
     required String localId,
-    required JobUpdateData updates,
+    required JobUpdateDetails updates,
   }) {
     _logger.d(
       '$_tag Delegating updateJob(localId: $localId, updates: ...) to JobWriterService...',
     );
-    return _writerService.updateJob(localId: localId, updates: updates);
+    final updateData = JobUpdateData(text: updates.text);
+    return _writerService.updateJob(localId: localId, updates: updateData);
   }
 
   // --- DELETE OPERATIONS ---

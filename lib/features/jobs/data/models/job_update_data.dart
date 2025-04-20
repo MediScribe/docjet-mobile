@@ -1,5 +1,8 @@
+import 'package:equatable/equatable.dart'; // Import Equatable
+
 /// Model class for job updates with explicit fields
-class JobUpdateData {
+class JobUpdateData extends Equatable {
+  // Extend Equatable
   final String? text;
   // TODO: Remove this once JobStatus is available or defined
   // final JobStatus? status;
@@ -15,4 +18,7 @@ class JobUpdateData {
   // Optional utility to check if instance has any non-null fields
   bool get hasChanges =>
       text != null /* || status != null */ || serverId != null;
+
+  @override // Add props for Equatable
+  List<Object?> get props => [text, serverId];
 }

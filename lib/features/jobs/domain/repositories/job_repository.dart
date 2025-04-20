@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
-import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 
 /// Manages job data including local persistence, remote sync, and CRUD operations.
 /// This is the single public interface for interacting with job data.
@@ -38,7 +38,7 @@ abstract class JobRepository {
   /// Returns [Left(Failure)] if the job is not found or if the update fails.
   Future<Either<Failure, Job>> updateJob({
     required String localId,
-    required JobUpdateData updates, // Use JobUpdateData instead of Map
+    required JobUpdateDetails updates,
   });
 
   /// --- DELETE OPERATIONS ---
