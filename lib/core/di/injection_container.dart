@@ -33,7 +33,6 @@ Future<void> init() async {
       writerService: sl(),
       deleterService: sl(),
       orchestratorService: sl<JobSyncOrchestratorService>(),
-      processorService: sl<JobSyncProcessorService>(),
     ),
   );
 

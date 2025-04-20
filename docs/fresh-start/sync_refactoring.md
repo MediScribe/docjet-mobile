@@ -115,11 +115,6 @@ This document outlines the steps to refactor the monolithic `JobSyncService` int
 
 -   **`JobRepositoryImpl Tests` (`job_repository_impl_test.dart`)**:
     -   Reflects incorrect dependencies: Mocks both orchestrator and processor.
-    -   **TODO:** Update mocks and setup to only use `JobSyncOrchestratorService`.
-    -   Incorrectly removed `syncPendingJobs` test.
-    -   **TODO:** Re-add `syncPendingJobs` test and verify delegation to `mockOrchestratorService`.
-    -   Test for `syncSingleJob` was removed (this is correct *only* after the method itself is removed).
-    -   **TODO:** Update `verifyZeroInteractions` in other tests after fixing dependencies.
     -   [x] **DONE:** Update mocks and setup to only use `JobSyncOrchestratorService`.
     -   [x] **DONE:** Re-add `syncPendingJobs` test and verify delegation to `mockOrchestratorService`.
     -   [x] **DONE:** Update `verifyZeroInteractions` in other tests after fixing dependencies.
@@ -128,8 +123,6 @@ This document outlines the steps to refactor the monolithic `JobSyncService` int
 -   **Integration Test (`job_lifecycle_test.dart`)**:
     -   Mocks updated to use `JobSyncOrchestratorService`.
     -   Verification for `syncPendingJobs` delegation to orchestrator is correct.
-    -   **TODO:** Instantiation of `JobRepositoryImpl` uses an inline, unconfigured `MockJobSyncProcessorService` due to incorrect repo dependencies. Fix repo, then remove processor mock from this test setup.
-    -   **TODO:** Remove manually defined `MockJobSyncProcessorService` class after fixing repo dependencies and mocks.
     -   **Integration Test (`job_lifecycle_test.dart`)**:
         -   Mocks updated to use `JobSyncOrchestratorService`.
         -   Verification for `syncPendingJobs` delegation to orchestrator is correct.
