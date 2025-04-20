@@ -126,7 +126,8 @@ final _router = Router()
   ..get('/api/v1/jobs', _listJobsHandler)
   ..get('/api/v1/jobs/<jobId>', _getJobByIdHandler)
   ..get('/api/v1/jobs/<jobId>/documents', _getJobDocumentsHandler)
-  ..patch('/api/v1/jobs/<jobId>', _updateJobHandler);
+  ..patch('/api/v1/jobs/<jobId>', _updateJobHandler)
+  ..delete('/api/v1/jobs/<jobId>', _deleteJobHandler);
 
 // Login handler logic
 Future<Response> _loginHandler(Request request) async {
@@ -722,6 +723,35 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
     jsonEncode({'data': responseData}),
     headers: {'content-type': 'application/json'},
   );
+}
+
+// Delete job handler
+Future<Response> _deleteJobHandler(Request request, String jobId) async {
+  if (_verboseLoggingEnabled) {
+    print('DEBUG: Delete job handler called for jobId: $jobId');
+  }
+
+  // Find the job index
+  final jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
+
+  if (jobIndex == -1) {
+    if (_verboseLoggingEnabled) {
+      print('DEBUG DELETE JOB: Job with id $jobId not found.');
+    }
+    return Response.notFound(
+      jsonEncode({'error': 'Job not found'}),
+      headers: {'content-type': 'application/json'},
+    );
+  }
+
+  // Remove the job
+  final removedJob = _jobs.removeAt(jobIndex);
+  if (_verboseLoggingEnabled) {
+    print('DEBUG DELETE JOB: Successfully removed job: ${removedJob['id']}');
+  }
+
+  // Return 204 No Content for successful deletion
+  return Response(HttpStatus.noContent);
 }
 
 // Main function now just adds the router, as middleware is applied per-route or globally
