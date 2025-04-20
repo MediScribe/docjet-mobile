@@ -1,160 +1,291 @@
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart'; // This import will fail initially
-import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
+import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+import 'package:flutter/material.dart'; // Combined Widgets/Material import is fine
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:dartz/dartz.dart';
-import 'package:fake_async/fake_async.dart'; // Import fake_async
 
+// Import the mock file that will be generated in this directory
 import 'job_sync_trigger_service_test.mocks.dart';
 
-@GenerateMocks([JobSyncOrchestratorService])
-void main() {
-  // Initialize binding for tests involving WidgetsBindingObserver
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  late MockJobSyncOrchestratorService mockOrchestratorService;
-  late JobSyncTriggerService service; // This will fail initially
-
-  setUp(() {
-    mockOrchestratorService = MockJobSyncOrchestratorService();
-    // Service instantiation will fail until the class exists
-    // service = JobSyncTriggerService(orchestratorService: mockOrchestratorService);
-  });
-
-  test(
-    'didChangeAppLifecycleState should trigger sync when state is resumed',
-    () async {
-      // Arrange
-      // Ensure orchestrator setup for verification with CORRECT return type
-      when(mockOrchestratorService.syncPendingJobs()).thenAnswer(
-        (_) async => const Right(unit),
-      ); // Return Future<Either<Failure, Unit>>
-
-      // TODO: Instantiate the service once it exists
-      service = JobSyncTriggerService(
-        orchestratorService: mockOrchestratorService,
-      );
-
-      // Act
-      // Simulate the lifecycle change - we'll assume a method like this exists
-      service.didChangeAppLifecycleState(AppLifecycleState.resumed);
-
-      // Assert
-      // Use verify Mocks correctly: Use verify(...) not verifyMocks(...)
-      verify(mockOrchestratorService.syncPendingJobs()).called(1);
-    },
+// Mock Timer class
+class MockTimer extends Mock implements Timer {
+  @override
+  bool get isActive => super.noSuchMethod(
+    Invocation.getter(#isActive),
+    returnValue: false,
+    returnValueForMissingStub: false,
   );
 
-  test(
-    'didChangeAppLifecycleState should NOT trigger sync when state is paused',
-    () async {
-      // Arrange
-      // No need to setup 'when' for syncPendingJobs as we expect it NOT to be called.
-      service = JobSyncTriggerService(
-        orchestratorService: mockOrchestratorService,
+  @override
+  void cancel() => super.noSuchMethod(Invocation.method(#cancel, []));
+}
+
+// Add the annotation to generate the correct mock
+@GenerateMocks([JobRepository])
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // Remove orchestrator mock variable
+  // late MockJobSyncOrchestratorService mockOrchestratorService;
+  late JobSyncTriggerService service;
+  late MockJobRepository mockJobRepository;
+  late MockTimer mockTimer; // Mock timer instance
+  late Function(Timer) capturedCallback; // Make nullable
+  late TimerFactory mockTimerFactory; // Mock factory function
+  const syncInterval = Duration(seconds: 15);
+
+  setUp(() {
+    // Remove orchestrator mock setup
+    // mockOrchestratorService = MockJobSyncOrchestratorService();
+    mockJobRepository = MockJobRepository();
+    mockTimer = MockTimer();
+
+    // Set up logging to capture logs
+    LoggerFactory.clearLogs();
+    LoggerFactory.setLogLevel(JobSyncTriggerService, Level.debug);
+
+    // Define the mock factory WITHOUT the expect inside
+    mockTimerFactory = (Duration duration, Function(Timer) callback) {
+      capturedCallback = callback;
+      // DO NOT expect() here - causes issues with test framework timing
+      return mockTimer;
+    };
+
+    // Instantiate service correctly
+    service = JobSyncTriggerService(
+      jobRepository: mockJobRepository,
+      syncInterval: syncInterval,
+      timerFactory: mockTimerFactory, // Inject the mock factory
+    );
+
+    // Ensure repository mock setup uses thenAnswer for async
+    when(
+      mockJobRepository.syncPendingJobs(),
+    ).thenAnswer((_) async => const Right(unit));
+
+    // Default stub for mock timer
+    when(mockTimer.cancel()).thenReturn(null);
+    when(mockTimer.isActive).thenReturn(false);
+  });
+
+  tearDown(() {
+    service.dispose();
+  });
+
+  // --- Group: Lifecycle Tests ---
+  group('Lifecycle Tests', () {
+    test('init should add observer and set initialization flag', () {
+      // Act
+      service.init();
+
+      // Assert - Check logs to confirm observer added
+      expect(
+        LoggerFactory.containsLog('Initializing and adding observer'),
+        isTrue,
       );
+    });
+
+    test('init should not add observer if already initialized', () {
+      // Arrange
+      service.init();
+      LoggerFactory.clearLogs();
 
       // Act
+      service.init();
+
+      // Assert - No new logs for initialization
+      expect(
+        LoggerFactory.containsLog('Initializing and adding observer'),
+        isFalse,
+      );
+    });
+
+    test('didChangeAppLifecycleState should trigger sync on resumed', () async {
+      // Arrange
+      service.init();
+      LoggerFactory.clearLogs();
+
+      // Act
+      service.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future.delayed(Duration.zero); // Allow async operations to complete
+
+      // Assert
+      verify(mockJobRepository.syncPendingJobs()).called(1);
+      expect(
+        LoggerFactory.containsLog(
+          'App resumed. Triggering sync and starting timer',
+        ),
+        isTrue,
+      );
+    });
+
+    test('didChangeAppLifecycleState should stop timer on paused', () {
+      // Arrange
+      service.init();
+      service.startTimer(); // Ensure _timer is assigned
+      when(mockTimer.isActive).thenReturn(true); // Now set the state
+
+      // Act
+      LoggerFactory.clearLogs(); // Clear logs RIGHT BEFORE the action
       service.didChangeAppLifecycleState(AppLifecycleState.paused);
 
       // Assert
-      verifyNever(mockOrchestratorService.syncPendingJobs());
-    },
-  );
-
-  // Add more tests later for inactive, detached, timer, etc.
-
-  test('startTimer should trigger sync periodically', () {
-    // Use fake_async to control time
-    fakeAsync((async) {
-      // Arrange
-      const timerDuration = Duration(seconds: 15); // Define sync interval
-      when(
-        mockOrchestratorService.syncPendingJobs(),
-      ).thenAnswer((_) async => const Right(unit));
-
-      service = JobSyncTriggerService(
-        orchestratorService: mockOrchestratorService,
-        // Explicitly pass the duration used in this test
-        syncInterval: timerDuration,
+      verify(mockTimer.cancel()).called(1); // Verify the core logic first
+      // Check the specific log AFTER the action
+      expect(
+        LoggerFactory.containsLog(
+          'App not resumed (AppLifecycleState.paused). Stopping sync timer',
+        ),
+        isTrue,
+        reason: 'Expected log message for paused state not found after action.',
       );
+    });
 
-      // Act
-      service.startTimer();
+    test('didChangeAppLifecycleState should do nothing if not initialized', () {
+      // Act - Call without initializing
+      service.didChangeAppLifecycleState(AppLifecycleState.resumed);
 
-      // Act: Advance time twice
-      async.elapse(timerDuration);
-      async.flushMicrotasks(); // Flush after first elapse
-      async.elapse(timerDuration);
-      async.flushMicrotasks(); // Flush after second elapse
-
-      // Assert: Should have been called exactly twice after two intervals
-      verify(mockOrchestratorService.syncPendingJobs()).called(2);
-
-      // Cleanup (important with fake_async)
-      service.stopTimer(); // Or dispose, ensure timer is cancelled
+      // Assert
+      verifyNever(mockJobRepository.syncPendingJobs());
     });
   });
 
-  test('stopTimer should cancel the periodic timer', () {
-    fakeAsync((async) {
-      // Arrange
-      const timerDuration = Duration(seconds: 15);
-      when(
-        mockOrchestratorService.syncPendingJobs(),
-      ).thenAnswer((_) async => const Right(unit));
+  // --- Group: Timer Control ---
+  group('Timer Control', () {
+    setUp(() {
+      // Initialize service before timer tests
+      service.init();
+      LoggerFactory.clearLogs();
+    });
 
-      service = JobSyncTriggerService(
-        orchestratorService: mockOrchestratorService,
-        syncInterval: timerDuration,
-      );
+    test('startTimer should stop existing timer and create new one', () {
+      // Arrange
+      // Simulate an existing timer being active FIRST
+      service.startTimer(); // Assigns the first mockTimer to _timer
+      when(mockTimer.isActive).thenReturn(true); // Make it active
+      clearInteractions(
+        mockTimer,
+      ); // Clear interactions from the first startTimer call
+
+      // Create a new mock timer for the *second* call
+      final newMockTimer = MockTimer();
+      when(
+        newMockTimer.isActive,
+      ).thenReturn(false); // The new timer isn't active initially
+      when(newMockTimer.cancel()).thenReturn(null);
+
+      // Adjust the factory to return the *new* timer on the next call
+      mockTimerFactory = (duration, callback) {
+        capturedCallback = callback;
+        return newMockTimer; // Return the *second* timer instance
+      };
+      // Re-inject the updated factory (or rebuild the service if easier, but this works)
+      // No need to rebuild service if factory is mutable like this, but keep in mind for complex cases.
 
       // Act
-      service.startTimer();
-      // Elapse some time, but less than the interval
-      async.elapse(timerDuration ~/ 2);
-      // Stop the timer before it fires
+      service
+          .startTimer(); // This should now call stopTimer (on the *first* mockTimer) then create the new one
+
+      // Assert
+      // Verify cancel was called on the *original* mockTimer
+      verify(mockTimer.cancel()).called(1);
+      expect(
+        LoggerFactory.containsLog('Starting sync timer with interval'),
+        isTrue,
+      );
+      // Optionally verify the new timer wasn't cancelled
+      verifyNever(newMockTimer.cancel());
+    });
+
+    test('stopTimer should cancel timer if active', () {
+      // Arrange
+      service.startTimer(); // Ensure _timer is assigned
+      when(mockTimer.isActive).thenReturn(true); // Make it active
+
+      // Act
       service.stopTimer();
-      // Elapse well past the original interval
-      async.elapse(timerDuration * 2);
-      // Flush any potential microtasks (though none should be scheduled)
-      async.flushMicrotasks();
 
       // Assert
-      // Verify sync was never called because timer was stopped
-      verifyNever(mockOrchestratorService.syncPendingJobs());
+      verify(mockTimer.cancel()).called(1);
+      expect(LoggerFactory.containsLog('Stopping sync timer'), isTrue);
+    });
+
+    test('stopTimer should do nothing if timer not active', () {
+      // Arrange
+      when(mockTimer.isActive).thenReturn(false);
+
+      // Act
+      service.stopTimer();
+
+      // Assert
+      verifyNever(mockTimer.cancel());
+    });
+
+    test('timer callback should trigger sync', () async {
+      // Arrange - Start timer and capture callback
+      service.startTimer();
+      LoggerFactory.clearLogs();
+
+      // Act - Simulate timer firing
+      capturedCallback(mockTimer);
+      await Future.delayed(Duration.zero); // Allow async operations
+
+      // Assert
+      verify(mockJobRepository.syncPendingJobs()).called(1);
+      expect(LoggerFactory.containsLog('Timer fired. Triggering sync'), isTrue);
+    });
+
+    test('timer callback should handle sync errors gracefully', () async {
+      // Arrange
+      when(
+        mockJobRepository.syncPendingJobs(),
+      ).thenAnswer((_) => Future.error(Exception('Test error')));
+      service.startTimer();
+      LoggerFactory.clearLogs();
+
+      // Act - Simulate timer firing with error
+      capturedCallback(mockTimer);
+      await Future.delayed(Duration.zero); // Allow async operations
+
+      // Assert - Should log error but not crash
+      expect(LoggerFactory.containsLog('Error during sync trigger'), isTrue);
     });
   });
 
-  test('dispose should cancel the periodic timer', () {
-    fakeAsync((async) {
+  // --- Group: Dispose Tests ---
+  group('Dispose', () {
+    test('dispose should remove observer and stop timer', () {
       // Arrange
-      const timerDuration = Duration(seconds: 15);
-      when(
-        mockOrchestratorService.syncPendingJobs(),
-      ).thenAnswer((_) async => const Right(unit));
-
-      service = JobSyncTriggerService(
-        orchestratorService: mockOrchestratorService,
-        syncInterval: timerDuration,
-      );
+      service.startTimer(); // Ensure _timer is assigned
+      when(mockTimer.isActive).thenReturn(true); // Make it active
 
       // Act
-      service.startTimer();
-      // Elapse some time, but less than the interval
-      async.elapse(timerDuration ~/ 2);
-      // Dispose the service before timer fires
       service.dispose();
-      // Elapse well past the original interval
-      async.elapse(timerDuration * 2);
-      // Flush any potential microtasks
-      async.flushMicrotasks();
 
       // Assert
-      // Verify sync was never called because service was disposed
-      verifyNever(mockOrchestratorService.syncPendingJobs());
+      verify(mockTimer.cancel()).called(1);
+      expect(LoggerFactory.containsLog('Disposing'), isTrue);
+    });
+
+    test('dispose should not cancel timer if not active', () {
+      // Arrange
+      service.startTimer(); // Ensure _timer is assigned
+      when(mockTimer.isActive).thenReturn(false); // Ensure it's not active
+
+      // Act
+      service.dispose(); // This calls stopTimer internally
+
+      // Assert
+      verifyNever(mockTimer.cancel());
     });
   });
 }
+
+// Remove definitions for Right and unit if they come from dartz package
+// class Right<R> { ... }
+// const unit = null;
