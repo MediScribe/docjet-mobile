@@ -128,3 +128,17 @@ This document outlines the steps to refactor the monolithic `JobSyncService` int
         -   Verification for `syncPendingJobs` delegation to orchestrator is correct.
         -   [x] **DONE:** Instantiation of `JobRepositoryImpl` fixed to reflect corrected repo dependencies.
         -   [x] **DONE:** Remove manually defined `MockJobSyncProcessorService` class.
+
+## Outstanding Tasks
+
+-   [ ] **Implement `resetFailedJob`:**
+    -   Add `resetFailedJob(String localId)` method to `JobSyncOrchestratorService`.
+    -   Implement logic in the orchestrator to fetch the job, check if its status is `SyncStatus.failed`.
+    -   If failed, update the job's status to `SyncStatus.pending`, reset `retryCount` to 0, and clear `lastSyncAttemptAt` via `JobLocalDataSource.saveJob`.
+    -   Update `JobRepositoryImpl.resetFailedJob` to correctly delegate to the orchestrator method.
+    -   Add corresponding tests for `resetFailedJob` in `job_sync_orchestrator_service_test.dart` (success and failure cases, e.g., job not found, job not in failed state).
+-   [ ] **Update Architecture Document (`job_dataflow.md`):**
+    -   Reflect the split of `JobSyncService` into `JobSyncOrchestratorService` and `JobSyncProcessorService` in diagrams and descriptions.
+    -   Remove `syncSingleJob` from the `JobRepository` interface definition.
+    -   Clarify that backoff eligibility check happens in `LocalDataSource`, while status updates happen in the `ProcessorService`.
+    -   Ensure `resetFailedJob` is correctly represented in the repository interface.
