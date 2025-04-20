@@ -66,6 +66,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+  test: any # Add the test package for integration_test
 
   # Dev Dependencies from old project
   mockito: ^5.4.5 # Using latest stable
@@ -98,6 +101,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
   connectivity_plus_platform_interface: any
+  flutter_driver:
+    sdk: flutter
 flutter:
 
   # The following line ensures that the Material Icons font is

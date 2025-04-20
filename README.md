@@ -168,3 +168,29 @@ The project includes integration tests that use a mock API server to simulate th
 - **Supported endpoints:** auth/login, jobs (GET/POST/PATCH), jobs/:id, jobs/:id/documents
 
 For more details on the available API endpoints, check the mock server implementation in `mock_api_server/bin/server.dart`.
+
+### End-to-End (E2E) Tests (integration_test)
+
+These tests drive the actual application UI on a device or emulator, interacting with widgets like a real user would. They use the `integration_test` package and require a mock backend for reliable execution.
+
+#### Running E2E Tests
+
+We use a wrapper script to handle the mock server lifecycle, as direct process management from tests is restricted on some platforms (like iOS).
+
+1.  **Ensure a device or emulator is running and connected.** You can check with `flutter devices`.
+
+2.  **Make the script executable (if you haven't already):**
+    ```bash
+    chmod +x ./run_e2e_tests.sh
+    ```
+
+3.  **Run the E2E tests using the script:**
+    ```bash
+    ./run_e2e_tests.sh
+    ```
+    This script will:
+    *   Start the `mock_api_server` in the background.
+    *   Run the `flutter test integration_test/app_test.dart` command.
+    *   Automatically stop the mock server when tests are complete (or if the script fails).
+
+*Note: Ensure the main app (`lib/main.dart`) is configured to use the mock server URL (`http://localhost:8080`) when these tests run. This typically involves checking environment variables or using compile-time definitions.* 

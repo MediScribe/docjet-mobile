@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
 
+// Define the key for the compile-time environment variable
+const String _apiKeyEnvVar = 'API_KEY';
+
 Future<void> main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
-  await dotenv.load(fileName: '.env');
+  // --- Get API Key from compile-time environment variables ---
+  const String apiKey = String.fromEnvironment(_apiKeyEnvVar);
+  if (apiKey.isEmpty) {
+    // Throw a more informative error if the API key is missing
+    throw Exception(
+      'API_KEY is missing. Ensure it is provided via --dart-define=API_KEY=YOUR_API_KEY',
+    );
+  }
+  // ---------------------------------------------------------
 
   // Initialize the auth credentials provider
   final secureStorage = const FlutterSecureStorage();
