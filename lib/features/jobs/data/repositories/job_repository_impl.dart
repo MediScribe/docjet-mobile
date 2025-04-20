@@ -55,13 +55,18 @@ class JobRepositoryImpl implements JobRepository {
 
   @override
   Future<Either<Failure, Job>> createJob({
+    required String userId,
     required String audioFilePath,
     String? text,
   }) {
     _logger.d(
-      '$_tag Delegating createJob(audioFilePath: $audioFilePath, text: $text) to JobWriterService...',
+      '$_tag createJob called with audioFilePath: $audioFilePath, text: $text',
     );
-    return _writerService.createJob(audioFilePath: audioFilePath, text: text);
+    return _writerService.createJob(
+      userId: userId,
+      audioFilePath: audioFilePath,
+      text: text,
+    );
   }
 
   @override

@@ -386,6 +386,7 @@ void main() {
         // Act: Create the job locally
         _logger.i('$_tag Creating job locally...');
         final createResult = await jobRepository.createJob(
+          userId: 'test-user-id-123',
           audioFilePath: dummyAudioFile.path,
           text: 'Initial test text',
         );

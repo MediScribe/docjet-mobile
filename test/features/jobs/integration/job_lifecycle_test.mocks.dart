@@ -117,6 +117,7 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> createJob({
+    required String? userId,
     required String? audioFilePath,
     String? text,
   }) =>
@@ -125,6 +126,7 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
           #createJob,
           [],
           {
+            #userId: userId,
             #audioFilePath: audioFilePath,
             #text: text,
           },
@@ -136,6 +138,7 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             #createJob,
             [],
             {
+              #userId: userId,
               #audioFilePath: audioFilePath,
               #text: text,
             },

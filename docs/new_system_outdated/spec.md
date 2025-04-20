@@ -327,6 +327,12 @@ This dual-token system ensures user identity and service-level trust.
     - `audio_file`: file (required)
     - `text`: string (optional)
     - `additional_text`: string (optional)
+    - **ATTENTION: Hard Bob Note**
+    - The 'user_id' field is marked as required here, but the current mobile implementation
+    - assumes the backend derives the user ID from the JWT and does NOT send this field
+    - in the form data. Verify the backend's actual requirement and update either
+    - the spec or the mobile implementation for consistency.
+    - **END ATTENTION**
 - **Response:**
 
 ```json

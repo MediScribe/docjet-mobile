@@ -27,6 +27,7 @@ abstract class JobRepository {
   /// Returns [Right(Job)] containing the newly created job object on success.
   /// Returns [Left(Failure)] if the creation process fails (e.g., cache error).
   Future<Either<Failure, Job>> createJob({
+    required String userId,
     required String audioFilePath,
     String? text,
   });

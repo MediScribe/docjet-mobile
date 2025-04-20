@@ -54,6 +54,7 @@ void main() {
 
           // Act
           final result = await service.createJob(
+            userId: 'user123',
             audioFilePath: tAudioPath,
             text: tText,
           );
@@ -111,6 +112,7 @@ void main() {
 
           // Act
           final result = await service.createJob(
+            userId: 'user123',
             audioFilePath: tAudioPath,
             text: tText,
           );

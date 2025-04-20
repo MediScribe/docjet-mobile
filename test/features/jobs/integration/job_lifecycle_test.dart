@@ -139,7 +139,11 @@ void main() {
 
         // Create Job
         when(
-          mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
+          mockWriterService.createJob(
+            userId: 'integration-test-user',
+            audioFilePath: audioPath,
+            text: jobText,
+          ),
         ).thenAnswer((_) async => Right(initialJob));
 
         // Sync (All sync logic is delegated to JobSyncOrchestratorService now)
@@ -161,12 +165,17 @@ void main() {
 
         // 1. Create Job
         final createResult = await repository.createJob(
+          userId: 'integration-test-user',
           audioFilePath: audioPath,
           text: jobText,
         );
         expect(createResult, Right(initialJob));
         verify(
-          mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
+          mockWriterService.createJob(
+            userId: 'integration-test-user',
+            audioFilePath: audioPath,
+            text: jobText,
+          ),
         ).called(1);
 
         // 2. Initial Sync

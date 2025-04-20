@@ -94,15 +94,24 @@ void main() {
       // Arrange
       when(
         mockWriterService.createJob(
+          userId: anyNamed('userId'),
           audioFilePath: anyNamed('audioFilePath'),
           text: anyNamed('text'),
         ),
       ).thenAnswer((_) async => Right(tJob));
       // Act
-      await repository.createJob(audioFilePath: tAudioPath, text: tText);
+      await repository.createJob(
+        userId: 'test-user-id',
+        audioFilePath: tAudioPath,
+        text: tText,
+      );
       // Assert
       verify(
-        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+        mockWriterService.createJob(
+          userId: 'test-user-id',
+          audioFilePath: tAudioPath,
+          text: tText,
+        ),
       ).called(1);
       verifyNoMoreInteractions(mockWriterService);
       verifyZeroInteractions(mockReaderService);

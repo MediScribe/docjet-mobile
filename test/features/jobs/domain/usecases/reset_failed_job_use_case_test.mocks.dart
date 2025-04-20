@@ -96,6 +96,7 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> createJob({
+    required String? userId,
     required String? audioFilePath,
     String? text,
   }) =>
@@ -104,6 +105,7 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
           #createJob,
           [],
           {
+            #userId: userId,
             #audioFilePath: audioFilePath,
             #text: text,
           },
@@ -115,6 +117,7 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
             #createJob,
             [],
             {
+              #userId: userId,
               #audioFilePath: audioFilePath,
               #text: text,
             },
@@ -128,6 +131,7 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
             #createJob,
             [],
             {
+              #userId: userId,
               #audioFilePath: audioFilePath,
               #text: text,
             },

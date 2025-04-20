@@ -69,7 +69,7 @@ class JobSyncProcessorService {
       }
 
       final updatedJob = job.copyWith(
-        serverId: remoteJob.serverId ?? job.serverId,
+        serverId: remoteJob.serverId,
         syncStatus: SyncStatus.synced,
         status: remoteJob.status,
         displayTitle: remoteJob.displayTitle ?? job.displayTitle,

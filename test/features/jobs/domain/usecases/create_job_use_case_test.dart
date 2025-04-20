@@ -18,25 +18,30 @@ void main() {
     useCase = CreateJobUseCase(mockJobRepository);
   });
 
-  const tAudioPath = '/path/to/new_audio.mp4';
+  const tAudioFilePath = '/path/to/new_audio.mp4';
   const tText = 'This is the transcript text.';
+  const tUserId = 'test-user-123';
 
   // Expected result after successful creation (example)
   final tCreatedJob = Job(
-    localId: 'new-uuid-generated-by-repo', // Repo generates this
+    localId: 'new-uuid-generated-by-repo',
     serverId: null,
-    userId: 'user-who-created',
+    userId: tUserId,
     status: JobStatus.created,
     syncStatus: SyncStatus.pending,
     text: tText,
-    audioFilePath: tAudioPath,
-    createdAt: DateTime.now(), // Actual values will vary slightly
+    audioFilePath: tAudioFilePath,
+    createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
     retryCount: 0,
     lastSyncAttemptAt: null,
   );
 
-  final tParams = CreateJobParams(audioFilePath: tAudioPath, text: tText);
+  final tParams = CreateJobParams(
+    userId: tUserId,
+    audioFilePath: tAudioFilePath,
+    text: tText,
+  );
 
   test(
     'should call repository to create job and return the created job',
@@ -44,6 +49,7 @@ void main() {
       // Arrange
       when(
         mockJobRepository.createJob(
+          userId: anyNamed('userId'),
           audioFilePath: anyNamed('audioFilePath'),
           text: anyNamed('text'),
         ),
@@ -55,7 +61,11 @@ void main() {
       // Assert
       expect(result, Right(tCreatedJob));
       verify(
-        mockJobRepository.createJob(audioFilePath: tAudioPath, text: tText),
+        mockJobRepository.createJob(
+          userId: tUserId,
+          audioFilePath: tAudioFilePath,
+          text: tText,
+        ),
       );
       verifyNoMoreInteractions(mockJobRepository);
     },
@@ -66,6 +76,7 @@ void main() {
     const tFailure = CacheFailure('Failed to save job locally');
     when(
       mockJobRepository.createJob(
+        userId: anyNamed('userId'),
         audioFilePath: anyNamed('audioFilePath'),
         text: anyNamed('text'),
       ),
@@ -76,7 +87,60 @@ void main() {
 
     // Assert
     expect(result, const Left(tFailure));
-    verify(mockJobRepository.createJob(audioFilePath: tAudioPath, text: tText));
+    verify(
+      mockJobRepository.createJob(
+        userId: tUserId,
+        audioFilePath: tAudioFilePath,
+        text: tText,
+      ),
+    );
+    verifyNoMoreInteractions(mockJobRepository);
+  });
+
+  test('should create a job via the repository', () async {
+    // Arrange
+    const tAudioFilePath = 'path/to/audio.mp3';
+    const tText = 'Initial text';
+    const tUserId = 'user-id-test';
+    final tJob = Job(
+      localId: 'uuid',
+      userId: tUserId,
+      status: JobStatus.created,
+      syncStatus: SyncStatus.pending,
+      text: tText,
+      audioFilePath: tAudioFilePath,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      retryCount: 0,
+      lastSyncAttemptAt: null,
+    );
+
+    when(
+      mockJobRepository.createJob(
+        userId: anyNamed('userId'),
+        audioFilePath: anyNamed('audioFilePath'),
+        text: anyNamed('text'),
+      ),
+    ).thenAnswer((_) async => Right(tJob));
+
+    // Act
+    final result = await useCase(
+      const CreateJobParams(
+        userId: tUserId,
+        audioFilePath: tAudioFilePath,
+        text: tText,
+      ),
+    );
+
+    // Assert
+    expect(result, Right(tJob));
+    verify(
+      mockJobRepository.createJob(
+        userId: tUserId,
+        audioFilePath: tAudioFilePath,
+        text: tText,
+      ),
+    );
     verifyNoMoreInteractions(mockJobRepository);
   });
 }

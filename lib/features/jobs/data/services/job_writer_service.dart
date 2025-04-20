@@ -29,6 +29,7 @@ class JobWriterService {
   /// Returns [Right] with the created [Job] on success.
   /// Returns [Left] with a [CacheFailure] on exception.
   Future<Either<Failure, Job>> createJob({
+    required String userId,
     required String audioFilePath,
     String? text,
   }) async {
@@ -39,7 +40,7 @@ class JobWriterService {
       final job = Job(
         localId: localId,
         serverId: null, // No server ID on creation
-        userId: '', // TODO: Figure out where userId comes from
+        userId: userId,
         status: JobStatus.created, // Initial status
         syncStatus: SyncStatus.pending, // Needs sync
         displayTitle: '', // TODO: Define how displayTitle is set initially

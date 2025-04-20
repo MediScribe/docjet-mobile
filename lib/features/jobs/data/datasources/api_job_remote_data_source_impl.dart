@@ -122,7 +122,11 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       }
 
       return Job(
-        localId: safeCast<String>(json['id'], 'id'),
+        localId: '', // Or null. Local ID is not returned by GET endpoints.
+        serverId: safeCast<String>(
+          json['id'],
+          'id',
+        ), // API 'id' IS the serverId
         userId: safeCast<String>(json['user_id'], 'user_id'),
         // Use JobMapper to convert the status string to the enum
         status: JobMapper.stringToJobStatus(json['job_status'] as String?),
@@ -351,7 +355,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     String? text,
     String? additionalText,
   }) async {
-    const String endpoint = '/jobs';
+    const String endpoint = '/api/v1/jobs';
     _logger.d(
       '$_tag Creating job for user $userId with audio $audioFilePath at $endpoint',
     );
@@ -388,10 +392,16 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         // Manually map the response JSON to a Job entity
         // TODO: Consider using JobApiDTO and JobMapper here for consistency
         try {
+          // IMPORTANT: When creating, the Job returned should represent the SERVER state,
+          // but we DON'T have the original localId here. This function's return value
+          // should probably only contain the fields returned by the server.
+          // The SyncProcessorService will use this data to update the original local Job.
           return Job(
-            localId: jobData['id'] as String,
+            // DO NOT use jobData['id'] as localId. LocalId is client-generated.
+            // Leave localId empty or null here, as this Job represents the remote state.
+            localId: '', // Or null
+            serverId: jobData['id'] as String, // API 'id' IS the serverId
             userId: jobData['user_id'] as String,
-            // Use JobMapper to convert the status string to the enum
             status: JobMapper.stringToJobStatus(
               jobData['job_status'] as String?,
             ),
