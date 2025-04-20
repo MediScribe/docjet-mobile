@@ -1,3 +1,5 @@
+import 'dart:async'; // Import async for Timer
+
 import 'package:flutter/material.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 
@@ -7,13 +9,17 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
 /// trigger the synchronization of pending jobs via the [JobSyncOrchestratorService].
 class JobSyncTriggerService with WidgetsBindingObserver {
   final JobSyncOrchestratorService _orchestratorService;
-  // Timer field will be added later when we test timer logic
-  // Timer? _timer;
+  final Duration _syncInterval;
+  Timer? _timer;
+
+  // Define default interval
+  static const defaultSyncInterval = Duration(seconds: 15);
 
   JobSyncTriggerService({
     required JobSyncOrchestratorService orchestratorService,
-  }) : _orchestratorService = orchestratorService {
-    // Register observer in constructor or an init method
+    Duration syncInterval = defaultSyncInterval,
+  }) : _orchestratorService = orchestratorService,
+       _syncInterval = syncInterval {
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -35,21 +41,30 @@ class JobSyncTriggerService with WidgetsBindingObserver {
 
   /// Starts the periodic sync timer.
   void startTimer() {
-    // Implementation to be added and tested later
-    debugPrint('[JobSyncTriggerService] Starting sync timer (placeholder).');
+    // Ensure we don't start multiple timers
+    stopTimer();
+    debugPrint(
+      '[JobSyncTriggerService] Starting sync timer with interval $_syncInterval.',
+    );
+    _timer = Timer.periodic(_syncInterval, (_) {
+      debugPrint('[JobSyncTriggerService] Timer fired. Triggering sync.');
+      _orchestratorService.syncPendingJobs();
+    });
   }
 
   /// Stops the periodic sync timer.
   void stopTimer() {
-    // Implementation to be added and tested later
-    debugPrint('[JobSyncTriggerService] Stopping sync timer (placeholder).');
+    if (_timer?.isActive ?? false) {
+      debugPrint('[JobSyncTriggerService] Stopping sync timer.');
+      _timer?.cancel();
+      _timer = null;
+    }
   }
 
-  /// Cleans up resources, like removing the lifecycle observer.
+  /// Cleans up resources, like removing the lifecycle observer and stopping the timer.
   void dispose() {
+    debugPrint('[JobSyncTriggerService] Disposing.');
     WidgetsBinding.instance.removeObserver(this);
-    // Timer cancellation will be added later
-    // _timer?.cancel();
-    debugPrint('[JobSyncTriggerService] Disposed.');
+    stopTimer(); // Call stopTimer to cancel any active timer
   }
 }
