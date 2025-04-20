@@ -7,6 +7,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 // REMOVE import 'package:docjet_mobile/core/platform/file_system.dart';
 // import 'dart:io' show FileSystemException; // Not needed if mocking
@@ -128,6 +129,12 @@ void main() {
           syncStatus: SyncStatus.pending, // Status after update
         );
 
+        // Define both domain and data objects for clarity in the test
+        final JobUpdateDetails updateDetails = JobUpdateDetails(
+          text: updatedText,
+        );
+        final JobUpdateData updateData = JobUpdateData(text: updatedText);
+
         // --- Mock Service Behaviors ---
 
         // Create Job
@@ -141,7 +148,6 @@ void main() {
         ).thenAnswer((_) async => const Right(unit));
 
         // Update Job
-        const updateData = JobUpdateData(text: updatedText);
         when(
           mockWriterService.updateJob(localId: localId, updates: updateData),
         ).thenAnswer((_) async => Right(updatedJobPending));
@@ -173,7 +179,7 @@ void main() {
         // 3. Update Job
         final updateResult = await repository.updateJob(
           localId: localId,
-          updates: updateData, // Use JobUpdateData object
+          updates: updateDetails, // Pass the DOMAIN object here
         );
         expect(updateResult, Right(updatedJobPending));
         verify(
