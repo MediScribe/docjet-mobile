@@ -4,23 +4,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 
-import 'hive_job_local_data_source_impl_test.mocks.dart';
+import 'hive_job_local_data_source_impl_metadata_test.mocks.dart';
 
 // Generate mocks for HiveInterface and Box
 @GenerateMocks([HiveInterface, Box])
 void main() {
   late MockHiveInterface mockHiveInterface;
   late MockBox<dynamic> mockMetadataBox;
+  late MockBox<JobHiveModel> mockJobsBox;
   late HiveJobLocalDataSourceImpl dataSource;
 
   const String metadataBoxName = HiveJobLocalDataSourceImpl.metadataBoxName;
   const String metadataTimestampKey =
       HiveJobLocalDataSourceImpl.metadataTimestampKey;
+  const String jobsBoxName = HiveJobLocalDataSourceImpl.jobsBoxName;
 
   setUp(() {
     mockHiveInterface = MockHiveInterface();
     mockMetadataBox = MockBox<dynamic>();
+    mockJobsBox = MockBox<JobHiveModel>();
     dataSource = HiveJobLocalDataSourceImpl(hive: mockHiveInterface);
 
     // Setup only for Metadata Box
@@ -31,11 +35,45 @@ void main() {
     when(
       mockHiveInterface.openBox<dynamic>(metadataBoxName),
     ).thenAnswer((_) async => mockMetadataBox);
+
+    // Default stub for metadata box get - return null
+    when(mockMetadataBox.get(any)).thenReturn(null);
+
+    // Stubbing Hive box interactions
+    when(mockHiveInterface.isBoxOpen(jobsBoxName)).thenReturn(true);
+    when(
+      mockHiveInterface.box<JobHiveModel>(jobsBoxName),
+    ).thenReturn(mockJobsBox);
   });
 
   group('getLastFetchTime', () {
+    test(
+      'should return null when the metadata box is empty or key does not exist',
+      () async {
+        // Arrange: Ensure the mock box returns null for the specific key
+        when(mockMetadataBox.get(metadataTimestampKey)).thenReturn(null);
+
+        // Act
+        final result = await dataSource.getLastFetchTime();
+
+        // Assert
+        expect(result, isNull);
+        // Verify the interaction with the box, but allow isBoxOpen check
+        verify(mockHiveInterface.isBoxOpen(metadataBoxName)); // Allow this call
+        verify(mockHiveInterface.box<dynamic>(metadataBoxName));
+        verify(mockMetadataBox.get(metadataTimestampKey));
+        verifyNoMoreInteractions(mockMetadataBox);
+        // Optionally, verify no *other* interactions with mockHiveInterface if needed,
+        // but be precise about what is expected.
+      },
+    );
+
     final tTimestamp = DateTime.now().millisecondsSinceEpoch;
-    final tDateTime = DateTime.fromMillisecondsSinceEpoch(tTimestamp);
+    // Ensure the expected DateTime is also UTC to match implementation
+    final tDateTimeUtc = DateTime.fromMillisecondsSinceEpoch(
+      tTimestamp,
+      isUtc: true,
+    );
 
     test('should return DateTime from cache when there is one', () async {
       // Arrange
@@ -43,17 +81,10 @@ void main() {
       // Act
       final result = await dataSource.getLastFetchTime();
       // Assert
-      expect(result, equals(tDateTime));
-      verify(mockMetadataBox.get(metadataTimestampKey));
-    });
-
-    test('should return null when there is no timestamp in cache', () async {
-      // Arrange
-      when(mockMetadataBox.get(metadataTimestampKey)).thenReturn(null);
-      // Act
-      final result = await dataSource.getLastFetchTime();
-      // Assert
-      expect(result, isNull);
+      expect(result, equals(tDateTimeUtc)); // Compare against UTC DateTime
+      // Verify necessary interactions
+      verify(mockHiveInterface.isBoxOpen(metadataBoxName));
+      verify(mockHiveInterface.box<dynamic>(metadataBoxName));
       verify(mockMetadataBox.get(metadataTimestampKey));
     });
 

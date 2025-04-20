@@ -10,7 +10,7 @@ import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-import 'hive_job_local_data_source_impl_test.mocks.dart';
+import 'hive_job_local_data_source_impl_entity_test.mocks.dart';
 
 // Generate mocks for HiveInterface and Box
 @GenerateMocks([HiveInterface, Box])
@@ -240,7 +240,6 @@ void main() {
 
   group('getJobsByStatus', () {
     final tPendingStatus = SyncStatus.pending;
-    final tSyncedStatus = SyncStatus.synced;
 
     // Use existing models from setup
     final pendingJobModel = job1HiveModel;
@@ -302,6 +301,48 @@ void main() {
 
       // Assert
       await expectLater(call, throwsA(isA<CacheException>()));
+      verify(mockJobsBox.values);
+    });
+
+    test('should retrieve jobs with pending status', () async {
+      // Arrange
+      final tPendingStatus = SyncStatus.pending;
+      // Use existing models from setup
+      final models = [
+        job1HiveModel,
+        job2HiveModel,
+      ]; // job1 is pending, job2 is synced
+      when(mockJobsBox.values).thenReturn(models);
+      final expectedResult = [JobMapper.fromHiveModel(job1HiveModel)];
+
+      // Act
+      final result = await dataSource.getJobsByStatus(tPendingStatus);
+
+      // Assert
+      expect(result.length, 1);
+      expect(result, equals(expectedResult));
+      expect(result.first.syncStatus, tPendingStatus);
+      verify(mockJobsBox.values);
+    });
+
+    test('should retrieve jobs with synced status', () async {
+      // Arrange
+      final tSyncedStatus = SyncStatus.synced;
+      // Use existing models from setup
+      final models = [
+        job1HiveModel,
+        job2HiveModel,
+      ]; // job1 is pending, job2 is synced
+      when(mockJobsBox.values).thenReturn(models);
+      final expectedResult = [JobMapper.fromHiveModel(job2HiveModel)];
+
+      // Act
+      final result = await dataSource.getJobsByStatus(tSyncedStatus);
+
+      // Assert
+      expect(result.length, 1);
+      expect(result, equals(expectedResult));
+      expect(result.first.syncStatus, tSyncedStatus);
       verify(mockJobsBox.values);
     });
   });

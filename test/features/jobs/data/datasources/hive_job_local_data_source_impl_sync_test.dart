@@ -6,22 +6,53 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 
 import 'hive_job_local_data_source_impl_sync_test.mocks.dart';
 
 // Generate mocks for HiveInterface and Box
-@GenerateMocks([HiveInterface, Box, JobHiveModel]) // Add JobHiveModel mock
+@GenerateMocks([HiveInterface, Box])
+// Needs to be outside the main function
+// We need a separate mock class for JobHiveModel because it extends HiveObject
+// and we need to mock its methods like save() and properties like isInBox.
+@GenerateMocks([], customMocks: [MockSpec<JobHiveModel>(as: #MockJobHiveModel)])
 void main() {
   late MockHiveInterface mockHiveInterface;
   late MockBox<JobHiveModel> mockJobsBox;
   late HiveJobLocalDataSourceImpl dataSource;
+
+  // Helper to create test models
+  JobHiveModel createTestJobHiveModel({
+    required String localId,
+    required SyncStatus syncStatus,
+    String? serverId,
+    int? retryCount,
+    String? lastSyncAttemptAt,
+    JobStatus status = JobStatus.submitted,
+    String userId = 'test-user',
+    String createdAt = '2023-01-01T10:00:00Z',
+    String? updatedAt,
+  }) {
+    return JobHiveModel(
+      localId: localId,
+      serverId: serverId,
+      syncStatus: syncStatus.index,
+      retryCount: retryCount,
+      lastSyncAttemptAt: lastSyncAttemptAt,
+      status: status.index,
+      userId: userId,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? createdAt,
+    );
+  }
 
   setUp(() {
     mockHiveInterface = MockHiveInterface();
     mockJobsBox = MockBox<JobHiveModel>();
     dataSource = HiveJobLocalDataSourceImpl(hive: mockHiveInterface);
 
-    // Setup only for Jobs Box
     when(
       mockHiveInterface.isBoxOpen(HiveJobLocalDataSourceImpl.jobsBoxName),
     ).thenReturn(true);
@@ -35,46 +66,55 @@ void main() {
         HiveJobLocalDataSourceImpl.jobsBoxName,
       ),
     ).thenAnswer((_) async => mockJobsBox);
+
+    // Default behavior for get/put/delete for update tests
+    when(mockJobsBox.get(any)).thenReturn(null);
+    when(
+      mockJobsBox.put(any, any),
+    ).thenAnswer((_) async => Future<void>.value());
+    when(mockJobsBox.delete(any)).thenAnswer((_) async => Future<void>.value());
   });
 
-  // --- Test Data ---
-  final jobPending = JobHiveModel(
-    localId: 'pending1',
-    syncStatus: SyncStatus.pending.index,
-  );
-  final jobSynced = JobHiveModel(
-    localId: 'synced1',
-    serverId: 'server1', // Must have serverId
-    syncStatus: SyncStatus.synced.index,
-  );
-  final jobError = JobHiveModel(
-    localId: 'error1',
-    syncStatus: SyncStatus.error.index,
-  );
-  final jobSyncedNoServerId = JobHiveModel(
-    localId: 'synced2',
-    serverId: null, // Missing serverId
-    syncStatus: SyncStatus.synced.index,
-  );
-
-  final allJobs = [jobPending, jobSynced, jobError, jobSyncedNoServerId];
-
   group('getJobsToSync', () {
-    test('should return only jobs with pending sync status', () async {
+    final pendingModel = createTestJobHiveModel(
+      localId: '1',
+      syncStatus: SyncStatus.pending,
+    );
+    final syncedModel = createTestJobHiveModel(
+      localId: '2',
+      syncStatus: SyncStatus.synced,
+      serverId: 'server-2',
+    );
+    final errorModel = createTestJobHiveModel(
+      localId: '3',
+      syncStatus: SyncStatus.error,
+      retryCount: 1,
+    );
+
+    final allModels = [pendingModel, syncedModel, errorModel];
+    final expectedPendingJob = JobMapper.fromHiveModel(pendingModel);
+
+    test(
+      'should return a list of Job entities with pending sync status',
+      () async {
+        // Arrange
+        when(mockJobsBox.values).thenReturn(allModels);
+
+        // Act
+        final result = await dataSource.getJobsToSync();
+
+        // Assert
+        expect(result, isA<List<Job>>());
+        expect(result.length, 1);
+        expect(result.first.localId, expectedPendingJob.localId);
+        expect(result.first.syncStatus, SyncStatus.pending);
+        verify(mockJobsBox.values);
+      },
+    );
+
+    test('should return an empty list when no jobs are pending sync', () async {
       // Arrange
-      when(mockJobsBox.values).thenReturn(allJobs);
-
-      // Act
-      final result = await dataSource.getJobsToSync();
-
-      // Assert
-      expect(result, equals([jobPending]));
-      verify(mockJobsBox.values);
-    });
-
-    test('should return empty list if no jobs are pending', () async {
-      // Arrange
-      when(mockJobsBox.values).thenReturn([jobSynced, jobError]);
+      when(mockJobsBox.values).thenReturn([syncedModel, errorModel]);
 
       // Act
       final result = await dataSource.getJobsToSync();
@@ -86,11 +126,9 @@ void main() {
 
     test('should throw CacheException when Hive call fails', () async {
       // Arrange
-      when(mockJobsBox.values).thenThrow(Exception('Hive error'));
-
+      when(mockJobsBox.values).thenThrow(Exception('Hive failed'));
       // Act
       final call = dataSource.getJobsToSync();
-
       // Assert
       await expectLater(call, throwsA(isA<CacheException>()));
       verify(mockJobsBox.values);
@@ -98,172 +136,216 @@ void main() {
   });
 
   group('updateJobSyncStatus', () {
-    final tJobId = 'job-to-update';
-    final tStatus = SyncStatus.synced;
-    // Use a MOCK JobHiveModel for verifying save() calls
-    final mockJobModel = MockJobHiveModel();
+    final tJobId = 'job-1';
+    final tInitialStatus = SyncStatus.pending;
+    final tTargetStatus = SyncStatus.synced;
+
+    // Mock HiveObject for save() method test
+    final mockHiveObjectModel =
+        MockJobHiveModel(); // Needs separate mock class setup
+
+    setUp(() {
+      // Specific setup for this group if needed
+      when(mockHiveObjectModel.localId).thenReturn(tJobId);
+      when(mockHiveObjectModel.syncStatus).thenReturn(tInitialStatus.index);
+      // Ensure isInBox is true for the save() path
+      when(mockHiveObjectModel.isInBox).thenReturn(true);
+      // Mock the save method for HiveObject
+      when(
+        mockHiveObjectModel.save(),
+      ).thenAnswer((_) async => Future<void>.value());
+    });
 
     test(
-      'should update the sync status and save the model via model.save()',
+      'should update sync status of the job in the box using model.save()',
       () async {
         // Arrange
-        // Stub the mock model's behavior
-        when(mockJobModel.localId).thenReturn(tJobId);
-        when(mockJobModel.isInBox).thenReturn(true); // Crucial for using save()
-        when(mockJobModel.save()).thenAnswer((_) async => Future<void>.value());
-
-        // Return the MOCK model when the box is queried
-        when(mockJobsBox.get(tJobId)).thenReturn(mockJobModel);
+        // Ensure the box returns the *mock* HiveObject when get is called
+        when(mockJobsBox.get(tJobId)).thenReturn(mockHiveObjectModel);
 
         // Act
-        await dataSource.updateJobSyncStatus(tJobId, tStatus);
+        await dataSource.updateJobSyncStatus(tJobId, tTargetStatus);
 
         // Assert
-        // Verify the status was set *on the mock model*
-        verify(mockJobModel.syncStatus = tStatus.index);
-        // Verify the model's save() method was called
-        verify(mockJobModel.save());
-        // Verify box.put was NOT called
+        // Verify that the status was set on the mock object
+        verify(mockHiveObjectModel.syncStatus = tTargetStatus.index);
+        // Verify that save() was called on the mock object
+        verify(mockHiveObjectModel.save());
+        // Verify get was called on the box
+        verify(mockJobsBox.get(tJobId));
+        // Verify put was NOT called on the box (because save() was used)
         verifyNever(mockJobsBox.put(any, any));
       },
     );
 
     test(
-      'should update sync status and save via box.put() if model not in box',
+      'should update sync status using box.put() if model is not in box',
       () async {
         // Arrange
-        final tJobModelNotInBox = JobHiveModel(
+        final notInBoxModel = createTestJobHiveModel(
           localId: tJobId,
-          syncStatus: SyncStatus.pending.index,
+          syncStatus: tInitialStatus,
         );
-        // Mock get to return a REAL model this time
-        when(mockJobsBox.get(tJobId)).thenReturn(tJobModelNotInBox);
-        // Mock put to succeed
-        when(
-          mockJobsBox.put(tJobId, any),
-        ).thenAnswer((_) async => Future<void>.value());
+        // Simulate model.isInBox returning false implicitly by returning the plain model
+        when(mockJobsBox.get(tJobId)).thenReturn(notInBoxModel);
 
         // Act
-        await dataSource.updateJobSyncStatus(tJobId, tStatus);
+        await dataSource.updateJobSyncStatus(tJobId, tTargetStatus);
 
         // Assert
-        // Verify box.put WAS called with the updated model
-        final captured =
-            verify(mockJobsBox.put(tJobId, captureAny)).captured.single;
-        expect(captured, isA<JobHiveModel>());
-        expect(captured.localId, equals(tJobId));
-        expect(captured.syncStatus, equals(tStatus.index));
-        // Verify save() was NOT called (since we didn't use a mock model)
+        // Verify get was called
+        verify(mockJobsBox.get(tJobId));
+        // Verify put WAS called WITHOUT prefix for capture
+        final verificationResult = verify(
+          mockJobsBox.put(tJobId, captureThat(isA<JobHiveModel>())),
+        );
+        // Check that the captured model has the updated status
+        expect(
+          verificationResult.captured.single.syncStatus,
+          tTargetStatus.index,
+        );
+        // Verify save() was NOT called
+        // We can't directly verify save() wasn't called on the *original* model instance easily with mockito,
+        // but verifying put() was called is the main goal here.
       },
     );
 
-    test('should throw CacheException if the job model is not found', () async {
+    test('should throw CacheException if job with id is not found', () async {
       // Arrange
       when(mockJobsBox.get(tJobId)).thenReturn(null);
 
       // Act
-      final call = dataSource.updateJobSyncStatus(tJobId, tStatus);
+      final call = dataSource.updateJobSyncStatus(tJobId, tTargetStatus);
 
       // Assert
       await expectLater(call, throwsA(isA<CacheException>()));
       verify(mockJobsBox.get(tJobId));
       verifyNever(mockJobsBox.put(any, any));
+      // Verify save() was not called on our mock object
+      verifyNever(mockHiveObjectModel.save());
     });
 
-    test('should throw CacheException if getting the job fails', () async {
+    test('should throw CacheException if Hive get fails', () async {
       // Arrange
-      when(mockJobsBox.get(tJobId)).thenThrow(Exception('Get failed'));
+      when(mockJobsBox.get(tJobId)).thenThrow(Exception('Hive get failed'));
 
       // Act
-      final call = dataSource.updateJobSyncStatus(tJobId, tStatus);
+      final call = dataSource.updateJobSyncStatus(tJobId, tTargetStatus);
 
       // Assert
       await expectLater(call, throwsA(isA<CacheException>()));
       verify(mockJobsBox.get(tJobId));
       verifyNever(mockJobsBox.put(any, any));
+      verifyNever(mockHiveObjectModel.save());
     });
 
-    test(
-      'should throw CacheException if saving the job fails (using model.save)',
-      () async {
-        // Arrange
-        when(mockJobModel.localId).thenReturn(tJobId);
-        when(mockJobModel.isInBox).thenReturn(true);
-        when(
-          mockJobModel.save(),
-        ).thenThrow(Exception('Save failed')); // Mock save to throw
-        when(mockJobsBox.get(tJobId)).thenReturn(mockJobModel);
+    test('should throw CacheException if model.save() fails', () async {
+      // Arrange
+      when(mockJobsBox.get(tJobId)).thenReturn(mockHiveObjectModel);
+      // Make save() throw an error
+      when(mockHiveObjectModel.save()).thenThrow(Exception('Hive save failed'));
 
-        // Act
-        final call = dataSource.updateJobSyncStatus(tJobId, tStatus);
+      // Act
+      final call = dataSource.updateJobSyncStatus(tJobId, tTargetStatus);
 
-        // Assert
-        await expectLater(call, throwsA(isA<CacheException>()));
-        verify(mockJobModel.syncStatus = tStatus.index);
-        verify(mockJobModel.save());
-        verifyNever(mockJobsBox.put(any, any));
-      },
-    );
+      // Assert
+      await expectLater(call, throwsA(isA<CacheException>()));
+      verify(mockJobsBox.get(tJobId));
+      verify(mockHiveObjectModel.save()); // Verify save was attempted
+      verifyNever(mockJobsBox.put(any, any));
+    });
 
-    test(
-      'should throw CacheException if saving the job fails (using box.put)',
-      () async {
-        // Arrange
-        final tJobModelNotInBox = JobHiveModel(
-          localId: tJobId,
-          syncStatus: SyncStatus.pending.index,
-        );
-        when(mockJobsBox.get(tJobId)).thenReturn(tJobModelNotInBox);
-        // Mock put to throw
-        when(mockJobsBox.put(tJobId, any)).thenThrow(Exception('Put failed'));
+    test('should throw CacheException if box.put() fails', () async {
+      // Arrange
+      final notInBoxModel = createTestJobHiveModel(
+        localId: tJobId,
+        syncStatus: tInitialStatus,
+      );
+      when(mockJobsBox.get(tJobId)).thenReturn(notInBoxModel);
+      // Make put throw an error
+      when(mockJobsBox.put(any, any)).thenThrow(Exception('Hive put failed'));
 
-        // Act
-        final call = dataSource.updateJobSyncStatus(tJobId, tStatus);
+      // Act
+      final call = dataSource.updateJobSyncStatus(tJobId, tTargetStatus);
 
-        // Assert
-        await expectLater(call, throwsA(isA<CacheException>()));
-        verify(mockJobsBox.put(tJobId, captureAny));
-      },
-    );
+      // Assert
+      await expectLater(call, throwsA(isA<CacheException>()));
+      verify(mockJobsBox.get(tJobId));
+      verify(mockJobsBox.put(any, any)); // Verify put was attempted
+    });
   });
 
-  group('getSyncedJobHiveModels', () {
+  group('getSyncedJobs', () {
+    final pendingModel = createTestJobHiveModel(
+      localId: '1',
+      syncStatus: SyncStatus.pending,
+    );
+    final syncedModelWithServerId = createTestJobHiveModel(
+      localId: '2',
+      syncStatus: SyncStatus.synced,
+      serverId: 'server-2',
+    );
+    final syncedModelNoServerId = createTestJobHiveModel(
+      localId: '3',
+      syncStatus: SyncStatus.synced,
+      serverId: null,
+    ); // Should be excluded
+    final errorModel = createTestJobHiveModel(
+      localId: '4',
+      syncStatus: SyncStatus.error,
+      retryCount: 1,
+    );
+
+    final allModels = [
+      pendingModel,
+      syncedModelWithServerId,
+      syncedModelNoServerId,
+      errorModel,
+    ];
+    final expectedSyncedJob = JobMapper.fromHiveModel(syncedModelWithServerId);
+
     test(
-      'should return only jobs with synced status AND a non-null serverId',
+      'should return list of Job entities with synced status and non-null serverId',
       () async {
         // Arrange
-        when(mockJobsBox.values).thenReturn(allJobs);
+        when(mockJobsBox.values).thenReturn(allModels);
 
         // Act
-        final result = await dataSource.getSyncedJobHiveModels();
+        final result = await dataSource.getSyncedJobs(); // Use new method name
 
         // Assert
-        // Only jobSynced should match
-        expect(result, equals([jobSynced]));
+        expect(result, isA<List<Job>>());
+        expect(result.length, 1);
+        expect(result.first.localId, expectedSyncedJob.localId);
+        expect(result.first.serverId, expectedSyncedJob.serverId);
+        expect(result.first.syncStatus, SyncStatus.synced);
         verify(mockJobsBox.values);
       },
     );
 
-    test('should return empty list if no jobs meet the criteria', () async {
-      // Arrange
-      when(
-        mockJobsBox.values,
-      ).thenReturn([jobPending, jobError, jobSyncedNoServerId]);
+    test(
+      'should return empty list if no jobs are synced with serverId',
+      () async {
+        // Arrange
+        when(
+          mockJobsBox.values,
+        ).thenReturn([pendingModel, syncedModelNoServerId, errorModel]);
 
-      // Act
-      final result = await dataSource.getSyncedJobHiveModels();
+        // Act
+        final result = await dataSource.getSyncedJobs();
 
-      // Assert
-      expect(result, isEmpty);
-      verify(mockJobsBox.values);
-    });
+        // Assert
+        expect(result, isEmpty);
+        verify(mockJobsBox.values);
+      },
+    );
 
     test('should throw CacheException when Hive call fails', () async {
       // Arrange
-      when(mockJobsBox.values).thenThrow(Exception('Hive error'));
+      when(mockJobsBox.values).thenThrow(Exception('Hive failed'));
 
       // Act
-      final call = dataSource.getSyncedJobHiveModels();
+      final call = dataSource.getSyncedJobs();
 
       // Assert
       await expectLater(call, throwsA(isA<CacheException>()));

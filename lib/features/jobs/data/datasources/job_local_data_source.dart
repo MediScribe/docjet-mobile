@@ -4,105 +4,86 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // Import Job entity
 import 'package:dartz/dartz.dart'; // Import dartz for Unit
 
-// Abstract interface for interacting with the local job cache (e.g., Hive)
-// This defines the contract for what the local data source must provide.
+/// Abstract interface defining operations for local storage of jobs.
+///
+/// This acts as a contract for interacting with the local job cache,
+/// typically implemented using Hive or a similar persistence solution.
 abstract class JobLocalDataSource {
-  // --- Methods operating on Job Entity (New Style) ---
+  //---------------------------------------------------------------------------
+  // JobHiveModel Operations (Legacy/Internal - To be phased out)
+  //---------------------------------------------------------------------------
+  // TODO: [Refactor] These should eventually be removed or made private if only
+  //       needed internally by the implementation. Consumers should use the
+  //       Job entity methods below.
 
-  /// Retrieves all jobs stored locally.
-  ///
-  /// Returns a list of [Job] entities on success.
-  /// Throws a [CacheException] if an error occurs during retrieval.
-  Future<List<Job>> getJobs();
+  /// Retrieves all job models directly from the cache.
+  /// **Use [getJobs] instead for external use.**
+  Future<List<JobHiveModel>> getAllJobHiveModels();
 
-  /// Retrieves a single Job entity by its localId.
-  /// Returns the [Job] if found.
-  /// Throws a [CacheException] if not found or on cache access errors.
-  Future<Job> getJobById(String localId);
+  /// Retrieves a single job model by its local ID directly from the cache.
+  /// **Use [getJobById] instead for external use.**
+  Future<JobHiveModel?> getJobHiveModelById(String id);
 
-  /// Saves a single [Job] entity to the cache.
-  /// Maps the Job entity to the appropriate local storage model (e.g., JobHiveModel)
-  /// before saving. Overwrites existing entry with the same localId.
-  /// Returns [unit] on success.
-  /// Throws a [CacheException] on failure.
-  Future<Unit> saveJob(Job job);
+  /// Saves a single job model directly to the cache.
+  /// **Use [saveJob] instead for external use.**
+  Future<void> saveJobHiveModel(JobHiveModel model);
 
-  /// Deletes a single Job by its localId.
-  /// Handles mapping or finding the corresponding local storage entry.
-  /// Returns [unit] on success.
-  /// Throws a [CacheException] on failure.
-  Future<Unit> deleteJob(String localId);
+  /// Deletes a job model by its local ID directly from the cache.
+  /// **Use [deleteJob] instead for external use.**
+  Future<void> deleteJobHiveModel(String id);
 
-  /// Retrieves all jobs with a specific [SyncStatus].
-  /// Returns a list of [Job] entities.
-  /// Throws a [CacheException] if unable to access the cache.
-  Future<List<Job>> getJobsByStatus(SyncStatus status);
+  //---------------------------------------------------------------------------
+  // Metadata Operations
+  //---------------------------------------------------------------------------
 
-  /// Retrieves jobs that have previously failed synchronization and are eligible for a retry attempt.
-  ///
-  /// Eligibility is determined by:
-  /// - The job's [SyncStatus] being [SyncStatus.error].
-  /// - The job's `retryCount` being less than [maxRetries].
-  /// - The time since the `lastSyncAttemptAt` exceeding the calculated exponential backoff duration
-  ///   (based on [baseBackoffDuration] and `retryCount`).
-  ///
-  /// [maxRetries] The maximum number of retry attempts allowed.
-  /// [baseBackoffDuration] The base duration for the exponential backoff calculation.
-  /// Returns a list of [Job] entities eligible for retry.
-  /// Throws a [CacheException] if an error occurs during retrieval.
+  /// Retrieves the timestamp of the last successful fetch from the server.
+  Future<DateTime?> getLastFetchTime();
+
+  /// Saves the timestamp of the last successful fetch from the server.
+  Future<void> saveLastFetchTime(DateTime time);
+
+  //---------------------------------------------------------------------------
+  // Sync Status Methods (Mix of Legacy and potentially useful - review)
+  //---------------------------------------------------------------------------
+
+  /// Retrieves jobs that are currently marked as pending synchronization.
+  /// Returns Job entities.
+  Future<List<Job>> getJobsToSync();
+
+  /// Updates the synchronization status of a specific job by its local ID.
+  Future<void> updateJobSyncStatus(String id, SyncStatus status);
+
+  /// Retrieves jobs that have been successfully synchronized (have a serverId
+  /// and SyncStatus.synced). Returns Job entities.
+  Future<List<Job>>
+  getSyncedJobs(); // Note: Renamed from getSyncedJobHiveModels
+
+  /// Retrieves jobs that are in an error state and eligible for a sync retry
+  /// based on the provided maximum retries and base backoff duration.
   Future<List<Job>> getJobsToRetry(
     int maxRetries,
     Duration baseBackoffDuration,
   );
 
-  // --- Methods operating on JobHiveModel (Old Style - To be refactored/removed?) ---
-  // TODO: Review if these are still needed or can be replaced by Job entity methods.
+  //---------------------------------------------------------------------------
+  // Job Entity Operations (New Style - Preferred API)
+  //---------------------------------------------------------------------------
 
-  /// Retrieves all Job models stored in the local cache.
-  /// Returns a list of [JobHiveModel].
-  /// Throws a [CacheException] if unable to access the cache.
-  Future<List<JobHiveModel>> getAllJobHiveModels();
+  /// Retrieves a list of all jobs from the cache as [Job] entities.
+  Future<List<Job>> getJobs();
 
-  /// Retrieves a single Job model by its ID from the cache.
-  /// Returns the [JobHiveModel] if found, otherwise null.
-  /// Throws a [CacheException] on cache access errors.
-  Future<JobHiveModel?> getJobHiveModelById(String id);
+  /// Retrieves a single job by its local ID as a [Job] entity.
+  /// Throws [CacheException] if the job is not found.
+  Future<Job> getJobById(String localId);
 
-  /// Saves a single [JobHiveModel] to the cache.
-  /// Overwrites existing entry with the same ID.
-  /// Throws a [CacheException] on failure.
-  Future<void> saveJobHiveModel(JobHiveModel model);
+  /// Saves a [Job] entity to the cache. Handles mapping to the storage model.
+  /// Returns [unit] on success. Throws [CacheException] on failure.
+  Future<Unit> saveJob(Job job);
 
-  /// Deletes a single Job model by its ID from the cache.
-  /// Throws a [CacheException] on failure.
-  Future<void> deleteJobHiveModel(String id);
+  /// Deletes a job by its local ID. Handles underlying storage model deletion.
+  /// Returns [unit] on success. Throws [CacheException] on failure.
+  Future<Unit> deleteJob(String localId);
 
-  /// Gets the timestamp of the last successful fetch from the remote source.
-  /// Returns null if no fetch has ever been recorded.
-  /// Throws a [CacheException] if unable to access the cache.
-  Future<DateTime?> getLastFetchTime();
-
-  /// Saves the timestamp of the last successful fetch.
-  /// Throws a [CacheException] on failure.
-  Future<void> saveLastFetchTime(DateTime time);
-
-  /// Retrieves all Job models marked with a [SyncStatus.pending].
-  /// Used by the repository to know which jobs need syncing with the backend.
-  /// Returns a list of [JobHiveModel].
-  /// Throws a [CacheException] if unable to access the cache.
-  Future<List<JobHiveModel>> getJobsToSync();
-
-  /// Updates the sync status of a specific job by its ID.
-  /// Used by the repository after a sync attempt (success or failure).
-  /// Throws a [CacheException] if the job is not found or on cache access errors.
-  Future<void> updateJobSyncStatus(String id, SyncStatus status);
-
-  /// Retrieves all Job models that have been successfully synced with the server
-  /// (i.e., have `SyncStatus.synced` and a non-null `serverId`).
-  /// Used by the repository for server-side deletion checks.
-  /// Returns a list of [JobHiveModel].
-  /// Throws a [CacheException] if unable to access the cache.
-  Future<List<JobHiveModel>> getSyncedJobHiveModels();
-
-  // TODO: Add getSyncedJobs method to fetch only server-synced jobs with serverId
+  /// Retrieves jobs based on their [SyncStatus].
+  Future<List<Job>> getJobsByStatus(SyncStatus status);
 }

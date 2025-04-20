@@ -184,7 +184,7 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       }
       if (value is int) {
         _logger.d('$_tag Found last fetch timestamp: $value');
-        return DateTime.fromMillisecondsSinceEpoch(value);
+        return DateTime.fromMillisecondsSinceEpoch(value, isUtc: true);
       } else {
         _logger.w(
           '$_tag Invalid type found for last fetch timestamp (Type: ${value.runtimeType}). Expected int. Returning null.',
@@ -226,15 +226,18 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   //---------------------------------------------------------------------------
 
   @override
-  Future<List<JobHiveModel>> getJobsToSync() async {
+  Future<List<Job>> getJobsToSync() async {
     _logger.d('$_tag getJobsToSync called');
     try {
       final box = await _getOpenBox();
-      final pendingJobs =
+      final pendingModels =
           box.values
               .where((job) => job.syncStatus == SyncStatus.pending.index)
               .toList();
-      _logger.d('$_tag Found ${pendingJobs.length} jobs pending sync.');
+      _logger.d('$_tag Found ${pendingModels.length} models pending sync.');
+      // MAP to Job entities
+      final pendingJobs =
+          pendingModels.map((model) => JobMapper.fromHiveModel(model)).toList();
       return pendingJobs;
     } catch (e, stackTrace) {
       _logger.e(
@@ -293,8 +296,8 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   }
 
   @override
-  Future<List<JobHiveModel>> getSyncedJobHiveModels() async {
-    _logger.d('$_tag getSyncedJobHiveModels called');
+  Future<List<Job>> getSyncedJobs() async {
+    _logger.d('$_tag getSyncedJobs called');
     try {
       final box = await _getOpenBox();
       final syncedModels =
@@ -306,14 +309,17 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       _logger.d(
         '$_tag Found ${syncedModels.length} models with SyncStatus.synced and non-null serverId.',
       );
-      return syncedModels;
+      // MAP to Job entities
+      final syncedJobs =
+          syncedModels.map((model) => JobMapper.fromHiveModel(model)).toList();
+      return syncedJobs;
     } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Failed to get synced job models from cache',
+        '$_tag Failed to get synced jobs from cache',
         error: e,
         stackTrace: stackTrace,
       );
-      throw CacheException('Failed to get synced job models: ${e.toString()}');
+      throw CacheException('Failed to get synced jobs: ${e.toString()}');
     }
   }
 
@@ -321,10 +327,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
   // Job Entity Operations (New Style - Preferred)
   //---------------------------------------------------------------------------
 
-  /// Retrieves a single [Job] by its [localId].
-  ///
-  /// **Note:** This method is currently unimplemented and requires proper
-  /// mapping from [JobHiveModel] to [Job] and associated testing.
   @override
   Future<Job> getJobById(String localId) async {
     _logger.d('$_tag getJobById (New Style) called for id: $localId');
@@ -358,10 +360,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
-  /// Saves a [Job] entity to local storage.
-  ///
-  /// **Note:** This method is currently unimplemented and requires proper
-  /// mapping from [Job] to [JobHiveModel] and associated testing.
   @override
   Future<Unit> saveJob(Job job) async {
     _logger.d('$_tag saveJob (New Style) called for id: ${job.localId}');
@@ -389,14 +387,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
-  /// Deletes a [Job] entity from local storage based on its [localId].
-  ///
-  /// **Note:** This method is currently unimplemented. It should likely
-  /// delegate to [deleteJobHiveModel] after ensuring the correct ID mapping.
-  /// Requires associated testing.
-  ///
-  /// Delegates directly to the [deleteJobHiveModel] method.
-  /// Returns [unit] on success, throws [CacheException] on failure.
   @override
   Future<Unit> deleteJob(String localId) async {
     _logger.d('$_tag deleteJob (New Style) called for id: $localId');
@@ -419,7 +409,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
-  /// Retrieves a list of [Job] entities matching the specified [SyncStatus].
   @override
   Future<List<Job>> getJobsByStatus(SyncStatus status) async {
     _logger.d('$_tag getJobsByStatus (New Style) called for status: $status');
@@ -451,9 +440,6 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     }
   }
 
-  /// Retrieves all jobs from the local cache as [Job] entities.
-  ///
-  /// This method fetches all [JobHiveModel]s and maps them to [Job] entities.
   @override
   Future<List<Job>> getJobs() async {
     _logger.d('$_tag getJobs called (using Job entity)');

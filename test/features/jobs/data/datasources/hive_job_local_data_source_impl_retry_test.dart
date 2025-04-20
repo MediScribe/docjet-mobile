@@ -10,7 +10,7 @@ import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-import 'hive_job_local_data_source_impl_test.mocks.dart';
+import 'hive_job_local_data_source_impl_retry_test.mocks.dart';
 
 // Generate mocks for HiveInterface and Box
 @GenerateMocks([HiveInterface, Box])
@@ -23,6 +23,31 @@ void main() {
 
   // const String metadataBoxName = 'app_metadata';
   // const String metadataTimestampKey = 'lastFetchTimestamp';
+
+  // Helper function to create test models with specific retry/sync properties
+  JobHiveModel createTestJobHiveModel({
+    required String localId,
+    required SyncStatus syncStatus,
+    int? retryCount,
+    String? lastSyncAttemptAt,
+    JobStatus status = JobStatus.submitted, // Default
+    String userId = 'test-user', // Default
+    String createdAt = '2023-01-01T10:00:00Z', // Default
+    String? updatedAt, // Default
+  }) {
+    return JobHiveModel(
+      localId: localId,
+      syncStatus: syncStatus.index,
+      retryCount: retryCount,
+      lastSyncAttemptAt: lastSyncAttemptAt,
+      status: status.index,
+      userId: userId,
+      createdAt: createdAt,
+      updatedAt:
+          updatedAt ?? createdAt, // Default updatedAt to createdAt if null
+      // Add other fields as needed with defaults
+    );
+  }
 
   setUp(() {
     mockHiveInterface = MockHiveInterface();
@@ -121,6 +146,25 @@ void main() {
   ];
 
   group('getJobsToRetry', () {
+    const maxRetries = 5;
+    const baseBackoff = Duration(seconds: 30);
+
+    test('should return empty list when no jobs are in error state', () async {
+      // Arrange
+      final nonErrorJobs = [
+        createTestJobHiveModel(localId: '1', syncStatus: SyncStatus.pending),
+        createTestJobHiveModel(localId: '2', syncStatus: SyncStatus.synced),
+      ];
+      when(mockJobsBox.values).thenReturn(nonErrorJobs);
+
+      // Act
+      final result = await dataSource.getJobsToRetry(maxRetries, baseBackoff);
+
+      // Assert
+      expect(result, isEmpty);
+      verify(mockJobsBox.values);
+    });
+
     test(
       'should return jobs with error status, below max retries, and whose backoff period has passed',
       () async {
