@@ -59,11 +59,6 @@ abstract class JobRepository {
   /// Returns [Left(Failure)] if a critical error occurs (e.g., network failure before starting).
   Future<Either<Failure, Unit>> syncPendingJobs();
 
-  /// Synchronizes a single specific job with the remote server.
-  /// Handles creation on the server if it's a new job ([serverId] is null) or
-  /// updates the job on the server if it already exists.
-  /// Updates the local job's state (e.g., [serverId], [SyncStatus]) based on the sync result.
-  /// Returns [Right(Job)] with the synchronized job state on success.
-  /// Returns [Left(Failure)] if the synchronization fails (e.g., network or server error).
-  Future<Either<Failure, Job>> syncSingleJob(Job job);
+  /// Resets a job stuck in the SyncStatus.failed state back to SyncStatus.pending
+  Future<Either<Failure, Job>> resetFailedJob(String localId);
 }

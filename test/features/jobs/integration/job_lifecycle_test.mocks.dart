@@ -13,7 +13,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.da
     as _i10;
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart'
     as _i3;
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart'
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'
     as _i11;
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'
     as _i8;
@@ -244,11 +244,12 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 }
 
-/// A class which mocks [JobSyncService].
+/// A class which mocks [JobSyncOrchestratorService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockJobSyncService extends _i1.Mock implements _i11.JobSyncService {
-  MockJobSyncService() {
+class MockJobSyncOrchestratorService extends _i1.Mock
+    implements _i11.JobSyncOrchestratorService {
+  MockJobSyncOrchestratorService() {
     _i1.throwOnMissingStub(this);
   }
 
@@ -268,21 +269,4 @@ class MockJobSyncService extends _i1.Mock implements _i11.JobSyncService {
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
-
-  @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> syncSingleJob(_i6.Job? job) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #syncSingleJob,
-          [job],
-        ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
-          this,
-          Invocation.method(
-            #syncSingleJob,
-            [job],
-          ),
-        )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
 }

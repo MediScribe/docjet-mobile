@@ -8,7 +8,7 @@ import '../../domain/repositories/job_repository.dart';
 import '../models/job_update_data.dart';
 import '../services/job_deleter_service.dart';
 import '../services/job_reader_service.dart';
-import '../services/job_sync_service.dart';
+import '../services/job_sync_orchestrator_service.dart';
 import '../services/job_writer_service.dart';
 
 /// Main implementation of [JobRepository] that orchestrates operations
@@ -17,7 +17,7 @@ class JobRepositoryImpl implements JobRepository {
   final JobReaderService _readerService;
   final JobWriterService _writerService;
   final JobDeleterService _deleterService;
-  final JobSyncService _syncService;
+  final JobSyncOrchestratorService _orchestratorService;
   final Logger _logger = LoggerFactory.getLogger(JobRepositoryImpl);
   static final String _tag = logTag(JobRepositoryImpl);
 
@@ -28,11 +28,11 @@ class JobRepositoryImpl implements JobRepository {
     required JobReaderService readerService,
     required JobWriterService writerService,
     required JobDeleterService deleterService,
-    required JobSyncService syncService,
+    required JobSyncOrchestratorService orchestratorService,
   }) : _readerService = readerService,
        _writerService = writerService,
        _deleterService = deleterService,
-       _syncService = syncService {
+       _orchestratorService = orchestratorService {
     _logger.i('$_tag JobRepositoryImpl initialized.');
   }
 
@@ -86,15 +86,22 @@ class JobRepositoryImpl implements JobRepository {
 
   @override
   Future<Either<Failure, Unit>> syncPendingJobs() {
-    _logger.d('$_tag Delegating syncPendingJobs to JobSyncService...');
-    return _syncService.syncPendingJobs();
+    _logger.d('Delegating syncPendingJobs to JobSyncOrchestratorService');
+    return _orchestratorService.syncPendingJobs();
   }
 
   @override
-  Future<Either<Failure, Job>> syncSingleJob(Job job) {
+  Future<Either<Failure, Job>> resetFailedJob(String localId) {
     _logger.d(
-      '$_tag Delegating syncSingleJob(job: ${job.localId}) to JobSyncService...',
+      'Delegating resetFailedJob for localId: $localId to JobSyncOrchestratorService',
     );
-    return _syncService.syncSingleJob(job);
+    // TODO: Correctly delegate to an appropriate method in JobSyncOrchestratorService
+    // This method doesn't exist yet in the orchestrator and needs to be added.
+    // For now, return a temporary failure or implement basic logic if possible.
+    // Example temporary failure:
+    return Future.value(
+      Left(ServerFailure(message: 'resetFailedJob not implemented yet')),
+    );
+    // return _orchestratorService.resetFailedJob(localId); // Correct delegation target (needs creation)
   }
 }

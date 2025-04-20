@@ -11,7 +11,8 @@ import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_sou
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
 
 // Features - Jobs - Domain
@@ -31,7 +32,8 @@ Future<void> init() async {
       readerService: sl(),
       writerService: sl(),
       deleterService: sl(),
-      syncService: sl(),
+      orchestratorService: sl<JobSyncOrchestratorService>(),
+      processorService: sl<JobSyncProcessorService>(),
     ),
   );
 
@@ -45,12 +47,18 @@ Future<void> init() async {
   sl.registerLazySingleton<JobDeleterService>(
     () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),
   );
-  sl.registerLazySingleton<JobSyncService>(
-    () => JobSyncService(
+  sl.registerLazySingleton<JobSyncProcessorService>(
+    () => JobSyncProcessorService(
       localDataSource: sl(),
       remoteDataSource: sl(),
-      networkInfo: sl(),
       fileSystem: sl(),
+    ),
+  );
+  sl.registerLazySingleton<JobSyncOrchestratorService>(
+    () => JobSyncOrchestratorService(
+      localDataSource: sl(),
+      networkInfo: sl(),
+      processorService: sl(),
     ),
   );
 

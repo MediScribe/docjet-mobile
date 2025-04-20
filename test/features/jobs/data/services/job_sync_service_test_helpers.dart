@@ -108,3 +108,46 @@ final tJobInErrorMaxRetries = tJobInErrorRetryEligible.copyWith(
 //   when(local.deleteJob(any)).thenAnswer((_) async => unit);
 //   when(fs.deleteFile(any)).thenAnswer((_) async => unit);
 // }
+
+// --- Helper Functions ---
+
+// Simple logger for tests
+void printLog(String message) {
+  // ignore: avoid_print
+  print(message);
+}
+
+// Helper function to create a Job entity (copied from job_lifecycle_test.dart)
+Job createTestJob({
+  required String localId,
+  String? serverId,
+  required SyncStatus syncStatus,
+  required int retryCount,
+  String? audioFilePath,
+  String? text,
+  String? additionalText,
+  String? displayTitle,
+  JobStatus status = JobStatus.created,
+  DateTime? createdAt,
+  DateTime? updatedAt,
+  DateTime? lastSyncAttemptAt,
+  String userId = 'test-user-id',
+}) {
+  final now = DateTime.now();
+  return Job(
+    localId: localId,
+    serverId: serverId,
+    userId: userId,
+    status: status,
+    syncStatus: syncStatus,
+    displayTitle: displayTitle ?? 'Test Job $localId',
+    displayText: '', // Default empty, can be overridden by test data
+    audioFilePath: audioFilePath,
+    text: text,
+    additionalText: additionalText,
+    createdAt: createdAt ?? now,
+    updatedAt: updatedAt ?? createdAt ?? now,
+    retryCount: retryCount,
+    lastSyncAttemptAt: lastSyncAttemptAt,
+  );
+}

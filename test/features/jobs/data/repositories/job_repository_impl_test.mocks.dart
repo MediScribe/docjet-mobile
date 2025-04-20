@@ -13,8 +13,10 @@ import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.da
     as _i10;
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart'
     as _i3;
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart'
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'
     as _i11;
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart'
+    as _i12;
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'
     as _i8;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i6;
@@ -316,10 +318,11 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 }
 
-/// A class which mocks [JobSyncService].
+/// A class which mocks [JobSyncOrchestratorService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockJobSyncService extends _i1.Mock implements _i11.JobSyncService {
+class MockJobSyncOrchestratorService extends _i1.Mock
+    implements _i11.JobSyncOrchestratorService {
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> syncPendingJobs() =>
       (super.noSuchMethod(
@@ -345,30 +348,63 @@ class MockJobSyncService extends _i1.Mock implements _i11.JobSyncService {
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+}
 
+/// A class which mocks [JobSyncProcessorService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobSyncProcessorService extends _i1.Mock
+    implements _i12.JobSyncProcessorService {
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> syncSingleJob(_i6.Job? job) =>
+  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> processJobSync(_i6.Job? job) =>
       (super.noSuchMethod(
         Invocation.method(
-          #syncSingleJob,
+          #processJobSync,
           [job],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i5.Failure, _i2.Unit>(
           this,
           Invocation.method(
-            #syncSingleJob,
+            #processJobSync,
             [job],
           ),
         )),
         returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-                _FakeEither_0<_i5.Failure, _i6.Job>(
+            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
+                _FakeEither_0<_i5.Failure, _i2.Unit>(
           this,
           Invocation.method(
-            #syncSingleJob,
+            #processJobSync,
             [job],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+
+  @override
+  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> processJobDeletion(
+          _i6.Job? jobToDelete) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #processJobDeletion,
+          [jobToDelete],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i5.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #processJobDeletion,
+            [jobToDelete],
+          ),
+        )),
+        returnValueForMissingStub:
+            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
+                _FakeEither_0<_i5.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #processJobDeletion,
+            [jobToDelete],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 }

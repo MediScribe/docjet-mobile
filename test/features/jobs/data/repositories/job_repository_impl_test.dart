@@ -3,8 +3,9 @@ import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
@@ -18,25 +19,25 @@ import 'job_repository_impl_test.mocks.dart';
   MockSpec<JobReaderService>(),
   MockSpec<JobWriterService>(),
   MockSpec<JobDeleterService>(),
-  MockSpec<JobSyncService>(),
+  MockSpec<JobSyncOrchestratorService>(),
 ])
 void main() {
   late JobRepositoryImpl repository;
   late MockJobReaderService mockReaderService;
   late MockJobWriterService mockWriterService;
   late MockJobDeleterService mockDeleterService;
-  late MockJobSyncService mockSyncService;
+  late MockJobSyncOrchestratorService mockOrchestratorService;
 
   setUp(() {
     mockReaderService = MockJobReaderService();
     mockWriterService = MockJobWriterService();
     mockDeleterService = MockJobDeleterService();
-    mockSyncService = MockJobSyncService();
+    mockOrchestratorService = MockJobSyncOrchestratorService();
     repository = JobRepositoryImpl(
       readerService: mockReaderService,
       writerService: mockWriterService,
       deleterService: mockDeleterService,
-      syncService: mockSyncService,
+      orchestratorService: mockOrchestratorService,
     );
   });
 
@@ -70,7 +71,7 @@ void main() {
       verifyNoMoreInteractions(mockReaderService);
       verifyZeroInteractions(mockWriterService);
       verifyZeroInteractions(mockDeleterService);
-      verifyZeroInteractions(mockSyncService);
+      verifyZeroInteractions(mockOrchestratorService);
     });
 
     test('should delegate getJobById to JobReaderService', () async {
@@ -85,7 +86,7 @@ void main() {
       verifyNoMoreInteractions(mockReaderService);
       verifyZeroInteractions(mockWriterService);
       verifyZeroInteractions(mockDeleterService);
-      verifyZeroInteractions(mockSyncService);
+      verifyZeroInteractions(mockOrchestratorService);
     });
 
     test('should delegate createJob to JobWriterService', () async {
@@ -105,7 +106,7 @@ void main() {
       verifyNoMoreInteractions(mockWriterService);
       verifyZeroInteractions(mockReaderService);
       verifyZeroInteractions(mockDeleterService);
-      verifyZeroInteractions(mockSyncService);
+      verifyZeroInteractions(mockOrchestratorService);
     });
 
     test('should delegate updateJob to JobWriterService', () async {
@@ -125,7 +126,7 @@ void main() {
       verifyNoMoreInteractions(mockWriterService);
       verifyZeroInteractions(mockReaderService);
       verifyZeroInteractions(mockDeleterService);
-      verifyZeroInteractions(mockSyncService);
+      verifyZeroInteractions(mockOrchestratorService);
     });
 
     test('should delegate deleteJob to JobDeleterService', () async {
@@ -140,37 +141,25 @@ void main() {
       verifyNoMoreInteractions(mockDeleterService);
       verifyZeroInteractions(mockReaderService);
       verifyZeroInteractions(mockWriterService);
-      verifyZeroInteractions(mockSyncService);
+      verifyZeroInteractions(mockOrchestratorService);
     });
 
-    test('should delegate syncPendingJobs to JobSyncService', () async {
-      // Arrange
-      when(
-        mockSyncService.syncPendingJobs(),
-      ).thenAnswer((_) async => const Right(unit));
-      // Act
-      await repository.syncPendingJobs();
-      // Assert
-      verify(mockSyncService.syncPendingJobs()).called(1);
-      verifyNoMoreInteractions(mockSyncService);
-      verifyZeroInteractions(mockReaderService);
-      verifyZeroInteractions(mockWriterService);
-      verifyZeroInteractions(mockDeleterService);
-    });
-
-    test('should delegate syncSingleJob to JobSyncService', () async {
-      // Arrange
-      when(
-        mockSyncService.syncSingleJob(any),
-      ).thenAnswer((_) async => Right(tJob));
-      // Act
-      await repository.syncSingleJob(tJob);
-      // Assert
-      verify(mockSyncService.syncSingleJob(tJob)).called(1);
-      verifyNoMoreInteractions(mockSyncService);
-      verifyZeroInteractions(mockReaderService);
-      verifyZeroInteractions(mockWriterService);
-      verifyZeroInteractions(mockDeleterService);
-    });
+    test(
+      'should delegate syncPendingJobs to JobSyncOrchestratorService',
+      () async {
+        // Arrange
+        when(
+          mockOrchestratorService.syncPendingJobs(),
+        ).thenAnswer((_) async => const Right(unit));
+        // Act
+        await repository.syncPendingJobs();
+        // Assert
+        verify(mockOrchestratorService.syncPendingJobs()).called(1);
+        verifyNoMoreInteractions(mockOrchestratorService);
+        verifyZeroInteractions(mockReaderService);
+        verifyZeroInteractions(mockWriterService);
+        verifyZeroInteractions(mockDeleterService);
+      },
+    );
   });
 }

@@ -15,14 +15,17 @@ import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart';
+// import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart'; // OLD
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'; // NEW
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart'; // Added this line
 
 // Update GenerateMocks to mock the services
 @GenerateMocks([
   JobReaderService,
   JobWriterService,
   JobDeleterService,
-  JobSyncService,
+  // JobSyncService, // OLD
+  JobSyncOrchestratorService, // NEW
 ])
 import 'job_lifecycle_test.mocks.dart';
 
@@ -35,21 +38,33 @@ void main() {
   late MockJobReaderService mockReaderService;
   late MockJobWriterService mockWriterService;
   late MockJobDeleterService mockDeleterService;
-  late MockJobSyncService mockSyncService;
+  // late MockJobSyncService mockSyncService; // OLD
+  late MockJobSyncOrchestratorService mockOrchestratorService; // NEW
 
   setUp(() {
     // Instantiate service mocks
     mockReaderService = MockJobReaderService();
     mockWriterService = MockJobWriterService();
     mockDeleterService = MockJobDeleterService();
-    mockSyncService = MockJobSyncService();
+    // mockSyncService = MockJobSyncService(); // OLD
+    mockOrchestratorService = MockJobSyncOrchestratorService(); // NEW
 
     // Instantiate repository with mocked services
+    // This needs the processor too now, which wasn't mocked here.
+    // Since this test focuses on lifecycle delegation *through* the repo,
+    // and sync is now split, mocking just the orchestrator might be enough
+    // for *this specific test's current scope*, but it's fragile.
+    // For now, let's update the constructor call as per JobRepositoryImpl's signature.
+    // We'll need to add the processor mock if tests fail later.
     repository = JobRepositoryImpl(
       readerService: mockReaderService,
       writerService: mockWriterService,
       deleterService: mockDeleterService,
-      syncService: mockSyncService,
+      // syncService: mockSyncService, // OLD
+      orchestratorService: mockOrchestratorService, // NEW
+      // TODO: Add processor mock if needed for more detailed sync tests
+      // processorService:
+      //     MockJobSyncProcessorService(), // REMOVED: Repo doesn't take processor
     );
   });
 
@@ -120,9 +135,9 @@ void main() {
           mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
         ).thenAnswer((_) async => Right(initialJob));
 
-        // Sync (All sync logic is delegated to JobSyncService)
+        // Sync (All sync logic is delegated to JobSyncOrchestratorService now)
         when(
-          mockSyncService.syncPendingJobs(),
+          mockOrchestratorService.syncPendingJobs(), // Use orchestrator mock
         ).thenAnswer((_) async => const Right(unit));
 
         // Update Job
@@ -151,7 +166,9 @@ void main() {
         // 2. Initial Sync
         final syncResult1 = await repository.syncPendingJobs();
         expect(syncResult1, const Right(unit));
-        verify(mockSyncService.syncPendingJobs()).called(1);
+        verify(
+          mockOrchestratorService.syncPendingJobs(),
+        ).called(1); // Verify orchestrator
 
         // 3. Update Job
         final updateResult = await repository.updateJob(
@@ -166,7 +183,9 @@ void main() {
         // 4. Second Sync
         final syncResult2 = await repository.syncPendingJobs();
         expect(syncResult2, const Right(unit));
-        verify(mockSyncService.syncPendingJobs()).called(1); // Called again
+        verify(
+          mockOrchestratorService.syncPendingJobs(),
+        ).called(1); // Called again
 
         // 5. Delete Job (Mark)
         final deleteResult = await repository.deleteJob(localId);
@@ -177,17 +196,23 @@ void main() {
         final syncResult3 = await repository.syncPendingJobs();
         expect(syncResult3, const Right(unit));
         verify(
-          mockSyncService.syncPendingJobs(),
+          mockOrchestratorService.syncPendingJobs(), // Verify orchestrator
         ).called(1); // Called a third time
 
         // Verify no more interactions
         verifyNoMoreInteractions(mockReaderService);
         verifyNoMoreInteractions(mockWriterService);
         verifyNoMoreInteractions(mockDeleterService);
-        verifyNoMoreInteractions(mockSyncService);
+        verifyNoMoreInteractions(
+          mockOrchestratorService,
+        ); // Check orchestrator mock
       },
     );
 
     // DELETE ALL OTHER TESTS FROM THIS FILE
   });
 }
+
+// REMOVED: Manual mock class definition
+// class MockJobSyncProcessorService extends Mock
+//     implements JobSyncProcessorService {}
