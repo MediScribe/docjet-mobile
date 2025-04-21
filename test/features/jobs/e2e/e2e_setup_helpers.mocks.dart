@@ -3,15 +3,20 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i8;
 import 'dart:io' as _i2;
-import 'dart:typed_data' as _i7;
+import 'dart:typed_data' as _i10;
 
-import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i5;
-import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i3;
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i6;
+import 'package:dartz/dartz.dart' as _i6;
+import 'package:dio/dio.dart' as _i3;
+import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i4;
+import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i7;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i9;
+import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'
+    as _i12;
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i5;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i8;
+import 'package:mockito/src/dummies.dart' as _i11;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -37,157 +42,198 @@ class _FakeFileStat_0 extends _i1.SmartFake implements _i2.FileStat {
         );
 }
 
+class _FakeDio_1 extends _i1.SmartFake implements _i3.Dio {
+  _FakeDio_1(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeAuthCredentialsProvider_2 extends _i1.SmartFake
+    implements _i4.AuthCredentialsProvider {
+  _FakeAuthCredentialsProvider_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeJob_3 extends _i1.SmartFake implements _i5.Job {
+  _FakeJob_3(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeUnit_4 extends _i1.SmartFake implements _i6.Unit {
+  _FakeUnit_4(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
 /// A class which mocks [NetworkInfo].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockNetworkInfo extends _i1.Mock implements _i3.NetworkInfo {
+class MockNetworkInfo extends _i1.Mock implements _i7.NetworkInfo {
   MockNetworkInfo() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<bool> get isConnected => (super.noSuchMethod(
+  _i8.Future<bool> get isConnected => (super.noSuchMethod(
         Invocation.getter(#isConnected),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i8.Future<bool>.value(false),
+      ) as _i8.Future<bool>);
 
   @override
-  _i4.Stream<bool> get onConnectivityChanged => (super.noSuchMethod(
+  _i8.Stream<bool> get onConnectivityChanged => (super.noSuchMethod(
         Invocation.getter(#onConnectivityChanged),
-        returnValue: _i4.Stream<bool>.empty(),
-      ) as _i4.Stream<bool>);
+        returnValue: _i8.Stream<bool>.empty(),
+      ) as _i8.Stream<bool>);
 }
 
 /// A class which mocks [AuthCredentialsProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAuthCredentialsProvider extends _i1.Mock
-    implements _i5.AuthCredentialsProvider {
+    implements _i4.AuthCredentialsProvider {
   MockAuthCredentialsProvider() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<String?> getApiKey() => (super.noSuchMethod(
+  _i8.Future<String?> getApiKey() => (super.noSuchMethod(
         Invocation.method(
           #getApiKey,
           [],
         ),
-        returnValue: _i4.Future<String?>.value(),
-      ) as _i4.Future<String?>);
+        returnValue: _i8.Future<String?>.value(),
+      ) as _i8.Future<String?>);
 
   @override
-  _i4.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
+  _i8.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
         Invocation.method(
           #setAccessToken,
           [token],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 
   @override
-  _i4.Future<String?> getAccessToken() => (super.noSuchMethod(
+  _i8.Future<String?> getAccessToken() => (super.noSuchMethod(
         Invocation.method(
           #getAccessToken,
           [],
         ),
-        returnValue: _i4.Future<String?>.value(),
-      ) as _i4.Future<String?>);
+        returnValue: _i8.Future<String?>.value(),
+      ) as _i8.Future<String?>);
 
   @override
-  _i4.Future<void> deleteAccessToken() => (super.noSuchMethod(
+  _i8.Future<void> deleteAccessToken() => (super.noSuchMethod(
         Invocation.method(
           #deleteAccessToken,
           [],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 
   @override
-  _i4.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
+  _i8.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
         Invocation.method(
           #setRefreshToken,
           [token],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 
   @override
-  _i4.Future<String?> getRefreshToken() => (super.noSuchMethod(
+  _i8.Future<String?> getRefreshToken() => (super.noSuchMethod(
         Invocation.method(
           #getRefreshToken,
           [],
         ),
-        returnValue: _i4.Future<String?>.value(),
-      ) as _i4.Future<String?>);
+        returnValue: _i8.Future<String?>.value(),
+      ) as _i8.Future<String?>);
 
   @override
-  _i4.Future<void> deleteRefreshToken() => (super.noSuchMethod(
+  _i8.Future<void> deleteRefreshToken() => (super.noSuchMethod(
         Invocation.method(
           #deleteRefreshToken,
           [],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 }
 
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i6.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
   MockFileSystem() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<_i2.FileStat> stat(String? path) => (super.noSuchMethod(
+  _i8.Future<_i2.FileStat> stat(String? path) => (super.noSuchMethod(
         Invocation.method(
           #stat,
           [path],
         ),
-        returnValue: _i4.Future<_i2.FileStat>.value(_FakeFileStat_0(
+        returnValue: _i8.Future<_i2.FileStat>.value(_FakeFileStat_0(
           this,
           Invocation.method(
             #stat,
             [path],
           ),
         )),
-      ) as _i4.Future<_i2.FileStat>);
+      ) as _i8.Future<_i2.FileStat>);
 
   @override
-  _i4.Future<bool> fileExists(String? path) => (super.noSuchMethod(
+  _i8.Future<bool> fileExists(String? path) => (super.noSuchMethod(
         Invocation.method(
           #fileExists,
           [path],
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i8.Future<bool>.value(false),
+      ) as _i8.Future<bool>);
 
   @override
-  _i4.Future<void> deleteFile(String? path) => (super.noSuchMethod(
+  _i8.Future<void> deleteFile(String? path) => (super.noSuchMethod(
         Invocation.method(
           #deleteFile,
           [path],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 
   @override
-  _i4.Future<bool> directoryExists(String? path) => (super.noSuchMethod(
+  _i8.Future<bool> directoryExists(String? path) => (super.noSuchMethod(
         Invocation.method(
           #directoryExists,
           [path],
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i8.Future<bool>.value(false),
+      ) as _i8.Future<bool>);
 
   @override
-  _i4.Future<void> createDirectory(
+  _i8.Future<void> createDirectory(
     String? path, {
     bool? recursive = false,
   }) =>
@@ -197,24 +243,24 @@ class MockFileSystem extends _i1.Mock implements _i6.FileSystem {
           [path],
           {#recursive: recursive},
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 
   @override
-  _i4.Stream<_i2.FileSystemEntity> listDirectory(String? path) =>
+  _i8.Stream<_i2.FileSystemEntity> listDirectory(String? path) =>
       (super.noSuchMethod(
         Invocation.method(
           #listDirectory,
           [path],
         ),
-        returnValue: _i4.Stream<_i2.FileSystemEntity>.empty(),
-      ) as _i4.Stream<_i2.FileSystemEntity>);
+        returnValue: _i8.Stream<_i2.FileSystemEntity>.empty(),
+      ) as _i8.Stream<_i2.FileSystemEntity>);
 
   @override
-  _i4.Future<void> writeFile(
+  _i8.Future<void> writeFile(
     String? path,
-    _i7.Uint8List? bytes,
+    _i10.Uint8List? bytes,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -224,18 +270,18 @@ class MockFileSystem extends _i1.Mock implements _i6.FileSystem {
             bytes,
           ],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
 
   @override
-  _i4.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
+  _i8.Future<List<int>> readFile(String? path) => (super.noSuchMethod(
         Invocation.method(
           #readFile,
           [path],
         ),
-        returnValue: _i4.Future<List<int>>.value(<int>[]),
-      ) as _i4.Future<List<int>>);
+        returnValue: _i8.Future<List<int>>.value(<int>[]),
+      ) as _i8.Future<List<int>>);
 
   @override
   String resolvePath(String? path) => (super.noSuchMethod(
@@ -243,7 +289,7 @@ class MockFileSystem extends _i1.Mock implements _i6.FileSystem {
           #resolvePath,
           [path],
         ),
-        returnValue: _i8.dummyValue<String>(
+        returnValue: _i11.dummyValue<String>(
           this,
           Invocation.method(
             #resolvePath,
@@ -251,4 +297,142 @@ class MockFileSystem extends _i1.Mock implements _i6.FileSystem {
           ),
         ),
       ) as String);
+}
+
+/// A class which mocks [ApiJobRemoteDataSourceImpl].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockApiJobRemoteDataSourceImpl extends _i1.Mock
+    implements _i12.ApiJobRemoteDataSourceImpl {
+  MockApiJobRemoteDataSourceImpl() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Dio get dio => (super.noSuchMethod(
+        Invocation.getter(#dio),
+        returnValue: _FakeDio_1(
+          this,
+          Invocation.getter(#dio),
+        ),
+      ) as _i3.Dio);
+
+  @override
+  _i4.AuthCredentialsProvider get authCredentialsProvider =>
+      (super.noSuchMethod(
+        Invocation.getter(#authCredentialsProvider),
+        returnValue: _FakeAuthCredentialsProvider_2(
+          this,
+          Invocation.getter(#authCredentialsProvider),
+        ),
+      ) as _i4.AuthCredentialsProvider);
+
+  @override
+  _i8.Future<_i5.Job> fetchJobById(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #fetchJobById,
+          [id],
+        ),
+        returnValue: _i8.Future<_i5.Job>.value(_FakeJob_3(
+          this,
+          Invocation.method(
+            #fetchJobById,
+            [id],
+          ),
+        )),
+      ) as _i8.Future<_i5.Job>);
+
+  @override
+  _i8.Future<List<_i5.Job>> fetchJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #fetchJobs,
+          [],
+        ),
+        returnValue: _i8.Future<List<_i5.Job>>.value(<_i5.Job>[]),
+      ) as _i8.Future<List<_i5.Job>>);
+
+  @override
+  _i8.Future<_i5.Job> createJob({
+    required String? userId,
+    required String? audioFilePath,
+    String? text,
+    String? additionalText,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #createJob,
+          [],
+          {
+            #userId: userId,
+            #audioFilePath: audioFilePath,
+            #text: text,
+            #additionalText: additionalText,
+          },
+        ),
+        returnValue: _i8.Future<_i5.Job>.value(_FakeJob_3(
+          this,
+          Invocation.method(
+            #createJob,
+            [],
+            {
+              #userId: userId,
+              #audioFilePath: audioFilePath,
+              #text: text,
+              #additionalText: additionalText,
+            },
+          ),
+        )),
+      ) as _i8.Future<_i5.Job>);
+
+  @override
+  _i8.Future<_i5.Job> updateJob({
+    required String? jobId,
+    required Map<String, dynamic>? updates,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateJob,
+          [],
+          {
+            #jobId: jobId,
+            #updates: updates,
+          },
+        ),
+        returnValue: _i8.Future<_i5.Job>.value(_FakeJob_3(
+          this,
+          Invocation.method(
+            #updateJob,
+            [],
+            {
+              #jobId: jobId,
+              #updates: updates,
+            },
+          ),
+        )),
+      ) as _i8.Future<_i5.Job>);
+
+  @override
+  _i8.Future<List<_i5.Job>> syncJobs(List<_i5.Job>? jobsToSync) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #syncJobs,
+          [jobsToSync],
+        ),
+        returnValue: _i8.Future<List<_i5.Job>>.value(<_i5.Job>[]),
+      ) as _i8.Future<List<_i5.Job>>);
+
+  @override
+  _i8.Future<_i6.Unit> deleteJob(String? serverId) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJob,
+          [serverId],
+        ),
+        returnValue: _i8.Future<_i6.Unit>.value(_FakeUnit_4(
+          this,
+          Invocation.method(
+            #deleteJob,
+            [serverId],
+          ),
+        )),
+      ) as _i8.Future<_i6.Unit>);
 }

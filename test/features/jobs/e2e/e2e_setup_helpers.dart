@@ -28,7 +28,12 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 // Generate mocks for NetworkInfo, AuthCredentialsProvider, and FileSystem
-@GenerateMocks([NetworkInfo, AuthCredentialsProvider, FileSystem])
+@GenerateMocks([
+  NetworkInfo,
+  AuthCredentialsProvider,
+  FileSystem,
+  ApiJobRemoteDataSourceImpl,
+])
 import 'e2e_setup_helpers.mocks.dart'; // Import the generated mocks for this file
 
 // --- Constants ---
@@ -183,11 +188,15 @@ Future<void> teardownHive(Directory tempDir, Box<JobHiveModel> jobBox) async {
 /// Sets up Dependency Injection container.
 ///
 /// Requires the mock server URL and the job box.
-Future<void> setupDI(
-  String dynamicMockServerUrl,
-  Box<JobHiveModel> jobBox,
-) async {
-  logger.i('$tag Setting up Dependency Injection...');
+/// Optionally registers a mock for [JobRemoteDataSource] instead of the real one.
+Future<void> setupDI({
+  required String dynamicMockServerUrl,
+  required Box<JobHiveModel> jobBox,
+  bool registerMockDataSource = false, // Default to real implementation
+}) async {
+  logger.i(
+    '$tag Setting up Dependency Injection (Mock DS: $registerMockDataSource)...',
+  );
   await sl.reset();
 
   // --- External Dependencies ---
@@ -224,13 +233,36 @@ Future<void> setupDI(
   sl.registerLazySingleton<FileSystem>(() => MockFileSystem());
   sl.registerLazySingleton<HiveInterface>(() => Hive);
 
+  // Register the mock implementation with a specific name
+  sl.registerLazySingleton<MockApiJobRemoteDataSourceImpl>(
+    () => MockApiJobRemoteDataSourceImpl(),
+    instanceName: 'mockDataSource',
+  );
+  // Register the real implementation with a specific name (optional, but good practice)
+  sl.registerLazySingleton<ApiJobRemoteDataSourceImpl>(
+    () => ApiJobRemoteDataSourceImpl(dio: sl(), authCredentialsProvider: sl()),
+    instanceName: 'realDataSource',
+  );
+
   // --- Data Sources ---
   sl.registerLazySingleton<JobLocalDataSource>(
     () => HiveJobLocalDataSourceImpl(hive: sl()),
   );
-  sl.registerLazySingleton<JobRemoteDataSource>(
-    () => ApiJobRemoteDataSourceImpl(dio: sl(), authCredentialsProvider: sl()),
-  );
+
+  // Conditionally register the default JobRemoteDataSource
+  if (registerMockDataSource) {
+    logger.i('$tag Registering MOCK JobRemoteDataSource');
+    // Register the named mock as the default implementation for the interface
+    sl.registerLazySingleton<JobRemoteDataSource>(
+      () => sl<MockApiJobRemoteDataSourceImpl>(instanceName: 'mockDataSource'),
+    );
+  } else {
+    logger.i('$tag Registering REAL JobRemoteDataSource');
+    // Register the named real implementation as the default
+    sl.registerLazySingleton<JobRemoteDataSource>(
+      () => sl<ApiJobRemoteDataSourceImpl>(instanceName: 'realDataSource'),
+    );
+  }
 
   // --- Services ---
   sl.registerLazySingleton<JobReaderService>(

@@ -56,7 +56,8 @@ class JobSyncOrchestratorService {
     try {
       if (!await _networkInfo.isConnected) {
         _logger.w('Network offline, skipping sync.');
-        return Left(ServerFailure(message: 'No internet connection'));
+        // Return success (Right) because skipping due to offline is expected
+        return const Right(unit);
       }
 
       List<Job> pendingJobs = [];

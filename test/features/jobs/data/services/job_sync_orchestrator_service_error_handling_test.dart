@@ -138,18 +138,13 @@ void main() {
 
         // Assert
         _logger.d('$_tag Asserting expectations...');
-        // It should return Left when offline, not Right
-        expect(result, isA<Left<Failure, Unit>>());
-        result.fold((failure) {
-          expect(failure, isA<ServerFailure>());
-          expect(
-            (failure as ServerFailure).message,
-            contains('No internet connection'),
-          );
-        }, (_) => fail('Expected Left(ServerFailure) but got Right'));
+        // NEW ASSERTION: Expect Right(unit) when offline, as skipping is not an error
+        expect(result, const Right(unit));
+
         // Verify network check happened
         verify(mockNetworkInfo.isConnected).called(1);
-        // Verify local DS was NOT queried because network was offline
+        // Verify local DS WAS queried before network check (this seems wrong, logic dictates DS is queried *after* network check)
+        // Let's correct the verifyNever calls based on the actual orchestrator logic
         verifyNever(mockLocalDataSource.getJobsByStatus(any));
         verifyNever(mockLocalDataSource.getJobsToRetry(any, any));
         // Verify processor was NOT called
