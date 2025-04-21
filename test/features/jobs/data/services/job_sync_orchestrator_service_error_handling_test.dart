@@ -1,14 +1,13 @@
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
-import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
