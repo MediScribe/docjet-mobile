@@ -1,10 +1,12 @@
 #!/bin/sh
 
-# Run tests and extract failed test information into a proper file
-# Each failed test will be on its own line with its full command to run it again
+# Run tests and extract failed test information, grouped by source file
 
-# Clear the failed tests file if it exists
-# echo "" > failed_tests.txt
+# Get the project root directory
+project_root=$(pwd)
+
+# Create a temporary file to store the test information
+temp_file=$(mktemp)
 
 # Run tests and extract the data
 flutter test | grep "To run this test again: " | while read -r line; do
@@ -12,17 +14,46 @@ flutter test | grep "To run this test again: " | while read -r line; do
   filePath=$(echo "$line" | awk '{print $8}')
   testName=$(echo "$line" | awk '{for(i=12;i<=NF;i++) printf "%s ", $i}')
   
-  # Extract directory and filename
-  dirPath=$(dirname "$filePath")
-  filename=$(basename "$filePath")
-
-  # Print to screen with "Failed:", full path (filename colored red), and newline
-  echo -e "Failed: ${dirPath}/\\033[0;31m${filename}\\033[0m\\n : ${testName}"
-  
-  # Also save the runnable command to the file for later use
-  # echo "/Users/eburgwedel/Developer/flutter/bin/cache/dart-sdk/bin/dart test $filePath -p vm --plain-name $testName" >> failed_tests.txt
+  # Store the test information in the temp file with the file path as prefix
+  echo "$filePath:::$testName" >> "$temp_file"
 done
 
-echo ""
-# echo "Failed test commands saved to failed_tests.txt"
-echo "Failed tests listed above"
+# If there are any failed tests
+if [ -s "$temp_file" ]; then
+  # Sort the temp file by file path to group tests by source file
+  sort "$temp_file" > "${temp_file}.sorted"
+  
+  # Process the sorted file to display grouped tests
+  current_file=""
+  
+  while IFS= read -r line; do
+    file_path=$(echo "$line" | cut -d':' -f1)
+    test_name=$(echo "$line" | cut -d':' -f4-)
+    
+    # If this is a new file, print the file header
+    if [ "$current_file" != "$file_path" ]; then
+      # Print a blank line between files (except for the first one)
+      if [ -n "$current_file" ]; then
+        echo ""
+      fi
+      
+      # Convert absolute path to relative path (from project root)
+      rel_path=${file_path#"$project_root/"}
+      
+      # Print the file header with filename in red (needs -e for color codes)
+      echo -e "Failed tests in: \\033[0;31m${rel_path}\\033[0m"
+      current_file="$file_path"
+    fi
+    
+    # Print the test name with indentation (no escape sequences, so no -e needed)
+    echo "  • $test_name"
+  done < "${temp_file}.sorted"
+  
+  echo ""
+  echo "Failed tests grouped by source file"
+else
+  echo "No failed tests found"
+fi
+
+# Clean up temporary files
+rm -f "$temp_file" "${temp_file}.sorted"
