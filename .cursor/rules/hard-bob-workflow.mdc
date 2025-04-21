@@ -14,7 +14,7 @@ Follow these steps religiously, or face the fucking consequences.
     *   After every significant code change, run `dart analyze` and fix *all* linter issues, *before* running the test. No exceptions. Clean code isn't optional.
     *   **DO NOT** run tests with `-v`. It's fucking useless noise. If a test fails, don't guess or blindly retry. Add logging using `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` (even in the test itself!) to understand *why* it failed. Analyze, don't flail.
 5.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
-6.  **Final Check**: Before committing, run `./scripts/list_failed_tests.sh` using `[list_failed_tests.sh](mdc:scripts/list_failed_tests.sh)` to ensure nothing broke. Don't commit broken shit.
+6.  **Checking Test Failures**: To check for failed tests *without* drowning in debug noise, run `./scripts/list_failed_tests.sh` using `[list_failed_tests.sh](mdc:scripts/list_failed_tests.sh)`. **This is THE ONLY way to get a clean list of failures.** Use this for all checks unless you are actively debugging *one specific* test. You can run it without arguments to check *all* tests, or provide a specific test file or directory path as an argument (e.g., `./scripts/list_failed_tests.sh tests/some_feature_test.dart`) to check only a subset. Don't commit broken shit.
 7.  **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
 8.  **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.
 
