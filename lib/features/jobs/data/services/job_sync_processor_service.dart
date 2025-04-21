@@ -68,6 +68,14 @@ class JobSyncProcessorService {
         _logger.d('Remote update successful. Saving synced job locally.');
       }
 
+      // ADD LOGGING HERE
+      _logger.d(
+        'Original job state before final save: status=${job.syncStatus}, retryCount=${job.retryCount}, lastAttempt=${job.lastSyncAttemptAt}',
+      );
+      _logger.d(
+        'Remote job state received: serverId=${remoteJob.serverId}, status=${remoteJob.status}, updatedAt=${remoteJob.updatedAt}',
+      );
+
       final updatedJob = job.copyWith(
         serverId: remoteJob.serverId,
         syncStatus: SyncStatus.synced,
@@ -76,8 +84,14 @@ class JobSyncProcessorService {
         text: remoteJob.text ?? job.text,
         additionalText: remoteJob.additionalText ?? job.additionalText,
         updatedAt: remoteJob.updatedAt,
-        retryCount: 0,
-        lastSyncAttemptAt: null,
+        retryCount: 0, // Hard reset on success
+        lastSyncAttemptAt: null, // Explicitly set to null on success
+        setLastSyncAttemptAtToNull: true, // Required by Job.copyWith
+      );
+
+      // ADD LOGGING HERE
+      _logger.d(
+        'Job state being saved: status=${updatedJob.syncStatus}, retryCount=${updatedJob.retryCount}, lastAttempt=${updatedJob.lastSyncAttemptAt}',
       );
 
       await _localDataSource.saveJob(updatedJob);
