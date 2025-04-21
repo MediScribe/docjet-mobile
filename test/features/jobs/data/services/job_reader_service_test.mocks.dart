@@ -6,12 +6,16 @@
 import 'dart:async' as _i5;
 
 import 'package:dartz/dartz.dart' as _i3;
+import 'package:docjet_mobile/core/error/failures.dart' as _i10;
+import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i11;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i4;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
     as _i8;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i6;
+import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'
+    as _i9;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
@@ -43,6 +47,16 @@ class _FakeJob_0 extends _i1.SmartFake implements _i2.Job {
 
 class _FakeUnit_1 extends _i1.SmartFake implements _i3.Unit {
   _FakeUnit_1(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeEither_2<L, R> extends _i1.SmartFake implements _i3.Either<L, R> {
+  _FakeEither_2(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -354,4 +368,69 @@ class MockJobRemoteDataSource extends _i1.Mock
           ),
         )),
       ) as _i5.Future<_i3.Unit>);
+}
+
+/// A class which mocks [JobDeleterService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobDeleterService extends _i1.Mock implements _i9.JobDeleterService {
+  MockJobDeleterService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>> deleteJob(String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #deleteJob,
+          [localId],
+        ),
+        returnValue: _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>.value(
+            _FakeEither_2<_i10.Failure, _i3.Unit>(
+          this,
+          Invocation.method(
+            #deleteJob,
+            [localId],
+          ),
+        )),
+      ) as _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>);
+
+  @override
+  _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>> permanentlyDeleteJob(
+          String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #permanentlyDeleteJob,
+          [localId],
+        ),
+        returnValue: _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>.value(
+            _FakeEither_2<_i10.Failure, _i3.Unit>(
+          this,
+          Invocation.method(
+            #permanentlyDeleteJob,
+            [localId],
+          ),
+        )),
+      ) as _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>);
+}
+
+/// A class which mocks [NetworkInfo].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockNetworkInfo extends _i1.Mock implements _i11.NetworkInfo {
+  MockNetworkInfo() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<bool> get isConnected => (super.noSuchMethod(
+        Invocation.getter(#isConnected),
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
+
+  @override
+  _i5.Stream<bool> get onConnectivityChanged => (super.noSuchMethod(
+        Invocation.getter(#onConnectivityChanged),
+        returnValue: _i5.Stream<bool>.empty(),
+      ) as _i5.Stream<bool>);
 }
