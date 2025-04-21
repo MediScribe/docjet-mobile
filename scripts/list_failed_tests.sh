@@ -1,5 +1,23 @@
 #!/bin/sh
 
+# Function to display help message
+print_usage() {
+  echo "Usage: $0 [--help] [test_target]"
+  echo ""
+  echo "Run Flutter tests and list failed tests, grouped by source file."
+  echo ""
+  echo "Arguments:"
+  echo "  [test_target]  Optional. Path to a specific test file or directory."
+  echo "                 If omitted, all tests in the project are run."
+  echo "  --help         Display this help message and exit."
+  exit 0
+}
+
+# Check for --help argument
+if [ "$1" = "--help" ]; then
+  print_usage
+fi
+
 # Run tests and extract failed test information, grouped by source file
 
 # Get the project root directory
