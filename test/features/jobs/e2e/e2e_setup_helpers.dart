@@ -151,7 +151,9 @@ Future<(Directory, Box<JobHiveModel>)> setupHive() async {
   logger.i('$tag Initializing Hive for testing...');
   final tempDir = await Directory.systemTemp.createTemp('hive_e2e_test_');
   logHelper('Hive temp directory: ${tempDir.path}');
-  Hive.init(tempDir.path);
+  // Use init, not initFlutter, for Dart tests
+  // await Hive.initFlutter(tempDir.path); // WRONG for Dart tests
+  Hive.init(tempDir.path); // CORRECT for Dart tests
 
   // Register Adapters (Essential!)
   if (!Hive.isAdapterRegistered(JobHiveModelAdapter().typeId)) {
@@ -266,7 +268,12 @@ Future<void> setupDI({
 
   // --- Services ---
   sl.registerLazySingleton<JobReaderService>(
-    () => JobReaderService(localDataSource: sl(), remoteDataSource: sl()),
+    () => JobReaderService(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      deleterService: sl(),
+      networkInfo: sl(),
+    ),
   );
   sl.registerLazySingleton<JobWriterService>(
     () => JobWriterService(localDataSource: sl(), uuid: sl()),
@@ -284,8 +291,8 @@ Future<void> setupDI({
   sl.registerLazySingleton<JobSyncOrchestratorService>(
     () => JobSyncOrchestratorService(
       localDataSource: sl(),
-      processorService: sl<JobSyncProcessorService>(),
       networkInfo: sl(),
+      processorService: sl(),
     ),
   );
 
@@ -330,4 +337,67 @@ void resetTestMocks() {
   if (sl.isRegistered<FileSystem>()) {
     reset(sl<FileSystem>());
   }
+}
+
+// --- New Shared Setup/Teardown Functions ---
+
+/// Combined setup for an E2E test suite.
+///
+/// Starts the mock server, initializes Hive, and sets up DI.
+/// Returns a record containing the necessary handles for teardown.
+Future<(Process?, Directory, Box<JobHiveModel>)> setupE2ETestSuite({
+  bool registerMockDataSource = false,
+}) async {
+  // --- Logging Setup ---
+  LoggerFactory.setLogLevel(testSuiteName, Level.debug);
+  logger.i('$tag --- Starting Shared E2E Test Suite Setup --- GOGO');
+
+  // --- Mock Server Setup ---
+  logger.i('$tag Starting mock server...');
+  final serverResult = await startMockServer();
+  final mockServerProcess = serverResult.$1;
+  final mockServerPort = serverResult.$2;
+  if (mockServerProcess == null) {
+    throw Exception('Mock server process failed to start.');
+  }
+  final dynamicMockServerUrl = 'http://localhost:$mockServerPort';
+  logger.i(
+    '$tag Mock server started on $dynamicMockServerUrl (PID: ${mockServerProcess.pid})',
+  );
+
+  // --- Hive Setup ---
+  final hiveResult = await setupHive();
+  final tempDir = hiveResult.$1;
+  final jobBox = hiveResult.$2;
+
+  // --- DI Setup ---
+  await setupDI(
+    dynamicMockServerUrl: dynamicMockServerUrl,
+    jobBox: jobBox,
+    registerMockDataSource: registerMockDataSource,
+  );
+
+  logger.i('$tag --- Shared E2E Test Suite Setup Complete ---');
+  return (mockServerProcess, tempDir, jobBox);
+}
+
+/// Combined teardown for an E2E test suite.
+///
+/// Tears down DI, cleans up Hive, and stops the mock server.
+Future<void> teardownE2ETestSuite(
+  Process? mockServerProcess,
+  Directory tempDir,
+  Box<JobHiveModel> jobBox,
+) async {
+  logger.i('$tag --- Tearing Down Shared E2E Test Suite ---');
+  // --- DI Teardown ---
+  await teardownDI();
+
+  // --- Hive Teardown ---
+  await teardownHive(tempDir, jobBox);
+
+  // --- Mock Server Teardown ---
+  await stopMockServer(mockServerProcess);
+
+  logger.i('$tag --- Shared E2E Test Suite Teardown Complete ---');
 }

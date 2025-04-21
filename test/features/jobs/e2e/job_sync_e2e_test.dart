@@ -1,33 +1,19 @@
-// import 'dart:convert'; // No longer needed directly
 import 'dart:io';
-import 'package:path/path.dart' as p; // Added path import back
+import 'package:path/path.dart' as p;
 
-// import 'package:dio/dio.dart'; // Handled by DI setup
-// import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Mocked via DI
-import 'package:docjet_mobile/core/interfaces/network_info.dart'; // Add this import
-import 'package:docjet_mobile/core/platform/file_system.dart'; // Still needed for MockFileSystem type
+import 'package:docjet_mobile/core/interfaces/network_info.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
-// import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'; // DI
-// import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart'; // DI
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // Needed for type
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // Needed for type
-import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'; // Needed for type
-// import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart'; // DI
-// import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'; // DI
-// import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart'; // DI
-// import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'; // DI
-// import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart'; // DI
-// import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'; // DI
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-// import 'package:mockito/annotations.dart'; // Moved to helpers
-import 'package:mockito/mockito.dart'; // Still needed for verify
-// import 'package:path/path.dart' as p; // Moved to helpers
+import 'package:mockito/mockito.dart';
 import 'package:uuid/uuid.dart';
 
 // Import the setup helpers
@@ -35,14 +21,15 @@ import 'e2e_setup_helpers.dart';
 // Import the generated mocks FROM the helper file
 import 'e2e_setup_helpers.mocks.dart';
 
+// Use shared handles - these need to be late and initialized in setUpAll
+late Process? _mockServerProcess;
+late Directory _tempDir;
+late Box<JobHiveModel> _jobBox;
+
 // --- Test Globals (Managed by helpers) ---
 final sl = GetIt.instance; // Keep for easy access in tests
 final _logger = LoggerFactory.getLogger(testSuiteName); // Use helper's logger
 final _tag = logTag(testSuiteName); // Use helper's tag
-Process? _mockServerProcess;
-late Directory _tempDir;
-late Box<JobHiveModel> _jobBox;
-// Note: dynamicMockServerUrl and mockServerPort are managed within setUpAll
 
 // Remove duplicate mock generation
 // @GenerateMocks([NetworkInfo, AuthCredentialsProvider, FileSystem])
@@ -55,51 +42,22 @@ void main() {
   // Note: TestWidgetsFlutterBinding.ensureInitialized() MUST NOT be used for network tests
 
   setUpAll(() async {
-    // --- Logging Setup ---
-    LoggerFactory.setLogLevel(
-      testSuiteName,
-      Level.debug,
-    ); // Use constant from helper
-    _logger.i('$_tag --- Starting E2E Test Suite --- GOGO');
-
-    // --- Mock Server Setup (using helper) ---
-    _logger.i('$_tag Starting mock server...');
-    final serverResult = await startMockServer();
-    _mockServerProcess = serverResult.$1;
-    final mockServerPort = serverResult.$2;
-    if (_mockServerProcess == null) {
-      throw Exception('Mock server process failed to start.');
-    }
-    final dynamicMockServerUrl = 'http://localhost:$mockServerPort';
-    _logger.i(
-      '$_tag Mock server started on $dynamicMockServerUrl (PID: ${_mockServerProcess?.pid})',
-    );
-
-    // --- Hive Setup (using helper) ---
-    final hiveResult = await setupHive();
-    _tempDir = hiveResult.$1;
-    _jobBox = hiveResult.$2;
-
-    // --- DI Setup (using helper, AFTER server URL and jobBox are known) ---
-    await setupDI(
-      dynamicMockServerUrl: dynamicMockServerUrl,
-      jobBox: _jobBox,
-      // registerMockDataSource: false, // Default is false
-    );
+    // --- Shared Setup ---
+    final setupResult = await setupE2ETestSuite(); // Call the shared setup
+    _mockServerProcess = setupResult.$1;
+    _tempDir = setupResult.$2;
+    _jobBox = setupResult.$3;
+    // REMOVE all the individual setup steps (they are now inside setupE2ETestSuite)
   });
 
   tearDownAll(() async {
-    _logger.i('$_tag --- Tearing Down E2E Test Suite ---');
-    // --- DI Teardown (using helper) ---
-    await teardownDI();
-
-    // --- Hive Teardown (using helper) ---
-    await teardownHive(_tempDir, _jobBox);
-
-    // --- Mock Server Teardown (using helper) ---
-    await stopMockServer(_mockServerProcess);
-
-    _logger.i('$_tag --- E2E Test Suite Teardown Complete ---');
+    // --- Shared Teardown ---
+    await teardownE2ETestSuite(
+      _mockServerProcess,
+      _tempDir,
+      _jobBox,
+    ); // Call the shared teardown
+    // REMOVE all individual teardown steps (they are now inside teardownE2ETestSuite)
   });
 
   setUp(() async {

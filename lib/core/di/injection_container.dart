@@ -38,7 +38,12 @@ Future<void> init() async {
 
   // Services (depend on data sources, core utils)
   sl.registerLazySingleton<JobReaderService>(
-    () => JobReaderService(localDataSource: sl(), remoteDataSource: sl()),
+    () => JobReaderService(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      deleterService: sl<JobDeleterService>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
   );
   sl.registerLazySingleton<JobWriterService>(
     () => JobWriterService(localDataSource: sl(), uuid: sl()),
