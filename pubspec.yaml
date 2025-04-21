@@ -81,6 +81,9 @@ dev_dependencies:
   # Add hive_test for testing Hive models
   hive_test: ^1.0.1
 
+  # Command-line argument parsing for scripts
+  args: ^2.5.0
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
