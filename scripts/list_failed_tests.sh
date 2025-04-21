@@ -5,18 +5,35 @@
 # Get the project root directory
 project_root=$(pwd)
 
+# Get the optional test target (file or directory)
+test_target="$1"
+
 # Create a temporary file to store the test information
 temp_file=$(mktemp)
 
 # Run tests and extract the data
-flutter test | grep "To run this test again: " | while read -r line; do
-  # Extract file path (8th field) and test name (fields from 12 onward)
-  filePath=$(echo "$line" | awk '{print $8}')
-  testName=$(echo "$line" | awk '{for(i=12;i<=NF;i++) printf "%s ", $i}')
-  
-  # Store the test information in the temp file with the file path as prefix
-  echo "$filePath:::$testName" >> "$temp_file"
-done
+# If a target is provided, run tests on that target, otherwise run all tests
+if [ -n "$test_target" ]; then
+  echo "Running tests for target: $test_target"
+  flutter test "$test_target" | grep "To run this test again: " | while read -r line; do
+    # Extract file path (8th field) and test name (fields from 12 onward)
+    filePath=$(echo "$line" | awk '{print $8}')
+    testName=$(echo "$line" | awk '{for(i=12;i<=NF;i++) printf "%s ", $i}')
+    
+    # Store the test information in the temp file with the file path as prefix
+    echo "$filePath:::$testName" >> "$temp_file"
+  done
+else
+  echo "Running all tests"
+  flutter test | grep "To run this test again: " | while read -r line; do
+    # Extract file path (8th field) and test name (fields from 12 onward)
+    filePath=$(echo "$line" | awk '{print $8}')
+    testName=$(echo "$line" | awk '{for(i=12;i<=NF;i++) printf "%s ", $i}')
+    
+    # Store the test information in the temp file with the file path as prefix
+    echo "$filePath:::$testName" >> "$temp_file"
+  done
+fi
 
 # If there are any failed tests
 if [ -s "$temp_file" ]; then
