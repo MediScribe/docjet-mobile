@@ -12,8 +12,12 @@ flutter test | grep "To run this test again: " | while read -r line; do
   filePath=$(echo "$line" | awk '{print $8}')
   testName=$(echo "$line" | awk '{for(i=12;i<=NF;i++) printf "%s ", $i}')
   
-  # Print to screen with "Failed:" prefix
-  echo "Failed: $filePath : $testName"
+  # Extract directory and filename
+  dirPath=$(dirname "$filePath")
+  filename=$(basename "$filePath")
+
+  # Print to screen with "Failed:", full path (filename colored red), and newline
+  echo -e "Failed: ${dirPath}/\\033[0;31m${filename}\\033[0m\\n : ${testName}"
   
   # Also save the runnable command to the file for later use
   # echo "/Users/eburgwedel/Developer/flutter/bin/cache/dart-sdk/bin/dart test $filePath -p vm --plain-name $testName" >> failed_tests.txt
