@@ -63,6 +63,9 @@ dependencies:
   rxdart: ^0.28.0
   mutex: ^3.1.0
 
+  # UI State Management
+  flutter_bloc: ^8.1.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

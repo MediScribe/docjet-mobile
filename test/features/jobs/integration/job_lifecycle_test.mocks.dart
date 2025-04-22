@@ -105,6 +105,26 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>);
+
+  @override
+  _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>> watchJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobs,
+          [],
+        ),
+        returnValue: _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>.empty(),
+      ) as _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>);
+
+  @override
+  _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>> watchJobById(String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobById,
+          [localId],
+        ),
+        returnValue: _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>.empty(),
+      ) as _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>);
 }
 
 /// A class which mocks [JobWriterService].

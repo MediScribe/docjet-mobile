@@ -88,6 +88,7 @@ graph TD
 - Feature-specific use cases
 - Business logic orchestration
 - Single responsibility actions
+- Includes standard `UseCase` for single actions and `StreamUseCase` for reactive data flows.
 - Bridge between Presentation and Domain
 
 ### Domain Layer
@@ -112,7 +113,7 @@ graph TD
 
 For the Jobs feature, we use a service-oriented repository pattern:
 
-```mermaid
+```mermaid badge="Updated Diagram"
 %%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 graph TD
     subgraph "Jobs Feature"
@@ -128,6 +129,8 @@ graph TD
             UpdateJob[UpdateJobUseCase]
             DeleteJob[DeleteJobUseCase]
             ResetFailedJob[ResetFailedJobUseCase]
+            WatchJobs[WatchJobsUseCase]
+            WatchJobById[WatchJobByIdUseCase]
         end
         
         subgraph "Domain"
@@ -159,6 +162,8 @@ graph TD
         JobState --> UpdateJob
         JobState --> DeleteJob
         JobState --> ResetFailedJob
+        JobState --> WatchJobs
+        JobState --> WatchJobById
         
         GetJobs --> JobRepo
         GetJobById --> JobRepo
@@ -166,6 +171,8 @@ graph TD
         UpdateJob --> JobRepo
         DeleteJob --> JobRepo
         ResetFailedJob --> JobRepo
+        WatchJobs --> JobRepo
+        WatchJobById --> JobRepo
         
         RepoImpl --> JobRepo
         
@@ -188,7 +195,7 @@ graph TD
     end
     
     class JobsUI,JobState presentation;
-    class GetJobs,GetJobById,CreateJob,UpdateJob,DeleteJob,ResetFailedJob usecases;
+    class GetJobs,GetJobById,CreateJob,UpdateJob,DeleteJob,ResetFailedJob,WatchJobs,WatchJobById usecases;
     class JobEntity,SyncStatus,JobRepo domain;
     class RepoImpl,LocalDS,RemoteDS data;
     class ReaderSvc,WriterSvc,DeleterSvc,SyncOrch,SyncProc,SyncTrigger services;

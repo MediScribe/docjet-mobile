@@ -66,14 +66,15 @@ Implement a mechanism to inform users when file cleanup operations fail. Do not 
 ## 5. Data Flow Architecture Verification
 Verify our stream-based architecture is fully implemented for reactive UI updates.
 
-- [ ] Confirm `HiveJobLocalDataSourceImpl` implements `box.watch()` properly
-- [ ] Verify `JobRepositoryImpl` exposes streams via:
-  - [ ] `Stream<List<Job>> watchJobs()` method
-  - [ ] `Stream<Job?> watchJobById(String localId)` method
-- [ ] Create use cases for streams if not already done:
-  - [ ] `WatchJobsUseCase` that returns `Stream<List<Job>>`
-  - [ ] `WatchJobByIdUseCase` that returns `Stream<Job?>`
-- [ ] Ensure presentation layer consumes streams properly:
+- [X] Confirm `HiveJobLocalDataSourceImpl` implements `box.watch()` properly
+- [X] Verify `JobRepositoryImpl` exposes streams via:
+  - [X] `Stream<List<Job>> watchJobs()` method
+  - [X] `Stream<Job?> watchJobById(String localId)` method
+- [X] Create use cases for streams if not already done:
+  - [X] `WatchJobsUseCase` that returns `Stream<List<Job>>`
+  - [X] `WatchJobByIdUseCase` that returns `Stream<Job?>`
+- [ ] PREPARE without building the UI itself (refer to the user to discuss!): 
+      Ensure presentation layer consumes streams properly:
   - [ ] Verify BLoC/Cubit subscribes to job streams
   - [ ] Verify UI uses `StreamBuilder` for reactive rendering
   - [ ] Test that UI updates automatically when job sync status changes
@@ -82,7 +83,7 @@ Verify our stream-based architecture is fully implemented for reactive UI update
 Enhance test coverage for sync edge cases.
 
 - [X] Write tests for file deletion error handling
-- [ ] Write tests for exponential backoff calculations
+- [X] Write tests for exponential backoff calculations
 - [ ] Write tests for mutex lock behavior
 - [ ] Write tests for stream propagation of sync status changes
 - [ ] Add specific UI tests for file issue indicator display 
@@ -93,6 +94,6 @@ Additional improvements identified during code review.
 - [ ] Standardize error logging approach (use `logError` helper consistently instead of direct `_logger.e` calls)
 - [ ] Add defensive coding for counter increments (null checks before incrementing `failedAudioDeletionAttempts`)
 - [ ] Consider extracting nested try-catch blocks into helper methods in `JobDeleterService` for better readability
-- [ ] Move all config values (retry backoff times, max attempts) to a dedicated config class
+- [X] Move all config values (retry backoff times, max attempts) to a dedicated config class
 - [ ] Document thread-safety guarantees for all services that handle file operations
 - [ ] Add dedicated helper method to reset the `failedAudioDeletionAttempts` counter 

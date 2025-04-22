@@ -185,6 +185,8 @@ void main() {
           setDisplayTitleNull: true, // Set the flag to actually USE the null
           audioFilePath: null, // Pass null
           setAudioFilePathNull: true, // Set the flag to actually USE the null
+          lastSyncAttemptAt: null, // Pass null
+          setLastSyncAttemptAtNull: true, // Set the flag
           // Keep others the same for this specific null test
           status: job.status,
           syncStatus: job.syncStatus,
@@ -198,11 +200,14 @@ void main() {
         expect(updatedJob.userId, testUserId);
         expect(updatedJob.createdAt, job.createdAt);
 
+        // REVERT ASSERTIONS
         expect(updatedJob.displayTitle, isNull); // Should be null due to flag
+        expect(updatedJob.audioFilePath, isNull); // Should be null due to flag
         expect(
-          updatedJob.audioFilePath,
+          updatedJob.lastSyncAttemptAt,
           isNull,
-        ); // Should be null due to ?? logic (original was not null)
+        ); // Should be null due to flag
+
         // Non-nullable fields retain original value as no new value was passed
         expect(updatedJob.retryCount, job.retryCount);
         expect(

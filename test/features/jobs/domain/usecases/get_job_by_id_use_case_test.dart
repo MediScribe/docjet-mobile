@@ -16,7 +16,7 @@ void main() {
 
   setUp(() {
     mockJobRepository = MockJobRepository();
-    useCase = GetJobByIdUseCase(mockJobRepository);
+    useCase = GetJobByIdUseCase(repository: mockJobRepository);
   });
 
   const tLocalId = 'uuid-1';
@@ -40,7 +40,7 @@ void main() {
     .thenAnswer((_) async => Right(tJob));
 
     // Act
-    final result = await useCase(const GetJobByIdParams(localId: tLocalId));
+    final result = await useCase(tLocalId);
 
     // Assert
     expect(result, Right(tJob));
@@ -56,7 +56,7 @@ void main() {
     ).thenAnswer((_) async => const Left(tFailure));
 
     // Act
-    final result = await useCase(const GetJobByIdParams(localId: tLocalId));
+    final result = await useCase(tLocalId);
 
     // Assert
     expect(result, const Left(tFailure));

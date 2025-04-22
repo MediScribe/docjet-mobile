@@ -226,6 +226,7 @@ void main() {
         _logger.i('$_tag Verifying job state is synced after retry...');
         jobFromDb = await localDataSource.getJobById(localId);
         expect(jobFromDb, isNotNull);
+
         expect(
           jobFromDb.syncStatus,
           SyncStatus.synced,

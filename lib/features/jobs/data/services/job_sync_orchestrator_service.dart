@@ -183,7 +183,7 @@ class JobSyncOrchestratorService {
         final updatedJob = job.copyWith(
           syncStatus: SyncStatus.pending,
           retryCount: 0,
-          setLastSyncAttemptAtToNull: true,
+          setLastSyncAttemptAtNull: true,
         );
 
         await _localDataSource.saveJob(updatedJob);

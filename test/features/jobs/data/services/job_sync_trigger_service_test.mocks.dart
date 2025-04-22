@@ -64,21 +64,41 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
       ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> getJobById(String? localId) =>
+  _i4.Future<_i2.Either<_i5.Failure, _i6.Job?>> getJobById(String? localId) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobById,
           [localId],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job?>>.value(
+            _FakeEither_0<_i5.Failure, _i6.Job?>(
           this,
           Invocation.method(
             #getJobById,
             [localId],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job?>>);
+
+  @override
+  _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>> watchJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobs,
+          [],
+        ),
+        returnValue: _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>.empty(),
+      ) as _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>);
+
+  @override
+  _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>> watchJobById(String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobById,
+          [localId],
+        ),
+        returnValue: _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>.empty(),
+      ) as _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> createJob({

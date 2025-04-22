@@ -5,10 +5,11 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i6;
 import 'dart:io' as _i4;
-import 'dart:typed_data' as _i10;
+import 'dart:typed_data' as _i11;
 
 import 'package:dartz/dartz.dart' as _i3;
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i9;
+import 'package:docjet_mobile/core/error/failures.dart' as _i9;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i10;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i5;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
@@ -17,7 +18,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i11;
+import 'package:mockito/src/dummies.dart' as _i12;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -247,12 +248,32 @@ class MockJobLocalDataSource extends _i1.Mock
         ),
         returnValue: _i6.Future<List<_i2.Job>>.value(<_i2.Job>[]),
       ) as _i6.Future<List<_i2.Job>>);
+
+  @override
+  _i6.Stream<_i3.Either<_i9.Failure, List<_i2.Job>>> watchJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobs,
+          [],
+        ),
+        returnValue: _i6.Stream<_i3.Either<_i9.Failure, List<_i2.Job>>>.empty(),
+      ) as _i6.Stream<_i3.Either<_i9.Failure, List<_i2.Job>>>);
+
+  @override
+  _i6.Stream<_i3.Either<_i9.Failure, _i2.Job?>> watchJobById(String? id) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobById,
+          [id],
+        ),
+        returnValue: _i6.Stream<_i3.Either<_i9.Failure, _i2.Job?>>.empty(),
+      ) as _i6.Stream<_i3.Either<_i9.Failure, _i2.Job?>>);
 }
 
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i10.FileSystem {
   MockFileSystem() {
     _i1.throwOnMissingStub(this);
   }
@@ -328,7 +349,7 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
   @override
   _i6.Future<void> writeFile(
     String? path,
-    _i10.Uint8List? bytes,
+    _i11.Uint8List? bytes,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -357,7 +378,7 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
           #resolvePath,
           [path],
         ),
-        returnValue: _i11.dummyValue<String>(
+        returnValue: _i12.dummyValue<String>(
           this,
           Invocation.method(
             #resolvePath,

@@ -125,6 +125,8 @@ All use cases located in: `lib/features/jobs/domain/usecases/`
 - `get_jobs_use_case.dart` - Retrieves all jobs
 - `reset_failed_job_use_case.dart` - Resets failed jobs for retry
 - `update_job_use_case.dart` - Updates existing jobs
+- `watch_jobs_use_case.dart` - Provides a stream of all jobs
+- `watch_job_by_id_use_case.dart` - Provides a stream for a single job
 
 ### Data Sources
 - **Local**: `lib/features/jobs/data/datasources/job_local_data_source.dart`
@@ -448,11 +450,12 @@ The job feature implements a service-oriented repository pattern with specialize
 
 The public contract for job operations that feature modules interact with. It defines all operations without exposing implementation details.
 
-Key methods:
-* Read: `getJobs()`, `getJobById(localId)`
+Key Methods:
+* Read: `getJobs()`, `getJobById(localId)` (returns `Job?`)
 * Write: `createJob(audioFilePath, text)`, `updateJob(localId, updates)`
 * Delete: `deleteJob(localId)`
 * Sync: `syncPendingJobs()`, `resetFailedJob(localId)`
+* Reactive Read: `watchJobs()`, `watchJobById(localId)` (return Streams)
 
 #### JobRepositoryImpl
 
@@ -479,6 +482,7 @@ Key features:
 * Getting jobs from local storage
 * Fetching jobs from remote API when needed
 * Detecting server-side deletions
+* Providing reactive streams via `watchJobs()` and `watchJobById()`
 
 #### JobWriterService
 
@@ -535,8 +539,10 @@ Key features:
 
 Interface defining operations for local storage of jobs. Implemented by `HiveJobLocalDataSourceImpl`.
 
-New methods added for error recovery:
+Key methods include:
 * `getJobsToRetry(maxRetries, backoffDuration)`: Gets jobs eligible for retry based on retry count and backoff time
+* `watchJobs()`: Returns a `Stream` of the entire job list.
+* `watchJobById(id)`: Returns a `Stream` for a specific job.
 
 #### JobRemoteDataSource
 
@@ -643,10 +649,12 @@ This separation of concerns allows for:
      - Sets `syncStatus` to `SyncStatus.error` if retries remain.
      - Sets `syncStatus` to `SyncStatus.failed` if `retryCount` reaches `maxRetryAttempts` (currently 5).
    - The orchestrator identifies jobs in the `error` state for subsequent retry attempts based on an exponential backoff calculation.
-   - **Retry Timing**: The `HiveJobLocalDataSourceImpl.getJobsToRetry` method calculates the next valid attempt time using the formula: `min(retryBackoffBase * pow(2, retryCount), maxBackoffDuration)`.
-     - `retryBackoffBase` is currently **30 seconds** (defined in `JobSyncConfig`).
-     - `maxRetryAttempts` is currently **5** (defined in `JobSyncConfig`).
-     - `maxBackoffDuration` is currently **1 hour** (defined in `JobSyncConfig`).
+   - **Retry Timing**: The eligibility for retry is determined by the `HiveJobLocalDataSourceImpl.getJobsToRetry` method. The backoff duration itself is calculated using the `calculateRetryBackoff` function in `lib/features/jobs/data/config/job_sync_config.dart`.
+     - The formula is: `min(retryBackoffBase * pow(2, retryCount), maxBackoffDuration)`.
+     - Configuration values (defined in `JobSyncConfig`):
+       - `retryBackoffBase`: Currently 1 minute.
+       - `maxRetryAttempts`: Currently 5.
+       - `maxBackoffDuration`: Currently 1 hour (caps the exponential growth).
      - A job is only considered for retry if the current time is after its `lastSyncAttemptAt` plus the calculated backoff duration.
    - The overall sync process continues with other jobs even if one fails.
 

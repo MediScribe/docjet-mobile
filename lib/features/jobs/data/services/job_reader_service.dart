@@ -196,4 +196,44 @@ class JobReaderService {
       );
     }
   }
+
+  // --- Stream Operations ---
+
+  /// Watches the local data source for changes to the list of all jobs.
+  Stream<Either<Failure, List<Job>>> watchJobs() {
+    _logger.d('$_tag Delegating watchJobs to local data source...');
+    try {
+      return _localDataSource.watchJobs();
+    } catch (e, stacktrace) {
+      _logger.e(
+        '$_tag Unexpected error initiating watchJobs stream: $e\n$stacktrace',
+      );
+      // Return a stream that emits a single error
+      return Stream.value(
+        Left(CacheFailure('Failed to start watching jobs: ${e.toString()}')),
+      );
+    }
+  }
+
+  /// Watches the local data source for changes to a specific job.
+  Stream<Either<Failure, Job?>> watchJobById(String localId) {
+    _logger.d(
+      '$_tag Delegating watchJobById($localId) to local data source...',
+    );
+    try {
+      return _localDataSource.watchJobById(localId);
+    } catch (e, stacktrace) {
+      _logger.e(
+        '$_tag Unexpected error initiating watchJobById($localId) stream: $e\n$stacktrace',
+      );
+      // Return a stream that emits a single error
+      return Stream.value(
+        Left(
+          CacheFailure(
+            'Failed to start watching job $localId: ${e.toString()}',
+          ),
+        ),
+      );
+    }
+  }
 }

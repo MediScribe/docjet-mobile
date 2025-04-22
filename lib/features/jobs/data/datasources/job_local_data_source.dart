@@ -2,7 +2,8 @@ import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart'; // Import CacheException
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // Import Job entity
-import 'package:dartz/dartz.dart'; // Import dartz for Unit
+import 'package:dartz/dartz.dart'; // Import dartz for Either and Unit
+import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
 
 /// Abstract interface defining operations for local storage of jobs.
 ///
@@ -86,4 +87,21 @@ abstract class JobLocalDataSource {
 
   /// Retrieves jobs based on their [SyncStatus].
   Future<List<Job>> getJobsByStatus(SyncStatus status);
+
+  //---------------------------------------------------------------------------
+  // Reactive Methods (Streams)
+  //---------------------------------------------------------------------------
+
+  /// Watches the local cache for changes to the list of all jobs.
+  ///
+  /// Returns a stream that emits [Right(List<Job>)] with the full list on
+  /// each change, or [Left(Failure)] if an error occurs during watch setup
+  /// or processing.
+  Stream<Either<Failure, List<Job>>> watchJobs();
+
+  /// Watches the local cache for changes to a specific job identified by [localId].
+  ///
+  /// Returns a stream that emits [Right(Job?)] with the updated job (or null
+  /// if deleted) on each relevant change, or [Left(Failure)] if an error occurs.
+  Stream<Either<Failure, Job?>> watchJobById(String id);
 }

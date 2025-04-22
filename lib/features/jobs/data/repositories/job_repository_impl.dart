@@ -105,4 +105,18 @@ class JobRepositoryImpl implements JobRepository {
     // Delegate directly to the orchestrator service's method
     return _orchestratorService.resetFailedJob(localId: localId);
   }
+
+  // --- Stream Operations ---
+
+  @override
+  Stream<Either<Failure, List<Job>>> watchJobs() {
+    _logger.d('$_tag watchJobs called');
+    return _readerService.watchJobs();
+  }
+
+  @override
+  Stream<Either<Failure, Job?>> watchJobById(String localId) {
+    _logger.d('$_tag watchJobById called for id: $localId');
+    return _readerService.watchJobById(localId);
+  }
 }

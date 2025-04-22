@@ -8,6 +8,8 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
 import 'dart:math';
+import 'package:rxdart/rxdart.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
 
 /// Concrete implementation of [JobLocalDataSource] using Hive for persistence.
 ///
@@ -542,5 +544,140 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
       );
       throw CacheException('Failed to get jobs to retry: ${e.toString()}');
     }
+  }
+
+  @override
+  Stream<Either<Failure, List<Job>>> watchJobs() {
+    _logger.d('$_tag watchJobs called');
+
+    // Create a stream that combines initial data with updates
+    final initialDataStream = Stream.fromFuture(() async {
+      try {
+        final initialModels = await getAllJobHiveModels();
+        return Right<Failure, List<Job>>(
+          JobMapper.fromHiveModelList(initialModels),
+        );
+      } catch (e, stackTrace) {
+        _logger.e(
+          '$_tag Error getting initial jobs for watchJobs',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        return Left<Failure, List<Job>>(
+          CacheFailure('Error getting initial jobs: ${e.toString()}'),
+        );
+      }
+    }());
+
+    // Create a stream of box changes
+    final changesStream = Rx.defer<BoxEvent>(() async* {
+          final box = await _getOpenBox();
+          yield* box.watch();
+        }, reusable: true)
+        .asyncMap((_) async {
+          // Re-fetch the full list on any change event
+          try {
+            final box = await _getOpenBox();
+            return Right<Failure, List<Job>>(
+              JobMapper.fromHiveModelList(box.values.toList()),
+            );
+          } catch (e, stackTrace) {
+            _logger.e(
+              '$_tag Error fetching jobs list during watch update',
+              error: e,
+              stackTrace: stackTrace,
+            );
+            return Left<Failure, List<Job>>(
+              CacheFailure(
+                'Error fetching jobs list during watch: ${e.toString()}',
+              ),
+            );
+          }
+        })
+        .onErrorResume((error, stackTrace) {
+          // Catch errors from the watch stream itself or the defer setup
+          _logger.e(
+            '$_tag Error in watchJobs stream setup/watch',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return Stream.value(
+            Left<Failure, List<Job>>(
+              CacheFailure('Error watching jobs: ${error.toString()}'),
+            ),
+          );
+        });
+
+    // Return a stream that starts with initial data then continues with changes
+    return Rx.concat([initialDataStream, changesStream]);
+  }
+
+  @override
+  Stream<Either<Failure, Job?>> watchJobById(String id) {
+    _logger.d('$_tag watchJobById called for id: $id');
+
+    // Create a stream with initial data
+    final initialDataStream = Stream.fromFuture(() async {
+      try {
+        final initialModel = await getJobHiveModelById(id);
+        return Right<Failure, Job?>(
+          initialModel == null ? null : JobMapper.fromHiveModel(initialModel),
+        );
+      } catch (e, stackTrace) {
+        _logger.e(
+          '$_tag Error getting initial job $id for watchJobById',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        return Left<Failure, Job?>(
+          CacheFailure('Error getting initial job $id: ${e.toString()}'),
+        );
+      }
+    }());
+
+    // Create a stream of changes to the specific job
+    final changesStream = Rx.defer<BoxEvent>(() async* {
+          final box = await _getOpenBox();
+          yield* box.watch(key: id);
+        }, reusable: true)
+        .asyncMap((event) async {
+          // Re-fetch the model to ensure we have the latest state.
+          try {
+            final box = await _getOpenBox();
+            final currentModel = box.get(id); // Fetch by key `id`
+            return Right<Failure, Job?>(
+              currentModel == null
+                  ? null
+                  : JobMapper.fromHiveModel(currentModel),
+            );
+          } catch (e, stackTrace) {
+            _logger.e(
+              '$_tag Error fetching job $id during watch update',
+              error: e,
+              stackTrace: stackTrace,
+            );
+            return Left<Failure, Job?>(
+              CacheFailure(
+                'Error fetching job $id during watch: ${e.toString()}',
+              ),
+            );
+          }
+        })
+        .onErrorResume((error, stackTrace) {
+          // Catch errors from the watch stream itself or the defer setup
+          _logger.e(
+            '$_tag Error in watchJobById stream setup/watch for id: $id',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return Stream.value(
+            Left<Failure, Job?>(
+              CacheFailure('Error watching job $id: ${error.toString()}'),
+            ),
+          );
+        });
+
+    // Return a stream that starts with initial data then continues with changes
+    return Rx.concat([initialDataStream, changesStream]);
   }
 }

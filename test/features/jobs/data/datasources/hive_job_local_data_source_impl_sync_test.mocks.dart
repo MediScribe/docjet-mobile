@@ -723,6 +723,16 @@ class MockJobHiveModel extends _i1.Mock implements _i8.JobHiveModel {
       );
 
   @override
+  set failedAudioDeletionAttempts(int? _failedAudioDeletionAttempts) =>
+      super.noSuchMethod(
+        Invocation.setter(
+          #failedAudioDeletionAttempts,
+          _failedAudioDeletionAttempts,
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
   List<Object?> get props => (super.noSuchMethod(
         Invocation.getter(#props),
         returnValue: <Object?>[],

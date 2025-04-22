@@ -6,14 +6,14 @@
 import 'dart:async' as _i5;
 
 import 'package:dartz/dartz.dart' as _i3;
-import 'package:docjet_mobile/core/error/failures.dart' as _i10;
-import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i8;
+import 'package:docjet_mobile/core/error/failures.dart' as _i8;
+import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i9;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i4;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i6;
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart'
-    as _i9;
+    as _i10;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
@@ -247,12 +247,32 @@ class MockJobLocalDataSource extends _i1.Mock
         ),
         returnValue: _i5.Future<List<_i2.Job>>.value(<_i2.Job>[]),
       ) as _i5.Future<List<_i2.Job>>);
+
+  @override
+  _i5.Stream<_i3.Either<_i8.Failure, List<_i2.Job>>> watchJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobs,
+          [],
+        ),
+        returnValue: _i5.Stream<_i3.Either<_i8.Failure, List<_i2.Job>>>.empty(),
+      ) as _i5.Stream<_i3.Either<_i8.Failure, List<_i2.Job>>>);
+
+  @override
+  _i5.Stream<_i3.Either<_i8.Failure, _i2.Job?>> watchJobById(String? id) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobById,
+          [id],
+        ),
+        returnValue: _i5.Stream<_i3.Either<_i8.Failure, _i2.Job?>>.empty(),
+      ) as _i5.Stream<_i3.Either<_i8.Failure, _i2.Job?>>);
 }
 
 /// A class which mocks [NetworkInfo].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockNetworkInfo extends _i1.Mock implements _i8.NetworkInfo {
+class MockNetworkInfo extends _i1.Mock implements _i9.NetworkInfo {
   MockNetworkInfo() {
     _i1.throwOnMissingStub(this);
   }
@@ -274,43 +294,43 @@ class MockNetworkInfo extends _i1.Mock implements _i8.NetworkInfo {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobSyncProcessorService extends _i1.Mock
-    implements _i9.JobSyncProcessorService {
+    implements _i10.JobSyncProcessorService {
   MockJobSyncProcessorService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>> processJobSync(_i2.Job? job) =>
+  _i5.Future<_i3.Either<_i8.Failure, _i3.Unit>> processJobSync(_i2.Job? job) =>
       (super.noSuchMethod(
         Invocation.method(
           #processJobSync,
           [job],
         ),
-        returnValue: _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>.value(
-            _FakeEither_2<_i10.Failure, _i3.Unit>(
+        returnValue: _i5.Future<_i3.Either<_i8.Failure, _i3.Unit>>.value(
+            _FakeEither_2<_i8.Failure, _i3.Unit>(
           this,
           Invocation.method(
             #processJobSync,
             [job],
           ),
         )),
-      ) as _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>);
+      ) as _i5.Future<_i3.Either<_i8.Failure, _i3.Unit>>);
 
   @override
-  _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>> processJobDeletion(
+  _i5.Future<_i3.Either<_i8.Failure, _i3.Unit>> processJobDeletion(
           _i2.Job? jobToDelete) =>
       (super.noSuchMethod(
         Invocation.method(
           #processJobDeletion,
           [jobToDelete],
         ),
-        returnValue: _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>.value(
-            _FakeEither_2<_i10.Failure, _i3.Unit>(
+        returnValue: _i5.Future<_i3.Either<_i8.Failure, _i3.Unit>>.value(
+            _FakeEither_2<_i8.Failure, _i3.Unit>(
           this,
           Invocation.method(
             #processJobDeletion,
             [jobToDelete],
           ),
         )),
-      ) as _i5.Future<_i3.Either<_i10.Failure, _i3.Unit>>);
+      ) as _i5.Future<_i3.Either<_i8.Failure, _i3.Unit>>);
 }

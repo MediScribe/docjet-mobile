@@ -6,6 +6,7 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/data/config/job_sync_config.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_logger.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
@@ -85,13 +86,13 @@ class JobSyncProcessorService {
         additionalText: remoteJob.additionalText ?? job.additionalText,
         updatedAt: remoteJob.updatedAt,
         retryCount: 0, // Hard reset on success
-        lastSyncAttemptAt: null, // Explicitly set to null on success
-        setLastSyncAttemptAtToNull: true, // Required by Job.copyWith
+        lastSyncAttemptAt: null,
+        setLastSyncAttemptAtNull: true, // Explicitly use the flag to force null
       );
 
       // ADD LOGGING HERE
       _logger.d(
-        'Job state being saved: status=${updatedJob.syncStatus}, retryCount=${updatedJob.retryCount}, lastAttempt=${updatedJob.lastSyncAttemptAt}',
+        'Job state being saved: status=${updatedJob.syncStatus}, retryCount=${updatedJob.retryCount}, lastAttempt=${updatedJob.lastSyncAttemptAt} (explicitly set to null)',
       );
 
       await _localDataSource.saveJob(updatedJob);
@@ -303,15 +304,15 @@ class JobSyncProcessorService {
           _logger.d('Deleting audio file: ${job.audioFilePath}');
           await _fileSystem.deleteFile(job.audioFilePath!);
           _logger.i('Successfully deleted audio file: ${job.audioFilePath}.');
-        } catch (e, stackTrace) {
-          // Use structured error logging helper
-          logError(
-            tag: logTag(JobSyncProcessorService), // Use static tag helper
-            message:
+        } catch (e) {
+          // Use JobSyncLogger instead of direct logger calls
+          JobSyncLogger.logError(
+            'permanentlyDeleteJob',
+            localId,
+            e,
+            job: job,
+            additionalInfo:
                 'Failed to delete audio file during sync processing permanent deletion.',
-            error: e, // Pass the exception object
-            stackTrace: stackTrace, // Pass the stack trace
-            context: {'localId': localId, 'filePath': job.audioFilePath},
           );
           // Log but don't fail the operation remains the same behavior for now
         }

@@ -17,7 +17,29 @@ abstract class JobRepository {
   /// Returns [Right(Job)] if the job is found.
   /// Returns [Left(Failure)] if the job with the specified [localId] is not found
   /// or if another error occurs.
-  Future<Either<Failure, Job>> getJobById(String localId);
+  Future<Either<Failure, Job?>> getJobById(String localId);
+
+  /// --- STREAM OPERATIONS ---
+
+  /// Watches the local cache for changes to the list of all jobs.
+  ///
+  /// Returns a stream that emits the complete list of [Job] entities whenever
+  /// a change occurs in the underlying data source. Emits an initial list
+  /// upon subscription.
+  ///
+  /// Emits [Right<List<Job>>] on success or updates.
+  /// Emits [Left<Failure>] if there's an error accessing or watching the cache.
+  Stream<Either<Failure, List<Job>>> watchJobs();
+
+  /// Watches the local cache for changes to a specific job identified by [localId].
+  ///
+  /// Returns a stream that emits the [Job] entity corresponding to the [localId]
+  /// whenever its data changes in the underlying source. Emits `null` if the job
+  /// is deleted. Emits the initial state upon subscription.
+  ///
+  /// Emits [Right<Job?>] on success or updates (Job or null).
+  /// Emits [Left<Failure>] if there's an error accessing or watching the cache.
+  Stream<Either<Failure, Job?>> watchJobById(String localId);
 
   /// --- WRITE OPERATIONS ---
 
