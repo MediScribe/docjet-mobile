@@ -17,6 +17,8 @@ import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dar
 
 // Features - Jobs - Domain
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
+import 'package:docjet_mobile/features/jobs/presentation/cubits/job_detail_cubit.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart'; // Needed for getApplicationDocumentsDirectory
 import 'package:uuid/uuid.dart';
@@ -77,6 +79,22 @@ Future<void> init() async {
       dio: sl(),
       authCredentialsProvider: sl(),
     ), // Depends on Dio & AuthProvider
+  );
+
+  // Features - Jobs - Domain - Use Cases (Register necessary use cases)
+  // Example: Register WatchJobByIdUseCase if not using @injectable
+  sl.registerLazySingleton(() => WatchJobByIdUseCase(repository: sl()));
+  // Note: Assuming UseCases are registered via @injectable or elsewhere.
+  //       If WatchJobByIdUseCase is needed by JobDetailCubit and not auto-registered,
+  //       it must be registered manually here.
+
+  // Features - Jobs - Presentation
+  sl.registerFactoryParam<JobDetailCubit, String, void>(
+    (localId, _) => JobDetailCubit(
+      watchJobByIdUseCase:
+          sl<WatchJobByIdUseCase>(), // Ensure WatchJobByIdUseCase is registered
+      jobId: localId,
+    ),
   );
 
   // --- Core Dependencies ---

@@ -9,6 +9,7 @@ This document details the data flow architecture for the Job feature in DocJet M
 - [Key Architecture Decisions](#key-architecture-decisions)
 - [Directory Structure](#directory-structure)
 - [Job Feature Architecture Overview](#job-feature-architecture-overview)
+- [Job Presentation Layer Architecture](./job_presentation_layer.md) - *(See separate document)*
 - [Job Data Layer Flow](#job-data-layer-flow)
 - [Job Creation, Update, and Sync Flow](#job-creation-update-and-sync-flow)
 - [Job Data Layer Components](#job-data-layer-components)
@@ -149,6 +150,8 @@ Test files are located at: `test/features/jobs/data/services/`
 ## Job Feature Architecture Overview
 
 The following diagrams illustrate the components and their relationships for the job feature.
+
+> **Note:** For details on the Presentation Layer (Cubits, States, UI interaction), see the dedicated [Job Presentation Layer Architecture](./job_presentation_layer.md) document.
 
 ### High-Level Architecture
 

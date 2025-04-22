@@ -118,10 +118,11 @@ For the Jobs feature, we use a service-oriented repository pattern:
 graph TD
     subgraph "Jobs Feature"
         subgraph "Presentation"
-            JobsUI[Job List UI]
-            JobState[Job State Management]
+            JobsUI[Job List / Detail UI]
+            JobListCubit[JobListCubit]
+            JobDetailCubit[JobDetailCubit]
         end
-        
+
         subgraph "Use Cases"
             GetJobs[GetJobsUseCase]
             GetJobById[GetJobByIdUseCase]
@@ -132,16 +133,16 @@ graph TD
             WatchJobs[WatchJobsUseCase]
             WatchJobById[WatchJobByIdUseCase]
         end
-        
+
         subgraph "Domain"
             JobEntity[Job Entity]
             SyncStatus[Sync Status]
             JobRepo[JobRepository Interface]
         end
-        
+
         subgraph "Data"
             RepoImpl[JobRepositoryImpl]
-            
+
             subgraph "Services"
                 ReaderSvc[JobReaderService]
                 WriterSvc[JobWriterService]
@@ -150,21 +151,24 @@ graph TD
                 SyncProc[JobSyncProcessorService]
                 SyncTrigger[JobSyncTriggerService]
             end
-            
+
             LocalDS[JobLocalDataSource]
             RemoteDS[JobRemoteDataSource]
         end
-        
-        JobsUI <--> JobState
-        JobState --> GetJobs
-        JobState --> GetJobById
-        JobState --> CreateJob
-        JobState --> UpdateJob
-        JobState --> DeleteJob
-        JobState --> ResetFailedJob
-        JobState --> WatchJobs
-        JobState --> WatchJobById
-        
+
+        %% UI to Cubit/Use Case Connections
+        JobsUI <--> JobListCubit
+        JobsUI <--> JobDetailCubit
+        JobsUI --> CreateJob  // Direct actions might still go to Use Cases
+        JobsUI --> UpdateJob
+        JobsUI --> DeleteJob
+        JobsUI --> ResetFailedJob
+
+        %% Cubit to Use Case Connections (Reactive)
+        JobListCubit --> WatchJobs
+        JobDetailCubit --> WatchJobById
+
+        %% Use Case to Repository Connections
         GetJobs --> JobRepo
         GetJobById --> JobRepo
         CreateJob --> JobRepo
@@ -173,32 +177,30 @@ graph TD
         ResetFailedJob --> JobRepo
         WatchJobs --> JobRepo
         WatchJobById --> JobRepo
-        
+
+        %% Data Layer Connections
         RepoImpl --> JobRepo
-        
         RepoImpl --> ReaderSvc
         RepoImpl --> WriterSvc
         RepoImpl --> DeleterSvc
         RepoImpl --> SyncOrch
-        
         SyncTrigger --> SyncOrch
         SyncOrch --> SyncProc
-        
         ReaderSvc --> LocalDS
         WriterSvc --> LocalDS
         DeleterSvc --> LocalDS
         SyncOrch --> LocalDS
         SyncProc --> LocalDS
-        
         ReaderSvc --> RemoteDS
         SyncProc --> RemoteDS
     end
-    
-    class JobsUI,JobState presentation;
+
+    %% Class Definitions
+    class JobsUI,JobListCubit,JobDetailCubit presentation; // Updated presentation layer classes
     class GetJobs,GetJobById,CreateJob,UpdateJob,DeleteJob,ResetFailedJob,WatchJobs,WatchJobById usecases;
     class JobEntity,SyncStatus,JobRepo domain;
     class RepoImpl,LocalDS,RemoteDS data;
-    class ReaderSvc,WriterSvc,DeleterSvc,SyncOrch,SyncProc,SyncTrigger services;
+    class ReaderSvc,WriterSvc,DeleterSvc,SyncOrch,SyncProc,SyncTrigger services; // Corrected class name
 ```
 
 ## Feature Architectures
@@ -206,4 +208,5 @@ graph TD
 Detailed architecture documentation for specific features:
 
 1. [Jobs Feature Architecture](./job_dataflow.md) - Components and data flow for jobs
-2. [Authentication Architecture](./auth_architecture.md) - Authentication components and flows
+2. [Jobs Feature: Presentation Layer](./job_presentation_layer.md) - State management and UI interaction
+3. [Authentication Architecture](./auth_architecture.md) - Authentication components and flows

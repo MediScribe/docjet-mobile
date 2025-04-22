@@ -60,11 +60,11 @@ Implement a mechanism to inform users when file cleanup operations fail. Do not 
   - [X] Create `JobViewModel` and mapper in `lib/features/jobs/presentation/mappers/`
   - [X] Define `JobListState` and `JobDetailState` classes
   - [X] Implement `JobListCubit` (subscribes to `WatchJobsUseCase`)
-  - [x] Implement `JobDetailCubit` (subscribes to `WatchJobByIdUseCase`)
-  - [ ] Register cubits in DI module (`JobsModule.registerPresentation`)
+  - [X] Implement `JobDetailCubit` (subscribes to `WatchJobByIdUseCase`)
+  - [X] Register cubits in DI module (`JobsModule.registerPresentation`)
   - [X] Write unit tests for `JobListCubit`
-  - [ ] Write unit tests for `JobDetailCubit`
-  - [ ] Document presentation layer prep in `job_dataflow.md` (New subsection)
+  - [X] Write unit tests for `JobDetailCubit`
+  - [x] Document presentation layer prep in `job_presentation_layer.md` (New doc)
 - [X] Add ability to manually reset counter when cleanup succeeds
 - [X] Document the file issue notification architecture in `job_dataflow.md`
 
