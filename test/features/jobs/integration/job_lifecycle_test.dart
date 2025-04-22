@@ -31,7 +31,10 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
 import 'job_lifecycle_test.mocks.dart';
 
 // Add custom NetworkFailure for testing
-class NetworkFailure extends Failure {}
+class NetworkFailure extends Failure {
+  @override
+  String get message => 'Network connection failed'; // Provide a default message
+}
 
 void main() {
   late JobRepositoryImpl repository;

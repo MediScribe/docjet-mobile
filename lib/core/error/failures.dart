@@ -5,24 +5,29 @@ abstract class Failure extends Equatable {
   final List properties;
   const Failure([this.properties = const <dynamic>[]]);
 
+  // Add an abstract message getter
+  String get message;
+
   @override
-  List<Object> get props => [properties];
+  List<Object> get props => [properties, message]; // Include message in props
 }
 
 // --- General Failure Types ---
 
 /// Represents an error originating from the backend server or API communication (non-2xx status code).
 class ServerFailure extends Failure {
-  final String? message;
+  @override
+  final String message;
   final int? statusCode;
-  const ServerFailure({this.message, this.statusCode});
+  const ServerFailure({this.message = 'Server error', this.statusCode});
 
   @override
-  List<Object> get props => [message ?? '', statusCode ?? 0];
+  List<Object> get props => [message, statusCode ?? 0];
 }
 
 /// Represents an error originating from the local cache (e.g., Hive, SharedPreferences).
 class CacheFailure extends Failure {
+  @override
   final String message;
   const CacheFailure([this.message = 'Local cache error']);
 
@@ -32,6 +37,7 @@ class CacheFailure extends Failure {
 
 /// Represents an unexpected or unknown error.
 class UnknownFailure extends Failure {
+  @override
   final String message;
   const UnknownFailure(this.message);
 
@@ -43,6 +49,7 @@ class UnknownFailure extends Failure {
 
 /// Failure related to permissions (e.g., microphone access denied).
 class PermissionFailure extends Failure {
+  @override
   final String message;
   const PermissionFailure([this.message = 'Permission denied']);
 
@@ -52,6 +59,7 @@ class PermissionFailure extends Failure {
 
 /// Failure related to file system operations (e.g., cannot read/write/delete file).
 class FileSystemFailure extends Failure {
+  @override
   final String message;
   const FileSystemFailure([this.message = 'File system error']);
 
@@ -61,6 +69,7 @@ class FileSystemFailure extends Failure {
 
 /// Failure related to the recording process itself (e.g., start/stop/pause/resume failed).
 class RecordingFailure extends Failure {
+  @override
   final String message;
   const RecordingFailure([this.message = 'Recording process error']);
 
@@ -70,6 +79,7 @@ class RecordingFailure extends Failure {
 
 /// Failure during audio concatenation.
 class ConcatenationFailure extends Failure {
+  @override
   final String message;
   const ConcatenationFailure([this.message = 'Audio concatenation failed']);
 
@@ -79,6 +89,7 @@ class ConcatenationFailure extends Failure {
 
 /// General platform failure (e.g., unexpected platform exception).
 class PlatformFailure extends Failure {
+  @override
   final String message;
   const PlatformFailure([
     this.message = 'An unexpected platform error occurred',
@@ -90,6 +101,7 @@ class PlatformFailure extends Failure {
 
 /// Failure related to invalid input or arguments.
 class ValidationFailure extends Failure {
+  @override
   final String message;
   const ValidationFailure([this.message = 'Invalid input provided']);
 
@@ -100,6 +112,7 @@ class ValidationFailure extends Failure {
 /// Failure related to API interactions (e.g., network errors, specific API error responses).
 /// Consider using this or ServerFailure depending on the desired level of detail.
 class ApiFailure extends Failure {
+  @override
   final String message;
   final int? statusCode; // Optional HTTP status code
   final String? errorCode; // Optional backend-specific error code

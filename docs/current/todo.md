@@ -60,7 +60,7 @@ Implement a mechanism to inform users when file cleanup operations fail. Do not 
   - [X] Create `JobViewModel` and mapper in `lib/features/jobs/presentation/mappers/`
   - [X] Define `JobListState` and `JobDetailState` classes
   - [X] Implement `JobListCubit` (subscribes to `WatchJobsUseCase`)
-  - [ ] Implement `JobDetailCubit` (subscribes to `WatchJobByIdUseCase`)
+  - [x] Implement `JobDetailCubit` (subscribes to `WatchJobByIdUseCase`)
   - [ ] Register cubits in DI module (`JobsModule.registerPresentation`)
   - [X] Write unit tests for `JobListCubit`
   - [ ] Write unit tests for `JobDetailCubit`

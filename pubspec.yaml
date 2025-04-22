@@ -64,6 +64,8 @@ dependencies:
   connectivity_plus: ^6.1.3
   rxdart: ^0.28.0
   mutex: ^3.1.0
+  freezed_annotation: ^2.4.4
+  injectable: ^2.5.0
 
 dev_dependencies:
   flutter_test:
@@ -109,6 +111,8 @@ dev_dependencies:
   connectivity_plus_platform_interface: any
   flutter_driver:
     sdk: flutter
+  freezed: ^2.5.7
+  injectable_generator: ^2.6.2
 flutter:
 
   # The following line ensures that the Material Icons font is
