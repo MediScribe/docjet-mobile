@@ -118,10 +118,12 @@ class JobDeleterService {
           '$_tag Successfully deleted audio file: ${job.audioFilePath}.',
         );
       } catch (e, stackTrace) {
-        _logger.e(
-          '$_tag Failed to delete audio file [Path: ${job.audioFilePath}] for job [ID: $localId].',
+        logError(
+          tag: _tag,
+          message: 'Failed to delete audio file during permanent deletion.',
           error: e,
           stackTrace: stackTrace,
+          context: {'localId': localId, 'filePath': job.audioFilePath},
         );
       }
     } else {

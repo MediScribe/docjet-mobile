@@ -304,11 +304,14 @@ class JobSyncProcessorService {
           await _fileSystem.deleteFile(job.audioFilePath!);
           _logger.i('Successfully deleted audio file: ${job.audioFilePath}.');
         } catch (e, stackTrace) {
-          // Use ERROR severity and include context in the message string
-          _logger.e(
-            'Failed to delete audio file [Path: ${job.audioFilePath}] for job [ID: $localId] during sync processing.',
+          // Use structured error logging helper
+          logError(
+            tag: logTag(JobSyncProcessorService), // Use static tag helper
+            message:
+                'Failed to delete audio file during sync processing permanent deletion.',
             error: e, // Pass the exception object
             stackTrace: stackTrace, // Pass the stack trace
+            context: {'localId': localId, 'filePath': job.audioFilePath},
           );
           // Log but don't fail the operation remains the same behavior for now
         }

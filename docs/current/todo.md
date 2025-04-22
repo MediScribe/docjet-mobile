@@ -34,14 +34,14 @@ Improve handling of audio file deletion failures with robust logging and recover
   - [X] `JobDeleterService.permanentlyDeleteJob` - *Deletes DB record & file; file errors logged as warning.*
   - [X] `JobSyncProcessorService._permanentlyDeleteJob` (server-confirmed deletion) - *Deletes DB record & file; file errors logged as warning.*
   - [X] Any other places files are deleted - *Audit suggests these are the primary points.*
-- [ ] Implement thorough structured logging for file deletion failures:
-  - [ ] Use `log_helpers.dart` facility instead of print statements
-  - [ ] Include job `localId` in all log entries
-  - [ ] Include full file path in log entries
-  - [ ] Include specific exception/error message in log entries
-  - [ ] Add log severity level (ERROR)
-- [ ] Verify try-catch blocks around all file operations
-- [ ] Verify path normalization and null-checking before deletion attempts
+- [X] Implement thorough structured logging for file deletion failures:
+  - [X] Use `log_helpers.dart` facility instead of print statements
+  - [X] Include job `localId` in all log entries
+  - [X] Include full file path in log entries
+  - [X] Include specific exception/error message in log entries
+  - [X] Add log severity level (ERROR)
+- [X] Verify try-catch blocks around all file operations
+- [X] Verify path normalization and null-checking before deletion attempts
 - [ ] Add retry mechanism for failed file deletions on next app startup
 
 ## 4. UI Notifications for File System Issues

@@ -670,10 +670,17 @@ When fetching jobs from the server:
 
 ### Audio File Management
 
-1. Audio files are stored locally when jobs are created
-2. Files remain on device as long as their associated job exists
-3. When a job is deleted (either locally initiated or server-detected), its audio file is also deleted
-4. Audio lifecycle is 100% tied to job lifecycle - when the job is gone, the audio is gone
+1. Audio files are stored locally when jobs are created.
+2. Files remain on device as long as their associated job exists.
+3. When a job is deleted (either locally initiated or server-detected), its audio file is also deleted.
+4. Audio lifecycle is 100% tied to job lifecycle - when the job is gone, the audio is gone.
+5. **Error Handling**:
+   * All file deletion attempts are wrapped in `try-catch` blocks.
+   * Path normalization and null-checking are performed before deletion.
+   * If a file deletion fails, the error is logged as `ERROR` severity using the structured logging facility (`log_helpers.dart`).
+   * Log entries include the job's `localId`, the full file path, and the specific error message.
+   * These failures are considered non-fatal to the job deletion process itself (the job record is still removed locally).
+   * A retry mechanism for failed file deletions will be implemented (e.g., on next app startup or sync cycle) to ensure eventual cleanup.
 
 ## Background Processing Support
 
@@ -852,13 +859,13 @@ sequenceDiagram
     participant FileSystem as File System
 
     Note over Processor: After Job Deletion
-    
+
     alt Job has audioFilePath
         Processor->>FileSystem: deleteFile(audioFilePath)
         alt File Deletion Success
             FileSystem-->>Processor: Success
         else File Deletion Error
-            FileSystem-->>Processor: Error (logged but not fatal)
+            FileSystem-->>Processor: Error (logged with details, non-fatal)
         end
     end
 ```
