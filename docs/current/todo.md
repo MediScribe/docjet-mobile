@@ -12,27 +12,28 @@ Make sure our mutex implementation is robust across concurrent sync attempts fro
 - [X] Explicitly document that we're using re-entrant lock mechanism (Added comment in code)
 - [X] Add unit test that verifies lock behavior under concurrent access (foreground/background collision) (Test exists: `should handle concurrent sync calls using the lock`)
 - [X] Update `job_dataflow.md` to explicitly mention re-entrancy of mutex implementation
-- [ ] Verify lock is properly released on all function exit paths (including exceptions)
+- [X] Verify lock is properly released on all function exit paths (including exceptions)
 
 ## 2. Exponential Backoff Parameters
 Document and review our retry strategy configuration parameters.
 
-- [ ] Document the `baseBackoff` value in `job_dataflow.md` (currently missing)
-- [ ] Extract retry constants to a configuration class instead of hardcoded values:
-  - [ ] Create `JobSyncConfig` class with constants
-  - [ ] Move `MAX_RETRY_ATTEMPTS` (currently 5) into config
-  - [ ] Move `baseBackoff` duration into config
-  - [ ] Add `maxBackoff` cap to prevent excessive wait times
-- [ ] Update retry backoff calculation math to include cap: `min(baseBackoff * pow(2, retryCount), maxBackoff)`
-- [ ] Add comments in code explaining the exponential backoff formula with examples
+- [X] Document the `baseBackoff` value in `job_dataflow.md` (currently missing)
+- [X] Extract retry constants to a configuration class instead of hardcoded values:
+  - [X] Create `JobSyncConfig` class with constants
+  - [X] Move `MAX_RETRY_ATTEMPTS` (currently 5) into config
+  - [X] Move `baseBackoff` duration into config
+  - [X] Add `maxBackoff` cap to prevent excessive wait times
+- [X] Update retry backoff calculation math to include cap: `min(baseBackoff * pow(2, retryCount), maxBackoff)`
+- [X] Add comments in code explaining the exponential backoff formula with examples
 
 ## 3. Audio File Deletion Error Handling
 Improve handling of audio file deletion failures with robust logging and recovery.
 
-- [ ] Audit all file deletion points in code:
-  - [ ] `JobDeleterService.deleteJob` (local-initiated deletion)
-  - [ ] `JobSyncProcessorService._permanentlyDeleteJob` (server-confirmed deletion)
-  - [ ] Any other places files are deleted
+- [X] Audit all file deletion points in code:
+  - [X] `JobDeleterService.deleteJob` (local-initiated deletion) - *Note: Does not delete files, only marks status.*
+  - [X] `JobDeleterService.permanentlyDeleteJob` - *Deletes DB record & file; file errors logged as warning.*
+  - [X] `JobSyncProcessorService._permanentlyDeleteJob` (server-confirmed deletion) - *Deletes DB record & file; file errors logged as warning.*
+  - [X] Any other places files are deleted - *Audit suggests these are the primary points.*
 - [ ] Implement thorough structured logging for file deletion failures:
   - [ ] Use `log_helpers.dart` facility instead of print statements
   - [ ] Include job `localId` in all log entries

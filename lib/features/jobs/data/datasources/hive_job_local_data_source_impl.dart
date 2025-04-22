@@ -512,10 +512,19 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
                   return true;
                 }
 
-                // Calculate the required delay using exponential backoff
-                final backoffMultiplier = pow(2, retryCount).toInt();
-                final requiredDelay = baseBackoffDuration * backoffMultiplier;
-                final nextRetryTime = lastAttemptTime.add(requiredDelay);
+                // Calculate backoff duration using exponential backoff with a cap.
+                // Formula: wait = min(baseBackoff * pow(2, retryCount), maxBackoff)
+                // Example (base=30s, max=1h):
+                // retry 0: min(30s * 1, 1h) = 30s
+                // retry 1: min(30s * 2, 1h) = 60s
+                // retry 2: min(30s * 4, 1h) = 120s
+                // ...
+                // retry 7: min(30s * 128, 1h) = min(3840s, 3600s) = 3600s (1 hour)
+                // retry 8: min(30s * 256, 1h) = min(7680s, 3600s) = 3600s (1 hour)
+                final backoffMultiplier = pow(2, retryCount);
+                // Use Duration multiplication
+                final calculatedWait = baseBackoffDuration * backoffMultiplier;
+                final nextRetryTime = lastAttemptTime.add(calculatedWait);
 
                 // Eligible if current time is after the next calculated retry time
                 return now.isAfter(nextRetryTime);

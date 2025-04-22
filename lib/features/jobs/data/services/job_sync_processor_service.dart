@@ -303,10 +303,14 @@ class JobSyncProcessorService {
           _logger.d('Deleting audio file: ${job.audioFilePath}');
           await _fileSystem.deleteFile(job.audioFilePath!);
           _logger.i('Successfully deleted audio file: ${job.audioFilePath}.');
-        } catch (fileError) {
-          _logger.w(
-            'Failed to delete audio file (${job.audioFilePath}) for job $localId: $fileError. This is non-critical.',
+        } catch (e, stackTrace) {
+          // Use ERROR severity and include context in the message string
+          _logger.e(
+            'Failed to delete audio file [Path: ${job.audioFilePath}] for job [ID: $localId] during sync processing.',
+            error: e, // Pass the exception object
+            stackTrace: stackTrace, // Pass the stack trace
           );
+          // Log but don't fail the operation remains the same behavior for now
         }
       } else {
         _logger.d(

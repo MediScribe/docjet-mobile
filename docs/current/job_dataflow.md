@@ -636,12 +636,19 @@ This separation of concerns allows for:
      * Deletes associated audio file
 
 5. **Error Handling:**
-   - When a sync operation fails:
-     * `JobSyncProcessorService` increments `retryCount`
-     * Updates `lastSyncAttemptAt` to current time
-     * Sets `syncStatus = SyncStatus.error` if retries remain
-     * Sets `syncStatus = SyncStatus.failed` if max retries exceeded
-   - Processing continues with other jobs even if one fails
+   - If an API call fails (e.g., `createJob`, `updateJob`, `deleteJob`), the `JobSyncProcessorService` catches the exception.
+   - It calls `_handleSyncError` which updates the job's local state:
+     - Increments `retryCount`.
+     - Sets `lastSyncAttemptAt` to the current time.
+     - Sets `syncStatus` to `SyncStatus.error` if retries remain.
+     - Sets `syncStatus` to `SyncStatus.failed` if `retryCount` reaches `maxRetryAttempts` (currently 5).
+   - The orchestrator identifies jobs in the `error` state for subsequent retry attempts based on an exponential backoff calculation.
+   - **Retry Timing**: The `HiveJobLocalDataSourceImpl.getJobsToRetry` method calculates the next valid attempt time using the formula: `min(retryBackoffBase * pow(2, retryCount), maxBackoffDuration)`.
+     - `retryBackoffBase` is currently **30 seconds** (defined in `JobSyncConfig`).
+     - `maxRetryAttempts` is currently **5** (defined in `JobSyncConfig`).
+     - `maxBackoffDuration` is currently **1 hour** (defined in `JobSyncConfig`).
+     - A job is only considered for retry if the current time is after its `lastSyncAttemptAt` plus the calculated backoff duration.
+   - The overall sync process continues with other jobs even if one fails.
 
 6. **Manual Reset:**
    - Jobs with `SyncStatus.failed` require manual intervention

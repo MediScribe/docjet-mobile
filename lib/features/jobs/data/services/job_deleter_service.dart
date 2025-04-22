@@ -117,11 +117,12 @@ class JobDeleterService {
         _logger.i(
           '$_tag Successfully deleted audio file: ${job.audioFilePath}.',
         );
-      } catch (e) {
-        _logger.w(
-          '$_tag Non-critical: Failed to delete audio file (${job.audioFilePath}) for job $localId: $e.',
+      } catch (e, stackTrace) {
+        _logger.e(
+          '$_tag Failed to delete audio file [Path: ${job.audioFilePath}] for job [ID: $localId].',
+          error: e,
+          stackTrace: stackTrace,
         );
-        // Log but don't fail the operation
       }
     } else {
       _logger.d(
