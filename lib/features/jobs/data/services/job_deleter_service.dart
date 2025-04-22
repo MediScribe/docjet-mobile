@@ -118,13 +118,33 @@ class JobDeleterService {
           '$_tag Successfully deleted audio file: ${job.audioFilePath}.',
         );
       } catch (e, stackTrace) {
-        logError(
-          tag: _tag,
-          message: 'Failed to delete audio file during permanent deletion.',
+        _logger.e(
+          '$_tag Failed to delete audio file during permanent deletion for job $localId, path: ${job.audioFilePath}',
           error: e,
           stackTrace: stackTrace,
-          context: {'localId': localId, 'filePath': job.audioFilePath},
         );
+
+        // ---- START: Increment counter on failure ----
+        final updatedJob = job.copyWith(
+          failedAudioDeletionAttempts: job.failedAudioDeletionAttempts + 1,
+        );
+        try {
+          _logger.w(
+            '$_tag Attempting to save job $localId with incremented deletion failure counter.',
+          );
+          await _localDataSource.saveJob(updatedJob);
+          _logger.i(
+            '$_tag Successfully saved job $localId with incremented counter.',
+          );
+        } catch (saveError) {
+          _logger.e(
+            '$_tag CRITICAL: Failed to save job $localId after audio deletion failure: $saveError',
+            error: saveError,
+            // Consider adding stack trace if available from saveError
+          );
+          // Do not return Failure here, as per original requirement
+        }
+        // ---- END: Increment counter on failure ----
       }
     } else {
       _logger.d(

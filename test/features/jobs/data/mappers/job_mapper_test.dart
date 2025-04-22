@@ -260,6 +260,7 @@ void main() {
         retryCount: 3, // Test retry count mapping
         lastSyncAttemptAt:
             lastSyncTime.toIso8601String(), // Test datetime mapping
+        failedAudioDeletionAttempts: 2, // <-- Add non-zero value
       );
 
       // Act
@@ -286,6 +287,10 @@ void main() {
         jobEntity.lastSyncAttemptAt?.toIso8601String(),
         lastSyncTime.toIso8601String(),
       ); // Verify datetime
+      expect(
+        jobEntity.failedAudioDeletionAttempts,
+        2,
+      ); // <-- Assert non-zero value
     });
 
     test(
@@ -302,6 +307,7 @@ void main() {
           createdAt: now.toIso8601String(),
           updatedAt: now.toIso8601String(),
           // retryCount and lastSyncAttemptAt are null
+          // failedAudioDeletionAttempts is null (default)
         );
 
         // Act
@@ -312,6 +318,10 @@ void main() {
         expect(jobEntity.lastSyncAttemptAt, isNull); // Should be null
         expect(jobEntity.syncStatus, SyncStatus.pending);
         expect(jobEntity.status, JobStatus.created);
+        expect(
+          jobEntity.failedAudioDeletionAttempts,
+          0,
+        ); // <-- Assert default value (0)
       },
     );
 
@@ -338,6 +348,7 @@ void main() {
         additionalText: 'Entity Additional',
         retryCount: 5, // Test retry count mapping
         lastSyncAttemptAt: lastSyncTime, // Test datetime mapping
+        failedAudioDeletionAttempts: 1, // <-- Add non-zero value
       );
 
       // Act
@@ -364,6 +375,10 @@ void main() {
         hiveModel.lastSyncAttemptAt,
         lastSyncTime.toIso8601String(),
       ); // Verify datetime string
+      expect(
+        hiveModel.failedAudioDeletionAttempts,
+        1,
+      ); // <-- Assert non-zero value
     });
 
     test(
@@ -382,6 +397,7 @@ void main() {
           updatedAt: now,
           // retryCount defaults to 0 in entity
           lastSyncAttemptAt: null, // Explicitly null
+          // failedAudioDeletionAttempts defaults to 0 in entity
         );
 
         // Act
@@ -392,6 +408,10 @@ void main() {
         expect(hiveModel.lastSyncAttemptAt, isNull); // Should be null
         expect(hiveModel.syncStatus, SyncStatus.pending.index);
         expect(hiveModel.status, JobStatus.created.index);
+        expect(
+          hiveModel.failedAudioDeletionAttempts,
+          0,
+        ); // <-- Assert default value (0)
       },
     );
 
@@ -415,6 +435,7 @@ void main() {
           updatedAt: now1.toIso8601String(),
           retryCount: 1,
           lastSyncAttemptAt: lastSyncTime1.toIso8601String(),
+          failedAudioDeletionAttempts: 3, // <-- Add non-zero value
         ),
         JobHiveModel(
           localId: localId2,
@@ -426,6 +447,7 @@ void main() {
           updatedAt: now2.toIso8601String(),
           audioFilePath: 'path/local.wav',
           // retryCount and lastSyncAttemptAt are null
+          // failedAudioDeletionAttempts is null (default)
         ),
       ];
 
@@ -446,6 +468,10 @@ void main() {
         entityList[0].lastSyncAttemptAt?.toIso8601String(),
         lastSyncTime1.toIso8601String(),
       );
+      expect(
+        entityList[0].failedAudioDeletionAttempts,
+        3,
+      ); // <-- Assert non-zero value
 
       expect(entityList[1].localId, localId2);
       expect(entityList[1].serverId, isNull);
@@ -455,6 +481,10 @@ void main() {
       expect(entityList[1].audioFilePath, 'path/local.wav');
       expect(entityList[1].retryCount, 0); // Default
       expect(entityList[1].lastSyncAttemptAt, isNull);
+      expect(
+        entityList[1].failedAudioDeletionAttempts,
+        0,
+      ); // <-- Assert default value (0)
     });
 
     test('should map a list of Job entities to a list of JobHiveModels', () {
@@ -478,6 +508,7 @@ void main() {
           errorMessage: 'Failed hard',
           retryCount: 4,
           lastSyncAttemptAt: lastSyncTime1,
+          failedAudioDeletionAttempts: 7, // <-- Add non-zero value
         ),
         Job(
           localId: localId2,
@@ -489,6 +520,7 @@ void main() {
           updatedAt: now2,
           audioFilePath: 'path/local-entity.wav',
           // retryCount defaults to 0, lastSyncAttemptAt is null
+          // failedAudioDeletionAttempts defaults to 0
         ),
       ];
 
@@ -507,6 +539,10 @@ void main() {
       expect(hiveList[0].errorMessage, 'Failed hard');
       expect(hiveList[0].retryCount, 4);
       expect(hiveList[0].lastSyncAttemptAt, lastSyncTime1.toIso8601String());
+      expect(
+        hiveList[0].failedAudioDeletionAttempts,
+        7,
+      ); // <-- Assert non-zero value
 
       expect(hiveList[1].localId, localId2);
       expect(hiveList[1].serverId, isNull);
@@ -516,6 +552,10 @@ void main() {
       expect(hiveList[1].audioFilePath, 'path/local-entity.wav');
       expect(hiveList[1].retryCount, 0); // Default
       expect(hiveList[1].lastSyncAttemptAt, isNull);
+      expect(
+        hiveList[1].failedAudioDeletionAttempts,
+        0,
+      ); // <-- Assert default value (0)
     });
   });
 

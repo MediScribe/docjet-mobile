@@ -65,6 +65,9 @@ class JobHiveModel extends HiveObject with EquatableMixin {
   @HiveField(15) // New field for last sync attempt timestamp
   String? lastSyncAttemptAt; // Store as ISO8601 String
 
+  @HiveField(16) // New field for failed deletion attempts
+  int? failedAudioDeletionAttempts;
+
   // Constructor with required fields and optionals
   JobHiveModel({
     required this.localId,
@@ -83,6 +86,7 @@ class JobHiveModel extends HiveObject with EquatableMixin {
     this.serverId,
     this.retryCount,
     this.lastSyncAttemptAt,
+    this.failedAudioDeletionAttempts,
   });
 
   // Default constructor (required by Hive for generation) - keep it for generator
@@ -107,6 +111,7 @@ class JobHiveModel extends HiveObject with EquatableMixin {
     serverId,
     retryCount,
     lastSyncAttemptAt,
+    failedAudioDeletionAttempts,
   ];
 
   // Ensure toString from Equatable is used

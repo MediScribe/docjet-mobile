@@ -171,6 +171,9 @@ void main() {
     test('should return Right(unit) even if file deletion fails', () async {
       // Arrange
       final tException = FileSystemException('Cannot delete');
+      final tJobWithIncrementedCounter = tJob.copyWith(
+        failedAudioDeletionAttempts: tJob.failedAudioDeletionAttempts + 1,
+      );
       when(
         mockLocalDataSource.getJobById(tJob.localId),
       ).thenAnswer((_) async => tJob);
@@ -180,6 +183,17 @@ void main() {
       when(
         mockFileSystem.deleteFile(tJob.audioFilePath!),
       ).thenThrow(tException);
+      when(
+        mockLocalDataSource.saveJob(
+          argThat(
+            isA<Job>().having(
+              (j) => j.failedAudioDeletionAttempts,
+              'failedAudioDeletionAttempts',
+              tJobWithIncrementedCounter.failedAudioDeletionAttempts,
+            ),
+          ),
+        ),
+      ).thenAnswer((_) async => unit);
 
       // Act
       final result = await service.permanentlyDeleteJob(tJob.localId);
@@ -189,7 +203,17 @@ void main() {
       verify(mockLocalDataSource.getJobById(tJob.localId)).called(1);
       verify(mockLocalDataSource.deleteJob(tJob.localId)).called(1);
       verify(mockFileSystem.deleteFile(tJob.audioFilePath!)).called(1);
-      verifyNoMoreInteractions(mockLocalDataSource);
+      verify(
+        mockLocalDataSource.saveJob(
+          argThat(
+            isA<Job>().having(
+              (j) => j.failedAudioDeletionAttempts,
+              'failedAudioDeletionAttempts',
+              tJobWithIncrementedCounter.failedAudioDeletionAttempts,
+            ),
+          ),
+        ),
+      ).called(1);
       verifyNoMoreInteractions(mockFileSystem);
     });
 
@@ -256,6 +280,60 @@ void main() {
         verify(mockLocalDataSource.getJobById(uniqueId)).called(1);
         verify(mockLocalDataSource.deleteJob(uniqueId)).called(1);
         verifyNever(mockFileSystem.deleteFile(any));
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockFileSystem);
+      },
+    );
+
+    test(
+      'should increment failedAudioDeletionAttempts and save job if file deletion fails',
+      () async {
+        // Arrange
+        final tInitialJob = Job(
+          localId: 'job-fail-delete',
+          userId: 'user1',
+          status: JobStatus.completed,
+          syncStatus: SyncStatus.pendingDeletion, // Example status
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          audioFilePath: '/path/to/fail/audio.mp3',
+          failedAudioDeletionAttempts: 1, // Initial count
+        );
+        final tExpectedUpdatedJob = tInitialJob.copyWith(
+          failedAudioDeletionAttempts:
+              tInitialJob.failedAudioDeletionAttempts + 1,
+        );
+        final tException = FileSystemException('Cannot delete');
+
+        when(
+          mockLocalDataSource.getJobById(tInitialJob.localId),
+        ).thenAnswer((_) async => tInitialJob);
+        when(
+          mockFileSystem.deleteFile(tInitialJob.audioFilePath!),
+        ).thenThrow(tException);
+        // Expect the updated job to be saved
+        when(
+          mockLocalDataSource.saveJob(tExpectedUpdatedJob),
+        ).thenAnswer((_) async => unit);
+        // DB deletion should still succeed
+        when(
+          mockLocalDataSource.deleteJob(tInitialJob.localId),
+        ).thenAnswer((_) async => unit);
+
+        // Act
+        final result = await service.permanentlyDeleteJob(tInitialJob.localId);
+
+        // Assert
+        expect(
+          result,
+          equals(const Right(unit)),
+        ); // Operation itself is non-fatal
+        verify(mockLocalDataSource.getJobById(tInitialJob.localId)).called(1);
+        verify(mockFileSystem.deleteFile(tInitialJob.audioFilePath!)).called(1);
+        // Verify the job with the incremented counter was saved
+        verify(mockLocalDataSource.saveJob(tExpectedUpdatedJob)).called(1);
+        // Verify the DB deletion still proceeded
+        verify(mockLocalDataSource.deleteJob(tInitialJob.localId)).called(1);
         verifyNoMoreInteractions(mockLocalDataSource);
         verifyNoMoreInteractions(mockFileSystem);
       },

@@ -42,26 +42,26 @@ Improve handling of audio file deletion failures with robust logging and recover
   - [X] Add log severity level (ERROR)
 - [X] Verify try-catch blocks around all file operations
 - [X] Verify path normalization and null-checking before deletion attempts
-- [ ] Postpone (YAGNI Alert): Add retry mechanism for failed file deletions on next app startup
+- [X] Postpone (YAGNI Alert): Add retry mechanism for failed file deletions on next app startup
 
 ## 4. Prepare UI Notifications for File System Issues
 Implement a mechanism to inform users when file cleanup operations fail. Do not implement the actual UI; instead come up with a best practice way allow the UI to respond.
 
-- [ ] Add `failedAudioDeletionAttempts` counter to `Job` entity:
-  - [ ] Update `Job` class in domain layer
-  - [ ] Update `JobHiveModel` in data layer
-  - [ ] Update mappers between domain and data models
-  - [ ] Ensure `copyWith` methods include the new field
-- [ ] Enhance deletion error handlers to update counter:
-  - [ ] In `JobDeleterService`, increment counter on file deletion failure
-  - [ ] In `JobSyncProcessorService`, increment counter on file deletion failure
-  - [ ] Save updated job after incrementing counter
-- [ ] Expose file issue information to UI:
+- [X] Add `failedAudioDeletionAttempts` counter to `Job` entity:
+  - [X] Update `Job` class in domain layer
+  - [X] Update `JobHiveModel` in data layer
+  - [X] Update mappers between domain and data models
+  - [X] Ensure `copyWith` methods include the new field
+- [X] Enhance deletion error handlers to update counter:
+  - [X] In `JobDeleterService`, increment counter on file deletion failure
+  - [X] In `JobSyncProcessorService`, increment counter on file deletion failure
+  - [X] Save updated job after incrementing counter
+- [ ] Postponed: Expose file issue information to UI:
   - [ ] Add file issue indicator to job list items in UI
   - [ ] Add more detailed error information to job detail screen
   - [ ] Consider adding a "Retry Cleanup" action in UI
-- [ ] Add ability to manually reset counter when cleanup succeeds
-- [ ] Document the file issue notification architecture in `job_dataflow.md`
+- [X] Add ability to manually reset counter when cleanup succeeds
+- [X] Document the file issue notification architecture in `job_dataflow.md`
 
 ## 5. Data Flow Architecture Verification
 Verify our stream-based architecture is fully implemented for reactive UI updates.
@@ -81,8 +81,18 @@ Verify our stream-based architecture is fully implemented for reactive UI update
 ## 6. Testing Additions
 Enhance test coverage for sync edge cases.
 
-- [ ] Write tests for file deletion error handling
+- [X] Write tests for file deletion error handling
 - [ ] Write tests for exponential backoff calculations
 - [ ] Write tests for mutex lock behavior
 - [ ] Write tests for stream propagation of sync status changes
 - [ ] Add specific UI tests for file issue indicator display 
+
+## 7. Follow-up Code Improvements
+Additional improvements identified during code review.
+
+- [ ] Standardize error logging approach (use `logError` helper consistently instead of direct `_logger.e` calls)
+- [ ] Add defensive coding for counter increments (null checks before incrementing `failedAudioDeletionAttempts`)
+- [ ] Consider extracting nested try-catch blocks into helper methods in `JobDeleterService` for better readability
+- [ ] Move all config values (retry backoff times, max attempts) to a dedicated config class
+- [ ] Document thread-safety guarantees for all services that handle file operations
+- [ ] Add dedicated helper method to reset the `failedAudioDeletionAttempts` counter 

@@ -21,6 +21,7 @@ class Job extends Equatable {
   final String? additionalText; // Optional extra metadata
   final int retryCount; // New: Number of sync retry attempts
   final DateTime? lastSyncAttemptAt; // New: Timestamp of the last sync attempt
+  final int failedAudioDeletionAttempts; // New field
 
   const Job({
     required this.localId,
@@ -39,6 +40,7 @@ class Job extends Equatable {
     this.additionalText,
     this.retryCount = 0, // New: Default to 0
     this.lastSyncAttemptAt, // New: Nullable
+    this.failedAudioDeletionAttempts = 0, // Add to constructor with default
   });
 
   // Equatable props for value comparison
@@ -60,27 +62,31 @@ class Job extends Equatable {
     additionalText,
     retryCount, // New
     lastSyncAttemptAt, // New
+    failedAudioDeletionAttempts, // Add to props
   ];
 
   // Optional: Add copyWith if needed for state management
   Job copyWith({
     String? localId,
-    String? serverId, // New
-    JobStatus? status, // USE ENUM INSTEAD OF STRING
-    SyncStatus? syncStatus, // New
+    String? serverId,
+    JobStatus? status,
+    SyncStatus? syncStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? userId,
     String? displayTitle,
+    bool setDisplayTitleNull = false,
     String? displayText,
     int? errorCode,
     String? errorMessage,
     String? audioFilePath,
+    bool setAudioFilePathNull = false,
     String? text,
     String? additionalText,
-    int? retryCount, // New
-    DateTime? lastSyncAttemptAt, // New
-    bool setLastSyncAttemptAtToNull = false,
+    int? retryCount,
+    DateTime? lastSyncAttemptAt,
+    bool setLastSyncAttemptAtNull = false,
+    int? failedAudioDeletionAttempts,
   }) {
     return Job(
       localId: localId ?? this.localId,
@@ -90,18 +96,22 @@ class Job extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       userId: userId ?? this.userId,
-      displayTitle: displayTitle ?? this.displayTitle,
+      displayTitle:
+          setDisplayTitleNull ? null : (displayTitle ?? this.displayTitle),
       displayText: displayText ?? this.displayText,
       errorCode: errorCode ?? this.errorCode,
       errorMessage: errorMessage ?? this.errorMessage,
-      audioFilePath: audioFilePath ?? this.audioFilePath,
+      audioFilePath:
+          setAudioFilePathNull ? null : (audioFilePath ?? this.audioFilePath),
       text: text ?? this.text,
       additionalText: additionalText ?? this.additionalText,
       retryCount: retryCount ?? this.retryCount,
       lastSyncAttemptAt:
-          setLastSyncAttemptAtToNull
+          setLastSyncAttemptAtNull
               ? null
               : (lastSyncAttemptAt ?? this.lastSyncAttemptAt),
+      failedAudioDeletionAttempts:
+          failedAudioDeletionAttempts ?? this.failedAudioDeletionAttempts,
     );
   }
 }

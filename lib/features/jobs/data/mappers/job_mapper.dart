@@ -55,6 +55,8 @@ class JobMapper {
       // Default retryCount to 0 if null in Hive model
       retryCount: model.retryCount ?? 0,
       lastSyncAttemptAt: lastSyncAttemptAt,
+      // Add mapping for the new field, defaulting to 0 if null
+      failedAudioDeletionAttempts: model.failedAudioDeletionAttempts ?? 0,
     );
   }
 
@@ -78,6 +80,8 @@ class JobMapper {
       retryCount: entity.retryCount,
       // Store nullable DateTime as ISO string or null
       lastSyncAttemptAt: entity.lastSyncAttemptAt?.toIso8601String(),
+      // Add mapping for the new field
+      failedAudioDeletionAttempts: entity.failedAudioDeletionAttempts,
     );
     return model;
   }
