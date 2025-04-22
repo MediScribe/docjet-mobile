@@ -56,10 +56,15 @@ Implement a mechanism to inform users when file cleanup operations fail. Do not 
   - [X] In `JobDeleterService`, increment counter on file deletion failure
   - [X] In `JobSyncProcessorService`, increment counter on file deletion failure
   - [X] Save updated job after incrementing counter
-- [ ] Postponed: Expose file issue information to UI:
-  - [ ] Add file issue indicator to job list items in UI
-  - [ ] Add more detailed error information to job detail screen
-  - [ ] Consider adding a "Retry Cleanup" action in UI
+- [X] Prepare Presentation Layer (UI-Independent Foundation):
+  - [X] Create `JobViewModel` and mapper in `lib/features/jobs/presentation/mappers/`
+  - [ ] Define `JobListState` and `JobDetailState` classes
+  - [ ] Implement `JobListCubit` (subscribes to `WatchJobsUseCase`)
+  - [ ] Implement `JobDetailCubit` (subscribes to `WatchJobByIdUseCase`)
+  - [ ] Register cubits in DI module (`JobsModule.registerPresentation`)
+  - [ ] Write unit tests for `JobListCubit`
+  - [ ] Write unit tests for `JobDetailCubit`
+  - [ ] Document presentation layer prep in `job_dataflow.md` (New subsection)
 - [X] Add ability to manually reset counter when cleanup succeeds
 - [X] Document the file issue notification architecture in `job_dataflow.md`
 
