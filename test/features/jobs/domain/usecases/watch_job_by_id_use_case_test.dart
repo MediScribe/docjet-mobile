@@ -8,6 +8,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'dart:async';
 
 import 'watch_job_by_id_use_case_test.mocks.dart';
 
@@ -15,12 +16,19 @@ import 'watch_job_by_id_use_case_test.mocks.dart';
 void main() {
   late WatchJobByIdUseCase useCase;
   late MockJobRepository mockJobRepository;
+  late StreamController<Either<Failure, Job?>> streamController;
+
   final tNow = DateTime.now();
   final tLocalId = '1';
 
   setUp(() {
     mockJobRepository = MockJobRepository();
     useCase = WatchJobByIdUseCase(repository: mockJobRepository);
+    streamController = StreamController<Either<Failure, Job?>>.broadcast();
+  });
+
+  tearDown(() {
+    streamController.close();
   });
 
   test(
@@ -54,8 +62,9 @@ void main() {
 
   test('should handle null job (deleted job case)', () async {
     // Arrange
-    final stream = Stream.value(Right<Failure, Job?>(null));
-    when(mockJobRepository.watchJobById(tLocalId)).thenAnswer((_) => stream);
+    when(
+      mockJobRepository.watchJobById(tLocalId),
+    ).thenAnswer((_) => streamController.stream);
 
     // Act
     final resultStream = useCase(WatchJobParams(localId: tLocalId));
@@ -63,7 +72,65 @@ void main() {
     // Assert
     verify(mockJobRepository.watchJobById(tLocalId));
 
-    // Verify the stream emits null for a deleted job
-    await expectLater(resultStream, emits(Right<Failure, Job?>(null)));
+    // Set up expectation *before* adding data and closing
+    final expectation = expectLater(
+      resultStream,
+      emits(const Right<Failure, Job?>(null)),
+    );
+
+    // Add null to controller and CLOSE the stream
+    streamController.add(const Right(null));
+    await streamController.close(); // Explicitly close the stream here
+
+    // Await the expectation
+    await expectation;
+  });
+
+  test('should emit updated job when repository stream changes', () async {
+    // Arrange
+    final initialJob = Job(
+      localId: tLocalId,
+      text: 'Initial Text',
+      status: JobStatus.completed,
+      syncStatus: SyncStatus.synced,
+      createdAt: tNow,
+      updatedAt: tNow,
+      userId: 'user1',
+    );
+    final updatedJob = initialJob.copyWith(
+      text: 'Updated Text',
+      updatedAt: tNow.add(const Duration(minutes: 1)),
+      syncStatus: SyncStatus.pending,
+    );
+
+    // Mock the repository to return the controlled stream
+    when(
+      mockJobRepository.watchJobById(tLocalId),
+    ).thenAnswer((_) => streamController.stream);
+
+    // Act
+    final resultStream = useCase(WatchJobParams(localId: tLocalId));
+
+    // Assert
+    // Set up expectation *before* adding data and closing
+    final expectation = expectLater(
+      resultStream,
+      emitsInOrder([
+        Right<Failure, Job?>(initialJob),
+        Right<Failure, Job?>(updatedJob),
+      ]),
+    );
+
+    // Trigger the emissions by adding data to the controller
+    streamController.add(Right(initialJob));
+    // No need for Future.delayed if we close immediately after adding all events
+    streamController.add(Right(updatedJob));
+    await streamController.close(); // Explicitly close the stream here
+
+    // Await the expectation
+    await expectation;
+
+    // Verification
+    verify(mockJobRepository.watchJobById(tLocalId)).called(1);
   });
 }
