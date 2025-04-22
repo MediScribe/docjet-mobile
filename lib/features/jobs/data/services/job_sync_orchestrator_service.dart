@@ -21,6 +21,8 @@ class JobSyncOrchestratorService {
   final Logger _logger = LoggerFactory.getLogger(
     JobSyncOrchestratorService,
   ); // Use LoggerFactory
+  // Uses a re-entrant mutex from package:mutex to prevent concurrent sync runs.
+  // Re-entrant means the same thread/zone can acquire the lock multiple times without deadlocking.
   final Mutex _syncMutex = Mutex(); // Add mutex for sync control
 
   JobSyncOrchestratorService({

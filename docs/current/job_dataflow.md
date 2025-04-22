@@ -581,11 +581,11 @@ The sync process is split between two specialized services:
 
 1. **JobSyncOrchestratorService**:
    - Decides *what* to sync and when
-   - Handles concurrency with mutex lock
+   - Handles concurrency with mutex lock (Default is re-entrant from `package:mutex`)
    - Collects jobs that need synchronization
    - Checks network connectivity
-   - Delegates actual sync operations to processor
-   - Provides API for manual reset of failed jobs
+   * Delegating actual sync operations to processor
+   * Providing API for manual reset of failed jobs
 
 2. **JobSyncProcessorService**:
    - Performs the actual API operations

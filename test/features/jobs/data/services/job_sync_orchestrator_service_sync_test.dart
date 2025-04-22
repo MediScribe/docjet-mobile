@@ -11,6 +11,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'dart:async';
 
 // Generate mocks for dependencies of the Orchestrator
 @GenerateMocks([
@@ -407,5 +408,83 @@ void main() {
         _logger.d('$_tag Assertions complete.');
       },
     );
+
+    test('should handle concurrent sync calls using the lock', () async {
+      _logger.i('$_tag Starting test: concurrent sync calls...');
+
+      // Arrange
+      _logger.d('$_tag Arranging mocks for concurrency test...');
+      // Use a completer to control when the first sync process finishes
+      final syncCompleter = Completer<void>();
+      // Counter to track actual processor calls
+      var processorCallCount = 0;
+
+      when(mockLocalDataSource.getJobsByStatus(SyncStatus.pending)).thenAnswer((
+        _,
+      ) async {
+        _logger.d(
+          '$_tag Mock getJobsByStatus(pending) called, returning [tPendingJobNew] (for concurrency test)',
+        );
+        // Simulate DB access time only for the first call that gets through the lock
+        // We only expect this to be called ONCE if the lock works.
+        await Future.delayed(const Duration(milliseconds: 50));
+        return [tPendingJobNew];
+      });
+
+      when(mockProcessorService.processJobSync(any)).thenAnswer((_) async {
+        processorCallCount++;
+        _logger.d(
+          '$_tag Mock processJobSync called (Count: $processorCallCount). Waiting for completer...',
+        );
+        // Simulate processing time, wait for external signal to complete
+        await syncCompleter.future;
+        _logger.d('$_tag Mock processJobSync completer finished.');
+        return const Right(unit);
+      });
+
+      _logger.d('$_tag Test arranged, starting concurrent actions...');
+
+      // Act
+      // Call syncPendingJobs twice without awaiting the first one immediately
+      _logger.d('$_tag Calling service.syncPendingJobs (call 1)...');
+      final future1 = service.syncPendingJobs();
+      // Small delay to ensure the second call happens while the first might be inside the lock
+      await Future.delayed(const Duration(milliseconds: 10));
+      _logger.d('$_tag Calling service.syncPendingJobs (call 2)...');
+      final future2 = service.syncPendingJobs();
+
+      // Now, allow the first sync process (if it started) to complete
+      _logger.d('$_tag Completing the sync process completer...');
+      syncCompleter.complete();
+
+      // Wait for both calls to finish
+      _logger.d('$_tag Awaiting both future results...');
+      final results = await Future.wait([future1, future2]);
+      _logger.d(
+        '$_tag Both syncPendingJobs calls completed with results: $results',
+      );
+
+      // Assert
+      _logger.d('$_tag Asserting expectations for concurrency...');
+      // Verify local DS was queried only ONCE because of the lock
+      verify(mockLocalDataSource.getJobsByStatus(SyncStatus.pending)).called(1);
+      // Verify processor was called only ONCE
+      verify(mockProcessorService.processJobSync(tPendingJobNew)).called(1);
+      // Explicitly check the counter
+      expect(
+        processorCallCount,
+        1,
+        reason: 'Processor should only be called once due to lock',
+      );
+
+      // Verify other categories were still checked (only once, by the winning call)
+      verify(
+        mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+      ).called(1);
+      verify(mockLocalDataSource.getJobsToRetry(any, any)).called(1);
+      // Verify deletion processor was NOT called
+      verifyNever(mockProcessorService.processJobDeletion(any));
+      _logger.d('$_tag Concurrency assertions complete.');
+    });
   });
 }
