@@ -10,7 +10,7 @@ Make sure our mutex implementation is robust across concurrent sync attempts fro
 
 - [X] Verify mutex implementation in `JobSyncOrchestratorService` is using `package:mutex` Lock (Default is re-entrant)
 - [X] Explicitly document that we're using re-entrant lock mechanism (Added comment in code)
-- [X] Add unit test that verifies lock behavior under concurrent access (foreground/background collision) (Test exists: `should handle concurrent sync calls using the lock`)
+- [X] Test mutex lock behaviour in `JobSyncOrchestratorService` to ensure only one sync runs at a time
 - [X] Update `job_dataflow.md` to explicitly mention re-entrancy of mutex implementation
 - [X] Verify lock is properly released on all function exit paths (including exceptions)
 
@@ -92,8 +92,7 @@ Enhance test coverage for sync edge cases.
 ## 7. Follow-up Code Improvements
 Additional improvements identified during code review.
 
-- [ ] Standardize error logging approach (use `logError` helper consistently instead of direct `_logger.e` calls)
-- [ ] Add defensive coding for counter increments (null checks before incrementing `failedAudioDeletionAttempts`)
+- [X] Add defensive coding for counter increments (null checks before incrementing `failedAudioDeletionAttempts`)
 - [ ] Consider extracting nested try-catch blocks into helper methods in `JobDeleterService` for better readability
 - [X] Move all config values (retry backoff times, max attempts) to a dedicated config class
 - [ ] Document thread-safety guarantees for all services that handle file operations

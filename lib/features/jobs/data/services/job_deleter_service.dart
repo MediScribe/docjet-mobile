@@ -126,7 +126,8 @@ class JobDeleterService {
 
         // ---- START: Increment counter on failure ----
         final updatedJob = job.copyWith(
-          failedAudioDeletionAttempts: job.failedAudioDeletionAttempts + 1,
+          failedAudioDeletionAttempts:
+              (job.failedAudioDeletionAttempts ?? 0) + 1,
         );
         try {
           _logger.w(

@@ -486,5 +486,150 @@ void main() {
       verifyNever(mockProcessorService.processJobDeletion(any));
       _logger.d('$_tag Concurrency assertions complete.');
     });
+
+    // --- NEW CORRECTED MUTEX TEST ---
+    test(
+      'should skip concurrent sync call if one is already in progress',
+      () async {
+        _logger.i('$_tag Starting test: should skip concurrent sync call...');
+
+        // Arrange
+        final syncProcessCompleter = Completer<void>();
+        final callOrder = <String>[];
+
+        _logger.d('$_tag Arranging mocks for corrected concurrency test...');
+        when(mockNetworkInfo.isConnected).thenAnswer((_) async {
+          callOrder.add('network_check');
+          return true;
+        });
+
+        when(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+        ).thenAnswer((_) async {
+          callOrder.add('fetch_pending');
+          return [tPendingJobNew];
+        });
+        when(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+        ).thenAnswer((_) async {
+          callOrder.add('fetch_pending_deletion');
+          return [];
+        });
+        when(mockLocalDataSource.getJobsToRetry(any, any)).thenAnswer((
+          _,
+        ) async {
+          callOrder.add('fetch_retry');
+          return [];
+        });
+
+        // Mock the processor service to pause the first call
+        when(mockProcessorService.processJobSync(tPendingJobNew)).thenAnswer((
+          _,
+        ) async {
+          _logger.d('$_tag Mock processJobSync call 1 START - Pausing...');
+          callOrder.add('process_start_1');
+          // Pause execution here until the completer is triggered
+          await syncProcessCompleter.future;
+          _logger.d('$_tag Mock processJobSync call 1 END - Resumed.');
+          callOrder.add('process_end_1');
+          return const Right(unit);
+        });
+
+        _logger.d('$_tag Test arranged, starting concurrent action...');
+
+        // Act
+        _logger.d('$_tag Calling syncPendingJobs #1 (will pause)...');
+        final future1 = service.syncPendingJobs();
+
+        // Give call #1 time to acquire the lock and reach the completer await
+        _logger.d('$_tag Delaying briefly before call #2...');
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        _logger.d('$_tag Calling syncPendingJobs #2 (should skip)...');
+        final future2 = service.syncPendingJobs();
+
+        // Allow call #1 to complete
+        _logger.d('$_tag Completing syncProcessCompleter...');
+        syncProcessCompleter.complete();
+
+        // Wait for both futures to settle
+        _logger.d('$_tag Awaiting Future.wait...');
+        final results = await Future.wait([future1, future2]);
+        _logger.d('$_tag Future.wait completed with results: $results');
+
+        // Assert
+        _logger.d(
+          '$_tag Asserting expectations for corrected concurrency test...',
+        );
+
+        // Verify mocks were called ONLY for the first run
+        verify(mockNetworkInfo.isConnected).called(1);
+        verify(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+        ).called(1);
+        verify(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+        ).called(1);
+        verify(mockLocalDataSource.getJobsToRetry(any, any)).called(1);
+        verify(mockProcessorService.processJobSync(tPendingJobNew)).called(1);
+
+        // Verify the execution order log only contains events from the first call
+        _logger.d('$_tag Verifying call order: $callOrder');
+        expect(
+          callOrder,
+          equals([
+            'network_check', // Called by call 1
+            'fetch_pending', // Called by call 1
+            'fetch_pending_deletion', // Called by call 1
+            'fetch_retry', // Called by call 1
+            'process_start_1', // Called by call 1
+            'process_end_1', // Called by call 1 (after completer)
+          ]),
+          reason: 'Second call should have skipped execution entirely',
+        );
+
+        _logger.d('$_tag Corrected concurrency assertions complete.');
+      },
+      timeout: const Timeout(Duration(seconds: 2)), // Keep timeout
+    );
+    // --- END NEW CORRECTED MUTEX TEST ---
+
+    test(
+      'should fetch and call processorService.processJobDeletion for pendingDeletion jobs',
+      () async {
+        _logger.i(
+          '$_tag Starting test: should call processor for jobs pending deletion...',
+        );
+        // Arrange
+        when(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+        ).thenAnswer((_) async => [tJobPendingDeletionWithServerId]);
+        _logger.d(
+          '$_tag Mock getJobsByStatus(pendingDeletion) called, returning [tJobPendingDeletionWithServerId]',
+        );
+
+        // Act
+        final result = await service.syncPendingJobs();
+        _logger.d(
+          '$_tag service.syncPendingJobs completed with result: $result',
+        );
+
+        // Assert
+        verify(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pending),
+        ).called(1);
+        verify(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.pendingDeletion),
+        ).called(1);
+        verify(
+          mockProcessorService.processJobDeletion(
+            tJobPendingDeletionWithServerId,
+          ),
+        ).called(1); // Verify deletion call
+        verify(mockLocalDataSource.getJobsToRetry(any, any)).called(1);
+        // Verify sync processor was NOT called
+        verifyNever(mockProcessorService.processJobSync(any));
+      },
+    );
   });
 }
