@@ -42,10 +42,10 @@ Improve handling of audio file deletion failures with robust logging and recover
   - [X] Add log severity level (ERROR)
 - [X] Verify try-catch blocks around all file operations
 - [X] Verify path normalization and null-checking before deletion attempts
-- [ ] Add retry mechanism for failed file deletions on next app startup
+- [ ] Postpone (YAGNI Alert): Add retry mechanism for failed file deletions on next app startup
 
-## 4. UI Notifications for File System Issues
-Implement a mechanism to inform users when file cleanup operations fail.
+## 4. Prepare UI Notifications for File System Issues
+Implement a mechanism to inform users when file cleanup operations fail. Do not implement the actual UI; instead come up with a best practice way allow the UI to respond.
 
 - [ ] Add `failedAudioDeletionAttempts` counter to `Job` entity:
   - [ ] Update `Job` class in domain layer
