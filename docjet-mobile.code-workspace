@@ -4,5 +4,8 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"markdown-mermaid.lightModeTheme": "default",
+		"markdown-mermaid.darkModeTheme": "dark"
+	}
 }

@@ -48,7 +48,6 @@ This document details the data flow architecture for the Job feature in DocJet M
   - [Job Creation Flow](#job-creation-flow)
   - [Job Update Flow](#job-update-flow)
   - [Job Deletion Flow](#job-deletion-flow)
-- [Legacy Monolithic Diagram (For Reference)](#legacy-monolithic-diagram-for-reference)
 
 ## Key Architecture Decisions
 
@@ -118,6 +117,15 @@ All services located in: `lib/features/jobs/data/services/`
 - `job_writer_service.dart` - Write operations 
 - `job_deleter_service.dart` - Delete operations
 
+### Use Cases Layer
+All use cases located in: `lib/features/jobs/domain/usecases/`
+- `create_job_use_case.dart` - Creates new jobs
+- `delete_job_use_case.dart` - Marks jobs for deletion
+- `get_job_by_id_use_case.dart` - Retrieves a single job
+- `get_jobs_use_case.dart` - Retrieves all jobs
+- `reset_failed_job_use_case.dart` - Resets failed jobs for retry
+- `update_job_use_case.dart` - Updates existing jobs
+
 ### Data Sources
 - **Local**: `lib/features/jobs/data/datasources/job_local_data_source.dart`
 - **Remote**: `lib/features/jobs/data/datasources/job_remote_data_source.dart`
@@ -138,96 +146,136 @@ Test files are located at: `test/features/jobs/data/services/`
 
 ## Job Feature Architecture Overview
 
-The following diagram illustrates the components and their relationships for the job feature.
+The following diagrams illustrate the components and their relationships for the job feature.
+
+### High-Level Architecture
+
+This diagram shows the main architectural layers and primary flow of data:
 
 ```mermaid
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
 graph TD
-    subgraph "Presentation Layer (UI, State Management)"
-        UI --> |Uses| AppService(Application Service / Use Cases)
+    subgraph "Presentation Layer"
+        UI[Job List UI] 
+        StateManagement[Job State Management]
+        UI <--> StateManagement
     end
 
-    subgraph "Domain Layer (Core Logic, Entities)"
-        AppService -->|Uses| JobRepositoryInterface(JobRepository Interface)
-        JobEntity((Job Entity<br>- Pure Dart<br>- Equatable))
-        JobRepositoryInterface -- Defines --> JobEntity
+    subgraph "Use Cases Layer"
+        GetJobs[GetJobsUseCase]
+        GetJobById[GetJobByIdUseCase]
+        CreateJob[CreateJobUseCase]
+        UpdateJob[UpdateJobUseCase]
+        DeleteJob[DeleteJobUseCase]
+        ResetFailedJob[ResetFailedJobUseCase]
     end
 
-    subgraph "Data Layer (Implementation Details)"
-        JobRepositoryImpl(JobRepositoryImpl<br>- Delegates to Services) -->|Implements| JobRepositoryInterface
+    subgraph "Domain Layer"
+        JobRepo[JobRepository Interface]
+        JobEntity[Job Entity]
+        SyncStatus[Sync Status Enum]
+    end
 
-        subgraph "Service Layer"
-            ReaderService(JobReaderService<br>- Read Operations)
-            WriterService(JobWriterService<br>- Write Operations)
-            DeleterService(JobDeleterService<br>- Delete Operations)
-            
-            SyncOrchestrator(JobSyncOrchestratorService<br>- Job collection & sync decisions)
-            SyncProcessor(JobSyncProcessorService<br>- API operations & status updates)
-            SyncTrigger(JobSyncTriggerService<br>- 15s Timer & Lifecycle)
-            
-            SyncTrigger -->|Calls| SyncOrchestrator
-            SyncOrchestrator -->|Delegates to| SyncProcessor
-        end
+    subgraph "Data Layer"
+        RepoImpl[JobRepositoryImpl]
+        Services[Specialized Services]
+        DataSources[Data Sources]
+    end
 
-        JobRepositoryImpl -->|Uses| ReaderService
-        JobRepositoryImpl -->|Uses| WriterService
-        JobRepositoryImpl -->|Uses| DeleterService
-        JobRepositoryImpl -->|Uses| SyncOrchestrator
+    %% Connections between layers
+    StateManagement --> GetJobs
+    StateManagement --> GetJobById
+    StateManagement --> CreateJob
+    StateManagement --> UpdateJob
+    StateManagement --> DeleteJob
+    StateManagement --> ResetFailedJob
+    
+    GetJobs --> JobRepo
+    GetJobById --> JobRepo
+    CreateJob --> JobRepo
+    UpdateJob --> JobRepo
+    DeleteJob --> JobRepo
+    ResetFailedJob --> JobRepo
+    
+    JobRepo -- Defines --> JobEntity
+    JobEntity -- Uses --> SyncStatus
+    
+    RepoImpl --> JobRepo
+    RepoImpl --> Services
+    Services --> DataSources
 
-        subgraph "Infrastructure & Data Sources"
+    %% Styling
+    class UI,StateManagement presentation;
+    class GetJobs,GetJobById,CreateJob,UpdateJob,DeleteJob,ResetFailedJob usecases;
+    class JobRepo,JobEntity,SyncStatus domain;
+    class RepoImpl,Services,DataSources data;
+```
+
+### Data Layer Services Detail
+
+This diagram shows the details of the Service-Oriented Repository Pattern implementation:
+
+```mermaid
+%%{init: {'flowchart': {'defaultRenderer': 'elk'}}}%%
+graph TD
+    %% Repository Implementation
+    RepoImpl[JobRepositoryImpl]
+    
+    %% Services
+    subgraph "Services Layer"
+        ReaderSvc[JobReaderService]
+        WriterSvc[JobWriterService]
+        DeleterSvc[JobDeleterService]
+        SyncOrch[JobSyncOrchestratorService]
+        SyncProc[JobSyncProcessorService]
+        SyncTrigger[JobSyncTriggerService]
+    end
+    
+    %% Data Sources
             LocalDS[JobLocalDataSource]
             RemoteDS[JobRemoteDataSource]
+    
+    %% Infrastructure
             Network[NetworkInfo]
             UUID[UuidGenerator]
             FileSystem[FileSystem]
-        end
-
-        ReaderService -->|Uses| LocalDS
-        ReaderService -->|Uses| RemoteDS
+    
+    %% Connections
+    RepoImpl --> ReaderSvc
+    RepoImpl --> WriterSvc
+    RepoImpl --> DeleterSvc
+    RepoImpl --> SyncOrch
+    
+    SyncTrigger -->|Calls| SyncOrch
+    SyncOrch -->|Delegates to| SyncProc
+    
+    ReaderSvc --> LocalDS
+    ReaderSvc --> RemoteDS
         
-        WriterService -->|Uses| LocalDS
-        WriterService -->|Uses| UUID
+    WriterSvc --> LocalDS
+    WriterSvc --> UUID
         
-        DeleterService -->|Uses| LocalDS
-        DeleterService -->|Uses| FileSystem
+    DeleterSvc --> LocalDS
+    DeleterSvc --> FileSystem
         
-        SyncOrchestrator -->|Uses| LocalDS
-        SyncOrchestrator -->|Uses| Network
+    SyncOrch --> LocalDS
+    SyncOrch --> Network
         
-        SyncProcessor -->|Uses| LocalDS
-        SyncProcessor -->|Uses| RemoteDS
-        SyncProcessor -->|Uses| FileSystem
-
-        subgraph "Local Persistence (Hive)"
-            HiveJobLocalDS(HiveJobLocalDataSourceImpl) -->|Implements| LocalDS
-            HiveJobLocalDS -->|Uses| JobMapper(JobMapper)
-            HiveJobLocalDS -->|Uses| HiveBox([Hive Box])
-            JobMapper -->|Maps to/from| JobHiveModel((JobHiveModel DTO<br>- Hive Annotations))
-            JobMapper -->|Maps to/from| JobEntity
-            JobHiveModel -- Stored in --> HiveBox
-        end
-
-        subgraph "Remote API"
-            ApiJobRemoteDS(ApiJobRemoteDataSourceImpl) -->|Implements| RemoteDS
-            ApiJobRemoteDS -->|Uses| HttpClient([HTTP Client<br>- dio/http])
-            ApiJobRemoteDS -->|Uses| JobMapper
-            ApiJobRemoteDS -->|Uses| JobApiDTO((JobApiDTO<br>- API Contract))
-            JobMapper -->|Maps to/from| JobApiDTO
-            ApiJobRemoteDS -->|Talks to| RestAPI{REST API<br>/api/v1/jobs}
-            JobApiDTO -->|Serializes/Deserializes| RestAPI
-        end
-    end
-
-    %% Styling for clarity with improved contrast
-    classDef invisible fill:none,stroke:none;
-    classDef domain fill:#E64A45,stroke:#222,stroke-width:2px,color:#fff,padding:15px;
-    classDef service fill:#6E9E28,stroke:#222,stroke-width:2px,color:#fff;
-    classDef data fill:#4285F4,stroke:#222,stroke-width:2px,color:#fff;
-    classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
-
-    class JobEntity,JobRepositoryInterface domain;
-    class ReaderService,WriterService,DeleterService,SyncOrchestrator,SyncProcessor,SyncTrigger service;
-    class JobRepositoryImpl,LocalDS,RemoteDS,HiveJobLocalDS,ApiJobRemoteDS,JobMapper,JobHiveModel,JobApiDTO,HiveBox,HttpClient,RestAPI,Network,UUID,FileSystem data;
-    class UI,AppService presentation;
+    SyncProc --> LocalDS
+    SyncProc --> RemoteDS
+    SyncProc --> FileSystem
+    
+    %% Implementation Details
+    LocalDSImpl[HiveJobLocalDataSourceImpl]
+    RemoteDSImpl[ApiJobRemoteDataSourceImpl]
+    
+    LocalDSImpl -->|Implements| LocalDS
+    RemoteDSImpl -->|Implements| RemoteDS
+    
+    %% Styling
+    class ReaderSvc,WriterSvc,DeleterSvc,SyncOrch,SyncProc,SyncTrigger service;
+    class RepoImpl,LocalDS,RemoteDS,LocalDSImpl,RemoteDSImpl data;
+    class Network,UUID,FileSystem infra;
 ```
 
 ## Job Data Layer Flow
@@ -236,7 +284,8 @@ This sequence diagram shows the typical flows when the application requests job 
 
 ```mermaid
 sequenceDiagram
-    participant AppSvc as Application Service
+    autonumber
+    participant UseCase as Use Case
     participant JobRepo as JobRepositoryImpl
     participant ReaderSvc as JobReaderService
     participant LocalDS as HiveJobLocalDS
@@ -246,11 +295,11 @@ sequenceDiagram
     participant Hive as Hive Box
     participant API as REST API
 
-    Note over AppSvc, API: Fetching Job List
+    Note over UseCase, API: Fetching Job List
 
     %% Success Path - Local Data
-    Note over AppSvc, API: Success Path - Local Cache Hit
-    AppSvc->>JobRepo: getJobs()
+    Note over UseCase, API: Success Path - Local Cache Hit
+    UseCase->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
     ReaderSvc->>LocalDS: getJobs()
     LocalDS->>Hive: readAllJobs()
@@ -259,11 +308,11 @@ sequenceDiagram
     Mapper-->>LocalDS: List<JobEntity>
     LocalDS-->>ReaderSvc: List<JobEntity>
     ReaderSvc-->>JobRepo: Right<List<JobEntity>>
-    JobRepo-->>AppSvc: Right<List<JobEntity>>
+    JobRepo-->>UseCase: Right<List<JobEntity>>
     
     %% Refresh Path - Remote Fetch
-    Note over AppSvc, API: Refresh Path - Local Cache Miss/Stale
-    AppSvc->>JobRepo: getJobs()
+    Note over UseCase, API: Refresh Path - Local Cache Miss/Stale
+    UseCase->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
     ReaderSvc->>LocalDS: getJobs()
     LocalDS->>Hive: readAllJobs()
@@ -284,11 +333,11 @@ sequenceDiagram
     Hive-->>LocalDS: Save Confirmation
     LocalDS-->>ReaderSvc: Save Confirmation
     ReaderSvc-->>JobRepo: Right<List<JobEntity>>
-    JobRepo-->>AppSvc: Right<List<JobEntity>>
+    JobRepo-->>UseCase: Right<List<JobEntity>>
     
     %% Error Path
-    Note over AppSvc, API: Error Path - Network/Server Failure
-    AppSvc->>JobRepo: getJobs()
+    Note over UseCase, API: Error Path - Network/Server Failure
+    UseCase->>JobRepo: getJobs()
     JobRepo->>ReaderSvc: getJobs()
     ReaderSvc->>LocalDS: getJobs()
     LocalDS->>Hive: readAllJobs()
@@ -299,7 +348,7 @@ sequenceDiagram
     API-->>RemoteDS: Error Response (5xx, network error)
     RemoteDS-->>ReaderSvc: Exception/Error
     ReaderSvc-->>JobRepo: Left<Failure>
-    JobRepo-->>AppSvc: Left<Failure>
+    JobRepo-->>UseCase: Left<Failure>
 ```
 
 ## Job Creation, Update, and Sync Flow
@@ -308,7 +357,8 @@ This sequence diagram illustrates the data flow for creating new jobs, updating 
 
 ```mermaid
 sequenceDiagram
-    participant AppSvc as Application Service
+    autonumber
+    participant UseCase as Use Case
     participant JobRepo as JobRepositoryImpl
     participant WriterSvc as JobWriterService
     participant DeleterSvc as JobDeleterService
@@ -323,8 +373,8 @@ sequenceDiagram
     participant FileSystem as File System
 
     %% Job Creation Flow
-    Note over AppSvc, API: Job Creation - Local First
-    AppSvc->>JobRepo: createJob(audioFilePath, text)
+    Note over UseCase, API: Job Creation - Local First
+    UseCase->>JobRepo: createJob(audioFilePath, text)
     JobRepo->>WriterSvc: createJob(audioFilePath, text)
     WriterSvc->>UUID: Generate UUID for new job
     UUID-->>WriterSvc: new localId
@@ -336,11 +386,11 @@ sequenceDiagram
     Hive-->>LocalDS: Save Confirmation
     LocalDS-->>WriterSvc: Success
     WriterSvc-->>JobRepo: Right<Job>
-    JobRepo-->>AppSvc: Right<Job>
+    JobRepo-->>UseCase: Right<Job>
     
     %% Job Update Flow
-    Note over AppSvc, API: Job Update - Local First
-    AppSvc->>JobRepo: updateJob(localId, updates)
+    Note over UseCase, API: Job Update - Local First
+    UseCase->>JobRepo: updateJob(localId, updates)
     JobRepo->>WriterSvc: updateJob(localId, updates)
     WriterSvc->>LocalDS: getJobById(localId)
     LocalDS->>Hive: Read from Hive Box
@@ -364,11 +414,11 @@ sequenceDiagram
         WriterSvc-->>JobRepo: Right<Job> (unchanged)
     end
     
-    JobRepo-->>AppSvc: Right<Job>
+    JobRepo-->>UseCase: Right<Job>
     
     %% Job Deletion Flow
-    Note over AppSvc, API: Job Deletion - Local First
-    AppSvc->>JobRepo: deleteJob(localId)
+    Note over UseCase, API: Job Deletion - Local First
+    UseCase->>JobRepo: deleteJob(localId)
     JobRepo->>DeleterSvc: deleteJob(localId)
     DeleterSvc->>LocalDS: getJobById(localId)
     LocalDS->>Hive: Read from Hive Box
@@ -385,7 +435,7 @@ sequenceDiagram
     Hive-->>LocalDS: Save Confirmation
     LocalDS-->>DeleterSvc: Success
     DeleterSvc-->>JobRepo: Right<Unit>
-    JobRepo-->>AppSvc: Right<Unit>
+    JobRepo-->>UseCase: Right<Unit>
 ```
 
 ## Job Data Layer Components
@@ -646,8 +696,10 @@ To make the sync flow clear, we've split it into small, focused sequence diagram
 
 ### Sync Orchestration - Job Collection
 
+This diagram shows how the orchestrator gathers jobs needing synchronization based on their status and retry eligibility.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant JobRepo as JobRepositoryImpl
     participant Orchestrator as JobSyncOrchestratorService
     participant Network as NetworkInfo
@@ -670,8 +722,10 @@ sequenceDiagram
 
 ### Sync Orchestration - Delegation
 
+This diagram illustrates the orchestrator delegating the processing of collected jobs to the appropriate processor methods.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Orchestrator as JobSyncOrchestratorService
     participant Processor as JobSyncProcessorService
     
@@ -692,8 +746,10 @@ sequenceDiagram
 
 ### Processor - New Job Creation 
 
+This diagram details the flow for creating a new job on the remote server and updating the local status upon success.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Processor as JobSyncProcessorService
     participant RemoteDS as RemoteDataSource
     participant LocalDS as LocalDataSource
@@ -712,8 +768,10 @@ sequenceDiagram
 
 ### Processor - Job Update
 
+This diagram shows the process of sending job updates to the remote server and updating the local status.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Processor as JobSyncProcessorService
     participant RemoteDS as RemoteDataSource
     participant LocalDS as LocalDataSource
@@ -732,8 +790,10 @@ sequenceDiagram
 
 ### Processor - Sync Error Handling
 
+This diagram outlines how synchronization failures are handled by updating the job's retry count and status.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Processor as JobSyncProcessorService
     participant LocalDS as LocalDataSource
     participant API as REST API
@@ -754,8 +814,10 @@ sequenceDiagram
 
 ### Processor - Job Deletion
 
+This diagram details the steps for deleting a job on the remote server and then removing it locally.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Processor as JobSyncProcessorService
     participant RemoteDS as RemoteDataSource
     participant LocalDS as LocalDataSource
@@ -775,8 +837,10 @@ sequenceDiagram
 
 ### Processor - Local File Cleanup
 
+This diagram illustrates the cleanup process for deleting the associated local audio file after a job is successfully deleted.
 ```mermaid
 sequenceDiagram
+    autonumber
     participant Processor as JobSyncProcessorService
     participant FileSystem as File System
 
@@ -794,14 +858,16 @@ sequenceDiagram
 
 ### Manual Reset of Failed Job
 
+This diagram shows the flow initiated by a user to reset a job's status from `failed` back to `pending` for another sync attempt.
 ```mermaid
 sequenceDiagram
-    participant AppSvc as Application Service
+    autonumber
+    participant UseCase as Use Case
     participant JobRepo as JobRepositoryImpl
     participant Orchestrator as JobSyncOrchestratorService
     participant LocalDS as LocalDataSource
     
-    AppSvc->>JobRepo: resetFailedJob(localId)
+    UseCase->>JobRepo: resetFailedJob(localId)
     JobRepo->>Orchestrator: resetFailedJob(localId)
     Orchestrator->>LocalDS: getJobById(localId)
     LocalDS-->>Orchestrator: Job
@@ -813,6 +879,7 @@ sequenceDiagram
     else Not Failed
         Orchestrator-->>JobRepo: Left<InvalidOperationFailure>
     end
+    JobRepo-->>UseCase: Result
 ```
 
 ## Local-First Operations Flow
@@ -823,15 +890,16 @@ This section illustrates the data flow for creating, updating, and deleting jobs
 
 ```mermaid
 sequenceDiagram
-    participant AppSvc as Application Service
+    autonumber
+    participant UseCase as Use Case
     participant JobRepo as JobRepositoryImpl
     participant WriterSvc as JobWriterService
     participant LocalDS as LocalDataSource
     participant UUID as UUID Generator
     participant Hive as Hive Box
     
-    Note over AppSvc, Hive: Job Creation - Local First
-    AppSvc->>JobRepo: createJob(audioFilePath, text)
+    Note over UseCase, Hive: Job Creation - Local First
+    UseCase->>JobRepo: createJob(audioFilePath, text)
     JobRepo->>WriterSvc: createJob(audioFilePath, text)
     WriterSvc->>UUID: Generate UUID for new job
     UUID-->>WriterSvc: new localId
@@ -841,21 +909,22 @@ sequenceDiagram
     Hive-->>LocalDS: Save Confirmation
     LocalDS-->>WriterSvc: Success
     WriterSvc-->>JobRepo: Right<Job>
-    JobRepo-->>AppSvc: Right<Job>
+    JobRepo-->>UseCase: Right<Job>
 ```
 
 ### Job Update Flow
 
 ```mermaid
 sequenceDiagram
-    participant AppSvc as Application Service
+    autonumber
+    participant UseCase as Use Case
     participant JobRepo as JobRepositoryImpl
     participant WriterSvc as JobWriterService
     participant LocalDS as LocalDataSource
     participant Hive as Hive Box
     
-    Note over AppSvc, Hive: Job Update - Local First
-    AppSvc->>JobRepo: updateJob(localId, updates)
+    Note over UseCase, Hive: Job Update - Local First
+    UseCase->>JobRepo: updateJob(localId, updates)
     JobRepo->>WriterSvc: updateJob(localId, updates)
     WriterSvc->>LocalDS: getJobById(localId)
     LocalDS->>Hive: Read from Hive Box
@@ -875,21 +944,22 @@ sequenceDiagram
         WriterSvc-->>JobRepo: Right<Job> (unchanged)
     end
     
-    JobRepo-->>AppSvc: Right<Job>
+    JobRepo-->>UseCase: Right<Job>
 ```
 
 ### Job Deletion Flow
 
 ```mermaid
 sequenceDiagram
-    participant AppSvc as Application Service
+    autonumber
+    participant UseCase as Use Case
     participant JobRepo as JobRepositoryImpl
     participant DeleterSvc as JobDeleterService
     participant LocalDS as LocalDataSource
     participant Hive as Hive Box
     
-    Note over AppSvc, Hive: Job Deletion - Local First
-    AppSvc->>JobRepo: deleteJob(localId)
+    Note over UseCase, Hive: Job Deletion - Local First
+    UseCase->>JobRepo: deleteJob(localId)
     JobRepo->>DeleterSvc: deleteJob(localId)
     DeleterSvc->>LocalDS: getJobById(localId)
     LocalDS->>Hive: Read from Hive Box
@@ -902,97 +972,5 @@ sequenceDiagram
     Hive-->>LocalDS: Save Confirmation
     LocalDS-->>DeleterSvc: Success
     DeleterSvc-->>JobRepo: Right<Unit>
-    JobRepo-->>AppSvc: Right<Unit>
-```
-
-## Legacy Monolithic Diagram (For Reference)
-
-This sequence diagram illustrates the old data flow approach before our refactoring to orchestrator/processor pattern.
-
-```mermaid
-sequenceDiagram
-    participant AppSvc as Application Service
-    participant JobRepo as JobRepositoryImpl
-    participant WriterSvc as JobWriterService
-    participant DeleterSvc as JobDeleterService
-    participant SyncOrch as JobSyncOrchestratorService
-    participant SyncProc as JobSyncProcessorService
-    participant LocalDS as HiveJobLocalDS
-    participant RemoteDS as ApiJobRemoteDS
-    participant Mapper as JobMapper
-    participant UUID as UUID Generator
-    participant Hive as Hive Box
-    participant API as REST API
-    participant FileSystem as File System
-
-    %% Job Creation Flow
-    rect 
-    Note over AppSvc, API: Job Creation - Local First
-    AppSvc->>JobRepo: createJob(audioFilePath, text)
-    JobRepo->>WriterSvc: createJob(audioFilePath, text)
-    WriterSvc->>UUID: Generate UUID for new job
-    UUID-->>WriterSvc: new localId
-    WriterSvc->>WriterSvc: Create Job entity with:<br/>- localId<br/>- serverId=null<br/>- SyncStatus.pending
-    WriterSvc->>LocalDS: saveJob(job)
-    LocalDS->>Mapper: toHiveModel(jobEntity)
-    Mapper-->>LocalDS: JobHiveModel
-    LocalDS->>Hive: Save to Hive Box (keyed by localId)
-    Hive-->>LocalDS: Save Confirmation
-    LocalDS-->>WriterSvc: Success
-    WriterSvc-->>JobRepo: Right<Job>
-    JobRepo-->>AppSvc: Right<Job>
-    end
-    
-    %% Job Update Flow
-    rect 
-    Note over AppSvc, API: Job Update - Local First
-    AppSvc->>JobRepo: updateJob(localId, updates)
-    JobRepo->>WriterSvc: updateJob(localId, updates)
-    WriterSvc->>LocalDS: getJobById(localId)
-    LocalDS->>Hive: Read from Hive Box
-    Hive-->>LocalDS: JobHiveModel
-    LocalDS->>Mapper: fromHiveModel(model)
-    Mapper-->>LocalDS: Job
-    LocalDS-->>WriterSvc: Job
-    
-    WriterSvc->>WriterSvc: Validate updates.hasChanges
-    
-    alt Updates contain changes
-        WriterSvc->>WriterSvc: Apply updates and set SyncStatus.pending
-        WriterSvc->>LocalDS: saveJob(updatedJob)
-        LocalDS->>Mapper: toHiveModel(job)
-        Mapper-->>LocalDS: JobHiveModel
-        LocalDS->>Hive: Save to Hive Box
-        Hive-->>LocalDS: Save Confirmation
-        LocalDS-->>WriterSvc: Success
-        WriterSvc-->>JobRepo: Right<Job>
-    else No changes detected
-        WriterSvc-->>JobRepo: Right<Job> (unchanged)
-    end
-    
-    JobRepo-->>AppSvc: Right<Job>
-    end
-    
-    %% Job Deletion Flow
-    rect 
-    Note over AppSvc, API: Job Deletion - Local First
-    AppSvc->>JobRepo: deleteJob(localId)
-    JobRepo->>DeleterSvc: deleteJob(localId)
-    DeleterSvc->>LocalDS: getJobById(localId)
-    LocalDS->>Hive: Read from Hive Box
-    Hive-->>LocalDS: JobHiveModel
-    LocalDS->>Mapper: fromHiveModel(model)
-    Mapper-->>LocalDS: Job
-    LocalDS-->>DeleterSvc: Job
-    
-    DeleterSvc->>DeleterSvc: Set SyncStatus.pendingDeletion
-    DeleterSvc->>LocalDS: saveJob(updatedJob)
-    LocalDS->>Mapper: toHiveModel(job)
-    Mapper-->>LocalDS: JobHiveModel
-    LocalDS->>Hive: Save to Hive Box
-    Hive-->>LocalDS: Save Confirmation
-    LocalDS-->>DeleterSvc: Success
-    DeleterSvc-->>JobRepo: Right<Unit>
-    JobRepo-->>AppSvc: Right<Unit>
-    end
+    JobRepo-->>UseCase: Right<Unit>
 ``` 
