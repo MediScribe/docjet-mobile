@@ -14,6 +14,8 @@ import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dar
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
+import 'package:hive_flutter/hive_flutter.dart'; // Add Hive Flutter import
 
 // Features - Jobs - Domain
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
@@ -25,10 +27,27 @@ import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_
 import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart'; // Needed for getApplicationDocumentsDirectory
 import 'package:uuid/uuid.dart';
+import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Add interface import
+import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'; // Add concrete class import
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
 
 final sl = GetIt.instance;
 
 Future<void> init() async {
+  // --- Initialize Hive FIRST ---
+  // No directory needed for Flutter, it finds the right path automatically
+  await Hive.initFlutter();
+  // Register Hive Adapters (CRITICAL!)
+  Hive.registerAdapter(JobHiveModelAdapter());
+  // TODO: Register any other Hive adapters needed for your models here
+
+  // --- Open Hive Boxes ---
+  // Open boxes needed by the application BEFORE registering dependencies that use them.
+  // Using the constants from HiveJobLocalDataSourceImpl
+  await Hive.openBox<JobHiveModel>(HiveJobLocalDataSourceImpl.jobsBoxName);
+  await Hive.openBox<dynamic>(HiveJobLocalDataSourceImpl.metadataBoxName);
+  // ---------------------------
+
   // --- Features - Jobs ---
 
   // Repository (depends on services)
@@ -112,10 +131,24 @@ Future<void> init() async {
   sl.registerLazySingleton<Uuid>(() => const Uuid());
   sl.registerLazySingleton<Dio>(() => Dio()); // Basic Dio instance
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
-  // Assume HiveInterface is registered elsewhere (e.g., main.dart during init)
-  // If not, it needs registration: sl.registerLazySingleton<HiveInterface>(() => Hive);
-  // Assume AuthCredentialsProvider is registered elsewhere
-  // If not, it needs registration: sl.registerLazySingleton<AuthCredentialsProvider>(() => YourAuthProviderImpl());
+
+  // Register HiveInterface now that it's initialized and boxes are open
+  sl.registerLazySingleton<HiveInterface>(() => Hive);
+
+  // Assume AuthCredentialsProvider is registered elsewhere // REMOVE THIS ASSUMPTION
+  // Register FlutterSecureStorage FIRST
+  sl.registerLazySingleton<FlutterSecureStorage>(
+    () => const FlutterSecureStorage(),
+  );
+  // Register the concrete provider
+  sl.registerLazySingleton<SecureStorageAuthCredentialsProvider>(
+    () => SecureStorageAuthCredentialsProvider(secureStorage: sl()),
+  );
+  // Register the INTERFACE, pointing to the concrete implementation
+  sl.registerLazySingleton<AuthCredentialsProvider>(
+    () => sl<SecureStorageAuthCredentialsProvider>(),
+  );
+
   // Get document path once during init
   final appDocDir = await getApplicationDocumentsDirectory();
   final documentsPath = appDocDir.path;
@@ -133,6 +166,7 @@ Future<void> init() async {
   // Database Interfaces - Not needed for this feature
 
   // TODO: Ensure HiveInterface and AuthCredentialsProvider are registered elsewhere,
+  // Remove the outdated TODO about AuthCredentialsProvider registration
   // likely during app startup before this init() is called.
   // TODO: Consider Dio setup (interceptors, base URL) if needed.
   // TODO: Consider Hive setup (init, box opening) if needed.

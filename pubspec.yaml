@@ -115,6 +115,9 @@ dev_dependencies:
     sdk: flutter
   freezed: ^2.5.7
   injectable_generator: ^2.6.2
+  flutter_secure_storage_platform_interface: ^1.1.2
+  plugin_platform_interface: ^2.1.8
+  path_provider_platform_interface: ^2.1.2
 flutter:
 
   # The following line ensures that the Material Icons font is
