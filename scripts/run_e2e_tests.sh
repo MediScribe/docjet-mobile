@@ -39,17 +39,17 @@ trap cleanup EXIT
 MAX_WAIT=30 # Maximum seconds to wait
 WAIT_INTERVAL=1 # Seconds between polls
 ELAPSED=0
-# Target a real (but simple) endpoint and include the API key
-SERVER_URL="http://localhost:8080/api/v1/jobs"
-API_KEY="test-api-key"
+# Use the dedicated health check endpoint
+SERVER_URL="http://localhost:8080/health"
+# API_KEY="test-api-key" # Not needed for health check
 # Add a dummy bearer token required by the mock server's auth middleware
-DUMMY_TOKEN="dummy-bearer-token"
+# DUMMY_TOKEN="dummy-bearer-token" # Not needed for health check
 
 echo "Waiting for mock server at $SERVER_URL to be ready..."
-while ! curl -s --head --fail \
-  -H "X-API-Key: $API_KEY" \
-  -H "Authorization: Bearer $DUMMY_TOKEN" \
-  "$SERVER_URL" > /dev/null; do
+while ! curl -s --fail "$SERVER_URL" > /dev/null; do
+# Removed headers: 
+#  -H "X-API-Key: $API_KEY" \
+#  -H "Authorization: Bearer $DUMMY_TOKEN" \
   if [ $ELAPSED -ge $MAX_WAIT ]; then
     echo "Error: Mock server did not become ready within $MAX_WAIT seconds."
     exit 1 # Exit script, cleanup will run via trap
@@ -59,11 +59,10 @@ while ! curl -s --head --fail \
 done
 echo "Mock server is ready! (Took $ELAPSED seconds)"
 
-echo "Running Flutter integration tests with mock server URL and API key..."
-# Run the actual tests, defining BASE_URL and API_KEY for the app to use
+echo "Running Flutter integration tests using secrets.test.json..."
+# Run the actual tests, defining variables from the secrets file
 flutter test integration_test/app_test.dart \
-  --dart-define=BASE_URL=http://localhost:8080/api/v1 \
-  --dart-define=API_KEY=test-api-key
+  --dart-define-from-file=secrets.test.json
 
 echo "E2E tests finished."
 

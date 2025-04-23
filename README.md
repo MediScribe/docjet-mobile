@@ -218,9 +218,9 @@ The app expects two main variables:
 Pass these variables when running or building the app:
 
 *   **Running with Mock Server (Handled by `run_e2e_tests.sh`):**
-    The test script sets:
-    `--dart-define=API_KEY=test-api-key`
-    `--dart-define=API_BASE_URL=http://localhost:8080/api/v1`
+    The test script now uses the `secrets.test.json` file (see below) to load configuration:
+    `--dart-define-from-file=secrets.test.json`
+    # Ensure you have copied secrets.test.json.example to secrets.test.json
 
 *   **Running Manually (e.g., against a Dev API):**
     ```bash

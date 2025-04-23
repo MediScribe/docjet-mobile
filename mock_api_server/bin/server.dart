@@ -120,6 +120,7 @@ Middleware _debugMiddleware() {
 
 // Define the router
 final _router = Router()
+  ..get('/health', _healthHandler)
   ..post('/auth/login', _loginHandler)
   ..post('/auth/refresh-session', _refreshHandler)
   ..post('/jobs', _createJobHandler)
@@ -128,6 +129,11 @@ final _router = Router()
   ..get('/jobs/<jobId>/documents', _getJobDocumentsHandler)
   ..patch('/jobs/<jobId>', _updateJobHandler)
   ..delete('/jobs/<jobId>', _deleteJobHandler);
+
+// Health check handler
+Response _healthHandler(Request request) {
+  return Response.ok('OK');
+}
 
 // Login handler logic
 Future<Response> _loginHandler(Request request) async {
@@ -558,14 +564,16 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   );
 }
 
-// Auth middleware - NOW modified to skip auth routes
+// Auth middleware - NOW modified to skip auth AND health routes
 Middleware _authMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
-      // Skip auth check for auth endpoints
-      if (request.requestedUri.path.startsWith('/auth/')) {
+      final path = request.requestedUri.path;
+      // Skip auth check for auth endpoints and health check
+      if (path.startsWith('/auth/') || path == '/health') {
         if (_verboseLoggingEnabled) {
-          print('DEBUG: Auth endpoint detected, skipping auth middleware');
+          print(
+              'DEBUG: Auth/Health endpoint detected, skipping auth middleware');
         }
         return innerHandler(request);
       }
@@ -605,14 +613,16 @@ Middleware _authMiddleware() {
   };
 }
 
-// API Key middleware - NOW modified to skip auth routes
+// API Key middleware - NOW modified to skip auth AND health routes
 Middleware _apiKeyMiddleware(String expectedApiKey) {
   return (Handler innerHandler) {
     return (Request request) async {
-      // Skip API key check for auth endpoints
-      if (request.requestedUri.path.startsWith('/auth/')) {
+      final path = request.requestedUri.path;
+      // Skip API key check for auth endpoints and health check
+      if (path.startsWith('/auth/') || path == '/health') {
         if (_verboseLoggingEnabled) {
-          print('DEBUG: Auth endpoint detected, skipping API key middleware');
+          print(
+              'DEBUG: Auth/Health endpoint detected, skipping API key middleware');
         }
         return innerHandler(request);
       }
