@@ -221,6 +221,24 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+
+  @override
+  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> resetDeletionFailureCounter(
+          String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #resetDeletionFailureCounter,
+          [localId],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
+            _FakeEither_0<_i5.Failure, _i6.Job>(
+          this,
+          Invocation.method(
+            #resetDeletionFailureCounter,
+            [localId],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
 }
 
 /// A class which mocks [JobDeleterService].

@@ -55,12 +55,12 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
     * The existing `AuthService` doesn't currently include a method to get the current user ID
     * The DI container already registers `AuthCredentialsProvider` correctly
 
-2. [ ] **TDD for Domain Layer (Most Isolated)**
-    2.1. [ ] Write failing test for updated `JobRepository` interface without `userId` in `createJob()`
-    2.2. [ ] Modify the interface in `job_repository.dart` to remove the parameter
-    2.3. [ ] Write failing test for `CreateJobUseCase` without `userId` parameter
-    2.4. [ ] Update `CreateJobParams` class to remove userId
-    2.5. [ ] Modify `call()` implementation to not pass userId to repository
+2. [x] **TDD for Domain Layer (Most Isolated)**
+    2.1. [x] Write failing test for updated `JobRepository` interface without `userId` in `createJob()`
+    2.2. [x] Modify the interface in `job_repository.dart` to remove the parameter
+    2.3. [x] Write failing test for `CreateJobUseCase` without `userId` parameter
+    2.4. [x] Update `CreateJobParams` class to remove userId
+    2.5. [x] Modify `call()` implementation to not pass userId to repository
 
 3. [ ] **TDD for Repository Implementation** 
     3.1. [ ] Write failing test for `JobRepositoryImpl` constructor with `AuthSessionProvider`

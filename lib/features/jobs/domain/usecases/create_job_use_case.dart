@@ -14,7 +14,6 @@ class CreateJobUseCase implements UseCase<Job, CreateJobParams> {
   @override
   Future<Either<Failure, Job>> call(CreateJobParams params) async {
     return await repository.createJob(
-      userId: params.userId,
       audioFilePath: params.audioFilePath,
       text: params.text,
     );
@@ -25,14 +24,9 @@ class CreateJobUseCase implements UseCase<Job, CreateJobParams> {
 class CreateJobParams extends Equatable {
   final String audioFilePath;
   final String? text;
-  final String userId;
 
-  const CreateJobParams({
-    required this.audioFilePath,
-    required this.userId,
-    this.text,
-  });
+  const CreateJobParams({required this.audioFilePath, this.text});
 
   @override
-  List<Object?> get props => [userId, audioFilePath, text];
+  List<Object?> get props => [audioFilePath, text];
 }
