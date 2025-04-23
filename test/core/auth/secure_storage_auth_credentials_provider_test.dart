@@ -5,21 +5,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 
-// Generate mocks
-@GenerateMocks([FlutterSecureStorage, EnvReader])
+// Generate mocks for FlutterSecureStorage only
+@GenerateMocks([FlutterSecureStorage])
 import 'secure_storage_auth_credentials_provider_test.mocks.dart';
 
 void main() {
   late MockFlutterSecureStorage mockSecureStorage;
-  late MockEnvReader mockEnvReader;
   late SecureStorageAuthCredentialsProvider provider;
 
   setUp(() {
     mockSecureStorage = MockFlutterSecureStorage();
-    mockEnvReader = MockEnvReader();
     provider = SecureStorageAuthCredentialsProvider(
       secureStorage: mockSecureStorage,
-      envReader: mockEnvReader,
     );
   });
 
@@ -55,35 +52,15 @@ void main() {
   });
 
   group('getApiKey', () {
-    test('should return API key from environment when it exists', () async {
+    // This test covers the case where the API_KEY is not defined via --dart-define
+    // String.fromEnvironment will return an empty string, triggering the exception.
+    test('should throw exception when API key is not provided', () async {
       // Arrange
-      const expectedApiKey = 'test_api_key';
-      when(mockEnvReader.get('API_KEY')).thenReturn(expectedApiKey);
-
-      // Act
-      final result = await provider.getApiKey();
-
-      // Assert
-      expect(result, equals(expectedApiKey));
-      verify(mockEnvReader.get('API_KEY')).called(1);
-    });
-
-    test('should throw exception when API key does not exist', () async {
-      // Arrange
-      when(mockEnvReader.get('API_KEY')).thenReturn(null);
+      // No arrangement needed, relies on API_KEY not being defined during test execution.
 
       // Act & Assert
-      expect(() => provider.getApiKey(), throwsException);
-      verify(mockEnvReader.get('API_KEY')).called(1);
-    });
-
-    test('should throw exception when API key is empty', () async {
-      // Arrange
-      when(mockEnvReader.get('API_KEY')).thenReturn('');
-
-      // Act & Assert
-      expect(() => provider.getApiKey(), throwsException);
-      verify(mockEnvReader.get('API_KEY')).called(1);
+      // Use expectLater for async throws check
+      expectLater(() => provider.getApiKey(), throwsA(isA<Exception>()));
     });
   });
 

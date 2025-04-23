@@ -5,8 +5,6 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 
-import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'
-    as _i5;
 import 'package:flutter/foundation.dart' as _i3;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
@@ -317,17 +315,4 @@ class MockFlutterSecureStorage extends _i1.Mock
             returnValue: _i4.Future<bool?>.value(),
           )
           as _i4.Future<bool?>);
-}
-
-/// A class which mocks [EnvReader].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockEnvReader extends _i1.Mock implements _i5.EnvReader {
-  MockEnvReader() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  String? get(String? key) =>
-      (super.noSuchMethod(Invocation.method(#get, [key])) as String?);
 }

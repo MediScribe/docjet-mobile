@@ -26,7 +26,7 @@ graph TD
         AuthServiceImpl -->|Uses| AuthInterceptor(Auth Interceptor)
         
         AuthCredProviderImpl -->|Implements| AuthCredProvider
-        AuthCredProviderImpl -->|Reads API Key From| DotEnv([.env File via flutter_dotenv])
+        AuthCredProviderImpl -->|Reads API Key From| CompileDefines([Compile-time Defines<br>via --dart-define])
         AuthCredProviderImpl -->|Stores/Reads JWT| SecureStorage([FlutterSecureStorage])
         
         AuthApiClient -->|Uses| HttpClient([HTTP Client<br>- dio/http])
@@ -47,8 +47,7 @@ graph TD
 
     class UI,AuthState presentation;
     class AuthService,User,AuthCredProvider domain;
-    class AuthServiceImpl,AuthCredProviderImpl,SecureStorage,HttpClient,AuthAPI,AuthApiClient,AuthInterceptor,TokenRefresh data;
-    class DotEnv external;
+    class AuthServiceImpl,AuthCredProviderImpl,SecureStorage,HttpClient,AuthAPI,AuthApiClient,AuthInterceptor,TokenRefresh,CompileDefines data;
 ```
 
 ## Authentication Flow
@@ -313,7 +312,7 @@ This approach provides seamless token refresh without UI layer awareness of expi
 #### SecureStorageAuthCredentialsProvider
 Concrete implementation of `AuthCredentialsProvider` using:
 - `flutter_secure_storage` for token storage
-- `flutter_dotenv` for environment variables (API key)
+- `String.fromEnvironment` for the API key (sourced from compile-time definitions via `--dart-define` or `--dart-define-from-file`)
 
 ### Presentation Layer
 

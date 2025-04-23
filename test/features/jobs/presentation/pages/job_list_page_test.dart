@@ -252,7 +252,7 @@ void main() {
       expect(
         tileWithIssues.leading,
         isA<Icon>().having(
-          (icon) => (icon as Icon).icon,
+          (icon) => (icon).icon,
           'icon data',
           equals(Icons.warning_amber_rounded),
         ),
@@ -262,7 +262,7 @@ void main() {
       expect(
         tileWithoutIssues.leading,
         isA<Icon>().having(
-          (icon) => (icon as Icon).icon,
+          (icon) => (icon).icon,
           'icon data',
           equals(Icons.article_outlined),
         ),

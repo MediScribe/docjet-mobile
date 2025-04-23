@@ -2,6 +2,16 @@
 
 A mobile app for the DocJet platform.
 
+## Table of Contents
+
+- [Features](#features)
+  - [Logging System](#logging-system)
+- [Development](#development)
+  - [Getting Started](#getting-started)
+  - [Integration Tests](#integration-tests)
+  - [End-to-End (E2E) Tests (integration_test)](#end-to-end-e2e-tests-integration_test)
+  - [Configuring the App (API Key & Base URL)](#configuring-the-app-api-key--base-url)
+
 ## Features
 
 ### Logging System
@@ -117,7 +127,8 @@ See [Logging Guide](docs/logging_guide.md) for comprehensive examples and implem
 1. Install Flutter: https://flutter.dev/docs/get-started/install
 2. Clone this repository
 3. Run `flutter pub get` to install dependencies
-4. Run `flutter run` to start the app in debug mode
+4. Run `flutter run` to start the app in debug mode.
+   *Note: For configuring API keys and endpoints (e.g., using the mock server), see the "Configuring the App (API Key & Base URL)" section below.*
 
 ### Integration Tests
 
@@ -185,12 +196,67 @@ We use a wrapper script to handle the mock server lifecycle, as direct process m
     ```
 
 3.  **Run the E2E tests using the script:**
+    The `run_e2e_tests.sh` script is designed to automatically pass the necessary `--dart-define` flags to point the app to the mock server.
     ```bash
     ./run_e2e_tests.sh
     ```
     This script will:
     *   Start the `mock_api_server` in the background.
-    *   Run the `flutter test integration_test/app_test.dart` command.
+    *   Run `flutter test integration_test/app_test.dart` *with* the appropriate `--dart-define` flags for the mock API key and URL.
     *   Automatically stop the mock server when tests are complete (or if the script fails).
 
-*Note: Ensure the main app (`lib/main.dart`) is configured to use the mock server URL (`http://localhost:8080`) when these tests run. This typically involves checking environment variables or using compile-time definitions.* 
+#### Configuring the App (API Key & Base URL)
+
+Forget `.env` files like some amateur. We use compile-time definitions via `--dart-define` for configuration. It's cleaner, safer (keeps secrets out of the repo), and the standard Flutter way.
+
+The app expects two main variables:
+- `API_KEY`: Your API key.
+- `API_BASE_URL`: The base URL for the API endpoint.
+
+**How to Use:**
+
+Pass these variables when running or building the app:
+
+*   **Running with Mock Server (Handled by `run_e2e_tests.sh`):**
+    The test script sets:
+    `--dart-define=API_KEY=test-api-key`
+    `--dart-define=API_BASE_URL=http://localhost:8080/api/v1`
+
+*   **Running Manually (e.g., against a Dev API):**
+    ```bash
+    flutter run \\
+      --dart-define=API_KEY=YOUR_DEV_API_KEY \\
+      --dart-define=API_BASE_URL=https://your.dev.api.com/api/v1
+    ```
+
+*   **Building for Production:**
+    Inject your production keys via your CI/CD pipeline or build script:
+    ```bash
+    flutter build <target> \\
+      --dart-define=API_KEY=YOUR_PROD_API_KEY \\
+      --dart-define=API_BASE_URL=https://your.prod.api.com/api/v1
+    ```
+
+*   **Using a JSON File (for multiple variables):**
+    For managing different environments (test, dev, prod), create separate files like `secrets.test.json`, `secrets.dev.json`, etc. (add these to `.gitignore`!). A template for the test configuration is provided in `secrets.test.json.example`. After cloning, copy it: `cp secrets.test.json.example secrets.test.json`.
+
+    Example `secrets.dev.json`:
+    ```json
+    {
+      "API_KEY": "some_key",
+      "API_BASE_URL": "some_url"
+    }
+    ```
+    Then run/build with the appropriate file:
+    ```bash
+    flutter run --dart-define-from-file=secrets.dev.json
+    # or for tests, the run_e2e_tests.sh script uses secrets.test.json
+    ```
+
+Inside the Dart code (e.g., `lib/core/config/app_config.dart` or wherever your API client is setup), access these like so:
+```dart
+const apiKey = String.fromEnvironment('API_KEY', defaultValue: 'MISSING_API_KEY');
+const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'MISSING_BASE_URL');
+
+// Add checks to ensure these aren't the default values in production!
+```

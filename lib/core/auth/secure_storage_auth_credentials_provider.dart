@@ -1,35 +1,25 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed - Use String.fromEnvironment
 
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 
-/// Interface to access environment variables
-/// This helps with testing since dotenv is a global object
-abstract class EnvReader {
-  String? get(String key);
-}
-
-/// Default implementation using flutter_dotenv
-class DotEnvReader implements EnvReader {
-  @override
-  String? get(String key) => dotenv.env[key];
-}
-
 /// Concrete implementation of [AuthCredentialsProvider] using
-/// flutter_secure_storage for JWT and flutter_dotenv for the API Key.
+/// flutter_secure_storage for JWT and String.fromEnvironment for the API Key.
 class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   final FlutterSecureStorage _secureStorage;
-  final EnvReader _envReader;
+  // final EnvReader _envReader; // Removed
 
   static const String _accessTokenKey = 'accessToken';
   static const String _refreshTokenKey = 'refreshToken';
-  static const String _apiKeyEnvVariable = 'API_KEY';
+  static const String _apiKeyEnvVariable =
+      'API_KEY'; // Keep variable name for clarity
 
+  // Constructor updated - removed EnvReader dependency
   SecureStorageAuthCredentialsProvider({
     required FlutterSecureStorage secureStorage,
-    EnvReader? envReader,
-  }) : _secureStorage = secureStorage,
-       _envReader = envReader ?? DotEnvReader();
+    // EnvReader? envReader, // Removed
+  }) : _secureStorage = secureStorage;
+  // _envReader = envReader ?? DotEnvReader(); // Removed
 
   @override
   Future<String?> getAccessToken() async {
@@ -38,13 +28,14 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
 
   @override
   Future<String> getApiKey() async {
-    // Load environment variables. Ensure dotenv.load() is called at app startup.
-    final apiKey = _envReader.get(_apiKeyEnvVariable);
-    if (apiKey == null || apiKey.isEmpty) {
+    // API Key is now retrieved using compile-time definitions
+    const apiKey = String.fromEnvironment(_apiKeyEnvVariable);
+
+    if (apiKey.isEmpty) {
       // Throw a specific exception or handle as appropriate
       // As per spec, API key is mandatory
       throw Exception(
-        'API Key not found in environment variables. Ensure $_apiKeyEnvVariable is set in .env and dotenv.load() was called.',
+        'API Key not found. Ensure $_apiKeyEnvVariable is provided via --dart-define=API_KEY=YOUR_KEY or --dart-define-from-file=secrets.json',
       );
     }
     return apiKey;
