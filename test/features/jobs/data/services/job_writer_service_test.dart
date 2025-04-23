@@ -38,101 +38,95 @@ void main() {
       const tAudioPath = '/path/to/new_audio.mp3';
       const tText = 'This is the transcript text.';
       const tLocalId = 'generated-uuid-123';
-      final tNow = DateTime.now(); // Capture current time for comparison
+      final tNow = DateTime.now(); // Changed back to final
 
-      test(
-        'should generate localId, create pending job, save locally, and return job entity',
-        () async {
-          // Arrange
-          // 1. Stub UUID generation using v4()
-          when(mockUuid.v4()).thenReturn(tLocalId);
-          // 2. Stub local save to succeed
-          // We expect saveJob to be called with a Job entity.
-          when(mockLocalDataSource.saveJob(any)).thenAnswer(
-            (_) async => unit,
-          ); // Assume saveJob returns Future<Unit>
+      test('should create, save, and return pending job', () async {
+        // Arrange
+        // 1. Stub UUID generation using v4()
+        when(mockUuid.v4()).thenReturn(tLocalId);
+        // 2. Stub local save to succeed
+        // We expect saveJob to be called with a Job entity.
+        when(
+          mockLocalDataSource.saveJob(any),
+        ).thenAnswer((_) async => unit); // Assume saveJob returns Future<Unit>
 
-          // Act
-          final result = await service.createJob(
-            userId: 'user123',
-            audioFilePath: tAudioPath,
-            text: tText,
-          );
+        // Act
+        final result = await service.createJob(
+          userId: 'user123',
+          audioFilePath: tAudioPath,
+          text: tText,
+        );
 
-          // Assert
-          // 1. Check the result is Right(Job)
-          expect(result, isA<Right<Failure, Job>>());
-          result.fold(
-            (failure) => fail('Expected Right(Job), got Left: $failure'),
-            (job) {
-              expect(job.localId, tLocalId);
-              expect(job.serverId, isNull);
-              expect(job.syncStatus, SyncStatus.pending);
-              expect(job.audioFilePath, tAudioPath);
-              expect(job.text, tText);
-              expect(job.status, JobStatus.created); // Check initial status
-              // Allow a small tolerance for timestamp comparison
-              expect(job.createdAt.difference(tNow).inSeconds, lessThan(2));
-              expect(job.updatedAt.difference(tNow).inSeconds, lessThan(2));
-            },
-          );
-          // 2. Verify UUID generation was called using v4()
-          verify(mockUuid.v4()).called(1);
-          // 3. Verify local save was called with the correct Job structure
-          verify(
-            mockLocalDataSource.saveJob(
-              argThat(
-                predicate<Job>((job) {
-                  return job.localId == tLocalId &&
-                      job.serverId == null &&
-                      job.syncStatus == SyncStatus.pending &&
-                      job.audioFilePath == tAudioPath &&
-                      job.text == tText &&
-                      job.status == JobStatus.created;
-                }),
-              ),
+        // Assert
+        // 1. Check the result is Right(Job)
+        expect(result, isA<Right<Failure, Job>>());
+        result.fold(
+          (failure) => fail('Expected Right(Job), got Left: $failure'),
+          (job) {
+            expect(job.localId, tLocalId);
+            expect(job.serverId, isNull);
+            expect(job.syncStatus, SyncStatus.pending);
+            expect(job.audioFilePath, tAudioPath);
+            expect(job.text, tText);
+            expect(job.status, JobStatus.created); // Check initial status
+            // Allow a small tolerance for timestamp comparison
+            expect(job.createdAt.difference(tNow).inSeconds, lessThan(2));
+            expect(job.updatedAt.difference(tNow).inSeconds, lessThan(2));
+          },
+        );
+        // 2. Verify UUID generation was called using v4()
+        verify(mockUuid.v4()).called(1);
+        // 3. Verify local save was called with the correct Job structure
+        verify(
+          mockLocalDataSource.saveJob(
+            argThat(
+              predicate<Job>((job) {
+                return job.localId == tLocalId &&
+                    job.serverId == null &&
+                    job.syncStatus == SyncStatus.pending &&
+                    job.audioFilePath == tAudioPath &&
+                    job.text == tText &&
+                    job.status == JobStatus.created;
+              }),
             ),
-          ).called(1);
-          // 4. Verify no other interactions
-          verifyNoMoreInteractions(mockUuid);
-          verifyNoMoreInteractions(mockLocalDataSource);
-        },
-      );
+          ),
+        ).called(1);
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockUuid);
+        verifyNoMoreInteractions(mockLocalDataSource);
+      });
 
-      test(
-        'should return CacheFailure when local data source fails to save',
-        () async {
-          // Arrange
-          // 1. Stub UUID generation using v4()
-          when(mockUuid.v4()).thenReturn(tLocalId);
-          // 2. Stub local save to throw CacheException
-          when(
-            mockLocalDataSource.saveJob(any),
-          ).thenThrow(CacheException('Failed to write'));
+      test('should return CacheFailure on save error', () async {
+        // Arrange
+        // 1. Stub UUID generation using v4()
+        when(mockUuid.v4()).thenReturn(tLocalId);
+        // 2. Stub local save to throw CacheException
+        when(
+          mockLocalDataSource.saveJob(any),
+        ).thenThrow(CacheException('Failed to write'));
 
-          // Act
-          final result = await service.createJob(
-            userId: 'user123',
-            audioFilePath: tAudioPath,
-            text: tText,
-          );
+        // Act
+        final result = await service.createJob(
+          userId: 'user123',
+          audioFilePath: tAudioPath,
+          text: tText,
+        );
 
-          // Assert
-          // 1. Check the result is Left(CacheFailure)
-          expect(result, isA<Left<Failure, Job>>());
-          result.fold(
-            (failure) => expect(failure, isA<CacheFailure>()),
-            (_) => fail('Expected Left(CacheFailure), got Right'),
-          );
-          // 2. Verify UUID generation was called using v4()
-          verify(mockUuid.v4()).called(1);
-          // 3. Verify local save attempt was made
-          verify(mockLocalDataSource.saveJob(any)).called(1);
-          // 4. Verify no other interactions
-          verifyNoMoreInteractions(mockUuid);
-          verifyNoMoreInteractions(mockLocalDataSource);
-        },
-      );
+        // Assert
+        // 1. Check the result is Left(CacheFailure)
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected Left(CacheFailure), got Right'),
+        );
+        // 2. Verify UUID generation was called using v4()
+        verify(mockUuid.v4()).called(1);
+        // 3. Verify local save attempt was made
+        verify(mockLocalDataSource.saveJob(any)).called(1);
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockUuid);
+        verifyNoMoreInteractions(mockLocalDataSource);
+      });
     }); // End createJob group
 
     group('updateJob', () {
@@ -156,7 +150,7 @@ void main() {
       final tUpdateData = JobUpdateData(text: tUpdatedText);
 
       test(
-        'should fetch job, apply updates, set status to pending, save, and return updated job',
+        'should apply updates, mark pending, save, and return job',
         () async {
           // Arrange
           // 1. Stub local fetch to return the existing job
@@ -224,105 +218,95 @@ void main() {
         },
       );
 
-      test(
-        'should return original job and not save if JobUpdateData has no changes',
-        () async {
-          // Arrange
-          // 1. Stub local fetch to return the existing job
-          when(
-            mockLocalDataSource.getJobById(tLocalId),
-          ).thenAnswer((_) async => tExistingJob);
-          // 2. Create an empty JobUpdateData (no fields set)
-          const emptyUpdateData = JobUpdateData();
+      test('should return original job if no changes provided', () async {
+        // Arrange
+        // 1. Stub local fetch to return the existing job
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenAnswer((_) async => tExistingJob);
+        // 2. Create an empty JobUpdateData (no fields set)
+        const emptyUpdateData = JobUpdateData();
 
-          // Act
-          final result = await service.updateJob(
-            localId: tLocalId,
-            updates: emptyUpdateData,
-          );
+        // Act
+        final result = await service.updateJob(
+          localId: tLocalId,
+          updates: emptyUpdateData,
+        );
 
-          // Assert
-          // 1. Check the result is Right(original Job)
-          expect(result, isA<Right<Failure, Job>>());
-          result.fold(
-            (failure) =>
-                fail('Expected success with original job, got $failure'),
-            (returnedJob) {
-              // Verify the returned job is identical to the original
-              expect(returnedJob, tExistingJob);
-              // Explicitly check syncStatus hasn't changed
-              expect(returnedJob.syncStatus, tExistingJob.syncStatus);
-            },
-          );
+        // Assert
+        // 1. Check the result is Right(original Job)
+        expect(result, isA<Right<Failure, Job>>());
+        result.fold(
+          (failure) => fail('Expected success with original job, got $failure'),
+          (returnedJob) {
+            // Verify the returned job is identical to the original
+            expect(returnedJob, tExistingJob);
+            // Explicitly check syncStatus hasn't changed
+            expect(returnedJob.syncStatus, tExistingJob.syncStatus);
+          },
+        );
 
-          // 2. Verify local fetch was called once
-          verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        // 2. Verify local fetch was called once
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
 
-          // 3. Verify local save was NEVER called
-          verifyNever(mockLocalDataSource.saveJob(any));
+        // 3. Verify local save was NEVER called
+        verifyNever(mockLocalDataSource.saveJob(any));
 
-          // 4. Verify no other interactions
-          verifyNoMoreInteractions(mockLocalDataSource);
-          verifyNoMoreInteractions(mockUuid);
-        },
-      );
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockUuid);
+      });
 
-      test(
-        'should return CacheFailure when fetching the original job fails',
-        () async {
-          // Arrange
-          when(
-            mockLocalDataSource.getJobById(tLocalId),
-          ).thenThrow(CacheException('Not found'));
+      test('should return CacheFailure on fetch error', () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenThrow(CacheException('Not found'));
 
-          // Act
-          final result = await service.updateJob(
-            localId: tLocalId,
-            updates: tUpdateData,
-          );
+        // Act
+        final result = await service.updateJob(
+          localId: tLocalId,
+          updates: tUpdateData,
+        );
 
-          // Assert
-          expect(result, isA<Left<Failure, Job>>());
-          result.fold(
-            (failure) => expect(failure, isA<CacheFailure>()),
-            (_) => fail('Expected failure, got success'),
-          );
-          verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
-          verifyNever(mockLocalDataSource.saveJob(any));
-          verifyNoMoreInteractions(mockLocalDataSource);
-        },
-      );
+        // Assert
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected failure, got success'),
+        );
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        verifyNever(mockLocalDataSource.saveJob(any));
+        verifyNoMoreInteractions(mockLocalDataSource);
+      });
 
-      test(
-        'should return CacheFailure when saving the updated job fails',
-        () async {
-          // Arrange
-          when(
-            mockLocalDataSource.getJobById(tLocalId),
-          ).thenAnswer((_) async => tExistingJob);
-          when(
-            mockLocalDataSource.saveJob(any),
-          ).thenThrow(CacheException('Save failed'));
+      test('should return CacheFailure on save error', () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenAnswer((_) async => tExistingJob);
+        when(
+          mockLocalDataSource.saveJob(any),
+        ).thenThrow(CacheException('Save failed'));
 
-          // Act
-          final result = await service.updateJob(
-            localId: tLocalId,
-            updates: tUpdateData,
-          );
+        // Act
+        final result = await service.updateJob(
+          localId: tLocalId,
+          updates: tUpdateData,
+        );
 
-          // Assert
-          expect(result, isA<Left<Failure, Job>>());
-          result.fold(
-            (failure) => expect(failure, isA<CacheFailure>()),
-            (_) => fail('Expected failure, got success'),
-          );
-          verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
-          verify(
-            mockLocalDataSource.saveJob(any),
-          ).called(1); // Save was attempted
-          verifyNoMoreInteractions(mockLocalDataSource);
-        },
-      );
+        // Assert
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected failure, got success'),
+        );
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        verify(
+          mockLocalDataSource.saveJob(any),
+        ).called(1); // Save was attempted
+        verifyNoMoreInteractions(mockLocalDataSource);
+      });
     }); // End updateJob group
 
     group('updateJobSyncStatus', () {
@@ -342,59 +326,56 @@ void main() {
       const tLocalId = 'job-sync-test-id';
       const tNewSyncStatus = SyncStatus.error; // Example new status
 
-      test(
-        'should fetch job, update only syncStatus, save, and return unit',
-        () async {
-          // Arrange
-          // 1. Stub local fetch
-          when(
-            mockLocalDataSource.getJobById(tLocalId),
-          ).thenAnswer((_) async => tExistingJob);
-          // 2. Stub local save
-          when(mockLocalDataSource.saveJob(any)).thenAnswer((_) async => unit);
+      test('should update syncStatus, save, and return unit', () async {
+        // Arrange
+        // 1. Stub local fetch
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenAnswer((_) async => tExistingJob);
+        // 2. Stub local save
+        when(mockLocalDataSource.saveJob(any)).thenAnswer((_) async => unit);
 
-          // Act
-          final result = await service.updateJobSyncStatus(
-            localId: tLocalId,
-            status: tNewSyncStatus,
-          );
+        // Act
+        final result = await service.updateJobSyncStatus(
+          localId: tLocalId,
+          status: tNewSyncStatus,
+        );
 
-          // Assert
-          // 1. Check result is Right(unit)
-          expect(result, const Right(unit));
+        // Assert
+        // 1. Check result is Right(unit)
+        expect(result, const Right(unit));
 
-          // 2. Verify fetch
-          verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        // 2. Verify fetch
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
 
-          // 3. Verify save with correctly updated status
-          final verification = verify(mockLocalDataSource.saveJob(captureAny));
-          verification.called(1);
-          final capturedJob = verification.captured.single as Job;
+        // 3. Verify save with correctly updated status
+        final verification = verify(mockLocalDataSource.saveJob(captureAny));
+        verification.called(1);
+        final capturedJob = verification.captured.single as Job;
 
-          expect(capturedJob.localId, tLocalId);
-          expect(
-            capturedJob.syncStatus,
-            tNewSyncStatus,
-          ); // CRITICAL: Check new sync status
-          // Verify other fields are UNCHANGED
-          expect(capturedJob.serverId, tExistingJob.serverId);
-          expect(capturedJob.userId, tExistingJob.userId);
-          expect(capturedJob.status, tExistingJob.status);
-          expect(capturedJob.displayTitle, tExistingJob.displayTitle);
-          expect(capturedJob.audioFilePath, tExistingJob.audioFilePath);
-          expect(capturedJob.text, tExistingJob.text);
-          expect(capturedJob.createdAt, tExistingJob.createdAt);
-          // Note: updatedAt might or might not be updated here - plan doesn't specify.
-          // Assuming it *doesn't* update for just a sync status change.
-          expect(capturedJob.updatedAt, tExistingJob.updatedAt);
+        expect(capturedJob.localId, tLocalId);
+        expect(
+          capturedJob.syncStatus,
+          tNewSyncStatus,
+        ); // CRITICAL: Check new sync status
+        // Verify other fields are UNCHANGED
+        expect(capturedJob.serverId, tExistingJob.serverId);
+        expect(capturedJob.userId, tExistingJob.userId);
+        expect(capturedJob.status, tExistingJob.status);
+        expect(capturedJob.displayTitle, tExistingJob.displayTitle);
+        expect(capturedJob.audioFilePath, tExistingJob.audioFilePath);
+        expect(capturedJob.text, tExistingJob.text);
+        expect(capturedJob.createdAt, tExistingJob.createdAt);
+        // Note: updatedAt might or might not be updated here - plan doesn't specify.
+        // Assuming it *doesn't* update for just a sync status change.
+        expect(capturedJob.updatedAt, tExistingJob.updatedAt);
 
-          // 4. Verify no other interactions
-          verifyNoMoreInteractions(mockLocalDataSource);
-          verifyNoMoreInteractions(mockUuid); // Uuid not used here
-        },
-      );
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockUuid); // Uuid not used here
+      });
 
-      test('should return CacheFailure when fetching job fails', () async {
+      test('should return CacheFailure on fetch error', () async {
         // Arrange
         when(
           mockLocalDataSource.getJobById(tLocalId),
@@ -417,7 +398,7 @@ void main() {
         verifyNoMoreInteractions(mockLocalDataSource);
       });
 
-      test('should return CacheFailure when saving job fails', () async {
+      test('should return CacheFailure on save error', () async {
         // Arrange
         when(
           mockLocalDataSource.getJobById(tLocalId),
@@ -443,5 +424,182 @@ void main() {
         verifyNoMoreInteractions(mockLocalDataSource);
       });
     }); // End updateJobSyncStatus group
+
+    group('resetDeletionFailureCounter', () {
+      final tNow = DateTime.now();
+      final tJob = Job(
+        // Rename tExistingJob to tJob for consistency
+        localId: 'job-reset-id',
+        serverId: 'server-reset-id',
+        userId: 'user-reset',
+        status: JobStatus.completed,
+        syncStatus: SyncStatus.synced,
+        displayTitle: 'Reset Counter Test',
+        audioFilePath: '/path/to/reset_test.mp3',
+        createdAt: tNow.subtract(const Duration(hours: 1)),
+        updatedAt: tNow.subtract(const Duration(minutes: 30)),
+        text: 'Text for reset test',
+        failedAudioDeletionAttempts: 5, // Start with a non-zero counter
+      );
+      const tLocalId = 'job-reset-id';
+
+      test(
+        'should reset counter, save, and return job if counter > 0',
+        () async {
+          // Arrange
+          // 1. Stub local fetch to return the job with a non-zero counter
+          when(
+            mockLocalDataSource.getJobById(tLocalId),
+          ).thenAnswer((_) async => tJob); // Use tJob
+          // 2. Stub local save to succeed
+          when(mockLocalDataSource.saveJob(any)).thenAnswer((_) async => unit);
+
+          // Act
+          final result = await service.resetDeletionFailureCounter(tLocalId);
+
+          // Assert
+          // 1. Check the result is Right(updated Job)
+          expect(result, isA<Right<Failure, Job>>());
+          result.fold((failure) => fail('Expected success, got $failure'), (
+            updatedJob,
+          ) {
+            // Verify counter is reset
+            expect(updatedJob.failedAudioDeletionAttempts, 0);
+            // Verify updatedAt is newer
+            expect(
+              updatedJob.updatedAt.isAfter(tJob.updatedAt),
+              isTrue,
+            ); // Use tJob
+            // Verify other fields remain unchanged
+            expect(updatedJob.localId, tLocalId);
+            expect(updatedJob.serverId, tJob.serverId); // Use tJob
+            expect(
+              updatedJob.syncStatus,
+              tJob.syncStatus,
+            ); // SyncStatus should be preserved
+            expect(updatedJob.status, tJob.status); // Use tJob
+            expect(updatedJob.createdAt, tJob.createdAt); // Use tJob
+          });
+
+          // 2. Verify local fetch was called
+          verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+
+          // 3. Verify local save was called with the updated job
+          final verification = verify(mockLocalDataSource.saveJob(captureAny));
+          verification.called(1);
+          final capturedJob = verification.captured.single as Job;
+
+          // Deep check the captured job
+          expect(capturedJob.localId, tLocalId);
+          expect(capturedJob.failedAudioDeletionAttempts, 0);
+          expect(
+            capturedJob.updatedAt.isAfter(tJob.updatedAt),
+            isTrue,
+          ); // Use tJob
+          expect(capturedJob.syncStatus, tJob.syncStatus); // Use tJob
+          expect(capturedJob.serverId, tJob.serverId); // Use tJob
+          expect(capturedJob.status, tJob.status); // Use tJob
+          expect(capturedJob.createdAt, tJob.createdAt); // Use tJob
+
+          // 4. Verify no other interactions
+          verifyNoMoreInteractions(mockLocalDataSource);
+          verifyNoMoreInteractions(mockUuid); // Uuid not used
+        },
+      );
+
+      test('should return original job if counter is 0', () async {
+        // Arrange
+        // 1. Create a job with counter already 0
+        final tJobWithZeroCounter = tJob.copyWith(
+          // Use tJob
+          failedAudioDeletionAttempts: 0,
+          updatedAt: tNow.subtract(
+            const Duration(minutes: 15),
+          ), // Different updatedAt
+        );
+        // 2. Stub local fetch to return this job
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenAnswer((_) async => tJobWithZeroCounter);
+
+        // Act
+        final result = await service.resetDeletionFailureCounter(tLocalId);
+
+        // Assert
+        // 1. Check the result is Right(original Job)
+        expect(result, isA<Right<Failure, Job>>());
+        result.fold(
+          (failure) => fail('Expected success with original job, got $failure'),
+          (returnedJob) {
+            // Verify it's the *exact* same job instance (or equal)
+            expect(returnedJob, tJobWithZeroCounter);
+            expect(returnedJob.failedAudioDeletionAttempts, 0);
+            // Ensure updatedAt was *not* changed
+            expect(returnedJob.updatedAt, tJobWithZeroCounter.updatedAt);
+          },
+        );
+
+        // 2. Verify local fetch was called
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        // 3. Verify local save was *NOT* called
+        verifyNever(mockLocalDataSource.saveJob(any));
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockUuid);
+      });
+
+      test('should return CacheFailure on fetch error', () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenThrow(CacheException('Fetch failed'));
+
+        // Act
+        final result = await service.resetDeletionFailureCounter(tLocalId);
+
+        // Assert
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected Left(CacheFailure), got Right'),
+        );
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockUuid);
+      });
+
+      test('should return CacheFailure on save error', () async {
+        // Arrange
+        // 1. Stub fetch to return the job with a non-zero counter
+        when(
+          mockLocalDataSource.getJobById(tLocalId),
+        ).thenAnswer((_) async => tJob); // Use tJob
+        // 2. Stub save to throw an exception
+        when(
+          mockLocalDataSource.saveJob(any),
+        ).thenThrow(CacheException('Save failed'));
+
+        // Act
+        final result = await service.resetDeletionFailureCounter(tLocalId);
+
+        // Assert
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<CacheFailure>()),
+          (_) => fail('Expected Left(CacheFailure), got Right'),
+        );
+        verify(mockLocalDataSource.getJobById(tLocalId)).called(1);
+        // Verify save was attempted
+        verify(
+          mockLocalDataSource.saveJob(
+            argThat(
+              predicate<Job>((job) => job.failedAudioDeletionAttempts == 0),
+            ),
+          ),
+        ).called(1);
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockUuid);
+      });
+    }); // End resetDeletionFailureCounter group
   }); // End JobWriterService group
 }

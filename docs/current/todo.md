@@ -116,18 +116,18 @@ Additional improvements identified during code review.
         - Refactor original methods to call the helper.
     - **Decision:** Evaluate if extraction genuinely improves readability. If not, document decision and mark N/A.
 - [X] Move all config values (retry backoff times, max attempts) to a dedicated config class
-- [ ] Document thread-safety guarantees for all services that handle file operations:
+- [X] Document thread-safety guarantees for all services that handle file operations:
     - **Goal:** Explicitly state concurrency guarantees for services interacting with the file system.
     - **Where:** Add doc comments (`///`) to relevant service classes (`JobDeleterService`, `JobSyncProcessorService`, etc.).
     - **How:** Add a `## Thread Safety` section explaining they are designed for single-isolate use unless otherwise noted, and external synchronization (like mutexes) is needed for multi-isolate access.
-- [ ] Add dedicated helper method to reset the `failedAudioDeletionAttempts` counter:
+- [X] Add dedicated helper method to reset the `failedAudioDeletionAttempts` counter:
     - **Goal:** Provide a clean way to reset the failure counter back to zero.
     - **Where:** Implement in `JobWriterService`.
     - **How:**
-        - Define `Future<Either<Failure, Job>> resetDeletionFailureCounter(String localId)` in `JobWriterService`.
-        - Fetch job, check if counter > 0, update using `job.copyWith(failedAudioDeletionAttempts: 0)`, save, return `Right(updatedJob)`. Keep existing `syncStatus`.
-        - Create corresponding `ResetDeletionFailureCounterUseCase`.
-        - Add unit tests for the service method and use case.
+        - [X] Define `Future<Either<Failure, Job>> resetDeletionFailureCounter(String localId)` in `JobWriterService`.
+        - [X] Fetch job, check if counter > 0, update using `job.copyWith(failedAudioDeletionAttempts: 0)`, save, return `Right(updatedJob)`. Keep existing `syncStatus`.
+        - [X] Create corresponding `ResetDeletionFailureCounterUseCase`.
+        - [X] Add unit tests for the service method and use case.
 
 ## 8. UI Implementation (TDD)
 
@@ -233,3 +233,26 @@ Implement a centralized approach to API versioning to simplify future version ch
 - [X] Document Versioning Approach:
   - [X] Add api_versioning.md explaining the architecture
   - [X] Include version change procedure for future reference
+
+## 12. Post-Code-Review Cleanup (Round 2)
+
+Address items identified during the latest code review:
+
+- [X] `JobDeleterService`:
+    - [X] Refactor logger instantiation to use `LoggerFactory.getLogger(JobDeleterService)`.
+    - [X] Add unit tests for the `_safelyDeleteFileAndHandleFailure` helper method covering:
+        - [X] Success path (file deleted, counter unchanged).
+        - [X] File deletion failure path (counter incremented, save succeeds).
+        - [X] File deletion failure + save failure path (error logged, no crash).
+    - [X] Include `stackTrace` in the `catch (saveError, st)` block within `_safelyDeleteFileAndHandleFailure`.
+    - [X] Remove or clarify the "Defensive check" comment regarding the non-nullable `failedAudioDeletionAttempts`.
+- [X] `JobSyncProcessorService`:
+    - [X] Add `static final String _tag = logTag(JobSyncProcessorService);`.
+    - [X] Prefix all `_logger` calls with `$_tag`.
+    - [X] Remove unused import for `job_sync_logger.dart`.
+- [X] `JobWriterService`:
+    - [X] Implement logging in `catch` blocks (remove `// TODO:` comments). Use `LoggerFactory` and `_tag`.
+    - [X] Reflow Dartdoc comments for `resetDeletionFailureCounter` to < 80 chars.
+- [X] `job_writer_service_test.dart`:
+    - [X] Shorten lengthy `test(...)` descriptions for conciseness.
+

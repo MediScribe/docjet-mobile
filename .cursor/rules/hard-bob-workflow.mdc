@@ -20,7 +20,8 @@ Follow these steps religiously, or face the fucking consequences.
     *   `--except` to see the exception details (error message and stack trace) *for those tests*, grouped by file.
     **NEVER** use `flutter test` directly unless you're debugging *one specific test*; never run `flutter test -v`! Don't commit broken shit.
 8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
-9.  **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
-10. **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.
+9.  **Formatting**: Before committing, run ./scripts/format.sh to fix all the usual formatting shit.
+10.  **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
+11. **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.
 
 This is the way. Don't deviate.

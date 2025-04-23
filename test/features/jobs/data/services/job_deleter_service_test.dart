@@ -338,5 +338,62 @@ void main() {
         verifyNoMoreInteractions(mockFileSystem);
       },
     );
+
+    test(
+      'should return Right(unit) even if file deletion and subsequent save fail',
+      () async {
+        // Arrange
+        final tException = FileSystemException('Cannot delete');
+        final tSaveException = CacheException('Cannot save updated job');
+        final tJobWithIncrementedCounter = tJob.copyWith(
+          failedAudioDeletionAttempts: tJob.failedAudioDeletionAttempts + 1,
+        );
+
+        when(
+          mockLocalDataSource.getJobById(tJob.localId),
+        ).thenAnswer((_) async => tJob);
+        when(
+          mockLocalDataSource.deleteJob(tJob.localId),
+        ).thenAnswer((_) async => unit); // DB delete still succeeds
+        when(
+          mockFileSystem.deleteFile(tJob.audioFilePath!),
+        ).thenThrow(tException); // File deletion fails
+        when(
+          mockLocalDataSource.saveJob(
+            argThat(
+              isA<Job>().having(
+                (j) => j.failedAudioDeletionAttempts,
+                'failedAudioDeletionAttempts',
+                tJobWithIncrementedCounter.failedAudioDeletionAttempts,
+              ),
+            ),
+          ),
+        ).thenThrow(tSaveException); // Saving the incremented job fails
+
+        // Act
+        final result = await service.permanentlyDeleteJob(tJob.localId);
+
+        // Assert
+        expect(result, equals(const Right(unit))); // Still overall success
+        verify(mockLocalDataSource.getJobById(tJob.localId)).called(1);
+        verify(mockLocalDataSource.deleteJob(tJob.localId)).called(1);
+        verify(mockFileSystem.deleteFile(tJob.audioFilePath!)).called(1);
+        // Verify the attempt to save the job with the incremented counter
+        verify(
+          mockLocalDataSource.saveJob(
+            argThat(
+              isA<Job>().having(
+                (j) => j.failedAudioDeletionAttempts,
+                'failedAudioDeletionAttempts',
+                tJobWithIncrementedCounter.failedAudioDeletionAttempts,
+              ),
+            ),
+          ),
+        ).called(1);
+        // Ensure no other interactions happened after the failed save
+        verifyNoMoreInteractions(mockLocalDataSource);
+        verifyNoMoreInteractions(mockFileSystem);
+      },
+    );
   });
 }

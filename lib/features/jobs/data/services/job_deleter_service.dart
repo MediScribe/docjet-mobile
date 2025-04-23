@@ -11,10 +11,16 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 ///
 /// Handles marking jobs for deletion locally and permanently removing them
 /// along with associated files.
+///
+/// ## Thread Safety
+/// This service interacts with the local file system and database.
+/// It is designed for use within a single Dart isolate.
+/// Concurrent access from multiple isolates is not guaranteed to be safe
+/// without external synchronization mechanisms (like mutexes).
 class JobDeleterService {
   final JobLocalDataSource _localDataSource;
   final FileSystem _fileSystem;
-  final Logger _logger = Logger();
+  final Logger _logger = LoggerFactory.getLogger(JobDeleterService);
 
   static final String _tag = logTag(JobDeleterService);
 
@@ -110,6 +116,17 @@ class JobDeleterService {
     }
 
     // Step 3: Delete File (handle failure non-critically)
+    await _safelyDeleteFileAndHandleFailure(job);
+
+    // If we reached here, DB deletion was successful.
+    return const Right(unit);
+  }
+
+  /// Helper method to attempt file deletion and handle failures non-critically.
+  ///
+  /// Logs errors and increments the job's `failedAudioDeletionAttempts` counter
+  /// if deletion fails, attempting to save the updated job state.
+  Future<void> _safelyDeleteFileAndHandleFailure(Job job) async {
     if (job.audioFilePath != null && job.audioFilePath!.isNotEmpty) {
       try {
         _logger.d('$_tag Deleting audio file: ${job.audioFilePath}');
@@ -119,28 +136,28 @@ class JobDeleterService {
         );
       } catch (e, stackTrace) {
         _logger.e(
-          '$_tag Failed to delete audio file during permanent deletion for job $localId, path: ${job.audioFilePath}',
+          '$_tag Failed to delete audio file during permanent deletion for job ${job.localId}, path: ${job.audioFilePath}',
           error: e,
           stackTrace: stackTrace,
         );
 
         // ---- START: Increment counter on failure ----
         final updatedJob = job.copyWith(
-          failedAudioDeletionAttempts: (job.failedAudioDeletionAttempts) + 1,
+          failedAudioDeletionAttempts: job.failedAudioDeletionAttempts + 1,
         );
         try {
           _logger.w(
-            '$_tag Attempting to save job $localId with incremented deletion failure counter.',
+            '$_tag Attempting to save job ${job.localId} with incremented deletion failure counter.',
           );
           await _localDataSource.saveJob(updatedJob);
           _logger.i(
-            '$_tag Successfully saved job $localId with incremented counter.',
+            '$_tag Successfully saved job ${job.localId} with incremented counter.',
           );
-        } catch (saveError) {
+        } catch (saveError, st) {
           _logger.e(
-            '$_tag CRITICAL: Failed to save job $localId after audio deletion failure: $saveError',
+            '$_tag CRITICAL: Failed to save job ${job.localId} after audio deletion failure: $saveError',
             error: saveError,
-            // Consider adding stack trace if available from saveError
+            stackTrace: st,
           );
           // Do not return Failure here, as per original requirement
         }
@@ -148,11 +165,8 @@ class JobDeleterService {
       }
     } else {
       _logger.d(
-        '$_tag No audio file path found for job $localId, skipping file deletion.',
+        '$_tag No audio file path found for job ${job.localId}, skipping file deletion.',
       );
     }
-
-    // If we reached here, DB deletion was successful.
-    return const Right(unit);
   }
 }
