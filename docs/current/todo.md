@@ -199,3 +199,37 @@ Additional improvements identified during code review.
     - **Note:** New state files *are* staged, and Cubits reference them.
     - **Action:** Update `JobListState` to remove TODO comment about JobViewModel.
     - **Action:** Stage the modified state files.
+
+## 11. API Versioning Centralization
+
+Implement a centralized approach to API versioning to simplify future version changes.
+
+- [X] Create ApiConfig Test:
+  - [X] Write test that ApiConfig provides correct endpoints with version prefix
+  - [X] Test baseUrlFromDomain constructs URLs correctly 
+  - [X] Test all endpoint methods return unprefixed paths
+- [X] Build ApiConfig Class:
+  - [X] Create `lib/core/config/api_config.dart` with apiVersion constant 
+  - [X] Implement baseUrlFromDomain method
+  - [X] Implement all endpoint getter methods (unprefixed)
+- [X] Update Environment Config:
+  - [X] Remove version from API_BASE_URL in secrets files
+  - [X] Update to API_DOMAIN format in all secrets files
+- [X] Update Dio Factory:
+  - [X] Modify baseUrl construction to use ApiConfig
+  - [X] Ensure all environments use consistent URL construction
+- [X] Update E2E Test Setup:
+  - [X] Modify baseUrl construction in e2e_setup_helpers.dart
+  - [X] Ensure mock server uses consistent URL format
+- [X] Update Shell Scripts:
+  - [X] Update server URL construction in run_with_mock.sh
+  - [X] Update server URL construction in run_e2e_tests.sh
+- [X] Update Mock Server:
+  - [X] Add apiVersion constant to match ApiConfig
+  - [X] Use consistent prefix for all route definitions
+- [X] Final E2E Tests:
+  - [X] Run integration tests to verify all endpoints work
+  - [X] Validate setup for testing version changes
+- [X] Document Versioning Approach:
+  - [X] Add api_versioning.md explaining the architecture
+  - [X] Include version change procedure for future reference

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 
 /// Dio interceptor that handles authentication token management
 ///
@@ -21,9 +22,9 @@ class AuthInterceptor extends Interceptor {
   Dio? dio;
 
   /// Authentication endpoints that don't need tokens
-  static const List<String> _authEndpoints = [
-    '/api/v1/auth/login',
-    '/api/v1/auth/refresh-session',
+  final List<String> _authEndpoints = [
+    ApiConfig.loginEndpoint,
+    ApiConfig.refreshEndpoint,
   ];
 
   /// Creates an [AuthInterceptor] with the required dependencies

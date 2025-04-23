@@ -2,26 +2,29 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 
 /// Factory for creating [Dio] HTTP client instances with authentication support
 ///
 /// This factory creates and configures Dio instances with appropriate
 /// interceptors for authentication and token refresh.
 class DioFactory {
-  // Read the base URL from compile-time variables
-  // Default to staging if not specified
-  static const _baseUrl = String.fromEnvironment(
-    'BASE_URL',
-    defaultValue: 'https://staging.docjet.ai/api/v1', // Default to staging
+  /// Read the API domain from environment variables
+  /// Default to staging if not specified
+  static const _apiDomain = String.fromEnvironment(
+    'API_DOMAIN',
+    defaultValue: 'staging.docjet.ai', // Default to staging
   );
 
   /// Creates a basic [Dio] instance without authentication
   ///
   /// This is used for the auth API client itself to avoid circular dependencies.
   static Dio createBasicDio() {
+    final baseUrl = ApiConfig.baseUrlFromDomain(_apiDomain);
+
     final dio = Dio(
       BaseOptions(
-        baseUrl: _baseUrl, // Use the environment-defined base URL
+        baseUrl: baseUrl, // Use the baseUrl constructed from domain
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         contentType: 'application/json',

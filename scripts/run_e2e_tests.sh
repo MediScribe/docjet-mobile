@@ -3,10 +3,23 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Define API version - MUST match ApiConfig.apiVersion and mock server's _apiVersion
+API_VERSION="v1"
+API_PREFIX="api"
+SERVER_PORT=8080
+SERVER_DOMAIN="localhost:$SERVER_PORT"
+VERSIONED_API_PATH="$API_PREFIX/$API_VERSION"
+HEALTH_ENDPOINT="$VERSIONED_API_PATH/health"
+
 echo "Starting mock API server..."
+
+# Force kill any existing process on port $SERVER_PORT before starting
+echo "Ensuring port $SERVER_PORT is free..."
+lsof -t -i:$SERVER_PORT | xargs kill -9 || true
+
 cd mock_api_server
 # Start the server in the background and capture its PID
-dart bin/server.dart &
+dart bin/server.dart --port $SERVER_PORT &
 SERVER_PID=$!
 cd ..
 echo "Mock server started with PID: $SERVER_PID"
@@ -40,16 +53,11 @@ MAX_WAIT=30     # Maximum seconds to wait
 WAIT_INTERVAL=1 # Seconds between polls
 ELAPSED=0
 # Use the dedicated health check endpoint
-SERVER_URL="http://localhost:8080/health"
-# API_KEY="test-api-key" # Not needed for health check
-# Add a dummy bearer token required by the mock server's auth middleware
-# DUMMY_TOKEN="dummy-bearer-token" # Not needed for health check
+SERVER_URL="http://$SERVER_DOMAIN/$HEALTH_ENDPOINT"
 
 echo "Waiting for mock server at $SERVER_URL to be ready..."
 while ! curl -s --fail "$SERVER_URL" >/dev/null; do
-	# Removed headers:
-	#  -H "X-API-Key: $API_KEY" \
-	#  -H "Authorization: Bearer $DUMMY_TOKEN" \
+	# No headers needed for health check
 	if [ $ELAPSED -ge $MAX_WAIT ]; then
 		echo "Error: Mock server did not become ready within $MAX_WAIT seconds."
 		exit 1 # Exit script, cleanup will run via trap

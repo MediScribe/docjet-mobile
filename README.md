@@ -10,7 +10,7 @@ A mobile app for the DocJet platform.
   - [Getting Started](#getting-started)
   - [Integration Tests](#integration-tests)
   - [End-to-End (E2E) Tests (integration_test)](#end-to-end-e2e-tests-integration_test)
-  - [Configuring the App (API Key & Base URL)](#configuring-the-app-api-key--base-url)
+  - [Configuring the App (API Key & Domain)](#configuring-the-app-api-key--domain)
 
 ## Features
 
@@ -128,7 +128,7 @@ See [Logging Guide](docs/logging_guide.md) for comprehensive examples and implem
 2. Clone this repository
 3. Run `flutter pub get` to install dependencies
 4. Run `flutter run` to start the app in debug mode.
-   *Note: For configuring API keys and endpoints (e.g., using the mock server), see the "Configuring the App (API Key & Base URL)" section below.*
+   *Note: For configuring API keys and endpoints (e.g., using the mock server), see the "Configuring the App (API Key & Domain)" section below.*
 
 ### Integration Tests
 
@@ -174,7 +174,7 @@ The project includes integration tests that use a mock API server to simulate th
 #### Mock Server Details
 
 - **API Key:** `test-api-key` (required in X-API-Key header)
-- **Base URL:** `http://localhost:8080/api/v1` 
+- **API Domain:** `localhost:8080` (API version is managed centrally)
 - **Authentication:** Bearer token (any non-empty token works for testing)
 - **Supported endpoints:** auth/login, jobs (GET/POST/PATCH), jobs/:id, jobs/:id/documents
 
@@ -202,16 +202,19 @@ We use a wrapper script to handle the mock server lifecycle, as direct process m
     ```
     This script will:
     *   Start the `mock_api_server` in the background.
-    *   Run `flutter test integration_test/app_test.dart` *with* the appropriate `--dart-define` flags for the mock API key and URL.
+    *   Run `flutter test integration_test/app_test.dart` *with* the appropriate `--dart-define` flags for the mock API key and domain.
     *   Automatically stop the mock server when tests are complete (or if the script fails).
 
-#### Configuring the App (API Key & Base URL)
+#### Configuring the App (API Key & Domain)
 
 Forget `.env` files like some amateur. We use compile-time definitions via `--dart-define` for configuration. It's cleaner, safer (keeps secrets out of the repo), and the standard Flutter way.
 
 The app expects two main variables:
 - `API_KEY`: Your API key.
-- `API_BASE_URL`: The base URL for the API endpoint.
+- `API_DOMAIN`: The domain for the API (e.g., `api.docjet.com` or `localhost:8080`).
+
+**API Versioning**:
+We use a centralized approach to API versioning with `ApiConfig`. The version is specified in a single location and used consistently across the app. See [API Versioning](docs/current/api_versioning.md) for details.
 
 **How to Use:**
 
@@ -232,37 +235,53 @@ Pass these variables when running or building the app:
     `--dart-define-from-file=secrets.test.json`
     Ensure you have copied `secrets.test.json.example` to `secrets.test.json`.
 
-*   **Running Manually (e.g., against a Dev API):**
+*   **Running Manually (e.g., against a Staging API):**
     ```bash
-    flutter run \\
-      --dart-define=API_KEY=YOUR_DEV_API_KEY \\
-      --dart-define=API_BASE_URL=https://your.dev.api.com/api/v1
+    flutter run \
+      --dart-define=API_KEY=YOUR_STAGING_API_KEY \
+      --dart-define=API_DOMAIN=staging.docjet.com
     ```
 
 *   **Building for Production:**
     Inject your production keys via your CI/CD pipeline or build script:
     ```bash
-    flutter build <target> \\
-      --dart-define=API_KEY=YOUR_PROD_API_KEY \\
-      --dart-define=API_BASE_URL=https://your.prod.api.com/api/v1
+    flutter build <target> \
+      --dart-define=API_KEY=YOUR_PROD_API_KEY \
+      --dart-define=API_DOMAIN=www.docjet.com
     ```
 
 *   **Using a JSON File (for multiple variables):**
     For managing different environments (test, dev, prod), create separate files like `secrets.test.json`, `secrets.dev.json`, etc. (add these to `.gitignore`!). A template for the test configuration is provided in `secrets.test.json.example`. After cloning, copy it: `cp secrets.test.json.example secrets.test.json`.
 
-    Example `secrets.dev.json`:
+    Example `secrets.json` files:
     ```json
+    // secrets.test.json (for local mock server)
     {
-      "API_KEY": "some_key",
-      "API_BASE_URL": "some_url"
+      "API_KEY": "test-api-key",
+      "API_DOMAIN": "localhost:8080"
+    }
+
+    // secrets.staging.json (for staging environment)
+    {
+      "API_KEY": "staging-api-key",
+      "API_DOMAIN": "staging.docjet.com"
+    }
+
+    // secrets.prod.json (for production)
+    {
+      "API_KEY": "prod-api-key",
+      "API_DOMAIN": "www.docjet.com"
     }
     ```
     Then run/build with the appropriate file:
     ```bash
-    flutter run --dart-define-from-file=secrets.dev.json
+    flutter run --dart-define-from-file=secrets.staging.json
     # The E2E test script (`./scripts/run_e2e_tests.sh`) uses secrets.test.json
     # The local run script (`./scripts/run_with_mock.sh`) also uses secrets.test.json
     ```
 
-Inside the Dart code (e.g., `lib/core/config/app_config.dart` or wherever your API client is setup), access these like so:
+Inside the Dart code, the domain is transformed into a full URL with the correct API version using `ApiConfig`:
+```dart
+// In DioFactory
+final baseUrl = ApiConfig.baseUrlFromDomain(_apiDomain);
 ```

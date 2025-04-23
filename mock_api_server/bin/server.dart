@@ -14,6 +14,11 @@ import 'package:uuid/uuid.dart';
 // Flag to control verbose logging, set in main()
 bool _verboseLoggingEnabled = false;
 
+// API version (should match ApiConfig.apiVersion in the app)
+const String _apiVersion = 'v1';
+const String _apiPrefix = 'api';
+const String _versionedApiPath = '$_apiPrefix/$_apiVersion';
+
 // Hardcoded API key for mock validation, matching the test
 const String _expectedApiKey = 'test-api-key';
 
@@ -118,17 +123,22 @@ Middleware _debugMiddleware() {
   };
 }
 
-// Define the router
+// Define the router with versioned endpoints
 final _router = Router()
-  ..get('/health', _healthHandler)
-  ..post('/auth/login', _loginHandler)
-  ..post('/auth/refresh-session', _refreshHandler)
-  ..post('/jobs', _createJobHandler)
-  ..get('/jobs', _listJobsHandler)
-  ..get('/jobs/<jobId>', _getJobByIdHandler)
-  ..get('/jobs/<jobId>/documents', _getJobDocumentsHandler)
-  ..patch('/jobs/<jobId>', _updateJobHandler)
-  ..delete('/jobs/<jobId>', _deleteJobHandler);
+  // Health check (prefixed)
+  ..get('/$_versionedApiPath/health', _healthHandler)
+
+  // Authentication endpoints (prefixed)
+  ..post('/$_versionedApiPath/auth/login', _loginHandler)
+  ..post('/$_versionedApiPath/auth/refresh-session', _refreshHandler)
+
+  // Job endpoints (prefixed)
+  ..post('/$_versionedApiPath/jobs', _createJobHandler)
+  ..get('/$_versionedApiPath/jobs', _listJobsHandler)
+  ..get('/$_versionedApiPath/jobs/<jobId>', _getJobByIdHandler)
+  ..get('/$_versionedApiPath/jobs/<jobId>/documents', _getJobDocumentsHandler)
+  ..patch('/$_versionedApiPath/jobs/<jobId>', _updateJobHandler)
+  ..delete('/$_versionedApiPath/jobs/<jobId>', _deleteJobHandler);
 
 // Health check handler
 Response _healthHandler(Request request) {
@@ -522,9 +532,6 @@ Future<Response> _getJobByIdHandler(Request request, String jobId) async {
 Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   // Authentication and API key are already handled by middleware
 
-  // Define baseUrl locally or make it accessible globally
-  final String baseUrl = 'http://localhost:8080'; // Define baseUrl here
-
   // Find the job by ID first
   Map<String, dynamic>? foundJob;
   try {
@@ -542,19 +549,19 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   }
 
   // Job found, return mock document data
-  // In a real backend, this would fetch actual document info related to the job
+  // URLs should be relative to the API base known by the client.
   final mockDocuments = [
     {
       'id': 'doc-${_uuid.v4()}',
       'type': 'transcript',
-      'url':
-          '$baseUrl/api/v1/documents/doc-transcript-$jobId.txt' // Use defined baseUrl
+      // Return a relative path from the API base
+      'url': '/$_versionedApiPath/documents/doc-transcript-$jobId.txt'
     },
     {
       'id': 'doc-${_uuid.v4()}',
       'type': 'summary',
-      'url':
-          '$baseUrl/api/v1/documents/doc-summary-$jobId.pdf' // Use defined baseUrl
+      // Return a relative path from the API base
+      'url': '/$_versionedApiPath/documents/doc-summary-$jobId.pdf'
     }
   ];
 
@@ -569,11 +576,18 @@ Middleware _authMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
       final path = request.requestedUri.path;
-      // Skip auth check for auth endpoints and health check
-      if (path.startsWith('/auth/') || path == '/health') {
+      // Define paths that DO NOT require authentication using our constant
+      final noAuthPaths = {
+        '/$_versionedApiPath/auth/login',
+        '/$_versionedApiPath/auth/refresh-session',
+        '/$_versionedApiPath/health',
+      };
+
+      // Skip auth check for defined non-auth paths
+      if (noAuthPaths.contains(path)) {
         if (_verboseLoggingEnabled) {
           print(
-              'DEBUG: Auth/Health endpoint detected, skipping auth middleware');
+              'DEBUG: Auth/Health endpoint ($path) detected, skipping auth middleware');
         }
         return innerHandler(request);
       }
@@ -613,22 +627,22 @@ Middleware _authMiddleware() {
   };
 }
 
-// API Key middleware - NOW modified to skip auth AND health routes
+// API Key middleware - check all routes EXCEPT health endpoint
 Middleware _apiKeyMiddleware(String expectedApiKey) {
   return (Handler innerHandler) {
     return (Request request) async {
       final path = request.requestedUri.path;
-      // Skip API key check for auth endpoints and health check
-      if (path.startsWith('/auth/') || path == '/health') {
+
+      // Only skip API key check for the health check endpoint
+      if (path == '/$_versionedApiPath/health') {
         if (_verboseLoggingEnabled) {
-          print(
-              'DEBUG: Auth/Health endpoint detected, skipping API key middleware');
+          print('DEBUG: Health endpoint detected, skipping API key middleware');
         }
         return innerHandler(request);
       }
 
       if (_verboseLoggingEnabled) {
-        print('DEBUG: Non-auth endpoint, applying API key check...');
+        print('DEBUG: Applying API key check to $path...');
       }
 
       final apiKey = request.headers['x-api-key'];

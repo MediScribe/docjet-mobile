@@ -3,6 +3,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:mockito/annotations.dart';
@@ -51,7 +52,7 @@ void main() {
     test('should return AuthResponseDto on successful login', () async {
       // Arrange
       dioAdapter.onPost(
-        '/api/v1/auth/login',
+        ApiConfig.loginEndpoint,
         (server) => server.reply(200, successResponse),
         data: {'email': testEmail, 'password': testPassword},
         headers: {'x-api-key': testApiKey},
@@ -71,7 +72,7 @@ void main() {
     test('should throw InvalidCredentials exception on 401', () async {
       // Arrange
       dioAdapter.onPost(
-        '/api/v1/auth/login',
+        ApiConfig.loginEndpoint,
         (server) => server.reply(401, {'message': 'Invalid credentials'}),
         data: {'email': testEmail, 'password': testPassword},
         headers: {'x-api-key': testApiKey},
@@ -87,11 +88,11 @@ void main() {
     test('should throw NetworkError exception on connection error', () async {
       // Arrange - simulate connection error
       dioAdapter.onPost(
-        '/api/v1/auth/login',
+        ApiConfig.loginEndpoint,
         (server) => server.throws(
           408,
           DioException(
-            requestOptions: RequestOptions(path: '/api/v1/auth/login'),
+            requestOptions: RequestOptions(path: ApiConfig.loginEndpoint),
             type: DioExceptionType.connectionTimeout,
           ),
         ),
@@ -109,7 +110,7 @@ void main() {
     test('should throw ServerError exception on server error', () async {
       // Arrange
       dioAdapter.onPost(
-        '/api/v1/auth/login',
+        ApiConfig.loginEndpoint,
         (server) => server.reply(500, {'message': 'Internal server error'}),
         data: {'email': testEmail, 'password': testPassword},
         headers: {'x-api-key': testApiKey},
@@ -127,7 +128,7 @@ void main() {
     test('should return AuthResponseDto on successful token refresh', () async {
       // Arrange
       dioAdapter.onPost(
-        '/api/v1/auth/refresh-session',
+        ApiConfig.refreshEndpoint,
         (server) => server.reply(200, successResponse),
         data: {'refreshToken': testRefreshToken},
         headers: {'x-api-key': testApiKey},
@@ -149,7 +150,7 @@ void main() {
       () async {
         // Arrange
         dioAdapter.onPost(
-          '/api/v1/auth/refresh-session',
+          ApiConfig.refreshEndpoint,
           (server) => server.reply(401, {'message': 'Invalid refresh token'}),
           data: {'refreshToken': testRefreshToken},
           headers: {'x-api-key': testApiKey},

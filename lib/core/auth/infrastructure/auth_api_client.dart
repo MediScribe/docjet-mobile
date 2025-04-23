@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 
 /// Client responsible for communication with authentication-related API endpoints
 ///
@@ -12,12 +13,6 @@ class AuthApiClient {
 
   /// Provider for API key and tokens
   final AuthCredentialsProvider credentialsProvider;
-
-  /// Login endpoint path
-  static const String _loginEndpoint = '/api/v1/auth/login';
-
-  /// Refresh token endpoint path
-  static const String _refreshEndpoint = '/api/v1/auth/refresh-session';
 
   /// Creates an [AuthApiClient] with the required dependencies
   AuthApiClient({required this.httpClient, required this.credentialsProvider});
@@ -31,7 +26,7 @@ class AuthApiClient {
       final apiKey = await credentialsProvider.getApiKey();
 
       final response = await httpClient.post(
-        _loginEndpoint,
+        ApiConfig.loginEndpoint,
         data: {'email': email, 'password': password},
         options: Options(headers: {'x-api-key': apiKey}),
       );
@@ -51,7 +46,7 @@ class AuthApiClient {
       final apiKey = await credentialsProvider.getApiKey();
 
       final response = await httpClient.post(
-        _refreshEndpoint,
+        ApiConfig.refreshEndpoint,
         data: {'refreshToken': refreshToken},
         options: Options(headers: {'x-api-key': apiKey}),
       );
@@ -71,7 +66,7 @@ class AuthApiClient {
       if (statusCode == 401) {
         // For login endpoint, it's invalid credentials
         // For refresh endpoint, it's an expired token
-        if (e.requestOptions.path.contains(_refreshEndpoint)) {
+        if (e.requestOptions.path.contains(ApiConfig.refreshEndpoint)) {
           return AuthException.tokenExpired();
         }
         return AuthException.invalidCredentials();

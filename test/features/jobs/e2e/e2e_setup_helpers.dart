@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -192,7 +193,7 @@ Future<void> teardownHive(Directory tempDir, Box<JobHiveModel> jobBox) async {
 /// Requires the mock server URL and the job box.
 /// Optionally registers a mock for [JobRemoteDataSource] instead of the real one.
 Future<void> setupDI({
-  required String dynamicMockServerUrl,
+  required int mockServerPort,
   required Box<JobHiveModel> jobBox,
   bool registerMockDataSource = false, // Default to real implementation
 }) async {
@@ -201,11 +202,16 @@ Future<void> setupDI({
   );
   await sl.reset();
 
+  // --- Construct server domain ---
+  final mockServerDomain = 'localhost:$mockServerPort';
+  final baseUrl = ApiConfig.baseUrlFromDomain(mockServerDomain);
+  logger.i('$tag Using mock server at $baseUrl');
+
   // --- External Dependencies ---
   sl.registerLazySingleton<Dio>(() {
     final dio = Dio(
       BaseOptions(
-        baseUrl: dynamicMockServerUrl,
+        baseUrl: baseUrl,
         headers: {
           'X-API-Key': mockApiKey,
           'Authorization': 'Bearer fake-test-token', // Mock server accepts any
@@ -360,9 +366,13 @@ Future<(Process?, Directory, Box<JobHiveModel>)> setupE2ETestSuite({
   if (mockServerProcess == null) {
     throw Exception('Mock server process failed to start.');
   }
-  final dynamicMockServerUrl = 'http://localhost:$mockServerPort';
+
+  // Use ApiConfig to get a formatted URL for logging
+  final mockServerUrl = ApiConfig.baseUrlFromDomain(
+    'localhost:$mockServerPort',
+  );
   logger.i(
-    '$tag Mock server started on $dynamicMockServerUrl (PID: ${mockServerProcess.pid})',
+    '$tag Mock server started on $mockServerUrl (PID: ${mockServerProcess.pid})',
   );
 
   // --- Hive Setup ---
@@ -372,7 +382,7 @@ Future<(Process?, Directory, Box<JobHiveModel>)> setupE2ETestSuite({
 
   // --- DI Setup ---
   await setupDI(
-    dynamicMockServerUrl: dynamicMockServerUrl,
+    mockServerPort: mockServerPort,
     jobBox: jobBox,
     registerMockDataSource: registerMockDataSource,
   );

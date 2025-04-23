@@ -4,6 +4,7 @@ import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -48,7 +49,7 @@ void main() {
 
     // Setup request options for tests
     requestOptions = RequestOptions(
-      path: '/api/v1/some-endpoint',
+      path: '${ApiConfig.versionedApiPath}/some-endpoint',
       headers: {'Authorization': 'Bearer $testAccessToken'},
     );
   });
@@ -74,7 +75,7 @@ void main() {
 
     test('should not add access token to auth endpoints', () async {
       // Arrange
-      requestOptions = RequestOptions(path: '/api/v1/auth/login');
+      requestOptions = RequestOptions(path: ApiConfig.loginEndpoint);
 
       // Act
       await interceptor.onRequest(requestOptions, mockRequestHandler);

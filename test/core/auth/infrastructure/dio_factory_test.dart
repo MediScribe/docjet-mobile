@@ -3,6 +3,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -28,8 +29,11 @@ void main() {
 
         // Assert
         expect(dio, isA<Dio>());
-        // Verify default base URL is now staging
-        expect(dio.options.baseUrl, 'https://staging.docjet.ai/api/v1');
+        // Verify default base URL is constructed correctly using the staging domain
+        final expectedBaseUrl = ApiConfig.baseUrlFromDomain(
+          'staging.docjet.ai',
+        );
+        expect(dio.options.baseUrl, expectedBaseUrl);
         expect(dio.options.connectTimeout, equals(const Duration(seconds: 30)));
         expect(dio.options.receiveTimeout, equals(const Duration(seconds: 30)));
         expect(dio.options.contentType, equals('application/json'));
