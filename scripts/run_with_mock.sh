@@ -5,12 +5,12 @@ set -e
 
 echo "Starting mock API server..."
 # Check if mock_api_server exists relative to script location
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 MOCK_SERVER_DIR="$SCRIPT_DIR/../mock_api_server"
 
 if [ ! -d "$MOCK_SERVER_DIR" ]; then
-  echo "Error: Mock server directory not found at $MOCK_SERVER_DIR"
-  exit 1
+	echo "Error: Mock server directory not found at $MOCK_SERVER_DIR"
+	exit 1
 fi
 
 cd "$MOCK_SERVER_DIR"
@@ -22,24 +22,24 @@ echo "Mock server started with PID: $SERVER_PID"
 
 # Function to kill the server process
 cleanup() {
-  echo "Stopping mock API server (PID: $SERVER_PID)..."
-  # Check if the process exists using kill -0
-  if kill -0 $SERVER_PID > /dev/null 2>&1; then
-    # Try graceful shutdown first (SIGTERM)
-    kill $SERVER_PID
-    # Wait a moment for it to terminate
-    sleep 1
-    # Check if it's still running
-    if kill -0 $SERVER_PID > /dev/null 2>&1; then
-      echo "Server did not stop gracefully, forcing termination (SIGKILL)..."
-      kill -9 $SERVER_PID
-    else
-      echo "Mock server stopped gracefully."
-    fi
-  else
-    # This handles cases where the server might have already stopped or the PID is stale
-    echo "Mock server process (PID: $SERVER_PID) not found or already stopped."
-  fi
+	echo "Stopping mock API server (PID: $SERVER_PID)..."
+	# Check if the process exists using kill -0
+	if kill -0 $SERVER_PID >/dev/null 2>&1; then
+		# Try graceful shutdown first (SIGTERM)
+		kill $SERVER_PID
+		# Wait a moment for it to terminate
+		sleep 1
+		# Check if it's still running
+		if kill -0 $SERVER_PID >/dev/null 2>&1; then
+			echo "Server did not stop gracefully, forcing termination (SIGKILL)..."
+			kill -9 $SERVER_PID
+		else
+			echo "Mock server stopped gracefully."
+		fi
+	else
+		# This handles cases where the server might have already stopped or the PID is stale
+		echo "Mock server process (PID: $SERVER_PID) not found or already stopped."
+	fi
 }
 
 # Trap EXIT and INT signals to ensure cleanup runs
