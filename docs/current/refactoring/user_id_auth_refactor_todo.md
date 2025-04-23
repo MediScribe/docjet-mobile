@@ -35,20 +35,25 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
 
 ## TDD Fix Plan (do only one main todo at a time; then ask user for review and commit!)
 
-1. [ ] **INVESTIGATION: Map Current User ID Flow**
-    1.1. [ ] Grep codebase for `userId` parameters to identify all violations
-    1.2. [ ] Run `grep -r "userId" --include="*.dart" lib/features/jobs/` to find all places
-    1.3. [ ] Document all components that need to be updated
-    1.4. [ ] Identify specific UI components passing user IDs downstream (e.g., `job_list_playground.dart`)
+1. [x] **INVESTIGATION: Map Current User ID Flow**
+    1.1. [x] Grep codebase for `userId` parameters to identify all violations
+    1.2. [x] Run `grep -r "userId" --include="*.dart" lib/features/jobs/` to find all places
+    1.3. [x] Document all components that need to be updated
+    1.4. [x] Identify specific UI components passing user IDs downstream (e.g., `job_list_playground.dart`)
 
     **Investigation Findings:**
-    * `userId` is being passed from UI in `job_list_playground.dart` down through the layers
-    * `CreateJobUseCase` and `CreateJobParams` both contain `userId` parameter 
-    * `JobRepository` interface defines a `createJob` method requiring `userId` parameter
-    * `JobRepositoryImpl` passes this parameter to `JobWriterService`
-    * `JobWriterService` uses it when constructing a new `Job` entity
-    * `JobRemoteDataSource` interface and `ApiJobRemoteDataSourceImpl` require `userId` for API calls
-    * Existing `AuthSessionProvider` and `SecureStorageAuthSessionProvider` implementation are already in place to handle user context
+    * `userId` is defined as required in interfaces (JobRepository, JobRemoteDataSource), but surprisingly the UI code in `job_list_playground.dart` doesn't explicitly pass it when creating jobs.
+    * Components requiring `userId` parameter:
+      - `JobRepository.createJob()` interface in domain layer
+      - `CreateJobUseCase` and `CreateJobParams` in domain layer include `userId` parameter
+      - `JobRepositoryImpl.createJob()` in data layer passes `userId` to writer service
+      - `JobWriterService.createJob()` requires `userId` to create job entities
+      - `JobRemoteDataSource.createJob()` interface requires `userId`
+      - `ApiJobRemoteDataSourceImpl.createJob()` passes `userId` to API calls
+    * The `Job` entity itself has a `userId` field
+    * There's no existing `AuthSessionProvider` implementation in the codebase yet, but there is an `AuthCredentialsProvider` and `AuthService` that could be extended
+    * The existing `AuthService` doesn't currently include a method to get the current user ID
+    * The DI container already registers `AuthCredentialsProvider` correctly
 
 2. [ ] **TDD for Domain Layer (Most Isolated)**
     2.1. [ ] Write failing test for updated `JobRepository` interface without `userId` in `createJob()`
