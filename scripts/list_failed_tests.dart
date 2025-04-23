@@ -298,6 +298,20 @@ class ResultFormatter {
   void printResults(TestRunResult result, bool debugMode, bool exceptMode) {
     if (result.failedTestsByFile.isEmpty) {
       print('No failed tests found.');
+
+      // Add tip about specifying test target if no target was provided
+      if (result.testTarget == null) {
+        print('');
+        print(
+          '\x1B[33mTip: You can run with a specific path or directory to test only a subset of tests:\x1B[0m',
+        );
+        print(
+          '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file.dart\x1B[0m',
+        );
+        print(
+          '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_directory\x1B[0m',
+        );
+      }
       return;
     }
 
@@ -326,6 +340,20 @@ class ResultFormatter {
       // Show except tip unless already in except mode
       print(
         '\x1B[33mTip: Run with --except to see exception details (grouped by file).\x1B[0m',
+      );
+    }
+
+    // Add tip about specifying test target if no target was provided
+    if (result.testTarget == null) {
+      print('');
+      print(
+        '\x1B[33mTip: You can run with a specific path or directory to test only a subset of tests:\x1B[0m',
+      );
+      print(
+        '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file.dart\x1B[0m',
+      );
+      print(
+        '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_directory\x1B[0m',
       );
     }
   }
@@ -551,6 +579,7 @@ class FailedTestRunner {
       failedTestsByFile: failedTestsByFile,
       allEvents: allEvents,
       exitCode: processResult.exitCode,
+      testTarget: testTarget,
     );
   }
 
@@ -589,10 +618,12 @@ class TestRunResult {
   final Map<String, List<FailedTest>> failedTestsByFile;
   final List<Map<String, dynamic>> allEvents;
   final int exitCode;
+  final String? testTarget;
 
   TestRunResult({
     required this.failedTestsByFile,
     required this.allEvents,
     required this.exitCode,
+    this.testTarget,
   });
 }

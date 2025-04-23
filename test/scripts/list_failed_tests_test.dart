@@ -347,6 +347,8 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allTestEvents,
           exitCode: 1,
+          testTarget:
+              'test/some_test.dart', // Add test target to prevent path tip
         );
 
         // When
@@ -421,6 +423,8 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allTestEvents,
           exitCode: 1,
+          testTarget:
+              'test/some_test.dart', // Add test target to prevent path tip
         );
 
         // When
@@ -475,6 +479,8 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allTestEvents,
           exitCode: 1,
+          testTarget:
+              'test/some_test.dart', // Add test target to prevent path tip
         );
 
         // When
@@ -622,6 +628,8 @@ void main() {
           failedTestsByFile: failedTestsDefault,
           allEvents: combinedEvents,
           exitCode: 1,
+          testTarget:
+              'test/some_test.dart', // Add test target to prevent path tip
         );
 
         final outputDefault = await capturePrint(
@@ -638,6 +646,8 @@ void main() {
           failedTestsByFile: failedTestsTargeted,
           allEvents: combinedEvents,
           exitCode: 1,
+          testTarget:
+              'test/scripts/debug_test.dart', // Add specific test target
         );
 
         final outputTargeted = await capturePrint(
@@ -655,6 +665,121 @@ void main() {
         expect(outputTargeted, contains('Normal Test Failure'));
         expect(outputTargeted, contains('Debug Test Failure'));
         expect(outputTargeted, contains('Error from debug test'));
+      },
+    );
+
+    // Add test for path tip when no test target is provided
+    test('should show path tip when no test target is provided', () async {
+      // Given
+      final failedTests = processor.extractFailedTests(allTestEvents, false);
+      final result = TestRunResult(
+        failedTestsByFile: failedTests,
+        allEvents: allTestEvents,
+        exitCode: 1,
+        testTarget: null, // No test target
+      );
+
+      // When
+      final output = await capturePrint(
+        () => formatter.printResults(result, false, false),
+      );
+
+      // Then
+      expect(
+        output,
+        contains(
+          'Tip: You can run with a specific path or directory to test only a subset of tests:',
+        ),
+      );
+      expect(
+        output,
+        contains('./scripts/list_failed_tests.dart path/to/test_file.dart'),
+      );
+      expect(
+        output,
+        contains('./scripts/list_failed_tests.dart path/to/test_directory'),
+      );
+    });
+
+    test('should not show path tip when test target is provided', () async {
+      // Given
+      final failedTests = processor.extractFailedTests(allTestEvents, false);
+      final result = TestRunResult(
+        failedTestsByFile: failedTests,
+        allEvents: allTestEvents,
+        exitCode: 1,
+        testTarget: 'test/some_directory', // Test target provided
+      );
+
+      // When
+      final output = await capturePrint(
+        () => formatter.printResults(result, false, false),
+      );
+
+      // Then
+      expect(
+        output,
+        isNot(
+          contains(
+            'Tip: You can run with a specific path or directory to test only a subset of tests:',
+          ),
+        ),
+      );
+    });
+
+    test(
+      'should show path tip when no failed tests are found and no target',
+      () async {
+        // Given
+        final result = TestRunResult(
+          failedTestsByFile: {}, // No failed tests
+          allEvents: [],
+          exitCode: 0,
+          testTarget: null, // No test target
+        );
+
+        // When
+        final output = await capturePrint(
+          () => formatter.printResults(result, false, false),
+        );
+
+        // Then
+        expect(output, contains('No failed tests found.'));
+        expect(
+          output,
+          contains(
+            'Tip: You can run with a specific path or directory to test only a subset of tests:',
+          ),
+        );
+      },
+    );
+
+    test(
+      'should not show path tip when no failed tests but target is provided',
+      () async {
+        // Given
+        final result = TestRunResult(
+          failedTestsByFile: {}, // No failed tests
+          allEvents: [],
+          exitCode: 0,
+          testTarget: 'test/some_test.dart', // Target provided
+        );
+
+        // When
+        final output = await capturePrint(
+          () => formatter.printResults(result, false, false),
+        );
+
+        // Then
+        expect(output, contains('No failed tests found.'));
+        expect(
+          output,
+          isNot(
+            contains(
+              'Tip: You can run with a specific path or directory to test only a subset of tests:',
+            ),
+          ),
+        );
       },
     );
   });
