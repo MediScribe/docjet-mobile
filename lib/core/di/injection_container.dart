@@ -19,6 +19,7 @@ import 'package:hive_flutter/hive_flutter.dart'; // Add Hive Flutter import
 
 // Features - Jobs - Domain
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_detail_cubit.dart';
@@ -106,6 +107,7 @@ Future<void> init() async {
   // Features - Jobs - Domain - Use Cases (Register necessary use cases)
   sl.registerLazySingleton(() => WatchJobByIdUseCase(repository: sl()));
   sl.registerLazySingleton(() => WatchJobsUseCase(repository: sl()));
+  sl.registerLazySingleton(() => CreateJobUseCase(sl()));
 
   // Register mapper for view models
   sl.registerLazySingleton(() => JobViewModelMapper());

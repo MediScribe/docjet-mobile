@@ -3,6 +3,11 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:docjet_mobile/core/di/injection_container.dart' as di;
+import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
+import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
 /// This doesn't require tests as it's purely for UI experimentation
@@ -17,61 +22,74 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
   static final Logger _logger = LoggerFactory.getLogger('JobListPlayground');
   static final String _tag = logTag('JobListPlayground');
 
-  // Mock data for rapid UI iteration
+  late final JobListCubit _jobListCubit;
+  late final CreateJobUseCase _createJobUseCase;
+
+  // We'll keep a small set of mock jobs as fallback
   final List<JobViewModel> _mockJobs = [
-    // Normal job with long title
     JobViewModel(
       localId: 'job_123456789',
-      title:
-          'This is a very long job title that might need wrapping or truncation in the UI',
-      text: 'Some text content here',
+      title: 'This is a mock job (not from data source)',
+      text: 'This is displayed when no real jobs exist yet',
       syncStatus: SyncStatus.synced,
       hasFileIssue: false,
       displayDate: DateTime.now().subtract(const Duration(hours: 2)),
     ),
-    // Job with file issues
-    JobViewModel(
-      localId: 'job_file_issue',
-      title: 'Job with file issues',
-      text: 'Job with file deletion problems',
-      syncStatus: SyncStatus.synced,
-      hasFileIssue: true,
-      displayDate: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    // Job with sync pending
-    JobViewModel(
-      localId: 'job_sync_pending',
-      title: 'Pending sync job',
-      text: 'Waiting to be synced',
-      syncStatus: SyncStatus.pending,
-      hasFileIssue: false,
-      displayDate: DateTime.now().subtract(const Duration(minutes: 30)),
-    ),
-    // Job with sync error
-    JobViewModel(
-      localId: 'job_sync_error',
-      title: 'Sync error job',
-      text: 'Failed to sync to server',
-      syncStatus: SyncStatus.error,
-      hasFileIssue: false,
-      displayDate: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-    // Job pending deletion
-    JobViewModel(
-      localId: 'job_pending_deletion',
-      title: 'Pending deletion',
-      text: 'Will be deleted soon',
-      syncStatus: SyncStatus.pendingDeletion,
-      hasFileIssue: false,
-      displayDate: DateTime.now().subtract(const Duration(hours: 5)),
-    ),
   ];
+
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _jobListCubit = di.sl<JobListCubit>();
+    _createJobUseCase = di.sl<CreateJobUseCase>();
+    // Start watching jobs
+    _loadJobs();
+  }
+
+  @override
+  void dispose() {
+    _jobListCubit.close();
+    super.dispose();
+  }
+
+  void _loadJobs() {
+    // The cubit may have a different method - adjusted based on our search
+    // If loadJobs isn't available, the cubit may initialize watching automatically
+    // Doing nothing would rely on the cubit's built-in behavior
+    _logger.d('$_tag Requesting job list refresh');
+  }
+
+  Future<void> _createLoremIpsumJob() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+      // Create job with minimal required parameters
+      await _createJobUseCase(
+        CreateJobParams(
+          audioFilePath: 'playground_job_$timestamp.m4a',
+          text:
+              'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+        ),
+      );
+      _logger.i('$_tag Created new Lorem Ipsum job');
+    } catch (e) {
+      _logger.e('$_tag Error creating job: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    _logger.d(
-      '$_tag Building UI playground with ${_mockJobs.length} mock jobs',
-    );
+    _logger.d('$_tag Building UI playground');
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -81,9 +99,7 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
           child: const Icon(CupertinoIcons.refresh),
           onPressed: () {
             _logger.d('$_tag Refreshing UI playground');
-            setState(() {
-              // Reset or change state as needed for testing
-            });
+            _loadJobs();
           },
         ),
       ),
@@ -113,16 +129,75 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
                     },
                     child: const Text('Grid View'),
                   ),
+                  CupertinoButton(
+                    onPressed: _isLoading ? null : _createLoremIpsumJob,
+                    child:
+                        _isLoading
+                            ? const CupertinoActivityIndicator()
+                            : const Text('Add Lorem Ipsum Job'),
+                  ),
                 ],
               ),
             ),
 
             Expanded(
-              child: ListView.builder(
-                itemCount: _mockJobs.length,
-                itemBuilder: (context, index) {
-                  final jobViewModel = _mockJobs[index];
-                  return JobListItem(job: jobViewModel);
+              child: BlocBuilder<JobListCubit, JobListState>(
+                bloc: _jobListCubit,
+                builder: (context, state) {
+                  if (state is JobListLoading) {
+                    return const Center(child: CupertinoActivityIndicator());
+                  }
+
+                  if (state is JobListLoaded) {
+                    final jobs = state.jobs;
+
+                    if (jobs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('No jobs available'),
+                            const SizedBox(height: 16),
+                            CupertinoButton(
+                              onPressed: _createLoremIpsumJob,
+                              child: const Text('Create First Job'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: jobs.length,
+                      itemBuilder: (context, index) {
+                        return JobListItem(job: jobs[index]);
+                      },
+                    );
+                  }
+
+                  if (state is JobListError) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Error: ${state.message}'),
+                          const SizedBox(height: 16),
+                          CupertinoButton(
+                            onPressed: _loadJobs,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Fallback to mock data if we hit some edge case
+                  return ListView.builder(
+                    itemCount: _mockJobs.length,
+                    itemBuilder: (context, index) {
+                      return JobListItem(job: _mockJobs[index]);
+                    },
+                  );
                 },
               ),
             ),
