@@ -6,7 +6,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
-import 'package:docjet_mobile/features/jobs/presentation/cubits/job_detail_cubit.dart';
+import 'package:docjet_mobile/features/jobs/presentation/cubit/job_detail_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_detail_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';

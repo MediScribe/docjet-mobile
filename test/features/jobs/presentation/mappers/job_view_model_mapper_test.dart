@@ -34,6 +34,7 @@ void main() {
 
       final expectedViewModel = JobViewModel(
         localId: localId,
+        title: 'Test Job Text',
         text: 'Test Job Text',
         syncStatus: SyncStatus.synced,
         hasFileIssue: false, // 0 attempts means no issue
@@ -71,6 +72,7 @@ void main() {
 
         final expectedViewModel = JobViewModel(
           localId: localId,
+          title: 'Another Job',
           text: 'Another Job',
           syncStatus: SyncStatus.synced,
           hasFileIssue: true, // Should be true now

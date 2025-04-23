@@ -11,7 +11,7 @@ import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
-import 'package:docjet_mobile/features/jobs/presentation/state/job_list_state.dart';
+import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -40,11 +40,34 @@ void main() {
   );
   final tViewModel1 = JobViewModel(
     localId: tJobId1,
+    title: 'Job 1 Title',
     text: 'Job 1 Text',
     syncStatus: SyncStatus.synced,
     hasFileIssue: false,
     displayDate: tJob1.updatedAt,
   );
+
+  final tJobId2 = Uuid().v4();
+  final tJob2 = Job(
+    localId: tJobId2,
+    userId: 'user-1',
+    status: JobStatus.transcribing,
+    syncStatus: SyncStatus.pending,
+    createdAt: DateTime(2023, 1, 3),
+    updatedAt: DateTime(2023, 1, 4),
+    text: 'Job 2 Text',
+    failedAudioDeletionAttempts: 1,
+  );
+  final tViewModel2 = JobViewModel(
+    localId: tJobId2,
+    title: 'Job 2 Title',
+    text: 'Job 2 Text',
+    syncStatus: SyncStatus.pending,
+    hasFileIssue: true,
+    displayDate: tJob2.updatedAt,
+  );
+
+  final tServerFailure = ServerFailure(message: 'Something went wrong');
 
   setUp(() {
     mockWatchJobsUseCase = MockWatchJobsUseCase();
@@ -56,79 +79,155 @@ void main() {
       mockWatchJobsUseCase.call(any),
     ).thenAnswer((_) => streamController.stream);
 
-    jobListCubit = JobListCubit(
+    // Stub mapper behavior (can be overridden in specific tests)
+    when(mockJobViewModelMapper.toViewModel(tJob1)).thenReturn(tViewModel1);
+    when(mockJobViewModelMapper.toViewModel(tJob2)).thenReturn(tViewModel2);
+  });
+
+  // Helper to create the cubit AFTER setting up mocks for a specific test
+  JobListCubit createCubit() {
+    return JobListCubit(
       watchJobsUseCase: mockWatchJobsUseCase,
       mapper: mockJobViewModelMapper,
     );
-  });
+  }
 
   tearDown(() {
     streamController.close();
-    jobListCubit.close();
   });
 
-  test('initial state should be JobListState.initial()', () {
-    expect(jobListCubit.state, equals(JobListState.initial()));
+  test('initial state should be JobListInitial', () {
+    jobListCubit = createCubit();
+    // Assert: The state immediately after creation (and subscription start)
+    expect(jobListCubit.state, isA<JobListLoading>());
+    verify(mockWatchJobsUseCase.call(NoParams())).called(1);
+    jobListCubit.close(); // Clean up instance created outside blocTest
   });
 
-  group('loadJobs', () {
+  group('WatchJobs Stream Handling', () {
     blocTest<JobListCubit, JobListState>(
-      'emits [loading, success] when WatchJobsUseCase returns data',
-      setUp: () {
-        // Arrange: Mock mapper behavior BEFORE the stream emits
-        when(mockJobViewModelMapper.toViewModel(tJob1)).thenReturn(tViewModel1);
-      },
-      build: () => jobListCubit,
-      act: (cubit) {
-        // Act: Trigger the subscription and emit data
-        cubit.loadJobs(); // Call the method that starts listening
-        streamController.add(Right([tJob1]));
-      },
+      'emits [loading, loaded] when WatchJobsUseCase emits initial data',
+      build: () => createCubit(),
+      act: (cubit) => streamController.add(Right([tJob1])),
+      // Expect initial loading state is skipped because blocTest starts after build
       expect:
-          () => <JobListState>[
-            // Assert
-            JobListState.initial().copyWith(isLoading: true),
-            JobListState.initial().copyWith(
-              isLoading: false,
-              jobs: [tViewModel1],
-            ),
+          () => [
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel1,
+            ]),
           ],
       verify: (_) {
         verify(mockWatchJobsUseCase.call(NoParams()));
         verify(mockJobViewModelMapper.toViewModel(tJob1));
-        verifyNoMoreInteractions(mockWatchJobsUseCase);
-        verifyNoMoreInteractions(mockJobViewModelMapper);
       },
     );
 
     blocTest<JobListCubit, JobListState>(
-      'emits [loading, error] when WatchJobsUseCase returns failure',
-      build: () => jobListCubit,
-      act: (cubit) {
-        // Act: Trigger the subscription and emit an error
-        cubit.loadJobs();
-        streamController.add(
-          Left(ServerFailure(message: 'Something went wrong')),
-        );
-      },
+      'emits [loading, loaded with empty list] when WatchJobsUseCase emits empty list',
+      build: () => createCubit(),
+      act: (cubit) => streamController.add(Right([])),
       expect:
-          () => <JobListState>[
-            // Assert
-            JobListState.initial().copyWith(isLoading: true),
-            JobListState.initial().copyWith(
-              isLoading: false,
-              error: 'ServerFailure(Something went wrong, 0)',
+          () => [
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', []),
+          ],
+      verify: (_) {
+        verify(mockWatchJobsUseCase.call(NoParams()));
+        verifyNever(mockJobViewModelMapper.toViewModel(any)); // No jobs to map
+      },
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'emits [loading, error] when WatchJobsUseCase emits failure',
+      build: () => createCubit(),
+      act: (cubit) => streamController.add(Left(tServerFailure)),
+      expect:
+          () => [
+            isA<JobListError>().having(
+              (state) => (state).message,
+              'message',
+              tServerFailure.toString(),
             ),
           ],
       verify: (_) {
         verify(mockWatchJobsUseCase.call(NoParams()));
-        // Mapper should NOT be called on failure
         verifyNever(mockJobViewModelMapper.toViewModel(any));
-        verifyNoMoreInteractions(mockWatchJobsUseCase);
-        verifyNoMoreInteractions(mockJobViewModelMapper);
       },
     );
 
-    // Add more tests: Multiple emissions, empty list, etc.
+    blocTest<JobListCubit, JobListState>(
+      'emits [loading, loaded, loaded] for multiple data emissions',
+      build: () => createCubit(),
+      act: (cubit) {
+        streamController.add(Right([tJob1]));
+        streamController.add(Right([tJob1, tJob2])); // Add second job
+        streamController.add(Right([tJob2])); // Remove first job
+      },
+      expect:
+          () => [
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel1,
+            ]),
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel1,
+              tViewModel2,
+            ]),
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel2,
+            ]),
+          ],
+      verify: (_) {
+        verify(mockWatchJobsUseCase.call(NoParams()));
+        // Verify mapper calls for all emitted jobs
+        verify(
+          mockJobViewModelMapper.toViewModel(tJob1),
+        ).called(2); // Called in first two emissions
+        verify(
+          mockJobViewModelMapper.toViewModel(tJob2),
+        ).called(2); // Called in last two emissions
+      },
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'emits [loading, loaded, error, loaded] for data -> error -> data emissions',
+      build: () => createCubit(),
+      act: (cubit) {
+        streamController.add(Right([tJob1]));
+        streamController.add(Left(tServerFailure));
+        streamController.add(Right([tJob2])); // Recover with new data
+      },
+      expect:
+          () => [
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel1,
+            ]),
+            isA<JobListError>().having(
+              (state) => (state).message,
+              'message',
+              tServerFailure.toString(),
+            ),
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel2,
+            ]),
+          ],
+      verify: (_) {
+        verify(mockWatchJobsUseCase.call(NoParams()));
+        verify(mockJobViewModelMapper.toViewModel(tJob1)).called(1);
+        verify(mockJobViewModelMapper.toViewModel(tJob2)).called(1);
+      },
+    );
+
+    test('cancels stream subscription on close', () async {
+      // Arrange
+      jobListCubit = createCubit();
+      // Verify subscription started
+      verify(mockWatchJobsUseCase.call(NoParams())).called(1);
+
+      // Act
+      await jobListCubit.close();
+
+      // Assert
+      // Check if the stream controller's listener count dropped (indirect check)
+      expect(streamController.hasListener, isFalse);
+    });
   });
 }

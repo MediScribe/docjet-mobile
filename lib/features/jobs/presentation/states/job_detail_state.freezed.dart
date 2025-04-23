@@ -12,7 +12,8 @@ part of 'job_detail_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 /// @nodoc
 mixin _$JobDetailState {
@@ -22,16 +23,14 @@ mixin _$JobDetailState {
     required TResult Function(Job job) loaded,
     required TResult Function() notFound,
     required TResult Function(String message) error,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? loading,
     TResult? Function(Job job)? loaded,
     TResult? Function()? notFound,
     TResult? Function(String message)? error,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? loading,
@@ -39,24 +38,21 @@ mixin _$JobDetailState {
     TResult Function()? notFound,
     TResult Function(String message)? error,
     required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(JobDetailLoading value) loading,
     required TResult Function(JobDetailLoaded value) loaded,
     required TResult Function(JobDetailNotFound value) notFound,
     required TResult Function(JobDetailError value) error,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(JobDetailLoading value)? loading,
     TResult? Function(JobDetailLoaded value)? loaded,
     TResult? Function(JobDetailNotFound value)? notFound,
     TResult? Function(JobDetailError value)? error,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(JobDetailLoading value)? loading,
@@ -64,15 +60,15 @@ mixin _$JobDetailState {
     TResult Function(JobDetailNotFound value)? notFound,
     TResult Function(JobDetailError value)? error,
     required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 abstract class $JobDetailStateCopyWith<$Res> {
   factory $JobDetailStateCopyWith(
-          JobDetailState value, $Res Function(JobDetailState) then) =
-      _$JobDetailStateCopyWithImpl<$Res, JobDetailState>;
+    JobDetailState value,
+    $Res Function(JobDetailState) then,
+  ) = _$JobDetailStateCopyWithImpl<$Res, JobDetailState>;
 }
 
 /// @nodoc
@@ -91,18 +87,20 @@ class _$JobDetailStateCopyWithImpl<$Res, $Val extends JobDetailState>
 
 /// @nodoc
 abstract class _$$JobDetailLoadingImplCopyWith<$Res> {
-  factory _$$JobDetailLoadingImplCopyWith(_$JobDetailLoadingImpl value,
-          $Res Function(_$JobDetailLoadingImpl) then) =
-      __$$JobDetailLoadingImplCopyWithImpl<$Res>;
+  factory _$$JobDetailLoadingImplCopyWith(
+    _$JobDetailLoadingImpl value,
+    $Res Function(_$JobDetailLoadingImpl) then,
+  ) = __$$JobDetailLoadingImplCopyWithImpl<$Res>;
 }
 
 /// @nodoc
 class __$$JobDetailLoadingImplCopyWithImpl<$Res>
     extends _$JobDetailStateCopyWithImpl<$Res, _$JobDetailLoadingImpl>
     implements _$$JobDetailLoadingImplCopyWith<$Res> {
-  __$$JobDetailLoadingImplCopyWithImpl(_$JobDetailLoadingImpl _value,
-      $Res Function(_$JobDetailLoadingImpl) _then)
-      : super(_value, _then);
+  __$$JobDetailLoadingImplCopyWithImpl(
+    _$JobDetailLoadingImpl _value,
+    $Res Function(_$JobDetailLoadingImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of JobDetailState
   /// with the given fields replaced by the non-null parameter values.
@@ -208,9 +206,10 @@ abstract class JobDetailLoading implements JobDetailState {
 
 /// @nodoc
 abstract class _$$JobDetailLoadedImplCopyWith<$Res> {
-  factory _$$JobDetailLoadedImplCopyWith(_$JobDetailLoadedImpl value,
-          $Res Function(_$JobDetailLoadedImpl) then) =
-      __$$JobDetailLoadedImplCopyWithImpl<$Res>;
+  factory _$$JobDetailLoadedImplCopyWith(
+    _$JobDetailLoadedImpl value,
+    $Res Function(_$JobDetailLoadedImpl) then,
+  ) = __$$JobDetailLoadedImplCopyWithImpl<$Res>;
   @useResult
   $Res call({Job job});
 }
@@ -220,22 +219,24 @@ class __$$JobDetailLoadedImplCopyWithImpl<$Res>
     extends _$JobDetailStateCopyWithImpl<$Res, _$JobDetailLoadedImpl>
     implements _$$JobDetailLoadedImplCopyWith<$Res> {
   __$$JobDetailLoadedImplCopyWithImpl(
-      _$JobDetailLoadedImpl _value, $Res Function(_$JobDetailLoadedImpl) _then)
-      : super(_value, _then);
+    _$JobDetailLoadedImpl _value,
+    $Res Function(_$JobDetailLoadedImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of JobDetailState
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? job = null,
-  }) {
-    return _then(_$JobDetailLoadedImpl(
-      job: null == job
-          ? _value.job
-          : job // ignore: cast_nullable_to_non_nullable
-              as Job,
-    ));
+  $Res call({Object? job = null}) {
+    return _then(
+      _$JobDetailLoadedImpl(
+        job:
+            null == job
+                ? _value.job
+                : job // ignore: cast_nullable_to_non_nullable
+                    as Job,
+      ),
+    );
   }
 }
 
@@ -270,7 +271,9 @@ class _$JobDetailLoadedImpl implements JobDetailLoaded {
   @pragma('vm:prefer-inline')
   _$$JobDetailLoadedImplCopyWith<_$JobDetailLoadedImpl> get copyWith =>
       __$$JobDetailLoadedImplCopyWithImpl<_$JobDetailLoadedImpl>(
-          this, _$identity);
+        this,
+        _$identity,
+      );
 
   @override
   @optionalTypeArgs
@@ -362,18 +365,20 @@ abstract class JobDetailLoaded implements JobDetailState {
 
 /// @nodoc
 abstract class _$$JobDetailNotFoundImplCopyWith<$Res> {
-  factory _$$JobDetailNotFoundImplCopyWith(_$JobDetailNotFoundImpl value,
-          $Res Function(_$JobDetailNotFoundImpl) then) =
-      __$$JobDetailNotFoundImplCopyWithImpl<$Res>;
+  factory _$$JobDetailNotFoundImplCopyWith(
+    _$JobDetailNotFoundImpl value,
+    $Res Function(_$JobDetailNotFoundImpl) then,
+  ) = __$$JobDetailNotFoundImplCopyWithImpl<$Res>;
 }
 
 /// @nodoc
 class __$$JobDetailNotFoundImplCopyWithImpl<$Res>
     extends _$JobDetailStateCopyWithImpl<$Res, _$JobDetailNotFoundImpl>
     implements _$$JobDetailNotFoundImplCopyWith<$Res> {
-  __$$JobDetailNotFoundImplCopyWithImpl(_$JobDetailNotFoundImpl _value,
-      $Res Function(_$JobDetailNotFoundImpl) _then)
-      : super(_value, _then);
+  __$$JobDetailNotFoundImplCopyWithImpl(
+    _$JobDetailNotFoundImpl _value,
+    $Res Function(_$JobDetailNotFoundImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of JobDetailState
   /// with the given fields replaced by the non-null parameter values.
@@ -479,9 +484,10 @@ abstract class JobDetailNotFound implements JobDetailState {
 
 /// @nodoc
 abstract class _$$JobDetailErrorImplCopyWith<$Res> {
-  factory _$$JobDetailErrorImplCopyWith(_$JobDetailErrorImpl value,
-          $Res Function(_$JobDetailErrorImpl) then) =
-      __$$JobDetailErrorImplCopyWithImpl<$Res>;
+  factory _$$JobDetailErrorImplCopyWith(
+    _$JobDetailErrorImpl value,
+    $Res Function(_$JobDetailErrorImpl) then,
+  ) = __$$JobDetailErrorImplCopyWithImpl<$Res>;
   @useResult
   $Res call({String message});
 }
@@ -491,22 +497,24 @@ class __$$JobDetailErrorImplCopyWithImpl<$Res>
     extends _$JobDetailStateCopyWithImpl<$Res, _$JobDetailErrorImpl>
     implements _$$JobDetailErrorImplCopyWith<$Res> {
   __$$JobDetailErrorImplCopyWithImpl(
-      _$JobDetailErrorImpl _value, $Res Function(_$JobDetailErrorImpl) _then)
-      : super(_value, _then);
+    _$JobDetailErrorImpl _value,
+    $Res Function(_$JobDetailErrorImpl) _then,
+  ) : super(_value, _then);
 
   /// Create a copy of JobDetailState
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? message = null,
-  }) {
-    return _then(_$JobDetailErrorImpl(
-      message: null == message
-          ? _value.message
-          : message // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
+  $Res call({Object? message = null}) {
+    return _then(
+      _$JobDetailErrorImpl(
+        message:
+            null == message
+                ? _value.message
+                : message // ignore: cast_nullable_to_non_nullable
+                    as String,
+      ),
+    );
   }
 }
 
@@ -541,7 +549,9 @@ class _$JobDetailErrorImpl implements JobDetailError {
   @pragma('vm:prefer-inline')
   _$$JobDetailErrorImplCopyWith<_$JobDetailErrorImpl> get copyWith =>
       __$$JobDetailErrorImplCopyWithImpl<_$JobDetailErrorImpl>(
-          this, _$identity);
+        this,
+        _$identity,
+      );
 
   @override
   @optionalTypeArgs

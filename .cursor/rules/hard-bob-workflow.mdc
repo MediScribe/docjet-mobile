@@ -8,18 +8,19 @@ alwaysApply: true
 Follow these steps religiously, or face the fucking consequences.
 
 1.  **TDD First**: Write the fucking test first. Watch it fail (RED). Then, write *only* the code needed to make it pass (GREEN). Refactor if necessary. No shortcuts.
-2.  **Test Placement**: Tests belong in the `tests/` directory, *never* in `lib/`. Keep your shit organized.
-3.  **Logging**: Use the helpers in `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` for instrumentation. Don't fucking use `print` like some amateur. See the main project `[README.md](mdc:README.md)` for more on logging.
-4.  **Linting & Debugging**: 
+2.  **GREP First**: Before blindly creating new files, use fucking grep. Don't make me burn down your new house if we had another one already.
+3.  **Test Placement**: Tests belong in the `tests/` directory, *never* in `lib/`. Keep your shit organized.
+4.  **Logging**: Use the helpers in `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` for instrumentation. Don't fucking use `print` like some amateur. See the main project `[README.md](mdc:README.md)` for more on logging.
+5.  **Linting & Debugging**: 
     *   After every significant code change, run `dart analyze` and fix *all* linter issues, *before* running the test. No exceptions. Clean code isn't optional.
     *   **DO NOT** run tests with `-v`. It's fucking useless noise. If a test fails, don't guess or blindly retry. Add logging using `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` (even in the test itself!) to understand *why* it failed. Analyze, don't flail.
-5.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
-6.  **Check Test Failures**: Always start by running `./scripts/list_failed_tests.dart` ([list_failed_tests.dart](mdc:scripts/list_failed_tests.dart)) to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. If tests fail, you can run again with:
+6.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
+7.  **Check Test Failures**: Always start by running `./scripts/list_failed_tests.dart` ([list_failed_tests.dart](mdc:scripts/list_failed_tests.dart)) to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. If tests fail, you can run again with:
     *   `--debug` to see the console output *from those tests*.
     *   `--except` to see the exception details (error message and stack trace) *for those tests*, grouped by file.
     **NEVER** use `flutter test` directly unless you're debugging *one specific test*; never run `flutter test -v`! Don't commit broken shit.
-7.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
-8.  **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
-9.  **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.
+8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
+9.  **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
+10. **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.
 
 This is the way. Don't deviate.

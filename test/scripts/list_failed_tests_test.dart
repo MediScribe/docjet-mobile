@@ -10,6 +10,7 @@ import '../../scripts/list_failed_tests.dart';
 class FakeProcessRunner implements ProcessRunner {
   final ProcessResult result;
   List<String>? capturedArguments;
+  Map<String, String>? capturedEnvironment;
 
   FakeProcessRunner(this.result);
 
@@ -17,8 +18,10 @@ class FakeProcessRunner implements ProcessRunner {
   Future<ProcessResult> runProcess(
     List<String> arguments, {
     bool runInShell = true,
+    Map<String, String>? environment,
   }) async {
     capturedArguments = arguments;
+    capturedEnvironment = environment;
     return result;
   }
 }
@@ -186,6 +189,54 @@ void main() {
       expect(result.allEvents[0]['type'], 'start');
       expect(result.allEvents[1]['type'], 'allDone');
     });
+
+    test(
+      'should pass environment variable when targeting debug_test.dart',
+      () async {
+        // Given
+        final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
+        final mockProcessor = TestEventProcessorMock({});
+        final runner = FailedTestRunner(
+          processRunner: fakeRunner,
+          eventProcessor: mockProcessor,
+          formatter: ResultFormatter(),
+        );
+        final target = 'test/scripts/debug_test.dart';
+
+        // When
+        await runner.run([target], debugMode: false, exceptMode: false);
+
+        // Then
+        // Check that runProcess was called with the environment variable
+        expect(fakeRunner.capturedEnvironment, isNotNull);
+        expect(
+          fakeRunner.capturedEnvironment?['DEBUG_TEST_SHOULD_FAIL'],
+          'true',
+        );
+      },
+    );
+
+    test(
+      'should NOT pass environment variable when targeting other files',
+      () async {
+        // Given
+        final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
+        final mockProcessor = TestEventProcessorMock({});
+        final runner = FailedTestRunner(
+          processRunner: fakeRunner,
+          eventProcessor: mockProcessor,
+          formatter: ResultFormatter(),
+        );
+        final target = 'test/some_other_test.dart';
+
+        // When
+        await runner.run([target], debugMode: false, exceptMode: false);
+
+        // Then
+        // Check that runProcess was called WITHOUT the environment variable
+        expect(fakeRunner.capturedEnvironment, isNull);
+      },
+    );
   });
 
   // --- New Tests for ResultFormatter ---

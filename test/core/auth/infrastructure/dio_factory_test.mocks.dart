@@ -28,35 +28,20 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: subtype_of_sealed_class
 
 class _FakeDio_0 extends _i1.SmartFake implements _i2.Dio {
-  _FakeDio_0(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
+  _FakeDio_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeAuthCredentialsProvider_1 extends _i1.SmartFake
     implements _i3.AuthCredentialsProvider {
-  _FakeAuthCredentialsProvider_1(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
+  _FakeAuthCredentialsProvider_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 class _FakeAuthResponseDto_2 extends _i1.SmartFake
     implements _i4.AuthResponseDto {
-  _FakeAuthResponseDto_2(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
+  _FakeAuthResponseDto_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
 }
 
 /// A class which mocks [AuthApiClient].
@@ -68,65 +53,49 @@ class MockAuthApiClient extends _i1.Mock implements _i5.AuthApiClient {
   }
 
   @override
-  _i2.Dio get httpClient => (super.noSuchMethod(
-        Invocation.getter(#httpClient),
-        returnValue: _FakeDio_0(
-          this,
-          Invocation.getter(#httpClient),
-        ),
-      ) as _i2.Dio);
-
-  @override
-  _i3.AuthCredentialsProvider get credentialsProvider => (super.noSuchMethod(
-        Invocation.getter(#credentialsProvider),
-        returnValue: _FakeAuthCredentialsProvider_1(
-          this,
-          Invocation.getter(#credentialsProvider),
-        ),
-      ) as _i3.AuthCredentialsProvider);
-
-  @override
-  _i6.Future<_i4.AuthResponseDto> login(
-    String? email,
-    String? password,
-  ) =>
+  _i2.Dio get httpClient =>
       (super.noSuchMethod(
-        Invocation.method(
-          #login,
-          [
-            email,
-            password,
-          ],
-        ),
-        returnValue:
-            _i6.Future<_i4.AuthResponseDto>.value(_FakeAuthResponseDto_2(
-          this,
-          Invocation.method(
-            #login,
-            [
-              email,
-              password,
-            ],
-          ),
-        )),
-      ) as _i6.Future<_i4.AuthResponseDto>);
+            Invocation.getter(#httpClient),
+            returnValue: _FakeDio_0(this, Invocation.getter(#httpClient)),
+          )
+          as _i2.Dio);
+
+  @override
+  _i3.AuthCredentialsProvider get credentialsProvider =>
+      (super.noSuchMethod(
+            Invocation.getter(#credentialsProvider),
+            returnValue: _FakeAuthCredentialsProvider_1(
+              this,
+              Invocation.getter(#credentialsProvider),
+            ),
+          )
+          as _i3.AuthCredentialsProvider);
+
+  @override
+  _i6.Future<_i4.AuthResponseDto> login(String? email, String? password) =>
+      (super.noSuchMethod(
+            Invocation.method(#login, [email, password]),
+            returnValue: _i6.Future<_i4.AuthResponseDto>.value(
+              _FakeAuthResponseDto_2(
+                this,
+                Invocation.method(#login, [email, password]),
+              ),
+            ),
+          )
+          as _i6.Future<_i4.AuthResponseDto>);
 
   @override
   _i6.Future<_i4.AuthResponseDto> refreshToken(String? refreshToken) =>
       (super.noSuchMethod(
-        Invocation.method(
-          #refreshToken,
-          [refreshToken],
-        ),
-        returnValue:
-            _i6.Future<_i4.AuthResponseDto>.value(_FakeAuthResponseDto_2(
-          this,
-          Invocation.method(
-            #refreshToken,
-            [refreshToken],
-          ),
-        )),
-      ) as _i6.Future<_i4.AuthResponseDto>);
+            Invocation.method(#refreshToken, [refreshToken]),
+            returnValue: _i6.Future<_i4.AuthResponseDto>.value(
+              _FakeAuthResponseDto_2(
+                this,
+                Invocation.method(#refreshToken, [refreshToken]),
+              ),
+            ),
+          )
+          as _i6.Future<_i4.AuthResponseDto>);
 }
 
 /// A class which mocks [AuthCredentialsProvider].
@@ -139,69 +108,62 @@ class MockAuthCredentialsProvider extends _i1.Mock
   }
 
   @override
-  _i6.Future<String?> getApiKey() => (super.noSuchMethod(
-        Invocation.method(
-          #getApiKey,
-          [],
-        ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+  _i6.Future<String?> getApiKey() =>
+      (super.noSuchMethod(
+            Invocation.method(#getApiKey, []),
+            returnValue: _i6.Future<String?>.value(),
+          )
+          as _i6.Future<String?>);
 
   @override
-  _i6.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
-        Invocation.method(
-          #setAccessToken,
-          [token],
-        ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+  _i6.Future<void> setAccessToken(String? token) =>
+      (super.noSuchMethod(
+            Invocation.method(#setAccessToken, [token]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
 
   @override
-  _i6.Future<String?> getAccessToken() => (super.noSuchMethod(
-        Invocation.method(
-          #getAccessToken,
-          [],
-        ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+  _i6.Future<String?> getAccessToken() =>
+      (super.noSuchMethod(
+            Invocation.method(#getAccessToken, []),
+            returnValue: _i6.Future<String?>.value(),
+          )
+          as _i6.Future<String?>);
 
   @override
-  _i6.Future<void> deleteAccessToken() => (super.noSuchMethod(
-        Invocation.method(
-          #deleteAccessToken,
-          [],
-        ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+  _i6.Future<void> deleteAccessToken() =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteAccessToken, []),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
 
   @override
-  _i6.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
-        Invocation.method(
-          #setRefreshToken,
-          [token],
-        ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+  _i6.Future<void> setRefreshToken(String? token) =>
+      (super.noSuchMethod(
+            Invocation.method(#setRefreshToken, [token]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
 
   @override
-  _i6.Future<String?> getRefreshToken() => (super.noSuchMethod(
-        Invocation.method(
-          #getRefreshToken,
-          [],
-        ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+  _i6.Future<String?> getRefreshToken() =>
+      (super.noSuchMethod(
+            Invocation.method(#getRefreshToken, []),
+            returnValue: _i6.Future<String?>.value(),
+          )
+          as _i6.Future<String?>);
 
   @override
-  _i6.Future<void> deleteRefreshToken() => (super.noSuchMethod(
-        Invocation.method(
-          #deleteRefreshToken,
-          [],
-        ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+  _i6.Future<void> deleteRefreshToken() =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteRefreshToken, []),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
 }

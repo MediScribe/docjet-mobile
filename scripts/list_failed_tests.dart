@@ -114,6 +114,7 @@ abstract class ProcessRunner {
   Future<ProcessResult> runProcess(
     List<String> arguments, {
     bool runInShell = true,
+    Map<String, String>? environment,
   });
 }
 
@@ -123,12 +124,14 @@ class ProcessRunnerImpl implements ProcessRunner {
   Future<ProcessResult> runProcess(
     List<String> arguments, {
     bool runInShell = true,
+    Map<String, String>? environment,
   }) async {
     try {
       final process = await Process.start(
         'flutter',
         arguments,
         runInShell: runInShell,
+        environment: environment,
       );
 
       final stdoutCompleter = Completer<String>();
@@ -501,11 +504,28 @@ class FailedTestRunner {
       arguments.add(testTarget);
     }
 
-    if (_debugScript) {
-      print('[SCRIPT_DEBUG] Starting flutter test with arguments: $arguments');
+    // Prepare environment variables specifically for the debug test
+    Map<String, String>? environment;
+    if (testTarget != null && testTarget.contains('debug_test.dart')) {
+      environment = {'DEBUG_TEST_SHOULD_FAIL': 'true'};
+      if (_debugScript) {
+        print(
+          '[SCRIPT_DEBUG] Activating DEBUG_TEST_SHOULD_FAIL for $testTarget',
+        );
+      }
     }
 
-    final processResult = await processRunner.runProcess(arguments);
+    if (_debugScript) {
+      print('[SCRIPT_DEBUG] Starting flutter test with arguments: $arguments');
+      if (environment != null) {
+        print('[SCRIPT_DEBUG] Using environment: $environment');
+      }
+    }
+
+    final processResult = await processRunner.runProcess(
+      arguments,
+      environment: environment,
+    );
 
     if (processResult.exitCode != 0 && processResult.exitCode != 1) {
       stderr.writeln(
