@@ -6,6 +6,7 @@
 import 'dart:async' as _i4;
 
 import 'package:dartz/dartz.dart' as _i2;
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i12;
 import 'package:docjet_mobile/core/error/failures.dart' as _i5;
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart'
     as _i9;
@@ -21,6 +22,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i6;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -50,6 +52,10 @@ class _FakeEither_0<L, R> extends _i1.SmartFake implements _i2.Either<L, R> {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
+  MockJobReaderService() {
+    _i1.throwOnMissingStub(this);
+  }
+
   @override
   _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>> getJobs() =>
       (super.noSuchMethod(
@@ -59,15 +65,6 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
         ),
         returnValue: _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>.value(
             _FakeEither_0<_i5.Failure, List<_i6.Job>>(
-          this,
-          Invocation.method(
-            #getJobs,
-            [],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>.value(
-                _FakeEither_0<_i5.Failure, List<_i6.Job>>(
           this,
           Invocation.method(
             #getJobs,
@@ -85,15 +82,6 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
         ),
         returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
             _FakeEither_0<_i5.Failure, _i6.Job>(
-          this,
-          Invocation.method(
-            #getJobById,
-            [localId],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-                _FakeEither_0<_i5.Failure, _i6.Job>(
           this,
           Invocation.method(
             #getJobById,
@@ -118,15 +106,6 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
             [status],
           ),
         )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>.value(
-                _FakeEither_0<_i5.Failure, List<_i6.Job>>(
-          this,
-          Invocation.method(
-            #getJobsByStatus,
-            [status],
-          ),
-        )),
       ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>);
 
   @override
@@ -137,8 +116,6 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
           [],
         ),
         returnValue: _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>.empty(),
-        returnValueForMissingStub:
-            _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>.empty(),
       ) as _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>);
 
   @override
@@ -149,8 +126,6 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
           [localId],
         ),
         returnValue: _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>.empty(),
-        returnValueForMissingStub:
-            _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>.empty(),
       ) as _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>);
 }
 
@@ -158,6 +133,10 @@ class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
+  MockJobWriterService() {
+    _i1.throwOnMissingStub(this);
+  }
+
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> createJob({
     required String? userId,
@@ -176,20 +155,6 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
         ),
         returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
             _FakeEither_0<_i5.Failure, _i6.Job>(
-          this,
-          Invocation.method(
-            #createJob,
-            [],
-            {
-              #userId: userId,
-              #audioFilePath: audioFilePath,
-              #text: text,
-            },
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-                _FakeEither_0<_i5.Failure, _i6.Job>(
           this,
           Invocation.method(
             #createJob,
@@ -229,19 +194,6 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             },
           ),
         )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-                _FakeEither_0<_i5.Failure, _i6.Job>(
-          this,
-          Invocation.method(
-            #updateJob,
-            [],
-            {
-              #localId: localId,
-              #updates: updates,
-            },
-          ),
-        )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
 
   @override
@@ -270,19 +222,6 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             },
           ),
         )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-                _FakeEither_0<_i5.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #updateJobSyncStatus,
-            [],
-            {
-              #localId: localId,
-              #status: status,
-            },
-          ),
-        )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 
   @override
@@ -301,15 +240,6 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             [localId],
           ),
         )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-                _FakeEither_0<_i5.Failure, _i6.Job>(
-          this,
-          Invocation.method(
-            #resetDeletionFailureCounter,
-            [localId],
-          ),
-        )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
 }
 
@@ -317,6 +247,10 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
+  MockJobDeleterService() {
+    _i1.throwOnMissingStub(this);
+  }
+
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> deleteJob(String? localId) =>
       (super.noSuchMethod(
@@ -326,15 +260,6 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
         ),
         returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
             _FakeEither_0<_i5.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #deleteJob,
-            [localId],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-                _FakeEither_0<_i5.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #deleteJob,
@@ -359,15 +284,6 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
             [localId],
           ),
         )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-                _FakeEither_0<_i5.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #permanentlyDeleteJob,
-            [localId],
-          ),
-        )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 }
 
@@ -376,6 +292,10 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
 /// See the documentation for Mockito's code generation for more information.
 class MockJobSyncOrchestratorService extends _i1.Mock
     implements _i11.JobSyncOrchestratorService {
+  MockJobSyncOrchestratorService() {
+    _i1.throwOnMissingStub(this);
+  }
+
   @override
   _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> syncPendingJobs() =>
       (super.noSuchMethod(
@@ -385,15 +305,6 @@ class MockJobSyncOrchestratorService extends _i1.Mock
         ),
         returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
             _FakeEither_0<_i5.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #syncPendingJobs,
-            [],
-          ),
-        )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-                _FakeEither_0<_i5.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #syncPendingJobs,
@@ -420,15 +331,39 @@ class MockJobSyncOrchestratorService extends _i1.Mock
             {#localId: localId},
           ),
         )),
-        returnValueForMissingStub:
-            _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-                _FakeEither_0<_i5.Failure, _i2.Unit>(
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+}
+
+/// A class which mocks [AuthSessionProvider].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthSessionProvider extends _i1.Mock
+    implements _i12.AuthSessionProvider {
+  MockAuthSessionProvider() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  String getCurrentUserId() => (super.noSuchMethod(
+        Invocation.method(
+          #getCurrentUserId,
+          [],
+        ),
+        returnValue: _i13.dummyValue<String>(
           this,
           Invocation.method(
-            #resetFailedJob,
+            #getCurrentUserId,
             [],
-            {#localId: localId},
           ),
-        )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+        ),
+      ) as String);
+
+  @override
+  bool isAuthenticated() => (super.noSuchMethod(
+        Invocation.method(
+          #isAuthenticated,
+          [],
+        ),
+        returnValue: false,
+      ) as bool);
 }

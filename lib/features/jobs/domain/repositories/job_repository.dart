@@ -46,6 +46,7 @@ abstract class JobRepository {
   /// Creates a new job locally with the provided audio file path and optional text.
   /// A unique [localId] is generated and assigned internally.
   /// The job is initially marked with [SyncStatus.pending].
+  /// The user ID is obtained from the AuthSessionProvider internally.
   /// Returns [Right(Job)] containing the newly created job object on success.
   /// Returns [Left(Failure)] if the creation process fails (e.g., cache error).
   Future<Either<Failure, Job>> createJob({

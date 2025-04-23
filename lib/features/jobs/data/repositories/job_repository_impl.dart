@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart'; // Import dartz
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
@@ -19,21 +20,25 @@ class JobRepositoryImpl implements JobRepository {
   final JobWriterService _writerService;
   final JobDeleterService _deleterService;
   final JobSyncOrchestratorService _orchestratorService;
+  final AuthSessionProvider _authSessionProvider;
   final Logger _logger = LoggerFactory.getLogger(JobRepositoryImpl);
   static final String _tag = logTag(JobRepositoryImpl);
 
   /// Creates an instance of [JobRepositoryImpl].
   ///
-  /// Requires instances of all the specialized job services.
+  /// Requires instances of all the specialized job services and an AuthSessionProvider
+  /// to provide the authenticated user's context.
   JobRepositoryImpl({
     required JobReaderService readerService,
     required JobWriterService writerService,
     required JobDeleterService deleterService,
     required JobSyncOrchestratorService orchestratorService,
+    required AuthSessionProvider authSessionProvider,
   }) : _readerService = readerService,
        _writerService = writerService,
        _deleterService = deleterService,
-       _orchestratorService = orchestratorService {
+       _orchestratorService = orchestratorService,
+       _authSessionProvider = authSessionProvider {
     _logger.i('$_tag JobRepositoryImpl initialized.');
   }
 
@@ -55,13 +60,16 @@ class JobRepositoryImpl implements JobRepository {
 
   @override
   Future<Either<Failure, Job>> createJob({
-    required String userId,
     required String audioFilePath,
     String? text,
   }) {
     _logger.d(
       '$_tag createJob called with audioFilePath: $audioFilePath, text: $text',
     );
+
+    // Get the userId from the AuthSessionProvider
+    final userId = _authSessionProvider.getCurrentUserId();
+
     return _writerService.createJob(
       userId: userId,
       audioFilePath: audioFilePath,
