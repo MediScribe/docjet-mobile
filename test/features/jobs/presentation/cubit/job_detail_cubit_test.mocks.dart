@@ -29,8 +29,13 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: subtype_of_sealed_class
 
 class _FakeJobRepository_0 extends _i1.SmartFake implements _i2.JobRepository {
-  _FakeJobRepository_0(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeJobRepository_0(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 /// A class which mocks [WatchJobByIdUseCase].
@@ -43,23 +48,22 @@ class MockWatchJobByIdUseCase extends _i1.Mock
   }
 
   @override
-  _i2.JobRepository get repository =>
-      (super.noSuchMethod(
-            Invocation.getter(#repository),
-            returnValue: _FakeJobRepository_0(
-              this,
-              Invocation.getter(#repository),
-            ),
-          )
-          as _i2.JobRepository);
+  _i2.JobRepository get repository => (super.noSuchMethod(
+        Invocation.getter(#repository),
+        returnValue: _FakeJobRepository_0(
+          this,
+          Invocation.getter(#repository),
+        ),
+      ) as _i2.JobRepository);
 
   @override
   _i4.Stream<_i5.Either<_i6.Failure, _i7.Job?>> call(
-    _i3.WatchJobParams? params,
-  ) =>
+          _i3.WatchJobParams? params) =>
       (super.noSuchMethod(
-            Invocation.method(#call, [params]),
-            returnValue: _i4.Stream<_i5.Either<_i6.Failure, _i7.Job?>>.empty(),
-          )
-          as _i4.Stream<_i5.Either<_i6.Failure, _i7.Job?>>);
+        Invocation.method(
+          #call,
+          [params],
+        ),
+        returnValue: _i4.Stream<_i5.Either<_i6.Failure, _i7.Job?>>.empty(),
+      ) as _i4.Stream<_i5.Either<_i6.Failure, _i7.Job?>>);
 }

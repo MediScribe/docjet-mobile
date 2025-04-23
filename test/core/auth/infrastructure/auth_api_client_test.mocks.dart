@@ -32,62 +32,69 @@ class MockAuthCredentialsProvider extends _i1.Mock
   }
 
   @override
-  _i3.Future<String?> getApiKey() =>
-      (super.noSuchMethod(
-            Invocation.method(#getApiKey, []),
-            returnValue: _i3.Future<String?>.value(),
-          )
-          as _i3.Future<String?>);
+  _i3.Future<String?> getApiKey() => (super.noSuchMethod(
+        Invocation.method(
+          #getApiKey,
+          [],
+        ),
+        returnValue: _i3.Future<String?>.value(),
+      ) as _i3.Future<String?>);
 
   @override
-  _i3.Future<void> setAccessToken(String? token) =>
-      (super.noSuchMethod(
-            Invocation.method(#setAccessToken, [token]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
+  _i3.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
+        Invocation.method(
+          #setAccessToken,
+          [token],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 
   @override
-  _i3.Future<String?> getAccessToken() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAccessToken, []),
-            returnValue: _i3.Future<String?>.value(),
-          )
-          as _i3.Future<String?>);
+  _i3.Future<String?> getAccessToken() => (super.noSuchMethod(
+        Invocation.method(
+          #getAccessToken,
+          [],
+        ),
+        returnValue: _i3.Future<String?>.value(),
+      ) as _i3.Future<String?>);
 
   @override
-  _i3.Future<void> deleteAccessToken() =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteAccessToken, []),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
+  _i3.Future<void> deleteAccessToken() => (super.noSuchMethod(
+        Invocation.method(
+          #deleteAccessToken,
+          [],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 
   @override
-  _i3.Future<void> setRefreshToken(String? token) =>
-      (super.noSuchMethod(
-            Invocation.method(#setRefreshToken, [token]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
+  _i3.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
+        Invocation.method(
+          #setRefreshToken,
+          [token],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 
   @override
-  _i3.Future<String?> getRefreshToken() =>
-      (super.noSuchMethod(
-            Invocation.method(#getRefreshToken, []),
-            returnValue: _i3.Future<String?>.value(),
-          )
-          as _i3.Future<String?>);
+  _i3.Future<String?> getRefreshToken() => (super.noSuchMethod(
+        Invocation.method(
+          #getRefreshToken,
+          [],
+        ),
+        returnValue: _i3.Future<String?>.value(),
+      ) as _i3.Future<String?>);
 
   @override
-  _i3.Future<void> deleteRefreshToken() =>
-      (super.noSuchMethod(
-            Invocation.method(#deleteRefreshToken, []),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
+  _i3.Future<void> deleteRefreshToken() => (super.noSuchMethod(
+        Invocation.method(
+          #deleteRefreshToken,
+          [],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 }

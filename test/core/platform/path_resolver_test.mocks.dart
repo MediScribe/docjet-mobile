@@ -24,8 +24,13 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: subtype_of_sealed_class
 
 class _FakeDirectory_0 extends _i1.SmartFake implements _i2.Directory {
-  _FakeDirectory_0(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeDirectory_0(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
 }
 
 /// A class which mocks [PathProvider].
@@ -39,13 +44,16 @@ class MockPathProvider extends _i1.Mock implements _i3.PathProvider {
   @override
   _i4.Future<_i2.Directory> getApplicationDocumentsDirectory() =>
       (super.noSuchMethod(
-            Invocation.method(#getApplicationDocumentsDirectory, []),
-            returnValue: _i4.Future<_i2.Directory>.value(
-              _FakeDirectory_0(
-                this,
-                Invocation.method(#getApplicationDocumentsDirectory, []),
-              ),
-            ),
-          )
-          as _i4.Future<_i2.Directory>);
+        Invocation.method(
+          #getApplicationDocumentsDirectory,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Directory>.value(_FakeDirectory_0(
+          this,
+          Invocation.method(
+            #getApplicationDocumentsDirectory,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Directory>);
 }

@@ -33,91 +33,91 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons:
 
   # Core Dependencies from old project
-  logger: ^2.5.0
-  get_it: ^8.0.3
-  equatable: ^2.0.7
-  path: ^1.9.0 # Using 1.9.0 instead of 1.9.1 from original list
-  path_provider: ^2.1.2
-  permission_handler: ^12.0.0+1
-  dartz: ^0.10.1
-  json_annotation: ^4.9.0
+  logger:
+  get_it:
+  equatable:
+  path: # Using 1.9.0 instead of 1.9.1 from original list
+  path_provider:
+  permission_handler:
+  dartz:
+  json_annotation:
 
   # State management
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
-  flutter_bloc: ^8.1.5 # For Cubit-based state management
-  bloc: ^8.1.4 # Core bloc package needed for Cubit
+  flutter_riverpod:
+  riverpod_annotation:
+  flutter_bloc: # For Cubit-based state management
+  bloc: # Core bloc package needed for Cubit
 
   # Hive for local storage
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
+  hive:
+  hive_flutter:
 
   # HTTP Client
-  dio: ^5.5.0+1 # Added for network requests
-  flutter_secure_storage: ^9.2.4 # Updated to latest
-  http_parser: ^4.1.2
-  uuid: ^4.5.1
-  connectivity_plus: ^6.1.3
-  rxdart: ^0.28.0
-  mutex: ^3.1.0
-  freezed_annotation: ^2.4.4
-  injectable: ^2.5.0
+  dio: # Added for network requests
+  flutter_secure_storage: # Updated to latest
+  http_parser:
+  uuid:
+  connectivity_plus:
+  rxdart:
+  mutex:
+  freezed_annotation:
+  injectable:
 
   # Internationalization
-  intl: ^0.19.0 # Added for date formatting
+  intl: # Added for date formatting
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
-  test: any # Add the test package for integration_test
+  test: # Add the test package for integration_test
 
   # Dev Dependencies from old project
-  bloc_test: ^9.1.6 # Testing for bloc/cubit state management
-  mockito: ^5.4.5 # Using latest stable
-  build_runner: ^2.4.15 # Using latest stable
-  hive_generator: ^2.0.1
-  json_serializable: ^6.9.0 # Reverted due to source_gen conflict with hive_generator
-  http_mock_adapter: ^0.6.1 # Corrected package name for mocking dio requests
-  riverpod_generator: ^2.6.3 # Reverted due to source_gen conflict with hive_generator
+  bloc_test: # Testing for bloc/cubit state management
+  mockito: # Using latest stable
+  build_runner: # Using latest stable
+  hive_generator:
+  json_serializable: # Reverted due to source_gen conflict with hive_generator
+  http_mock_adapter: # Corrected package name for mocking dio requests
+  riverpod_generator: # Reverted due to source_gen conflict with hive_generator
 
   # Add hive_test for testing Hive models
-  hive_test: ^1.0.1
+  hive_test:
 
   # Command-line argument parsing for scripts
-  args: ^2.5.0
+  args:
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0 # Updated to latest available
+  flutter_lints: # Updated to latest available
 
   # New dev dependencies
-  coverage: ^1.8.0
+  coverage:
   dart_code_metrics:
     git:
       url: https://github.com/steeple-org/flutter_package_dart_code_metrics.git
       ref: master # Or a specific commit/tag if preferred
-  fake_async: ^1.3.1
+  fake_async:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
-  connectivity_plus_platform_interface: any
+  connectivity_plus_platform_interface:
   flutter_driver:
     sdk: flutter
-  freezed: ^2.5.7
-  injectable_generator: ^2.6.2
-  flutter_secure_storage_platform_interface: ^1.1.2
-  plugin_platform_interface: ^2.1.8
-  path_provider_platform_interface: ^2.1.2
+  freezed:
+  injectable_generator:
+  flutter_secure_storage_platform_interface:
+  plugin_platform_interface:
+  path_provider_platform_interface:
 flutter:
 
   # The following line ensures that the Material Icons font is
