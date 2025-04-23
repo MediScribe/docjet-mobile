@@ -217,10 +217,20 @@ The app expects two main variables:
 
 Pass these variables when running or building the app:
 
-*   **Running with Mock Server (Handled by `run_e2e_tests.sh`):**
-    The test script now uses the `secrets.test.json` file (see below) to load configuration:
+*   **Running Locally with Mock Server:**
+    For easy local development against the mock server, use the provided script. It handles starting the server, running the app with the correct configuration (`secrets.test.json`), and stopping the server automatically when you quit.
+    ```bash
+    # Make sure it's executable (first time only)
+    chmod +x ./scripts/run_with_mock.sh
+    # Run the app
+    ./scripts/run_with_mock.sh
+    ```
+    This is the recommended way to run the app for testing features that require a backend.
+
+*   **Running E2E Tests (Handled by `run_e2e_tests.sh`):**
+    The E2E test script (`scripts/run_e2e_tests.sh`) uses the `secrets.test.json` file to load configuration automatically:
     `--dart-define-from-file=secrets.test.json`
-    # Ensure you have copied secrets.test.json.example to secrets.test.json
+    Ensure you have copied `secrets.test.json.example` to `secrets.test.json`.
 
 *   **Running Manually (e.g., against a Dev API):**
     ```bash
@@ -250,13 +260,9 @@ Pass these variables when running or building the app:
     Then run/build with the appropriate file:
     ```bash
     flutter run --dart-define-from-file=secrets.dev.json
-    # or for tests, the run_e2e_tests.sh script uses secrets.test.json
+    # The E2E test script (`./scripts/run_e2e_tests.sh`) uses secrets.test.json
+    # The local run script (`./scripts/run_with_mock.sh`) also uses secrets.test.json
     ```
 
 Inside the Dart code (e.g., `lib/core/config/app_config.dart` or wherever your API client is setup), access these like so:
-```dart
-const apiKey = String.fromEnvironment('API_KEY', defaultValue: 'MISSING_API_KEY');
-const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'MISSING_BASE_URL');
-
-// Add checks to ensure these aren't the default values in production!
 ```
