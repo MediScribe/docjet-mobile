@@ -53,9 +53,7 @@ graph TD
     Repository -- Emits --> JobEntity
 
     JobListCubit -- Maps Job to --> JobViewModel
-    JobDetailCubit -- Maps Job to --> JobViewModel
     JobViewModel -- Used in --> JobListState
-    JobViewModel -- Used in --> JobDetailState
 
     %% Action Flow (Simplified)
     UI -- Triggers Action --> ActionUC
@@ -93,9 +91,8 @@ graph TD
 - **Functionality:**
     - Subscribes to the `Stream<Job?>` provided by `WatchJobByIdUseCase` using the initial `jobId`.
     - Listens for updates to the specific job.
-    - Maps the incoming `Job?` (or errors) to `JobDetailState` instances.
-    - Emits states like `JobDetailLoading`, `JobDetailLoaded(JobViewModel)`, `JobDetailNotFound`, `JobDetailError`.
-- **ViewModel:** Also uses `JobViewModel` to prepare the job data for the detail view.
+    - Maps the incoming `Job?` (or errors) to `JobDetailState` instances. Note: The `JobDetailLoaded` state currently contains the raw `Job` entity, not a mapped `JobViewModel`.
+    - Emits states like `JobDetailLoading`, `JobDetailLoaded(Job)`, `JobDetailNotFound`, `JobDetailError`.
 
 ## Interaction with Use Cases
 
@@ -109,6 +106,6 @@ This architecture supports notifying the UI about issues like failed audio delet
 1.  The `Job` entity contains `failedAudioDeletionAttempts > 0`.
 2.  The `WatchJobsUseCase` / `WatchJobByIdUseCase` streams emit updated `Job` objects when this counter changes.
 3.  The `JobListCubit` / `JobDetailCubit` receive the updated `Job`.
-4.  The mapper creating the `JobViewModel` includes logic to expose a flag like `viewModel.hasFileDeletionIssue` based on the counter.
-5.  The Cubit emits a new `...Loaded` state containing the updated `JobViewModel`.
-6.  The UI rebuilds and can display an indicator based on `viewModel.hasFileDeletionIssue`. 
+4.  For the list view, the mapper creating the `JobViewModel` includes logic to expose a flag like `viewModel.hasFileDeletionIssue` based on the counter.
+5.  The `JobListCubit` emits a new `JobListLoaded` state containing the updated `JobViewModel`. The `JobDetailCubit` emits a `JobDetailLoaded` state containing the updated raw `Job` entity.
+6.  The UI rebuilds and can display an indicator based on `viewModel.hasFileDeletionIssue` (in the list view) or by accessing the corresponding property directly from the `Job` entity (in the detail view). 
