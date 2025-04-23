@@ -4,6 +4,7 @@ import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.d
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart'; // Add Cupertino import
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart'; // Use mockito
@@ -39,7 +40,7 @@ void main() {
 
   group('JobListPage', () {
     testWidgets(
-      'renders CircularProgressIndicator when state is JobListLoading',
+      'renders CupertinoActivityIndicator when state is JobListLoading',
       (WidgetTester tester) async {
         // Arrange: Stub the cubit's stream to emit the loading state
         when(
@@ -54,7 +55,7 @@ void main() {
         // No need for extra pump when state is set directly before pumpWidget
 
         // Assert: Verify the loading indicator is present
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
         // Assert: Verify no list or error message is shown
         expect(find.byType(ListView), findsNothing);
         expect(
@@ -85,7 +86,7 @@ void main() {
         // Assert: Verify the "No jobs yet" message is present
         expect(find.text('No jobs yet.'), findsOneWidget);
         // Assert: Verify loading indicator is not present
-        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.byType(CupertinoActivityIndicator), findsNothing);
         // Assert: Verify ListView is not present
         expect(find.byType(ListView), findsNothing);
         // Assert: Verify no error message is shown
@@ -139,7 +140,7 @@ void main() {
         // expect(find.text('Synced'), findsOneWidget);
 
         // Assert: Verify other states' widgets are not present
-        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.byType(CupertinoActivityIndicator), findsNothing);
         expect(find.text('No jobs yet.'), findsNothing);
         expect(find.textContaining('Error'), findsNothing);
       },
@@ -166,7 +167,7 @@ void main() {
       // Assert: Verify the error message is present
       expect(find.text(errorMessage), findsOneWidget);
       // Assert: Verify other states' widgets are not present
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(CupertinoActivityIndicator), findsNothing);
       expect(find.byType(ListView), findsNothing);
       expect(find.text('No jobs yet.'), findsNothing);
     });
@@ -204,8 +205,10 @@ void main() {
       await tester.pumpWidget(createTestWidget());
 
       // Assert: Find all icons in the list
-      final warningIcons = find.byIcon(Icons.warning_amber_rounded);
-      final normalIcons = find.byIcon(Icons.article_outlined);
+      final warningIcons = find.byIcon(
+        CupertinoIcons.exclamationmark_triangle_fill,
+      );
+      final normalIcons = find.byIcon(CupertinoIcons.doc_text);
 
       // Should be exactly one of each icon type
       expect(
@@ -254,7 +257,7 @@ void main() {
         isA<Icon>().having(
           (icon) => (icon).icon,
           'icon data',
-          equals(Icons.warning_amber_rounded),
+          equals(CupertinoIcons.exclamationmark_triangle_fill),
         ),
         reason: 'ListTile with issues should have warning icon',
       );
@@ -264,7 +267,7 @@ void main() {
         isA<Icon>().having(
           (icon) => (icon).icon,
           'icon data',
-          equals(Icons.article_outlined),
+          equals(CupertinoIcons.doc_text),
         ),
         reason: 'ListTile without issues should have article icon',
       );
