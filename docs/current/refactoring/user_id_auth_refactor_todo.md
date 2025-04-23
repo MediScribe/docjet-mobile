@@ -84,4 +84,9 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
 - [ ] **Documentation and Architecture Updates**
     - [ ] Update architecture docs to explain user context handling
     - [ ] Document fixes in `job_dataflow.md`
-    - [ ] Add notes about authentication context to `job_presentation_layer.md` 
+    - [ ] Add notes about authentication context to `job_presentation_layer.md`
+
+- [ ] Documentation Updates
+  - [ ] Update `docs/current/architecture.md` under "Authentication" to describe domain‑level `AuthSessionProvider`
+  - [ ] Update `docs/current/job_dataflow.md` to note that `ApiJobRemoteDataSource` now uses `AuthSessionProvider` for user context
+  - [ ] Update `docs/current/job_presentation_layer.md` to show Cubits and UseCases no longer require a userId parameter 
