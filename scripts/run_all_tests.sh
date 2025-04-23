@@ -1,5 +1,34 @@
 #!/bin/bash
 
+# Create a temp file for nohup output
+TEMP_NOHUP_FILE=$(mktemp)
+
+# Cleanup function to run on exit (even if script is interrupted)
+function cleanup {
+    echo "Cleaning up..."
+    
+    # Kill the app if it's still running
+    if [[ -n "$APP_PID" ]] && ps -p $APP_PID > /dev/null; then
+        echo "Killing app process (PID: $APP_PID)"
+        kill -9 $APP_PID 2>/dev/null || true
+    fi
+    
+    # Remove temp file
+    if [[ -f "$TEMP_NOHUP_FILE" ]]; then
+        rm -f "$TEMP_NOHUP_FILE"
+    fi
+    
+    # Remove any nohup.out files in current directory
+    if [[ -f "nohup.out" ]]; then
+        rm -f nohup.out
+    fi
+    
+    echo "Cleanup complete."
+}
+
+# Register cleanup to run on exit, interrupt, or terminate signals
+trap cleanup EXIT INT TERM
+
 # Exit on error, with a helpful message
 function error_exit {
     echo "ERROR: $1"
@@ -30,13 +59,15 @@ echo "🔎 Starting app with mock server..."
 echo "Will verify app starts and is stable"
 
 # Start the mock server wrapper script in the background
-# The nohup is to ensure it doesn't get signals meant for this parent script
-nohup ./scripts/run_with_mock.sh &
+# Redirect output to our temp file instead of default nohup.out
+nohup ./scripts/run_with_mock.sh > "$TEMP_NOHUP_FILE" 2>&1 &
 APP_PID=$!
 
 # Check if the app started successfully
 sleep 5
 if ! ps -p $APP_PID > /dev/null; then
+    echo "Process failed to start. Last output:"
+    tail -n 20 "$TEMP_NOHUP_FILE"
     error_exit "App failed to start!"
 fi
 
@@ -48,6 +79,8 @@ sleep 5
 
 # Final check that the app is still running
 if ! ps -p $APP_PID > /dev/null; then
+    echo "Process crashed. Last output:"
+    tail -n 20 "$TEMP_NOHUP_FILE"
     error_exit "App crashed during stability check!"
 fi
 
