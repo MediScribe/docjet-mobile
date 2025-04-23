@@ -1,11 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
-import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
-import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
+import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
+import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 // Define the key for the compile-time environment variable
