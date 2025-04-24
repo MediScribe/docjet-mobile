@@ -7,6 +7,7 @@ This document details the authentication system architecture for DocJet Mobile.
 This diagram illustrates the components and their relationships for the authentication system.
 
 ```mermaid
+%%{init: {'theme': 'default'}}%%
 graph TD
     subgraph "Presentation Layer"
         UI(Login Screen/Auth UI) -->|Uses| AuthService(Auth Service Interface)
@@ -40,11 +41,6 @@ graph TD
     end
 
     %% Styling with improved contrast
-    classDef domain fill:#E64A45,stroke:#222,stroke-width:2px,color:#fff,padding:15px;
-    classDef data fill:#4285F4,stroke:#222,stroke-width:2px,color:#fff;
-    classDef presentation fill:#0F9D58,stroke:#222,stroke-width:2px,color:#fff;
-    classDef external fill:#9E9E9E,stroke:#222,stroke-width:1px,color:#fff;
-
     class UI,AuthState presentation;
     class AuthService,User,AuthCredProvider domain;
     class AuthServiceImpl,AuthCredProviderImpl,SecureStorage,HttpClient,AuthAPI,AuthApiClient,AuthInterceptor,TokenRefresh,CompileDefines data;
@@ -57,17 +53,6 @@ graph TD
 This sequence diagram illustrates the current authentication implementation:
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 
-  'primaryColor': '#E64A45', 
-  'primaryTextColor': '#fff', 
-  'primaryBorderColor': '#222', 
-  'lineColor': '#4285F4', 
-  'secondaryColor': '#0F9D58', 
-  'tertiaryColor': '#9E9E9E',
-  'actorLineColor': '#e0e0e0',
-  'noteBkgColor': '#8C5824',      
-  'noteTextColor': '#fff'       
-}}}%%
 sequenceDiagram
     participant UI as UI
     participant AuthSvc as AuthService
@@ -77,7 +62,6 @@ sequenceDiagram
     participant API as Auth API
 
     %% Login Flow
-    rect rgb(80, 80, 80, 0.2)
     Note over UI,API: Login Flow
     UI->>AuthSvc: login(email, password)
     AuthSvc->>ApiClient: login(email, password)
@@ -91,10 +75,8 @@ sequenceDiagram
     AuthSvc->>CredProvider: setRefreshToken(token)
     AuthSvc->>AuthSvc: Create User entity from userId
     AuthSvc-->>UI: User entity
-    end
     
     %% Using an authenticated endpoint (success)
-    rect rgb(15, 157, 88, 0.2)
     Note over UI,API: Using an authenticated endpoint (success case)
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -106,10 +88,8 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
-    end
     
     %% Token Refresh Flow (automatic)
-    rect rgb(66, 133, 244, 0.2)
     Note over UI,API: Automatic Token Refresh (when JWT expires)
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -132,16 +112,13 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
-    end
     
     %% Logout Flow
-    rect rgb(230, 74, 69, 0.2)
     Note over UI,API: Logout Flow
     UI->>AuthSvc: logout()
     AuthSvc->>CredProvider: deleteAccessToken()
     AuthSvc->>CredProvider: deleteRefreshToken()
     AuthSvc-->>UI: Logout successful
-    end
 ```
 
 ### Desired Implementation
@@ -149,17 +126,6 @@ sequenceDiagram
 This sequence diagram illustrates the complete desired authentication process, including the enhancements outlined in the TODOs:
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 
-  'primaryColor': '#E64A45', 
-  'primaryTextColor': '#fff', 
-  'primaryBorderColor': '#222', 
-  'lineColor': '#4285F4', 
-  'secondaryColor': '#0F9D58', 
-  'tertiaryColor': '#9E9E9E',
-  'actorLineColor': '#e0e0e0',
-  'noteBkgColor': '#8C5824',      
-  'noteTextColor': '#fff'       
-}}}%%
 sequenceDiagram
     participant UI as UI
     participant AuthSvc as AuthService
@@ -170,7 +136,6 @@ sequenceDiagram
     participant AppComponents as Other App Components
 
     %% Login Flow
-    rect rgb(80, 80, 80, 0.2)
     Note over UI,API: Login Flow
     UI->>AuthSvc: login(email, password)
     AuthSvc->>ApiClient: login(email, password)
@@ -188,10 +153,8 @@ sequenceDiagram
     ApiClient-->>AuthSvc: User Profile DTO
     AuthSvc->>AuthSvc: Create User entity
     AuthSvc-->>UI: User entity
-    end
     
     %% Using an authenticated endpoint (success)
-    rect rgb(15, 157, 88, 0.2)
     Note over UI,API: Using an authenticated endpoint (success case)
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -204,10 +167,8 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
-    end
     
     %% Offline Authentication
-    rect rgb(230, 150, 40, 0.2)
     Note over UI,API: Offline Authentication
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -220,10 +181,8 @@ sequenceDiagram
     ApiClient->>ApiClient: Use cached data
     ApiClient-->>AuthSvc: Processed response with offline flag
     AuthSvc-->>UI: Result with offline indicator
-    end
     
     %% Token Refresh Flow (automatic)
-    rect rgb(66, 133, 244, 0.2)
     Note over UI,API: Automatic Token Refresh (when JWT expires)
     UI->>AuthSvc: Some authenticated action
     AuthSvc->>ApiClient: makeAuthenticatedRequest()
@@ -246,10 +205,8 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
-    end
     
     %% Token Refresh Failure with Exponential Backoff
-    rect rgb(150, 50, 50, 0.2)
     Note over UI,API: Token Refresh Failure (with retry)
     Interceptor->>API: POST /api/v1/auth/refresh-session
     API-->>Interceptor: Network Error
@@ -257,10 +214,8 @@ sequenceDiagram
     Note over Interceptor: Wait 1s, then 2s, then 4s...
     Interceptor->>API: POST /api/v1/auth/refresh-session
     API-->>Interceptor: {new_access_token, new_refresh_token}
-    end
     
     %% Logout Flow with Event System
-    rect rgb(230, 74, 69, 0.2)
     Note over UI,AppComponents: Logout Flow with Event System
     UI->>AuthSvc: logout()
     AuthSvc->>CredProvider: deleteAccessToken()
@@ -270,7 +225,6 @@ sequenceDiagram
     AuthSvc-->>AppComponents: AuthEvent.loggedOut
     AppComponents->>AppComponents: Clear caches
     AppComponents->>AppComponents: Reset states
-    end
 ```
 
 ## Authentication Components
