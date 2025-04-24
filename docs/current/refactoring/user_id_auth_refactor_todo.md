@@ -172,15 +172,15 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
 
 7. [x] **TDD for Domain Authentication Component**
     7.1. [x] Verify existing `AuthSessionProvider` interface tests are comprehensive
-        *   **Finding:** No dedicated interface tests exist. Implementation tests (`SecureStorageAuthSessionProvider_test.dart`) are based on placeholder logic and **do not** properly verify the interface contract (especially the error case for `getCurrentUserId`).
+        *   **Finding:** No dedicated interface tests exist in `test/core/auth/domain`. Implementation tests (`SecureStorageAuthSessionProvider_test.dart`) are based on placeholder logic and **do not** properly verify the interface contract (especially the error case for `getCurrentUserId`).
     7.2. [x] Add missing tests for edge cases (no user authentication)
         *   **Finding:** Cannot add meaningful tests for `isAuthenticated == false` or `getCurrentUserId throws` because the current `SecureStorageAuthSessionProvider` implementation uses hardcoded placeholders and **cannot represent an unauthenticated state**. The implementation must be fixed before these tests can be written.
     7.3. [x] Check alignment with domain needs (do we need additional methods?)
-        *   **Finding:** Current methods (`isAuthenticated`, `getCurrentUserId`) seem sufficient for identified use in `JobWriterService`. `ApiJobRemoteDataSourceImpl` injects it but doesn't use it (code smell). No need for *new* methods apparent, but existing implementation is broken.
+        *   **Finding:** Current methods (`isAuthenticated`, `getCurrentUserId`) seem sufficient for identified use in `JobWriterService` and `JobRepositoryImpl`. `ApiJobRemoteDataSourceImpl` injects it but doesn't use it (code smell). No need for *new* methods apparent, but existing implementation is broken.
     7.4. [x] Run all tests relevant to this task and ensure they are passing.
         *   **Finding:** The tests in `secure_storage_auth_session_provider_test.dart` pass, but this is **meaningless** as they test against hardcoded placeholder logic and don't verify the actual contract or `AuthService` interaction.
     7.5. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
-        *   **Finding:** `dart analyze lib/core/auth` did not complete. `dart analyze test/core/auth` found **no issues**. The critical problems (placeholder logic, sync/async mismatch, unused `AuthService`) are architectural and not caught by static analysis. No fixes suggested based on analyzer results; fundamental implementation overhaul needed first.
+        *   **Finding:** `dart analyze lib/core/auth test/core/auth` found **no issues** in `test/core/auth`. It reported 2 warnings in `lib/core/auth`: `unused_local_variable` in `auth_service_impl.dart` and `unused_field` for `_authService` in `secure_storage_auth_session_provider.dart`, confirming it doesn't use the injected service. The critical problems (placeholder logic, sync/async mismatch, unused `AuthService`) are architectural and not caught by static analysis. No fixes suggested based on analyzer results; fundamental implementation overhaul needed first.
 
 8. [ ] **TDD for Repository Implementation (continued)** 
     8.1. [ ] Test authentication validation behavior
@@ -189,12 +189,22 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
     8.4. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
 
-9. [ ] **TDD for Infrastructure Layer**
-    9.1. [ ] Review existing `SecureStorageAuthSessionProvider` implementation and tests
-    9.2. [ ] Add missing tests for behavior with `AuthService`
-    9.3. [ ] Fix any implementation issues discovered
-    9.4. [ ] Run all tests relevant to this task and ensure they are passing.
-    9.5. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+9. [ ] **TDD Fix for `SecureStorageAuthSessionProvider` Implementation**
+    9.1. [ ] **Update Dependencies:** Modify `SecureStorageAuthSessionProvider` to depend on `AuthCredentialsProvider`, not `AuthService` (aligns with [auth_architecture.md](cci:7://file:///Users/eburgwedel/Developer/Git/docjet-mobile/docs/current/auth_architecture.md:0:0-0:0))
+    9.2. [ ] **TDD for `isAuthenticated` Method:**
+        * [ ] Write a test: `isAuthenticated returns true when credentials provider has userId`
+        * [ ] Write a test: `isAuthenticated returns false when credentials provider has no userId`
+        * [ ] Run tests (they will fail initially)
+        * [ ] Implement `isAuthenticated` using `AuthCredentialsProvider.getUserId() != null`
+        * [ ] Run tests again (they should pass)
+    9.3. [ ] **TDD for `getCurrentUserId` Method:**
+        * [ ] Write a test: `getCurrentUserId returns userId when credentials provider has userId`
+        * [ ] Write a test: `getCurrentUserId throws AuthException when credentials provider has no userId` 
+        * [ ] Run tests (they will fail initially)
+        * [ ] Implement `getCurrentUserId` using `AuthCredentialsProvider.getUserId()`, throwing when null
+        * [ ] Run tests again (they should pass)
+    9.4. [ ] **Run All Tests:** Ensure all tests in [secure_storage_auth_session_provider_test.dart](cci:7://file:///Users/eburgwedel/Developer/Git/docjet-mobile/test/core/auth/infrastructure/secure_storage_auth_session_provider_test.dart:0:0-0:0) are passing
+    9.5. [ ] **Run Analyze:** Run `dart analyze` on the implementation and test files; fix any issues
 
 10. [ ] **Integration Testing**
     10.1. [ ] Write integration test for `JobRepository` -> `AuthSessionProvider` flow
