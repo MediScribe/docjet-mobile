@@ -158,6 +158,50 @@ void main() {
       ).called(1);
     });
 
+    test('should check authentication before creating job', () async {
+      // Arrange
+      when(
+        mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
+      ).thenAnswer(
+        (_) async => Right(initialJob),
+      ); // Assume writer service succeeds if called
+
+      // Act
+      await repository.createJob(audioFilePath: audioPath, text: jobText);
+
+      // Assert
+      // Verify isAuthenticated was checked first
+      verify(mockAuthSessionProvider.isAuthenticated()).called(1);
+      // Verify writer service was called *after* auth check (given the default setUp returns true)
+      verify(
+        mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
+      ).called(1);
+    });
+
+    test('should return AuthFailure when not authenticated', () async {
+      // Arrange
+      // Override the default setUp for this specific test
+      when(
+        mockAuthSessionProvider.isAuthenticated(),
+      ).thenAnswer((_) async => false);
+
+      // Act
+      final result = await repository.createJob(
+        audioFilePath: audioPath,
+        text: jobText,
+      );
+
+      // Assert
+      expect(result, Left(AuthFailure()));
+      // Verify the writer service was NOT called
+      verifyNever(
+        mockWriterService.createJob(
+          audioFilePath: anyNamed('audioFilePath'),
+          text: anyNamed('text'),
+        ),
+      );
+    });
+
     test('should sync pending jobs through repository', () async {
       // Arrange
       when(

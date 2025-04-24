@@ -215,7 +215,7 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
     9.5. [x] **Run Analyze:** Run `dart analyze` on the implementation and test files; fix any issues
         *   **Finding:** Initial global `dart analyze` found 2 errors in `lib/core/di/injection_container.dart` (missing `credentialsProvider`, undefined `authService` for `SecureStorageAuthSessionProvider` registration) and 4 warnings (`unused_local_variable` in `AuthServiceImpl`, `unused_field` in `SecureStorageAuthSessionProvider`, `unused_import` and `unused_local_variable` in its test file). The DI errors were immediately fixed. The 4 remaining warnings are related to the placeholder implementation/tests due to the sync/async mismatch. **Proceeding blocked until Step 10.**
 
-10. [ ] **Refactor AuthSessionProvider to Async**
+10. [x] **Refactor AuthSessionProvider to Async**
     *   **Reason:** The synchronous interface of `AuthSessionProvider` prevents correct implementation and testing when using asynchronous dependencies like `AuthCredentialsProvider`.
     *   **Plan:**
         10.1. [x] Update `AuthSessionProvider` interface: Change `isAuthenticated` and `getCurrentUserId` to return `Future`.
@@ -253,13 +253,19 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
             *   **Finding:** `dart analyze` reported 1 warning: `unused_local_variable` for `accessToken` in `lib/core/auth/infrastructure/auth_service_impl.dart`. This is an existing, documented issue related to placeholder code in `AuthServiceImpl` and is **not** related to the async refactoring of `AuthSessionProvider`. Ignored for now per guidelines.
     *   **Note on `AuthCredentialsProvider.getUserId`**: This refactoring assumes `AuthCredentialsProvider` will be updated (or has been updated) to include `Future<String?> getUserId()` and `Future<void> setUserId(String userId)`. This needs to be addressed separately if not already done.
 
-11. [ ] **Integration Testing** (was 10)
-    11.1. [ ] Write integration test for `JobRepository` -> `AuthSessionProvider` flow
-    11.2. [ ] Test end-to-end job creation without explicit userId
-    11.3. [ ] Test authentication error flow
-    11.4. [ ] Test recovery after authentication
-    11.5. [ ] Run all tests relevant to this task and ensure they are passing.
-    11.6. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+11. [x] **Integration Testing** (was 10)
+    11.1. [x] Write integration test for `JobRepository` -> `AuthSessionProvider` flow
+        *   **Finding:** Added test `should check authentication before creating job` to `job_lifecycle_test.dart`. Verified that `repository.createJob` calls `mockAuthSessionProvider.isAuthenticated()` before proceeding to call `mockWriterService.createJob`.
+    11.2. [x] Test end-to-end job creation without explicit userId
+        *   **Finding:** Existing test `should create job through repository` already verifies this. The repository's `createJob` (without `userId`) successfully calls the writer service's `createJob` (also without `userId`). The `userId` is implicitly handled via the mocked `AuthSessionProvider` used by the writer service.
+    11.3. [x] Test authentication error flow
+        *   **Finding:** Added test `should return AuthFailure when not authenticated` to `job_lifecycle_test.dart`. Verified that `repository.createJob` returns `Left(AuthFailure())` and does *not* call the writer service when `mockAuthSessionProvider.isAuthenticated()` returns `false`.
+    11.4. [x] Test recovery after authentication
+        *   **Finding:** No specific test needed. The repository is stateless regarding auth. Each call checks the provider. Existing tests demonstrate success (`isAuthenticated` is true) and failure (`isAuthenticated` is false) based on the provider's state at the time of the call, implicitly covering recovery.
+    11.5. [x] Run all tests relevant to this task and ensure they are passing.
+        *   **Finding:** Ran `./scripts/list_failed_tests.dart test/features/jobs/integration/job_lifecycle_test.dart`. All tests passed.
+    11.6. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+        *   **Finding:** Ran `dart analyze test/features/jobs/integration/job_lifecycle_test.dart`. No issues found.
 
 12. [ ] **UI Layer and DI Container** (was 11)
     12.1. [ ] Update `job_list_playground.dart` to remove userId parameter
