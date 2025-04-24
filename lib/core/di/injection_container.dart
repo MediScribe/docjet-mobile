@@ -172,7 +172,9 @@ Future<void> init() async {
 
   // Register the AuthSessionProvider with SecureStorageAuthSessionProvider implementation
   sl.registerLazySingleton<AuthSessionProvider>(
-    () => SecureStorageAuthSessionProvider(authService: sl()),
+    () => SecureStorageAuthSessionProvider(
+      credentialsProvider: sl(), // Use the registered AuthCredentialsProvider
+    ),
   );
 
   // Get document path once during init

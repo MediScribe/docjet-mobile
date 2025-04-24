@@ -3,12 +3,10 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i3;
 
-import 'package:docjet_mobile/core/auth/auth_service.dart' as _i3;
-import 'package:docjet_mobile/core/auth/entities/user.dart' as _i2;
+import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -24,89 +22,79 @@ import 'package:mockito/src/dummies.dart' as _i5;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeUser_0 extends _i1.SmartFake implements _i2.User {
-  _FakeUser_0(
-    Object parent,
-    Invocation parentInvocation,
-  ) : super(
-          parent,
-          parentInvocation,
-        );
-}
-
-/// A class which mocks [AuthService].
+/// A class which mocks [AuthCredentialsProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthService extends _i1.Mock implements _i3.AuthService {
-  MockAuthService() {
+class MockAuthCredentialsProvider extends _i1.Mock
+    implements _i2.AuthCredentialsProvider {
+  MockAuthCredentialsProvider() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<_i2.User> login(
-    String? email,
-    String? password,
-  ) =>
-      (super.noSuchMethod(
+  _i3.Future<String?> getApiKey() => (super.noSuchMethod(
         Invocation.method(
-          #login,
-          [
-            email,
-            password,
-          ],
-        ),
-        returnValue: _i4.Future<_i2.User>.value(_FakeUser_0(
-          this,
-          Invocation.method(
-            #login,
-            [
-              email,
-              password,
-            ],
-          ),
-        )),
-      ) as _i4.Future<_i2.User>);
-
-  @override
-  _i4.Future<bool> refreshSession() => (super.noSuchMethod(
-        Invocation.method(
-          #refreshSession,
+          #getApiKey,
           [],
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i3.Future<String?>.value(),
+      ) as _i3.Future<String?>);
 
   @override
-  _i4.Future<void> logout() => (super.noSuchMethod(
+  _i3.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
         Invocation.method(
-          #logout,
-          [],
+          #setAccessToken,
+          [token],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 
   @override
-  _i4.Future<bool> isAuthenticated() => (super.noSuchMethod(
+  _i3.Future<String?> getAccessToken() => (super.noSuchMethod(
         Invocation.method(
-          #isAuthenticated,
+          #getAccessToken,
           [],
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i3.Future<String?>.value(),
+      ) as _i3.Future<String?>);
 
   @override
-  _i4.Future<String> getCurrentUserId() => (super.noSuchMethod(
+  _i3.Future<void> deleteAccessToken() => (super.noSuchMethod(
         Invocation.method(
-          #getCurrentUserId,
+          #deleteAccessToken,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i5.dummyValue<String>(
-          this,
-          Invocation.method(
-            #getCurrentUserId,
-            [],
-          ),
-        )),
-      ) as _i4.Future<String>);
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
+        Invocation.method(
+          #setRefreshToken,
+          [token],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<String?> getRefreshToken() => (super.noSuchMethod(
+        Invocation.method(
+          #getRefreshToken,
+          [],
+        ),
+        returnValue: _i3.Future<String?>.value(),
+      ) as _i3.Future<String?>);
+
+  @override
+  _i3.Future<void> deleteRefreshToken() => (super.noSuchMethod(
+        Invocation.method(
+          #deleteRefreshToken,
+          [],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
 }

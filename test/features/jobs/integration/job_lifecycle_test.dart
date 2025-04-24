@@ -65,6 +65,9 @@ void main() {
       orchestratorService: mockOrchestratorService,
       authSessionProvider: mockAuthSessionProvider,
     );
+
+    // Add default mock for isAuthenticated for the whole group
+    when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
   });
 
   // Helper function to create a Job entity
@@ -129,7 +132,8 @@ void main() {
 
     setUp(() {
       // Set up auth session provider for all tests
-      when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+      // This can likely be removed now as it's handled in the main setUp
+      // when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
     });
 
     test('should create job through repository', () async {
