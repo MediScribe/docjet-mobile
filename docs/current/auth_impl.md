@@ -304,4 +304,144 @@ This list tracks the necessary enhancements to align the authentication implemen
         - FINDINGS: Renamed the test to `JobRepositoryImpl should call clearUserData on JobLocalDataSource upon logout event` and removed the unused `when` calls mocking `getJobsByStatus` in `test/integration/auth_logout_integration_test.dart`.
 
     12.3. [x] Verify tests pass (GREEN)
-        - FINDINGS: Tests need to be run to confirm the change didn't break anything. 
+        - FINDINGS: Tests need to be run to confirm the change didn't break anything.
+
+## 13. Mock Server & Authentication Flow Integration
+
+Critical TODOs to ensure proper authentication works with both real API and mock server:
+
+13.1. [ ] **Fix Main.dart Navigation Logic (TDD)**
+    - FINDINGS: Main.dart was modified to always show JobListPage instead of conditional navigation based on auth state.
+    
+    13.1.1. [ ] **RED**: Write failing widget test for auth-based navigation
+       - Create `test/core/app/main_app_test.dart` to test conditional rendering
+       - Write test case verifying `LoginScreen` is shown when auth status is unauthenticated
+       - Write test case verifying `HomeScreen` is shown when auth status is authenticated
+       - Write test case verifying loading indicator is shown when auth status is loading
+       - Run tests to confirm they fail with current implementation
+    
+    13.1.2. [ ] **GREEN**: Implement conditional navigation in main.dart
+       - Update imports to include required screens and auth state
+       - Store the auth state in a variable: `final authState = ref.watch(authNotifierProvider)`
+       - Implement conditional rendering:
+       ```dart
+       home: authState.status == AuthStatus.loading
+           ? const Center(child: CircularProgressIndicator())
+           : authState.status == AuthStatus.authenticated
+               ? const HomeScreen()
+               : const LoginScreen(),
+       ```
+       - Run tests to verify they now pass
+    
+    13.1.3. [ ] **REFACTOR**: Clean up and optimize
+       - Remove JobListPage import if unused
+       - Consider extracting conditional into a method for readability
+       - Verify tests still pass after refactoring
+
+13.2. [ ] **Environment Configuration for API Selection (TDD)**
+    - FINDINGS: DioFactory uses API_DOMAIN from environment variables, defaulting to 'staging.docjet.ai', but needs testing.
+    
+    13.2.1. [ ] **RED**: Write failing tests for API domain configuration
+       - Create `test/core/config/api_domain_test.dart`
+       - Write test verifying localhost domains use http:// protocol
+       - Write test verifying other domains use https:// protocol
+       - Write test verifying API_DOMAIN environment variable is used
+       - Run tests to confirm they fail or are incomplete
+    
+    13.2.2. [ ] **GREEN**: Implement environment handling
+       - Ensure DioFactory properly handles API_DOMAIN environment variable
+       - Update scripts to include API_DOMAIN parameter:
+       ```bash
+       # In run_with_mock.sh
+       flutter run --dart-define=API_KEY=mock-key --dart-define=API_DOMAIN=localhost:8080
+       ```
+       - Run tests to verify they now pass
+    
+    13.2.3. [ ] **REFACTOR**: Document and standardize
+       - Create comprehensive environment configuration guide
+       - Document all environment variables needed for auth (API_KEY, API_DOMAIN)
+       - Document how to run the app with different configurations
+       - Verify tests still pass after documentation
+
+13.3. [ ] **Auth API Client Mock Server Integration (TDD)**
+    - FINDINGS: Need to ensure AuthApiClient works with mock server endpoints.
+    
+    13.3.1. [ ] **RED**: Write failing integration tests for mock server auth endpoints
+       - Create `test/integration/auth_mock_server_test.dart`
+       - Write test case for login endpoint with mock credentials
+       - Write test case for refresh token endpoint
+       - Write test case for user profile endpoint
+       - Configure tests to use localhost URLs
+       - Run tests to confirm they fail against mock server
+    
+    13.3.2. [ ] **GREEN**: Implement mock server auth endpoints
+       - Add login endpoint to mock server returning proper tokens
+       - Add refresh token endpoint to mock server
+       - Add user profile endpoint to mock server
+       - Run tests to verify they now pass with mock server
+    
+    13.3.3. [ ] **REFACTOR**: Standardize response formats
+       - Ensure mock server responses match real API format exactly
+       - Add documentation for mock credentials
+       - Verify tests still pass after standardization
+
+13.4. [ ] **DioFactory Environment Tests (TDD)**
+    - FINDINGS: Current tests verify behavior but don't test environment variable injection thoroughly.
+    
+    13.4.1. [ ] **RED**: Write failing tests for environment configuration
+       - Extend `test/core/auth/infrastructure/dio_factory_test.dart`
+       - Write test for API_DOMAIN environment variable injection
+       - Write test for different domain protocol selection (http vs https)
+       - Write test verifying API_KEY is properly passed in headers
+       - Run tests to confirm they fail or are incomplete
+    
+    13.4.2. [ ] **GREEN**: Implement environment-aware testing
+       - Add mock environment capability to DioFactory tests
+       - Add header verification to API client tests
+       - Run tests to verify they now pass
+    
+    13.4.3. [ ] **REFACTOR**: Extract test helpers
+       - Create reusable test utilities for environment testing
+       - Verify tests still pass after extraction
+
+13.5. [ ] **Auth Error Handling UI (TDD)**
+    - FINDINGS: UI needs better error feedback for authentication failures.
+    
+    13.5.1. [ ] **RED**: Write failing widget tests for error UI
+       - Create/extend `test/features/auth/presentation/screens/login_screen_test.dart`
+       - Write test for invalid credentials error message display
+       - Write test for network error message display
+       - Write test for offline mode indicator
+       - Run tests to confirm they fail
+    
+    13.5.2. [ ] **GREEN**: Implement error handling UI
+       - Update LoginScreen to display appropriate error messages
+       - Add offline indicator when network is unavailable
+       - Add loading indicators during authentication
+       - Run tests to verify they now pass
+    
+    13.5.3. [ ] **REFACTOR**: Improve UI components
+       - Extract error message widgets for reuse
+       - Standardize loading indicators
+       - Verify tests still pass after extraction
+
+13.6. [ ] **End-to-End Authentication Flow (TDD)**
+    - FINDINGS: Need to verify the complete auth flow across environments.
+    
+    13.6.1. [ ] **RED**: Write failing end-to-end tests
+       - Create `test/e2e/auth_flow_test.dart`
+       - Write test for full login-to-authenticated-screen flow
+       - Write test for token refresh mechanism
+       - Write test for logout flow
+       - Run tests to confirm they fail or are incomplete
+    
+    13.6.2. [ ] **GREEN**: Implement complete auth flow
+       - Ensure AuthService, interceptors, and UI work together
+       - Verify persistence of authentication state
+       - Handle edge cases (expired tokens, network loss)
+       - Run tests to verify they now pass
+    
+    13.6.3. [ ] **REFACTOR**: Optimize and document
+       - Create comprehensive auth flow documentation
+       - Add detailed testing guide
+       - Verify tests still pass after documentation 

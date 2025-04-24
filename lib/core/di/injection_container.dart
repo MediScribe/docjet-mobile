@@ -33,11 +33,13 @@ import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Add AuthSessionProvider import
 import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService import
+import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart'; // Add AuthApiClient import
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; // Add AuthServiceImpl import
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // Add SecureStorageAuthSessionProvider
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
+import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart'; // Import DioFactory
 
 final sl = GetIt.instance;
 
@@ -188,11 +190,26 @@ Future<void> init() async {
     () => sl<SecureStorageAuthCredentialsProvider>(),
   );
 
-  // Register the AuthService
+  // Register a basic Dio instance for auth API client
+  sl.registerLazySingleton<Dio>(
+    () =>
+        DioFactory.createBasicDio(), // Use DioFactory to get proper URL from environment
+    instanceName: 'basicDio',
+  );
+
+  // Register the real AuthApiClient
+  sl.registerLazySingleton<AuthApiClient>(
+    () => AuthApiClient(
+      httpClient: sl<Dio>(instanceName: 'basicDio'),
+      credentialsProvider: sl<AuthCredentialsProvider>(),
+    ),
+  );
+
+  // Register AuthService with real implementation for development/testing
   sl.registerLazySingleton<AuthService>(
     () => AuthServiceImpl(
-      apiClient: sl(), // This assumes AuthApiClient is registered elsewhere
-      credentialsProvider: sl(),
+      apiClient: sl<AuthApiClient>(),
+      credentialsProvider: sl<AuthCredentialsProvider>(),
       eventBus: sl<AuthEventBus>(),
     ),
   );

@@ -1,41 +1,40 @@
+import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
-import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
-import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
-import 'package:docjet_mobile/features/home/presentation/screens/home_screen.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
+import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:get_it/get_it.dart';
 
-// Define the key for the compile-time environment variable
-const String _apiKeyEnvVar = 'API_KEY';
+// Access GetIt for convenience
+final getIt = di.sl;
 
-// GetIt instance for dependency injection
-final GetIt getIt = di.sl;
+// Riverpod providers
+final authServiceProvider = Provider<AuthService>(
+  (ref) =>
+      throw UnimplementedError(
+        'authServiceProvider not initialized - must be overridden',
+      ),
+);
 
-Future<void> main() async {
+void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- Get API Key from compile-time environment variables ---
-  const String apiKey = String.fromEnvironment(_apiKeyEnvVar);
-  if (apiKey.isEmpty) {
-    // Throw a more informative error if the API key is missing
-    throw Exception(
-      'API_KEY is missing. Ensure it is provided via --dart-define=API_KEY=YOUR_API_KEY',
-    );
-  }
-  // Register API_KEY itself in GetIt if needed elsewhere, or handle via config class
-  // Example: getIt.registerSingleton<String>(apiKey, instanceName: 'API_KEY');
-  // ---------------------------------------------------------
-
-  // Initialize dependency injection - this now handles ALL registrations
+  // Initialize dependency injection
   await di.init();
 
-  // Wrap runApp with ProviderScope for Riverpod
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(
+    // Wrap the entire app in ProviderScope for Riverpod
+    ProviderScope(
+      overrides: [
+        // Override the generated authServiceProvider with the implementation from GetIt
+        authServiceProvider.overrideWithValue(getIt<AuthService>()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 // Make MyApp a ConsumerWidget to access providers
@@ -44,24 +43,24 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the authentication state
-    final authState = ref.watch(authNotifierProvider);
+    // Get auth state from the provider - this will trigger rebuilds when it changes
+    ref.watch(authNotifierProvider);
 
     return MultiBlocProvider(
-      providers: [
-        BlocProvider<JobListCubit>(create: (context) => getIt<JobListCubit>()),
-      ],
+      providers: [BlocProvider(create: (context) => getIt<JobListCubit>())],
       child: MaterialApp(
-        title: 'DocJet Mobile',
+        debugShowCheckedModeBanner: false,
+        title: 'DocJet',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        // Conditionally show LoginScreen or HomeScreen based on auth state
-        home:
-            authState.status == AuthStatus.authenticated
-                ? const HomeScreen()
-                : const LoginScreen(),
+        // For now, always show the JobListPage
+        // Later, conditionally show based on auth state:
+        // home: authState.status == AuthStatus.authenticated
+        //   ? const HomeScreen()
+        //   : const LoginScreen(),
+        home: const JobListPage(),
       ),
     );
   }
