@@ -3,9 +3,6 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -119,6 +116,38 @@ void main() {
         ),
       );
     });
+
+    test(
+      'should throw ApiException when getCurrentUserId throws an exception',
+      () async {
+        // Arrange
+        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenThrow(Exception('Auth error'));
+
+        // Act & Assert
+        expect(
+          () => remoteDataSource.createJob(audioFilePath: tAudioFilePath),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Authentication failed'),
+            ),
+          ),
+        );
+
+        // No API call should be made
+        verifyNever(
+          mockDio.post(
+            argThat(anything),
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        );
+      },
+    );
 
     test(
       'should include user ID from auth session provider in form data',

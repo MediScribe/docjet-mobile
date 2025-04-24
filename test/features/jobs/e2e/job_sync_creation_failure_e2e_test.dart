@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -81,9 +82,16 @@ void main() {
         final mockRemoteDataSource =
             sl<JobRemoteDataSource>() as MockApiJobRemoteDataSourceImpl;
         final mockNetworkInfo = sl<NetworkInfo>() as MockNetworkInfo;
+        final mockAuthSessionProvider =
+            sl<AuthSessionProvider>() as MockAuthSessionProvider;
 
         // Arrange: Ensure network is online
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+        // Arrange: Setup auth session provider
+        final userId = 'test-user-id-creation-failure';
+        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
 
         // Arrange: Create a job locally
         _logger.d('$_tag Arranging: Creating job locally...');

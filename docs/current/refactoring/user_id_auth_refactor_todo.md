@@ -148,19 +148,27 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
       - The changes from previous tasks properly updated the DI container to inject AuthSessionProvider
       - Verified that E2E tests are passing with the updated implementation
 
-6. [ ] **Fix Exception Handling in Data Source Implementation**
-    6.1. [ ] Update `_createJobFormData` method to handle authentication errors consistently
-    6.2. [ ] Update test to correctly validate exception handling behavior
-    6.3. [ ] Ensure proper ApiException wrapping for all error cases
-    6.4. [ ] Update e2e test setups to properly mock AuthSessionProvider
-      6.4.1. [ ] Fix mocks in job_sync_deletion_failure_e2e_test.dart to correctly stub createJob without userId
-      6.4.2. [ ] Fix mocks in job_sync_reset_failed_e2e_test.dart to handle updated method signature
-      6.4.3. [ ] Fix mocks in job_sync_retry_e2e_test.dart to handle updated method signature
-      6.4.4. [ ] Fix mocks in job_sync_creation_failure_e2e_test.dart to handle updated method signature
-    6.5. [ ] Ensure expect statements check for correct status state
-    6.6. [ ] Run all tests relevant to this task and ensure they are passing.
-    6.7. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
-
+6. [x] **Fix Exception Handling in Data Source Implementation**
+    6.1. [x] Update `_createJobFormData` method to handle authentication errors consistently
+    6.2. [x] Update test to correctly validate exception handling behavior
+    6.3. [x] Ensure proper ApiException wrapping for all error cases
+    6.4. [x] Update e2e test setups to properly mock AuthSessionProvider
+      6.4.1. [x] Fix mocks in job_sync_deletion_failure_e2e_test.dart to correctly stub createJob without userId
+      6.4.2. [x] Fix mocks in job_sync_reset_failed_e2e_test.dart to handle updated method signature
+      6.4.3. [x] Fix mocks in job_sync_retry_e2e_test.dart to handle updated method signature
+      6.4.4. [x] Fix mocks in job_sync_creation_failure_e2e_test.dart to handle updated method signature
+    6.5. [x] Ensure expect statements check for correct status state
+    6.6. [x] Run all tests relevant to this task and ensure they are passing.
+    6.7. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+      - Found expected analyzer warnings related to unused variables/fields that were previously documented:
+        - `accessToken` in `AuthServiceImpl.getCurrentUserId()`
+        - `_authService` in `SecureStorageAuthSessionProvider`
+        - `_authSessionProvider` in `JobRepositoryImpl`
+      - Also found some unused imports in the test files
+      - These issues should NOT be fixed now as they are placeholders for functionality that will be implemented in future tasks (7-11)
+      - Fixing them now would require additional implementation that would ripple through the codebase
+      - The authentication error handling improvements have been properly implemented in the data source layer
+      - All E2E tests have been updated with proper authentication mocking
 
 7. [ ] **TDD for Domain Authentication Component**
     7.1. [ ] Verify existing `AuthSessionProvider` interface tests are comprehensive

@@ -111,6 +111,7 @@ void main() {
         expect(await dummyAudioFile.exists(), isTrue);
 
         // Set up the mock auth session provider to return the test user ID
+        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
         when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
 
         final createResult = await jobRepository.createJob(

@@ -178,13 +178,37 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     String? additionalText,
   }) async {
     _logger.d('$_tag Preparing FormData for job creation...');
-    try {
-      // Get the current user ID from the auth session provider
-      final userId = authSessionProvider.getCurrentUserId();
-      if (!authSessionProvider.isAuthenticated()) {
-        throw ApiException(message: 'Cannot create job: No authenticated user');
-      }
 
+    // Get the current user ID from the auth session provider
+    // This should be outside the main try-catch to properly handle auth errors
+    // Authentication errors should not be caught by the regular error handling
+    if (!authSessionProvider.isAuthenticated()) {
+      const errorMessage = 'Cannot create job: No authenticated user';
+      _logger.e(
+        '$_tag Authentication error in _createJobFormData: $errorMessage',
+      );
+      throw ApiException(message: errorMessage);
+    }
+
+    String userId;
+    try {
+      userId = authSessionProvider.getCurrentUserId();
+    } catch (e) {
+      // Convert any auth-related exceptions to ApiException with clear message
+      final errorMessage =
+          e is ApiException
+              ? e.message
+              : 'Authentication failed: ${e.toString()}';
+
+      _logger.e(
+        '$_tag Authentication error in _createJobFormData: $errorMessage',
+        error: e,
+      );
+
+      throw ApiException(message: errorMessage);
+    }
+
+    try {
       // Use Dio's default boundary handling.
       final formData = FormData();
 
@@ -219,6 +243,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         stackTrace: stackTrace,
       );
       // Wrap file system or other errors in an ApiException to be caught upstream
+      if (e is ApiException) {
+        rethrow; // Don't rewrap already-wrapped exceptions
+      }
       throw ApiException(
         message: 'Failed to prepare data for upload: ${e.toString()}',
       );

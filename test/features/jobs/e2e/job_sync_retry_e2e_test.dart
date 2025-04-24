@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -85,9 +86,16 @@ void main() {
         final mockRemoteDataSource =
             sl<JobRemoteDataSource>() as MockApiJobRemoteDataSourceImpl;
         final mockNetworkInfo = sl<NetworkInfo>() as MockNetworkInfo;
+        final mockAuthSessionProvider =
+            sl<AuthSessionProvider>() as MockAuthSessionProvider;
 
         // Arrange: Ensure network is online
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+        // Arrange: Set up auth session provider
+        final userId = 'test-user-id-retry';
+        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
 
         // Arrange: Create a job locally
         _logger.d('$_tag Arranging: Creating job locally...');
@@ -191,6 +199,11 @@ void main() {
         final mockServerId = const Uuid().v4();
         // Need to reset the 'when' for createJob
         reset(mockRemoteDataSource); // Reset previous when
+
+        // Ensure auth session provider is still set up correctly
+        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+
         when(
           mockRemoteDataSource.createJob(
             audioFilePath: audioFilePath,
