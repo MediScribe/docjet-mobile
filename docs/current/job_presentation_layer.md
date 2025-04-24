@@ -4,10 +4,37 @@ This document outlines the architecture for the presentation layer of the Job fe
 
 ## Key Components
 
-- **UI Widgets:** (Not detailed here) Standard Flutter widgets responsible for rendering the job list and job details based on the state provided by the Cubits.
+- **UI Widgets:** Flutter widgets responsible for rendering the job list and job details based on the state provided by the Cubits.
+  - `JobListItem` - A list item widget that displays key job information
+  - `JobListPage` - The main page for displaying the job list
+  - `JobListPlayground` - A development/testing sandbox for job UI components
 - **Cubits:** Manage the state for specific UI sections.
+  - `JobListCubit` - Manages state for the job list
+  - `JobDetailCubit` - Manages state for a single job view
 - **States:** Immutable objects representing the different states the UI can be in (loading, loaded, error, etc.).
+  - `JobListState` with concrete subclasses (`JobListInitial`, `JobListLoading`, `JobListLoaded`, `JobListError`)
+  - `JobDetailState` with freezed variants (`JobDetailLoading`, `JobDetailLoaded`, `JobDetailNotFound`, `JobDetailError`)
+- **ViewModels:** Presentation-specific models that contain processed data for the UI.
+  - `JobViewModel` - Contains UI-ready data derived from `Job` entities
+  - `JobViewModelMapper` - Maps between domain entities and view models
 - **Use Cases:** Provide the data streams or perform actions requested by the Cubits/UI.
+
+## Current Implemented Pages
+
+The following pages are currently implemented for the Jobs feature:
+
+1. **Job List Page (`JobListPage`)**
+   - Displays a list of jobs using a `CupertinoPageScaffold`
+   - Renders each job as a `JobListItem`
+   - Shows loading indicators, error messages, or empty state messages as appropriate
+   - Implemented using BLoC pattern with `JobListCubit`
+
+2. **Job List Playground (`JobListPlayground`)**
+   - A development environment for testing job list UI components
+   - Includes mock data and experimental UI elements
+   - Provides tools for testing job creation and visualization
+
+The Home Screen (`HomeScreen`) is currently a placeholder that will eventually incorporate navigation to the Jobs feature.
 
 ## State Management Flow
 
@@ -34,6 +61,7 @@ graph TD
     subgraph "Domain/Data Layer"
         JobEntity[Job Entity Stream]
         Repository[JobRepository]
+        AuthEventBus[AuthEventBus]
     end
 
     %% Reactive Flow
@@ -60,45 +88,80 @@ graph TD
     ActionUC --> Repository
     Repository -- Updates Data --> JobEntity
 
+    %% Auth Events Flow
+    AuthEventBus -- loggedOut Event --> Repository
+    Repository -- Clears User Data --> JobEntity
 
-    %% Styling
-    classDef presentation fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef usecases fill:#ccf,stroke:#333,stroke-width:2px;
-    classDef domain fill:#cfc,stroke:#333,stroke-width:2px;
 
     class UI,JobListCubit,JobDetailCubit,JobListState,JobDetailState,JobViewModel presentation;
     class WatchJobsUC,WatchJobByIdUC,ActionUC usecases;
-    class JobEntity,Repository domain;
+    class JobEntity,Repository,AuthEventBus domain;
 
 ```
 
 ### 1. Job List (`JobListCubit`)
 
 - **Purpose:** Manages the state for the main job list view.
-- **Dependencies:** `WatchJobsUseCase`.
+- **Dependencies:** `WatchJobsUseCase`, `JobViewModelMapper`.
 - **Functionality:**
     - Subscribes to the `Stream<List<Job>>` provided by `WatchJobsUseCase` upon initialization.
     - Listens for updates to the job list (creations, updates, deletions, sync status changes).
-    - Maps the incoming `List<Job>` (or errors) to `JobListState` instances.
+    - Maps the incoming `List<Job>` (or errors) to `JobListState` instances using the `JobViewModelMapper`.
     - Emits states like `JobListLoading`, `JobListLoaded(List<JobViewModel>)`, `JobListError`.
-- **ViewModel:** Uses a `JobViewModel` (potentially created via a mapper) to prepare job data specifically for UI display (e.g., formatted dates, status text, derived properties like `hasPendingFileDeletionIssue`).
+- **ViewModel:** Uses a `JobViewModel` (created via the `JobViewModelMapper`) to prepare job data specifically for UI display (e.g., formatted dates, status text, derived properties like `hasFileIssue`).
 
 ### 2. Job Detail (`JobDetailCubit`)
 
 - **Purpose:** Manages the state for a single job detail view.
 - **Dependencies:** `WatchJobByIdUseCase`.
-- **Initialization:** Requires the `localId` of the job to observe (passed via `@factoryParam`).
+- **Initialization:** Requires the `localId` of the job to observe (passed via factory parameter).
 - **Functionality:**
     - Subscribes to the `Stream<Job?>` provided by `WatchJobByIdUseCase` using the initial `jobId`.
     - Listens for updates to the specific job.
-    - Maps the incoming `Job?` (or errors) to `JobDetailState` instances. Note: The `JobDetailLoaded` state currently contains the raw `Job` entity, not a mapped `JobViewModel`.
+    - Maps the incoming `Job?` (or errors) to `JobDetailState` instances.
     - Emits states like `JobDetailLoading`, `JobDetailLoaded(Job)`, `JobDetailNotFound`, `JobDetailError`.
 
 ## Interaction with Use Cases
 
 - **Reactive Data:** The Cubits primarily rely on the `Watch...` use cases (`StreamUseCase`) to get notified of data changes originating from the data layer (e.g., local Hive changes, sync updates).
 - **Actions:** User actions initiated from the UI (e.g., create, update, delete, reset failed job) typically trigger calls to the corresponding single-action Use Cases (e.g., `CreateJobUseCase`, `DeleteJobUseCase`). These actions modify the data layer, which in turn causes the `Watch...` use cases to emit updates, closing the reactive loop and updating the UI via the Cubits.
-- **Authentication Context:** User context (like User ID or the User entity) is **never** passed down from the UI layer. The data layer (specifically, services like `JobWriterService` or the `JobRepository`) obtains the necessary authenticated user information by interacting with the `AuthService` or potentially observing the application's central `AuthNotifier` / `AuthState`. Alternatively, if only the ID is needed and stored securely, the `AuthCredentialsProvider` might be queried directly. This ensures the UI/Presentation layer remains decoupled from authentication details.
+- **Authentication Context:** User context (like User ID or the User entity) is **never** passed down from the UI layer. The data layer (specifically, services like `JobWriterService` or the `JobRepository`) obtains the necessary authenticated user information by interacting with the `AuthSessionProvider` directly.
+
+## Authentication Integration
+
+The Jobs feature is integrated with the authentication system through the following mechanisms:
+
+1. **Auth Event Handling:** `JobRepositoryImpl` subscribes to the `AuthEventBus` to receive authentication events:
+   ```dart
+   _authEventSubscription = _authEventBus.stream.listen((event) {
+     if (event == AuthEvent.loggedOut) {
+       _handleLogout();
+     }
+   });
+   ```
+
+2. **Logout Handling:** When a logout event is received, the repository clears all user-specific job data:
+   ```dart
+   Future<void> _handleLogout() async {
+     _logger.i('$_tag Handling logout event. Clearing user data.');
+     try {
+       await _localDataSource.clearUserData();
+       _logger.i('$_tag Successfully cleared user data on logout.');
+     } catch (e) {
+       _logger.e('$_tag Error clearing user data on logout: $e');
+     }
+   }
+   ```
+
+3. **Resource Cleanup:** The repository properly disposes of its event subscription when it's destroyed:
+   ```dart
+   void dispose() {
+     _authEventSubscription?.cancel();
+     _logger.d('$_tag Disposed auth event subscription.');
+   }
+   ```
+
+This integration ensures that user data is properly cleared when a user logs out, maintaining data privacy and preventing data leakage between user sessions.
 
 ## Job Creation Flow
 
@@ -107,7 +170,7 @@ When a user creates a new job, the flow is:
 1.  **UI** initiates job creation with content parameters only (no user ID).
 2.  **CreateJobUseCase** passes parameters to the `JobRepository`.
 3.  **JobRepository** delegates to relevant services (e.g., `JobWriterService`).
-4.  **JobWriterService** (or `JobRepository`) obtains the current authenticated user's context (e.g., User ID) from the central authentication system (`AuthService`, `AuthNotifier`, or `AuthCredentialsProvider` as appropriate).
+4.  **JobWriterService** (or `JobRepository`) obtains the current authenticated user's context (e.g., User ID) from the central authentication system (`AuthSessionProvider`).
 5.  Service creates the job entity, associating it with the obtained user context.
 6.  Creation is persisted, triggering updates through the reactive stream via `WatchJobsUseCase`, ultimately updating the UI.
 
@@ -118,6 +181,6 @@ This architecture supports notifying the UI about issues like failed audio delet
 1.  The `Job` entity contains `failedAudioDeletionAttempts > 0`.
 2.  The `WatchJobsUseCase` / `WatchJobByIdUseCase` streams emit updated `Job` objects when this counter changes.
 3.  The `JobListCubit` / `JobDetailCubit` receive the updated `Job`.
-4.  For the list view, the mapper creating the `JobViewModel` includes logic to expose a flag like `viewModel.hasFileDeletionIssue` based on the counter.
+4.  For the list view, the `JobViewModelMapper` creating the `JobViewModel` includes logic to expose a flag like `viewModel.hasFileIssue` based on the counter.
 5.  The `JobListCubit` emits a new `JobListLoaded` state containing the updated `JobViewModel`. The `JobDetailCubit` emits a `JobDetailLoaded` state containing the updated raw `Job` entity.
-6.  The UI rebuilds and can display an indicator based on `viewModel.hasFileDeletionIssue` (in the list view) or by accessing the corresponding property directly from the `Job` entity (in the detail view). 
+6.  The UI rebuilds and can display an indicator based on `viewModel.hasFileIssue` (in the list view) or by accessing the corresponding property directly from the `Job` entity (in the detail view). 

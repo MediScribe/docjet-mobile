@@ -277,7 +277,7 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 ## 11. UI Layer Enhancements
 
-11. [ ] **Update UI Components**
+11. [x] **Update UI Components**
     - FINDINGS: This involves updating the UI to display offline indicators and handle authentication-related UI states. Created basic `LoginScreen` and `HomeScreen` placeholders and implemented basic auth-state-based routing in `main.dart`. The `main.dart` file initially showed a persistent linter error regarding `AuthStatus` despite the correct import, likely due to a tool/IDE issue.
     
     11.1. [x] Write widget tests for offline indicators in auth-dependent screens
