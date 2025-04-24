@@ -78,29 +78,29 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 ## 3. Auth Events System (Core Infrastructure)
 
-3.  [ ] **Setup Auth Event System**
-    - FINDINGS: There appears to be no existing event bus or auth event system yet. The codebase uses both Riverpod and BLoC/Cubit for state management, but no specific event bus pattern. In a typical Flutter app, there are multiple ways to handle events (Streams, event_bus package, or state management solutions), so we need to choose one that integrates well with the existing architecture.
-    
-    3.1. [ ] Write failing tests for auth events in `test/core/auth/events/auth_events_test.dart`
-       - FINDINGS: Will create auth events in the core/auth directory structure instead of features directory.
-    
-    3.2. [ ] Define `AuthEvent` enum or sealed class in `lib/core/auth/events/auth_events.dart`
-       - FINDINGS: Will use a sealed class or enum to define various authentication events.
-    
-    3.3. [ ] Write failing tests for auth event bus in `test/core/auth/events/auth_event_bus_test.dart`
-       - FINDINGS: Will create a simple event bus using Streams or a dedicated package.
-    
-    3.4. [ ] Implement simple event bus in `lib/core/auth/events/auth_event_bus.dart`
-       - FINDINGS: Will implement using either StreamController or an existing package.
-    
-    3.5. [ ] Add necessary package dependencies (e.g., `event_bus`) to `pubspec.yaml` if needed
-       - FINDINGS: May use existing dependencies like rxdart which is already included.
-    
-    3.6. [ ] Register event bus in dependency injection container
-       - FINDINGS: Will add to the existing DI container in `lib/core/di/injection_container.dart`.
-    
-    3.7. [ ] Verify all tests pass (GREEN) and refactor if needed
-       - FINDINGS: Will use the existing test runner.
+3.  [x] **Setup Auth Event System**
+    - FINDINGS: There was no existing event bus or auth event system. The codebase uses Riverpod and BLoC/Cubit, but no dedicated event bus pattern. Decided to use `rxdart`'s `PublishSubject` as `rxdart` is already a dependency. Created an `AuthEvent` enum and a simple `AuthEventBus` class.
+
+    3.1. [x] Write failing tests for auth events in `test/core/auth/events/auth_events_test.dart`
+       - FINDINGS: Created the test file `test/core/auth/events/auth_events_test.dart` with tests for `AuthEvent.loggedIn` and `AuthEvent.loggedOut`. Tests failed as expected due to missing definitions.
+
+    3.2. [x] Define `AuthEvent` enum or sealed class in `lib/core/auth/events/auth_events.dart`
+       - FINDINGS: Created the file `lib/core/auth/events/auth_events.dart` and defined a simple `enum AuthEvent { loggedIn, loggedOut }`. Tests from 3.1 now pass.
+
+    3.3. [x] Write failing tests for auth event bus in `test/core/auth/events/auth_event_bus_test.dart`
+       - FINDINGS: Created `test/core/auth/events/auth_event_bus_test.dart` with tests covering event emission, multiple listeners, and unsubscribing. Tests failed as expected due to missing implementation.
+
+    3.4. [x] Implement simple event bus in `lib/core/auth/events/auth_event_bus.dart`
+       - FINDINGS: Implemented `AuthEventBus` in `lib/core/auth/events/auth_event_bus.dart` using `rxdart`'s `PublishSubject<AuthEvent>` for multicasting events. Included a `dispose` method.
+
+    3.5. [x] Add necessary package dependencies (e.g., `event_bus`) to `pubspec.yaml` if needed
+       - FINDINGS: No new dependencies needed; used `rxdart` which was already included in `pubspec.yaml`.
+
+    3.6. [x] Register event bus in dependency injection container
+       - FINDINGS: Registered `AuthEventBus` as a lazy singleton in `lib/core/di/injection_container.dart` using `sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());`.
+
+    3.7. [x] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Ran `dart analyze` and `flutter test` for all new/modified files (`auth_events.dart`, `auth_events_test.dart`, `auth_event_bus.dart`, `auth_event_bus_test.dart`, `injection_container.dart`). All checks passed. No refactoring deemed necessary for this simple implementation.
 
 ## 4. Domain Interface Enhancements
 

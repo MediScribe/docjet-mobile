@@ -36,6 +36,7 @@ import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService i
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; // Add AuthServiceImpl import
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // Add SecureStorageAuthSessionProvider
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
 
 final sl = GetIt.instance;
 
@@ -139,6 +140,9 @@ Future<void> init() async {
   );
 
   // --- Core Dependencies ---
+
+  // Register AuthEventBus
+  sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
 
   // External
   sl.registerLazySingleton<Uuid>(() => const Uuid());
