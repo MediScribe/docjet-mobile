@@ -1,8 +1,10 @@
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
+import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
+import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
+import 'package:docjet_mobile/features/home/presentation/screens/home_screen.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
-import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +46,7 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Get auth state from the provider - this will trigger rebuilds when it changes
-    ref.watch(authNotifierProvider);
+    final authState = ref.watch(authNotifierProvider);
 
     return MultiBlocProvider(
       providers: [BlocProvider(create: (context) => getIt<JobListCubit>())],
@@ -55,13 +57,22 @@ class MyApp extends ConsumerWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        // For now, always show the JobListPage
-        // Later, conditionally show based on auth state:
-        // home: authState.status == AuthStatus.authenticated
-        //   ? const HomeScreen()
-        //   : const LoginScreen(),
-        home: const JobListPage(),
+        // Conditionally show screens based on auth state
+        home: _buildHomeBasedOnAuthState(authState),
       ),
     );
+  }
+
+  // Helper method to determine which screen to show based on auth state
+  Widget _buildHomeBasedOnAuthState(AuthState authState) {
+    switch (authState.status) {
+      case AuthStatus.loading:
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      case AuthStatus.authenticated:
+        return const HomeScreen();
+      case AuthStatus.unauthenticated:
+      case AuthStatus.error:
+        return const LoginScreen();
+    }
   }
 }

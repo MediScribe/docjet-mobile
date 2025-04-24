@@ -310,58 +310,50 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 Critical TODOs to ensure proper authentication works with both real API and mock server:
 
-13.1. [ ] **Fix Main.dart Navigation Logic (TDD)**
-    - FINDINGS: Main.dart was modified to always show JobListPage instead of conditional navigation based on auth state.
+13.1. [x] **Fix Main.dart Navigation Logic (TDD)**
+    - FINDINGS: Main.dart was modified to always show JobListPage instead of conditional navigation based on auth state. Successfully implemented and tested proper conditional navigation based on auth status.
     
-    13.1.1. [ ] **RED**: Write failing widget test for auth-based navigation
-       - Create `test/core/app/main_app_test.dart` to test conditional rendering
-       - Write test case verifying `LoginScreen` is shown when auth status is unauthenticated
-       - Write test case verifying `HomeScreen` is shown when auth status is authenticated
-       - Write test case verifying loading indicator is shown when auth status is loading
-       - Run tests to confirm they fail with current implementation
+    13.1.1. [x] **RED**: Write failing widget test for auth-based navigation
+       - Created `test/core/app/main_app_test.dart` with three test cases for different auth states
+       - Added test case verifying `LoginScreen` is shown when auth status is unauthenticated
+       - Added test case verifying `HomeScreen` is shown when auth status is authenticated
+       - Added test case verifying loading indicator is shown when auth status is loading
+       - Verified tests failed with the current implementation that always showed JobListPage
     
-    13.1.2. [ ] **GREEN**: Implement conditional navigation in main.dart
-       - Update imports to include required screens and auth state
-       - Store the auth state in a variable: `final authState = ref.watch(authNotifierProvider)`
-       - Implement conditional rendering:
-       ```dart
-       home: authState.status == AuthStatus.loading
-           ? const Center(child: CircularProgressIndicator())
-           : authState.status == AuthStatus.authenticated
-               ? const HomeScreen()
-               : const LoginScreen(),
-       ```
-       - Run tests to verify they now pass
+    13.1.2. [x] **GREEN**: Implement conditional navigation in main.dart
+       - Updated imports to include required screens and auth state
+       - Stored the auth state in a variable: `final authState = ref.watch(authNotifierProvider)`
+       - Implemented conditional rendering based on auth state
+       - Ran tests to verify they now pass
     
-    13.1.3. [ ] **REFACTOR**: Clean up and optimize
-       - Remove JobListPage import if unused
-       - Consider extracting conditional into a method for readability
-       - Verify tests still pass after refactoring
+    13.1.3. [x] **REFACTOR**: Clean up and optimize
+       - Removed JobListPage import as it was no longer needed
+       - Extracted conditional logic to a helper method `_buildHomeBasedOnAuthState()` for better readability
+       - Implemented a switch statement for cleaner state handling
+       - Verified tests still pass after refactoring
 
-13.2. [ ] **Environment Configuration for API Selection (TDD)**
-    - FINDINGS: DioFactory uses API_DOMAIN from environment variables, defaulting to 'staging.docjet.ai', but needs testing.
+13.2. [x] **Environment Configuration for API Selection (TDD)**
+    - FINDINGS: DioFactory already correctly uses API_DOMAIN from environment variables, defaulting to 'staging.docjet.ai'. The run_with_mock.sh script properly sets the environment using secrets.test.json which includes API_DOMAIN=localhost:8080.
     
-    13.2.1. [ ] **RED**: Write failing tests for API domain configuration
-       - Create `test/core/config/api_domain_test.dart`
-       - Write test verifying localhost domains use http:// protocol
-       - Write test verifying other domains use https:// protocol
-       - Write test verifying API_DOMAIN environment variable is used
-       - Run tests to confirm they fail or are incomplete
+    13.2.1. [x] **RED**: Write failing tests for API domain configuration
+       - Created `test/core/config/api_domain_test.dart` with comprehensive protocol tests
+       - Added test verifying localhost domains use http:// protocol
+       - Added test verifying other domains use https:// protocol
+       - Added test verifying API_DOMAIN environment variable is used with proper default
+       - Added test documenting mock server integration with run_with_mock.sh
     
-    13.2.2. [ ] **GREEN**: Implement environment handling
-       - Ensure DioFactory properly handles API_DOMAIN environment variable
-       - Update scripts to include API_DOMAIN parameter:
-       ```bash
-       # In run_with_mock.sh
-       flutter run --dart-define=API_KEY=mock-key --dart-define=API_DOMAIN=localhost:8080
-       ```
-       - Run tests to verify they now pass
+    13.2.2. [x] **GREEN**: Implement environment handling
+       - Verified DioFactory already properly handles API_DOMAIN environment variable
+       - Confirmed ApiConfig.baseUrlFromDomain correctly determines protocol based on domain
+       - Verified run_with_mock.sh uses secrets.test.json which includes API_DOMAIN parameter
+       - Confirmed all tests pass with the existing implementation
     
-    13.2.3. [ ] **REFACTOR**: Document and standardize
-       - Create comprehensive environment configuration guide
-       - Document all environment variables needed for auth (API_KEY, API_DOMAIN)
-       - Document how to run the app with different configurations
-       - Verify tests still pass after documentation
+    13.2.3. [x] **REFACTOR**: Document and standardize
+       - Created comprehensive environment configuration guide at `docs/current/environment_config.md`
+       - Documented all environment variables needed for auth (API_KEY, API_DOMAIN)
+       - Documented how to run the app with different configurations (secrets.json vs direct parameters)
+       - Documented mock server integration with run_with_mock.sh
+       - Verified all tests still pass
 
 13.3. [ ] **Auth API Client Mock Server Integration (TDD)**
     - FINDINGS: Need to ensure AuthApiClient works with mock server endpoints.

@@ -38,15 +38,14 @@ void main() {
   };
 
   // Sample successful user profile response (placeholder)
+  // This response will be used in future tests when UserProfileDto is implemented
+  // ignore: unused_local_variable
   final successProfileResponse = {
     'id': testUserId,
     'name': 'Test User',
     'email': testEmail,
     // Add other fields as needed by UserProfileDto
   };
-  // This is currently unused but will be needed for the commented-out
-  // 'should return UserProfileDto on successful profile fetch' test
-  // once UserProfileDto is implemented.
 
   setUp(() {
     dio = Dio();
