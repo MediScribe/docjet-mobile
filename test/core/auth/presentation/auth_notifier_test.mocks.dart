@@ -7,6 +7,8 @@ import 'dart:async' as _i4;
 
 import 'package:docjet_mobile/core/auth/auth_service.dart' as _i3;
 import 'package:docjet_mobile/core/auth/entities/user.dart' as _i2;
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i6;
+import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i7;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
 
@@ -126,4 +128,37 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
           ),
         )),
       ) as _i4.Future<_i2.User>);
+}
+
+/// A class which mocks [AuthEventBus].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthEventBus extends _i1.Mock implements _i6.AuthEventBus {
+  MockAuthEventBus() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i4.Stream<_i7.AuthEvent> get stream => (super.noSuchMethod(
+        Invocation.getter(#stream),
+        returnValue: _i4.Stream<_i7.AuthEvent>.empty(),
+      ) as _i4.Stream<_i7.AuthEvent>);
+
+  @override
+  void add(_i7.AuthEvent? event) => super.noSuchMethod(
+        Invocation.method(
+          #add,
+          [event],
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
 }

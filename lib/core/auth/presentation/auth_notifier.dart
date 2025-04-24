@@ -1,8 +1,14 @@
+import 'dart:async';
+
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
-import 'package:docjet_mobile/core/auth/entities/user.dart';
+// import 'package:docjet_mobile/core/auth/entities/user.dart'; // Removed unused import
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
+import 'package:docjet_mobile/core/di/injection_container.dart'; // Assuming provider is here
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -14,76 +20,169 @@ part 'auth_notifier.g.dart';
 /// and encapsulates authentication state management.
 @Riverpod(keepAlive: true)
 class AuthNotifier extends _$AuthNotifier {
+  /// Logger setup
+  static final String _tag = logTag(AuthNotifier);
+  final Logger _logger = LoggerFactory.getLogger(AuthNotifier);
+
   /// The authentication service used to perform authentication operations
   late final AuthService _authService;
+  late final AuthEventBus _authEventBus;
+  StreamSubscription? _eventSubscription;
 
   @override
   AuthState build() {
+    _logger.d('$_tag Building AuthNotifier...');
     // Get the auth service from the container
     _authService = ref.read(authServiceProvider);
+    _authEventBus = ref.read(authEventBusProvider); // Read event bus
 
-    // Trigger initial check for existing authentication
+    // Listen to auth events
+    _listenToAuthEvents();
+
+    // Initial auth check
     _checkAuthStatus();
+
+    // Register dispose callback
+    ref.onDispose(() {
+      _logger.d('$_tag Disposing AuthNotifier, cancelling subscription.');
+      _eventSubscription?.cancel();
+    });
 
     // Return initial state
     return AuthState.initial();
   }
 
+  void _listenToAuthEvents() {
+    _eventSubscription?.cancel(); // Cancel previous subscription if any
+    _eventSubscription = _authEventBus.stream.listen((event) {
+      _logger.d('$_tag Received auth event: $event');
+      if (event == AuthEvent.loggedOut) {
+        if (state.status != AuthStatus.unauthenticated) {
+          _logger.i('$_tag Received loggedOut event, resetting state.');
+          state = AuthState.initial();
+        }
+      }
+      // Handle other events like loggedIn if needed
+    });
+    _logger.i('$_tag Subscribed to AuthEventBus stream.');
+  }
+
   /// Attempts to log in with email and password
   Future<void> login(String email, String password) async {
     if (state.status == AuthStatus.loading) {
+      _logger.w('$_tag Login attempt ignored, already loading.');
       return; // Prevent multiple login attempts
     }
 
+    _logger.i('$_tag Attempting login for email: $email');
     // Set loading state
     state = AuthState.loading();
 
     try {
       // Attempt login
-      final user = await _authService.login(email, password);
-
-      // Update state with authenticated user
-      state = AuthState.authenticated(user);
-    } on AuthException catch (e) {
-      // Handle authentication errors
-      state = AuthState.error(e.message);
-    } catch (e) {
-      // Handle unexpected errors
-      state = AuthState.error('An unexpected error occurred');
+      await _authService.login(email, password);
+      _logger.d('$_tag Login successful, fetching user profile...');
+      // Fetch full profile after successful login
+      final userProfile = await _authService.getUserProfile();
+      state = AuthState.authenticated(userProfile);
+      _logger.i(
+        '$_tag Login successful, user profile fetched for ID: ${userProfile.id}',
+      );
+    } on AuthException catch (e, s) {
+      final isOffline = e == AuthException.offlineOperationFailed();
+      _logger.e(
+        '$_tag Login failed - AuthException, offline: $isOffline',
+        error: e,
+        stackTrace: s,
+      );
+      state = AuthState.error(e.message, isOffline: isOffline);
+    } catch (e, s) {
+      _logger.e(
+        '$_tag Login failed - Unexpected error',
+        error: e,
+        stackTrace: s,
+      );
+      state = AuthState.error('An unexpected error occurred during login');
     }
   }
 
   /// Logs out the current user
   Future<void> logout() async {
-    await _authService.logout();
-    state = AuthState.initial();
+    _logger.i('$_tag Logout requested.');
+    // The service handles token clearing and event emission.
+    // The listener (_listenToAuthEvents) will reset the state.
+    try {
+      await _authService.logout();
+      _logger.i('$_tag Logout call successful (state reset via event).');
+    } on AuthException catch (e, s) {
+      // Handle potential logout errors (e.g., network issues if it calls API)
+      final isOffline = e == AuthException.offlineOperationFailed();
+      _logger.e(
+        '$_tag Logout failed - AuthException, offline: $isOffline',
+        error: e,
+        stackTrace: s,
+      );
+      // Decide on state: maybe stay authenticated but show error?
+      // For now, forcefully go to initial state regardless of error, as the main goal is logout.
+      if (state.status != AuthStatus.unauthenticated) {
+        state = AuthState.initial();
+      }
+    } catch (e, s) {
+      _logger.e(
+        '$_tag Logout failed - Unexpected error',
+        error: e,
+        stackTrace: s,
+      );
+      // Force state reset even on logout failure
+      if (state.status != AuthStatus.unauthenticated) {
+        state = AuthState.initial();
+      }
+    }
   }
 
   /// Checks the current authentication status
   Future<void> _checkAuthStatus() async {
-    final isAuthenticated = await _authService.isAuthenticated();
+    _logger.i('$_tag Checking initial auth status...');
+    try {
+      // Use validateTokenLocally = false for initial check
+      final isAuthenticated = await _authService.isAuthenticated();
+      _logger.d('$_tag Is authenticated locally? $isAuthenticated');
 
-    if (isAuthenticated) {
-      // Try to refresh the session to ensure we have a valid token
-      final refreshed = await _authService.refreshSession();
-
-      if (refreshed) {
-        // We successfully refreshed, need to manually get user info since
-        // we don't have it from login flow
-        try {
-          // In a real implementation, we'd call a getUserProfile method
-          // on the auth service to get the full user details.
-          // For now, we'll create a placeholder user
-          final userId = 'existing-user';
-          state = AuthState.authenticated(User(id: userId));
-        } catch (e) {
-          // If we can't get the user info, force logout
-          await logout();
-        }
+      if (isAuthenticated) {
+        _logger.d('$_tag Attempting to fetch user profile...');
+        // If basic check passes, try getting profile (which implies token validity)
+        final userProfile = await _authService.getUserProfile();
+        _logger.i(
+          '$_tag Profile fetched successfully for ID: ${userProfile.id}',
+        );
+        state = AuthState.authenticated(userProfile);
       } else {
-        // Session couldn't be refreshed, log out
-        await logout();
+        _logger.i('$_tag Not authenticated locally.');
+        state = AuthState.initial();
       }
+    } on AuthException catch (e, s) {
+      final isOffline = e == AuthException.offlineOperationFailed();
+      _logger.w(
+        '$_tag Auth check failed - AuthException, offline: $isOffline',
+        error: e,
+        stackTrace: s,
+      );
+      // If check fails (e.g., token invalid, profile fetch fail), treat as unauthenticated
+      // but potentially flag offline status.
+      // If offline, we might want a different state, but for now, error seems appropriate.
+      state = AuthState.error(e.message, isOffline: isOffline);
+      // Consider calling logout to ensure tokens are cleared if refresh/profile fetch fails
+      // await _authService.logout(); // Potentially trigger this? But event bus might handle it.
+    } catch (e, s) {
+      _logger.e(
+        '$_tag Auth check failed - Unexpected error',
+        error: e,
+        stackTrace: s,
+      );
+      state = AuthState.error(
+        'An unexpected error occurred checking auth status',
+      );
+      // await _authService.logout(); // Force clear state on unexpected error?
     }
   }
 }

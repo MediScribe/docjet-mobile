@@ -37,8 +37,20 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; 
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // Add SecureStorageAuthSessionProvider
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 
 final sl = GetIt.instance;
+
+// --- Riverpod Providers --- Accessing GetIt Singletons ---
+
+/// Riverpod provider for accessing the singleton AuthEventBus instance from GetIt.
+final authEventBusProvider = Provider<AuthEventBus>(
+  (ref) => sl<AuthEventBus>(),
+);
+
+// Add other bridge providers here if needed...
+
+// -------------------------------------------------------
 
 Future<void> init() async {
   // --- Initialize Hive FIRST ---
@@ -141,7 +153,7 @@ Future<void> init() async {
 
   // --- Core Dependencies ---
 
-  // Register AuthEventBus
+  // Register AuthEventBus using GetIt
   sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
 
   // External
