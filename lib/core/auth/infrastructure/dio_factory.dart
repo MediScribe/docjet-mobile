@@ -1,79 +1,119 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:flutter/foundation.dart';
 
 /// Factory for creating [Dio] HTTP client instances with authentication support
 ///
 /// This factory creates and configures Dio instances with appropriate
 /// interceptors for authentication and token refresh.
 class DioFactory {
-  /// Read the API domain from environment variables
-  /// Default to staging if not specified
-  static const _apiDomain = String.fromEnvironment(
-    'API_DOMAIN',
-    defaultValue: 'staging.docjet.ai', // Default to staging
-  );
+  static final _logger = LoggerFactory.getLogger('DioFactory');
 
-  /// Creates a basic [Dio] instance without authentication
-  ///
-  /// This is used for the auth API client itself to avoid circular dependencies.
-  static Dio createBasicDio() {
-    final baseUrl = ApiConfig.baseUrlFromDomain(_apiDomain);
+  // Allow overriding environment variables for testing
+  static String _getEnv(String name, Map<String, String>? environment) {
+    if (environment != null) {
+      return environment[name] ?? '';
+    }
+    // In release mode or when environment is not provided, use String.fromEnvironment
+    // Add default values for common cases like API_DOMAIN
+    const defaultValue = '';
+    if (name == 'API_DOMAIN') {
+      return String.fromEnvironment(name, defaultValue: 'staging.docjet.ai');
+    }
+    if (name == 'API_KEY') {
+      // No default API key, should be provided
+      return String.fromEnvironment(name, defaultValue: defaultValue);
+    }
+    return String.fromEnvironment(name, defaultValue: defaultValue);
+  }
 
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: baseUrl, // Use the baseUrl constructed from domain
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        contentType: 'application/json',
-      ),
+  static String _getApiDomain(Map<String, String>? environment) =>
+      _getEnv('API_DOMAIN', environment);
+  static String _getApiKey(Map<String, String>? environment) =>
+      _getEnv('API_KEY', environment);
+
+  /// Creates a basic Dio instance without authentication interceptors.
+  /// Suitable for non-authenticated API calls or initial setup.
+  static Dio createBasicDio({Map<String, String>? environment}) {
+    final apiDomain = _getApiDomain(environment);
+    final baseUrl = ApiConfig.baseUrlFromDomain(apiDomain);
+    _logger.i('Creating basic Dio instance for domain: $apiDomain -> $baseUrl');
+
+    final options = BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      contentType: ContentType.json.value, // Use standard JSON content type
     );
 
-    // Add logging interceptor for debug builds
-    assert(() {
+    final dio = Dio(options);
+
+    // Add logging interceptor for debugging if not in release mode
+    if (kDebugMode) {
       dio.interceptors.add(
-        LogInterceptor(requestBody: true, responseBody: true),
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (o) => _logger.d(o.toString()), // Use our logger
+        ),
       );
-      return true;
-    }());
+    }
 
     return dio;
   }
 
-  /// Creates an authenticated [Dio] instance with token refresh capabilities
-  ///
-  /// This configures Dio with the AuthInterceptor for automatic token management.
+  /// Creates a Dio instance configured with authentication interceptors.
+  /// Requires AuthApiClient and AuthCredentialsProvider for token refresh.
   static Dio createAuthenticatedDio({
     required AuthApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
+    Map<String, String>? environment,
   }) {
-    final dio = createBasicDio();
+    final dio = createBasicDio(environment: environment);
+    final apiKey = _getApiKey(environment);
 
-    // Add API key interceptor to add API key to all requests
+    if (apiKey.isEmpty) {
+      _logger.w('API_KEY environment variable is not set!');
+      // Depending on requirements, could throw an error here or allow proceeding
+      // For now, we log a warning.
+    }
+
+    // Add interceptor to inject API key header BEFORE the AuthInterceptor
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final apiKey = await credentialsProvider.getApiKey();
-          options.headers['x-api-key'] = apiKey;
-          return handler.next(options);
+          if (apiKey.isNotEmpty) {
+            options.headers['x-api-key'] = apiKey;
+            _logger.t('Injected x-api-key header.');
+          } else {
+            _logger.w('Skipping x-api-key header injection: Key not found.');
+          }
+          return handler.next(options); // continue
         },
       ),
     );
 
-    // Add auth interceptor for token management
-    final authInterceptor = AuthInterceptor(
-      apiClient: authApiClient,
-      credentialsProvider: credentialsProvider,
-      dio: dio, // Circular reference for retrying
-      authEventBus: authEventBus,
+    // Add the authentication interceptor for handling 401s and token refresh
+    dio.interceptors.add(
+      AuthInterceptor(
+        dio: dio, // Pass the Dio instance itself
+        apiClient: authApiClient,
+        credentialsProvider: credentialsProvider,
+        authEventBus: authEventBus,
+      ),
     );
 
-    dio.interceptors.add(authInterceptor);
-
+    _logger.i(
+      'Created authenticated Dio instance with API Key and Auth interceptors.',
+    );
     return dio;
   }
 }

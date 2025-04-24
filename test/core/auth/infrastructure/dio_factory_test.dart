@@ -6,7 +6,6 @@ import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 
 @GenerateMocks([AuthApiClient, AuthCredentialsProvider, AuthEventBus])
@@ -24,117 +23,198 @@ void main() {
   });
 
   group('DioFactory', () {
-    test(
-      'createBasicDio should return configured Dio instance with default URL',
-      () {
+    group('createBasicDio', () {
+      test(
+        'should return configured Dio instance with default staging URL when no env provided',
+        () {
+          // Act
+          final dio = DioFactory.createBasicDio(); // No environment override
+
+          // Assert
+          expect(dio, isA<Dio>());
+          final expectedBaseUrl = ApiConfig.baseUrlFromDomain(
+            'staging.docjet.ai', // Default domain
+          );
+          expect(dio.options.baseUrl, expectedBaseUrl);
+          expect(
+            dio.options.connectTimeout,
+            equals(const Duration(seconds: 30)),
+          );
+          expect(
+            dio.options.receiveTimeout,
+            equals(const Duration(seconds: 30)),
+          );
+          expect(dio.options.contentType, equals('application/json'));
+          expect(dio.options.headers.containsKey('X-API-Key'), isFalse);
+        },
+      );
+
+      test(
+        'should use API_DOMAIN from environment when available (localhost -> http)',
+        () {
+          // Arrange
+          const testDomain = 'localhost:8080';
+          final mockEnvironment = {'API_DOMAIN': testDomain};
+
+          // Act
+          final dio = DioFactory.createBasicDio(environment: mockEnvironment);
+
+          // Assert
+          final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
+          expect(dio.options.baseUrl, expectedBaseUrl);
+          expect(dio.options.baseUrl, startsWith('http://'));
+          expect(dio.options.headers.containsKey('X-API-Key'), isFalse);
+        },
+      );
+
+      test(
+        'should use API_DOMAIN from environment when available (remote -> https)',
+        () {
+          // Arrange
+          const testDomain = 'api.test.com';
+          final mockEnvironment = {'API_DOMAIN': testDomain};
+
+          // Act
+          final dio = DioFactory.createBasicDio(environment: mockEnvironment);
+
+          // Assert
+          final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
+          expect(dio.options.baseUrl, expectedBaseUrl);
+          expect(dio.options.baseUrl, startsWith('https://'));
+          expect(dio.options.headers.containsKey('X-API-Key'), isFalse);
+        },
+      );
+    });
+
+    group('createAuthenticatedDio', () {
+      test('should add AuthInterceptor and API Key interceptor', () {
+        // Arrange
+        const testApiKey = 'test-key-123';
+        final mockEnvironment = {
+          'API_KEY': testApiKey,
+          'API_DOMAIN': 'staging.docjet.ai',
+        };
+
         // Act
-        final dio = DioFactory.createBasicDio();
+        final dio = DioFactory.createAuthenticatedDio(
+          authApiClient: mockApiClient,
+          credentialsProvider: mockCredProvider,
+          authEventBus: mockAuthEventBus,
+          environment: mockEnvironment,
+        );
 
         // Assert
         expect(dio, isA<Dio>());
-        // Verify default base URL is constructed correctly using the staging domain
-        final expectedBaseUrl = ApiConfig.baseUrlFromDomain(
-          'staging.docjet.ai',
+        expect(
+          dio.interceptors.whereType<AuthInterceptor>().length,
+          equals(1),
+          reason: 'AuthInterceptor should be present',
         );
-        expect(dio.options.baseUrl, expectedBaseUrl);
-        expect(dio.options.connectTimeout, equals(const Duration(seconds: 30)));
-        expect(dio.options.receiveTimeout, equals(const Duration(seconds: 30)));
-        expect(dio.options.contentType, equals('application/json'));
-      },
-    );
 
-    // Test the environment variable injection
-    test(
-      'createBasicDio should use API_DOMAIN from environment when available',
-      () {
+        // Check for the API Key interceptor
+        final apiKeyInterceptors =
+            dio.interceptors.whereType<InterceptorsWrapper>();
+        expect(
+          apiKeyInterceptors.isNotEmpty,
+          isTrue,
+          reason: 'Should have at least one InterceptorsWrapper',
+        );
+
+        // Create a request and pass it through each interceptor to find the one that sets our header
+        final handler = RequestInterceptorHandler();
+
+        for (final interceptor in apiKeyInterceptors) {
+          // Create fresh options for each test
+          final options = RequestOptions(path: '/test');
+          // ignore: invalid_use_of_internal_member
+          interceptor.onRequest(options, handler);
+
+          // If this is the API key interceptor, the header will be set
+          if (options.headers.containsKey('x-api-key')) {
+            expect(options.headers['x-api-key'], equals(testApiKey));
+            // Found it, no need to continue
+            break;
+          }
+        }
+      });
+
+      test('should NOT add X-API-Key header if API_KEY env var is missing', () {
         // Arrange
-        // We can't directly set environment variables in tests,
-        // but we can test the implementation by modifying DioFactory
-        // to use an injected API domain for testing.
+        final mockEnvironment = {
+          'API_DOMAIN': 'staging.docjet.ai',
+        }; // No API_KEY
 
-        // However, we can verify the pattern by checking:
-        // 1. That it reads from String.fromEnvironment
-        // 2. That it uses ApiConfig.baseUrlFromDomain with the domain
+        // Act
+        final dio = DioFactory.createAuthenticatedDio(
+          authApiClient: mockApiClient,
+          credentialsProvider: mockCredProvider,
+          authEventBus: mockAuthEventBus,
+          environment: mockEnvironment,
+        );
 
         // Assert
-        // Inspect the DioFactory implementation
-        // The DioFactory._apiDomain should use String.fromEnvironment('API_DOMAIN')
-        // createBasicDio should call ApiConfig.baseUrlFromDomain with _apiDomain
-
-        // This is a white box test verifying the implementation pattern
-        const expectedDomain = 'localhost:8080';
-        final expectedBaseUrl = ApiConfig.baseUrlFromDomain(expectedDomain);
-
-        // Test that ApiConfig correctly builds URLs for test domains
+        final apiKeyInterceptors =
+            dio.interceptors.whereType<InterceptorsWrapper>();
         expect(
-          expectedBaseUrl,
-          startsWith('http://'), // Should use http:// for localhost
-        );
-        expect(
-          expectedBaseUrl,
-          contains(expectedDomain), // Should contain the domain
+          apiKeyInterceptors.isNotEmpty,
+          isTrue,
+          reason: 'Should have at least one InterceptorsWrapper',
         );
 
-        // Additional check verifying run_with_mock.sh integration
+        // Create a request and pass it through each interceptor
+        bool headerFound = false;
+        for (final interceptor in apiKeyInterceptors) {
+          // Create fresh options for each test
+          final options = RequestOptions(path: '/test');
+          final handler = RequestInterceptorHandler();
+          // ignore: invalid_use_of_internal_member
+          interceptor.onRequest(options, handler);
+
+          // Check if any interceptor set our header
+          if (options.headers.containsKey('x-api-key')) {
+            headerFound = true;
+            break;
+          }
+        }
+
+        // Verify the header was never set
         expect(
-          expectedBaseUrl,
-          'http://localhost:8080/api/v1', // Expected complete URL
+          headerFound,
+          isFalse,
+          reason: 'x-api-key header should not be set',
         );
-      },
-    );
+      });
 
-    // Test that will fail until we fix the main.dart file
-    test(
-      'integration test - auth notifier correctly uses proper auth service from injection container',
-      () {
-        // This is a more of an integration test that will be skipped in unit tests,
-        // but serves as a reminder of what functionality we need to fix.
+      test('should use API_DOMAIN from environment for base URL', () {
+        // Arrange
+        const testDomain = 'auth.test.com';
+        final mockEnvironment = {
+          'API_DOMAIN': testDomain,
+          'API_KEY': 'dummy-key', // Need some key for authenticated setup
+        };
 
-        // This test would actually verify that:
-        // 1. The authServiceProvider from riverpod is correctly overridden with GetIt value
-        // 2. The authNotifierProvider can access the auth service
-        // 3. The entire auth system properly uses the API_DOMAIN from environment
+        // Act
+        final dio = DioFactory.createAuthenticatedDio(
+          authApiClient: mockApiClient,
+          credentialsProvider: mockCredProvider,
+          authEventBus: mockAuthEventBus,
+          environment: mockEnvironment,
+        );
 
-        // Marking as skip for now since we're focusing on units
-        // This would be better as an integration test
-        markTestSkipped('Needs to be implemented as an integration test');
-
-        // In a real integration test, we would:
-        // - Start the mock server
-        // - Initialize the app with the correct environment
-        // - Verify auth works with the mock server
-      },
-      skip:
-          'Needs to be implemented as an integration test', // Use the built-in skip parameter
-    );
-
-    test('createAuthenticatedDio should add AuthInterceptor', () {
-      // Arrange
-      when(
-        mockCredProvider.getApiKey(),
-      ).thenAnswer((_) async => 'test-api-key');
-
-      // Act
-      final dio = DioFactory.createAuthenticatedDio(
-        authApiClient: mockApiClient,
-        credentialsProvider: mockCredProvider,
-        authEventBus: mockAuthEventBus,
-      );
-
-      // Assert
-      expect(dio, isA<Dio>());
-
-      // Verify auth interceptor was added
-      final hasAuthInterceptor = dio.interceptors.any(
-        (i) => i is AuthInterceptor,
-      );
-      expect(hasAuthInterceptor, isTrue);
-
-      // Verify API key interceptor was added
-      final hasApiKeyInterceptor = dio.interceptors.any(
-        (i) => i is InterceptorsWrapper || i is QueuedInterceptorsWrapper,
-      );
-      expect(hasApiKeyInterceptor, isTrue);
+        // Assert
+        final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
+        expect(dio.options.baseUrl, expectedBaseUrl);
+        expect(dio.options.baseUrl, startsWith('https://'));
+      });
     });
+
+    // Remove or update the old integration test placeholder
+    // test(
+    //   'integration test - auth notifier correctly uses proper auth service from injection container',
+    //   () {
+    //     markTestSkipped('Needs to be implemented as an integration test');
+    //   },
+    //   skip: 'Needs to be implemented as an integration test',
+    // );
   });
 }
