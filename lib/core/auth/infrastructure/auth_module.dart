@@ -6,6 +6,7 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
@@ -52,6 +53,7 @@ class AuthModule {
       () => DioFactory.createAuthenticatedDio(
         authApiClient: getIt<AuthApiClient>(),
         credentialsProvider: getIt<AuthCredentialsProvider>(),
+        authEventBus: getIt<AuthEventBus>(),
       ),
       instanceName: 'authenticatedDio',
     );
@@ -61,6 +63,7 @@ class AuthModule {
       () => AuthServiceImpl(
         apiClient: getIt<AuthApiClient>(),
         credentialsProvider: getIt<AuthCredentialsProvider>(),
+        eventBus: getIt<AuthEventBus>(),
       ),
     );
   }

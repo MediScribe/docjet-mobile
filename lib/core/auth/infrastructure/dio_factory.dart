@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 
 /// Factory for creating [Dio] HTTP client instances with authentication support
@@ -48,6 +49,7 @@ class DioFactory {
   static Dio createAuthenticatedDio({
     required AuthApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
+    required AuthEventBus authEventBus,
   }) {
     final dio = createBasicDio();
 
@@ -67,6 +69,7 @@ class DioFactory {
       apiClient: authApiClient,
       credentialsProvider: credentialsProvider,
       dio: dio, // Circular reference for retrying
+      authEventBus: authEventBus,
     );
 
     dio.interceptors.add(authInterceptor);

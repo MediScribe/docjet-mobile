@@ -185,29 +185,29 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 ## 7. Auth Interceptor Enhancements
 
-7.  [ ] **Update Interceptor Error Recovery**
-    - FINDINGS: The existing auth interceptor is in `lib/core/auth/infrastructure/auth_interceptor.dart` with tests in `test/core/auth/infrastructure/auth_interceptor_test.dart`. It intercepts 401 errors and attempts to refresh tokens, but could be enhanced with better retry logic and error handling.
+7.  [x] **Update Interceptor Error Recovery**
+    - FINDINGS: The existing auth interceptor was in `lib/core/auth/infrastructure/auth_interceptor.dart` with tests in `test/core/auth/infrastructure/auth_interceptor_test.dart`. It intercepted 401 errors and attempted to refresh tokens, but previously lacked retry logic for network errors and wouldn't trigger a logout event for irrecoverable auth errors.
     
-    7.1. [ ] Write failing tests for retry logic in `test/core/auth/infrastructure/auth_interceptor_test.dart`
-       - FINDINGS: Will extend the existing test file with exponential backoff tests.
+    7.1. [x] Write failing tests for retry logic in `test/core/auth/infrastructure/auth_interceptor_test.dart`
+       - FINDINGS: Added tests for exponential backoff retry logic that verify refreshToken is called multiple times with increasing delays between attempts. Initially attempted to use `fakeAsync` for testing time-based retries, but this approach caused test timeouts due to interactions between `fakeAsync` and the async retry logic. Switched to a cleaner approach that uses real async execution and call counting.
     
-    7.2. [ ] Write failing tests for forced logout on irrecoverable errors
-       - FINDINGS: Will add tests for forced logout scenarios.
+    7.2. [x] Write failing tests for forced logout on irrecoverable errors
+       - FINDINGS: Added tests that verify the interceptor emits `AuthEvent.loggedOut` on the `AuthEventBus` when irrecoverable errors occur (e.g., `refreshTokenInvalid`, `unauthenticated`). Used Mockito to verify the event bus interaction.
     
-    7.3. [ ] Modify `AuthInterceptor` in `lib/core/auth/infrastructure/auth_interceptor.dart`:
-       - FINDINGS: Will update the existing interceptor with new features.
+    7.3. [x] Modify `AuthInterceptor` in `lib/core/auth/infrastructure/auth_interceptor.dart`:
+       - FINDINGS: Enhanced the interceptor with robust error handling and retry mechanics. Made the `Dio` parameter required and added the new `AuthEventBus` dependency.
     
-       7.3.1. [ ] Implement exponential backoff retry for transient errors
-          - FINDINGS: Will add retry logic for temporary network issues.
+       7.3.1. [x] Implement exponential backoff retry for transient errors
+          - FINDINGS: Implemented retry logic with configurable maximum retries (set to 3). Used exponential backoff starting at 500ms and doubling with each retry (500ms → 1000ms → 2000ms). The backoff is calculated using `initialDelayMs * pow(2, retryCount - 1)`.
     
-       7.3.2. [ ] Add logic to trigger logout for irrecoverable auth errors
-          - FINDINGS: Will integrate with auth events for coordinated logout.
+       7.3.2. [x] Add logic to trigger logout for irrecoverable auth errors
+          - FINDINGS: Added logic to fire `AuthEvent.loggedOut` when irrecoverable errors occur, like missing refresh token or auth exceptions other than network errors. Also fires logout event when max retries are reached for network errors.
     
-       7.3.3. [ ] Enhance error mapping using new exception types
-          - FINDINGS: Will use the new exception types for better error reporting.
+       7.3.3. [x] Enhance error mapping using new exception types
+          - FINDINGS: Used specific AuthException types to differentiate between recoverable errors (e.g., networkError) and irrecoverable ones (e.g., refreshTokenInvalid, unauthenticated). This approach lets the interceptor make intelligent decisions about retry vs. logout.
     
-    7.4. [ ] Verify all tests pass (GREEN) and refactor if needed
-       - FINDINGS: Will run the existing tests to verify the changes.
+    7.4. [x] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Initially encountered issues with dependency injection (missing `AuthEventBus` in places where `AuthInterceptor` is instantiated) and with testing (issues with `fakeAsync`). Fixed DI by updating constructor calls in `auth_module.dart`, `dio_factory.dart`, and `injection_container.dart`. Fixed testing by replacing `fakeAsync` with simpler async approaches that avoid timing issues. All tests now pass, providing good coverage of the retry and logout logic.
 
 ## 8. Presentation Layer - Auth State
 

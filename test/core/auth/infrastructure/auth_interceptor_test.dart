@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
@@ -9,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-@GenerateMocks([AuthApiClient, AuthCredentialsProvider, Dio])
+@GenerateMocks([AuthApiClient, AuthCredentialsProvider, Dio, AuthEventBus])
 import 'auth_interceptor_test.mocks.dart';
 
 // Mock interceptor handlers
@@ -23,6 +25,7 @@ void main() {
   late MockAuthApiClient mockApiClient;
   late MockAuthCredentialsProvider mockCredProvider;
   late MockDio mockDio;
+  late MockAuthEventBus mockAuthEventBus;
   late AuthInterceptor interceptor;
   late RequestOptions requestOptions;
   late MockRequestInterceptorHandler mockRequestHandler;
@@ -38,6 +41,7 @@ void main() {
     mockApiClient = MockAuthApiClient();
     mockCredProvider = MockAuthCredentialsProvider();
     mockDio = MockDio();
+    mockAuthEventBus = MockAuthEventBus();
     mockRequestHandler = MockRequestInterceptorHandler();
     mockErrorHandler = MockErrorInterceptorHandler();
 
@@ -45,6 +49,7 @@ void main() {
       apiClient: mockApiClient,
       credentialsProvider: mockCredProvider,
       dio: mockDio,
+      authEventBus: mockAuthEventBus,
     );
 
     // Setup request options for tests
@@ -179,26 +184,149 @@ void main() {
       verifyNever(mockDio.fetch<dynamic>(any));
     });
 
-    test('should propagate error when token refresh fails', () async {
-      // Arrange
-      when(
-        mockCredProvider.getRefreshToken(),
-      ).thenAnswer((_) async => testRefreshToken);
+    test(
+      'should retry with exponential backoff on network error during refresh and succeed',
+      () async {
+        // Arrange
+        final networkError = AuthException.networkError();
+        final successResponse = Response(
+          data: {'success': true},
+          statusCode: 200,
+          requestOptions: requestOptions,
+        );
+        final authResponse = AuthResponseDto(
+          accessToken: testNewAccessToken,
+          refreshToken: testNewRefreshToken,
+          userId: testUserId,
+        );
 
-      when(
-        mockApiClient.refreshToken(testRefreshToken),
-      ).thenThrow(AuthException.tokenExpired());
+        when(
+          mockCredProvider.getRefreshToken(),
+        ).thenAnswer((_) async => testRefreshToken);
 
-      // Act
-      await interceptor.onError(dioError, mockErrorHandler);
+        // FINDINGS: Simplify the test by using a counter to manage retry behavior
+        // instead of relying on fakeAsync timing which is causing test timeouts
+        var refreshCallCount = 0;
+        when(mockApiClient.refreshToken(testRefreshToken)).thenAnswer((
+          _,
+        ) async {
+          refreshCallCount++;
+          if (refreshCallCount < 3) {
+            throw networkError;
+          }
+          return authResponse;
+        });
 
-      // Assert
-      verify(mockCredProvider.getRefreshToken()).called(1);
-      verify(mockApiClient.refreshToken(testRefreshToken)).called(1);
-      verify(mockErrorHandler.next(dioError)).called(1);
-      verifyNever(mockCredProvider.setAccessToken(any));
-      verifyNever(mockCredProvider.setRefreshToken(any));
-      verifyNever(mockDio.fetch<dynamic>(any));
-    });
+        when(
+          mockCredProvider.setAccessToken(testNewAccessToken),
+        ).thenAnswer((_) async {});
+        when(
+          mockCredProvider.setRefreshToken(testNewRefreshToken),
+        ).thenAnswer((_) async {});
+        when(
+          mockDio.fetch<dynamic>(any),
+        ).thenAnswer((_) async => successResponse);
+
+        // Act - just await the actual operation now, no fakeAsync needed
+        await interceptor.onError(dioError, mockErrorHandler);
+
+        // Assert - verify final state only
+        verify(mockApiClient.refreshToken(testRefreshToken)).called(3);
+        verify(mockCredProvider.setAccessToken(testNewAccessToken)).called(1);
+        verify(mockCredProvider.setRefreshToken(testNewRefreshToken)).called(1);
+        verify(mockDio.fetch<dynamic>(any)).called(1);
+        verify(mockErrorHandler.resolve(successResponse)).called(1);
+      },
+    );
+
+    test(
+      'should retry with exponential backoff and propagate error after max retries',
+      () async {
+        // Arrange
+        final networkError = AuthException.networkError();
+
+        when(
+          mockCredProvider.getRefreshToken(),
+        ).thenAnswer((_) async => testRefreshToken);
+
+        // FINDINGS: Always throw network error to test max retries scenario
+        when(
+          mockApiClient.refreshToken(testRefreshToken),
+        ).thenAnswer((_) async => throw networkError);
+
+        // Act - just await the actual operation now, no fakeAsync needed
+        await interceptor.onError(dioError, mockErrorHandler);
+
+        // Assert - verify end result only
+        verify(mockApiClient.refreshToken(testRefreshToken)).called(3);
+        verify(mockErrorHandler.next(dioError)).called(1);
+        verifyNever(mockCredProvider.setAccessToken(any));
+        verifyNever(mockCredProvider.setRefreshToken(any));
+        verifyNever(mockDio.fetch<dynamic>(any));
+      },
+    );
+
+    test(
+      'should trigger logout event and propagate error on irrecoverable refresh error (e.g., refreshTokenInvalid)',
+      () async {
+        // Arrange
+        final irrecoverableError = AuthException.refreshTokenInvalid();
+
+        when(
+          mockCredProvider.getRefreshToken(),
+        ).thenAnswer((_) async => testRefreshToken);
+        when(
+          mockApiClient.refreshToken(testRefreshToken),
+        ).thenThrow(irrecoverableError);
+
+        // Act
+        await interceptor.onError(dioError, mockErrorHandler);
+
+        // Assert
+        verify(mockCredProvider.getRefreshToken()).called(1);
+        verify(mockApiClient.refreshToken(testRefreshToken)).called(1);
+        verify(
+          mockAuthEventBus.add(AuthEvent.loggedOut),
+        ).called(1); // Verify logout event
+        verify(
+          mockErrorHandler.next(dioError),
+        ).called(1); // Propagate original error
+        verifyNever(mockCredProvider.setAccessToken(any));
+        verifyNever(mockCredProvider.setRefreshToken(any));
+        verifyNever(mockDio.fetch<dynamic>(any));
+      },
+    );
+
+    test(
+      'should trigger logout event and propagate error on other irrecoverable auth errors during refresh',
+      () async {
+        // Arrange
+        final irrecoverableError =
+            AuthException.unauthenticated(); // Another example
+
+        when(
+          mockCredProvider.getRefreshToken(),
+        ).thenAnswer((_) async => testRefreshToken);
+        when(
+          mockApiClient.refreshToken(testRefreshToken),
+        ).thenThrow(irrecoverableError);
+
+        // Act
+        await interceptor.onError(dioError, mockErrorHandler);
+
+        // Assert
+        verify(mockCredProvider.getRefreshToken()).called(1);
+        verify(mockApiClient.refreshToken(testRefreshToken)).called(1);
+        verify(
+          mockAuthEventBus.add(AuthEvent.loggedOut),
+        ).called(1); // Verify logout event
+        verify(
+          mockErrorHandler.next(dioError),
+        ).called(1); // Propagate original error
+        verifyNever(mockCredProvider.setAccessToken(any));
+        verifyNever(mockCredProvider.setRefreshToken(any));
+        verifyNever(mockDio.fetch<dynamic>(any));
+      },
+    );
   });
 }

@@ -7,17 +7,20 @@ import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 
-@GenerateMocks([AuthApiClient, AuthCredentialsProvider])
+@GenerateMocks([AuthApiClient, AuthCredentialsProvider, AuthEventBus])
 import 'dio_factory_test.mocks.dart';
 
 void main() {
   late MockAuthApiClient mockApiClient;
   late MockAuthCredentialsProvider mockCredProvider;
+  late MockAuthEventBus mockAuthEventBus;
 
   setUp(() {
     mockApiClient = MockAuthApiClient();
     mockCredProvider = MockAuthCredentialsProvider();
+    mockAuthEventBus = MockAuthEventBus();
   });
 
   group('DioFactory', () {
@@ -50,6 +53,7 @@ void main() {
       final dio = DioFactory.createAuthenticatedDio(
         authApiClient: mockApiClient,
         credentialsProvider: mockCredProvider,
+        authEventBus: mockAuthEventBus,
       );
 
       // Assert

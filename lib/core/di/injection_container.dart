@@ -157,7 +157,7 @@ Future<void> init() async {
     () => const FlutterSecureStorage(),
   );
 
-  // Register the JWT Validator
+  // Register the JwtValidator
   sl.registerLazySingleton<JwtValidator>(() => JwtValidator());
 
   // Register the concrete provider (CORRECTED)
@@ -179,6 +179,7 @@ Future<void> init() async {
     () => AuthServiceImpl(
       apiClient: sl(), // This assumes AuthApiClient is registered elsewhere
       credentialsProvider: sl(),
+      eventBus: sl<AuthEventBus>(),
     ),
   );
 

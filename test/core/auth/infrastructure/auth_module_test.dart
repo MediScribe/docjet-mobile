@@ -1,14 +1,20 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
+import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:mockito/mockito.dart';
+
+// Create mock for AuthEventBus
+class MockAuthEventBus extends Mock implements AuthEventBus {}
 
 void main() {
   late GetIt getIt;
@@ -16,6 +22,10 @@ void main() {
   setUp(() {
     // Create a new GetIt instance for each test
     getIt = GetIt.asNewInstance();
+
+    // Register AuthEventBus before running AuthModule.register
+    // This is the only dependency that needs to be pre-registered
+    getIt.registerLazySingleton<AuthEventBus>(() => MockAuthEventBus());
   });
 
   tearDown(() async {
@@ -35,6 +45,8 @@ void main() {
       expect(getIt.isRegistered<AuthService>(), isTrue);
       expect(getIt.isRegistered<Dio>(instanceName: 'basicDio'), isTrue);
       expect(getIt.isRegistered<Dio>(instanceName: 'authenticatedDio'), isTrue);
+      expect(getIt.isRegistered<AuthEventBus>(), isTrue);
+      expect(getIt.isRegistered<JwtValidator>(), isTrue);
     });
 
     test('should resolve dependencies with correct types', () {
@@ -49,6 +61,8 @@ void main() {
       expect(getIt<AuthService>(), isA<AuthServiceImpl>());
       expect(getIt<Dio>(instanceName: 'basicDio'), isA<Dio>());
       expect(getIt<Dio>(instanceName: 'authenticatedDio'), isA<Dio>());
+      expect(getIt<AuthEventBus>(), isA<MockAuthEventBus>());
+      expect(getIt<JwtValidator>(), isA<JwtValidator>());
     });
 
     test('should create provider overrides', () {

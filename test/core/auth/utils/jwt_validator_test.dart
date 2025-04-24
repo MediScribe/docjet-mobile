@@ -50,9 +50,12 @@ void main() {
 
       test('should return true for a token without an expiry claim', () {
         // ACT & ASSERT
-        // The jwt_decoder package considers a token without 'exp' as expired.
+        // The token without 'exp' causes an error in jwt_decoder, but our
+        // implementation catches this and returns true (treating as expired)
+        // This is safer behavior as we don't want to trust tokens with missing required fields
         final result = jwtValidator.isTokenExpired(tokenWithoutExpiry);
         expect(result, isTrue);
+        // No assertion for exception since it's caught internally
       });
 
       test('should throw exception for an invalid token string', () {

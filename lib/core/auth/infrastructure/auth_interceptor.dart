@@ -1,8 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'dart:math';
 
 /// Dio interceptor that handles authentication token management
 ///
@@ -19,7 +22,10 @@ class AuthInterceptor extends Interceptor {
   final AuthCredentialsProvider credentialsProvider;
 
   /// Dio instance for retrying requests
-  Dio? dio;
+  final Dio dio;
+
+  /// Event bus for authentication events
+  final AuthEventBus authEventBus;
 
   /// Authentication endpoints that don't need tokens
   final List<String> _authEndpoints = [
@@ -31,7 +37,8 @@ class AuthInterceptor extends Interceptor {
   AuthInterceptor({
     required this.apiClient,
     required this.credentialsProvider,
-    this.dio,
+    required this.dio,
+    required this.authEventBus,
   });
 
   /// Adds the access token to authenticated requests
@@ -65,44 +72,68 @@ class AuthInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // Can't retry without a Dio instance
-    if (dio == null) {
-      return handler.next(err);
-    }
+    // FINDINGS: Implemented retry logic with exponential backoff
+    // and forced logout on irrecoverable errors.
+    int retryCount = 0;
+    const maxRetries = 3;
+    const initialDelayMs = 500;
 
-    try {
-      // Attempt to refresh the token
-      final refreshToken = await credentialsProvider.getRefreshToken();
-      if (refreshToken == null) {
-        // No refresh token available, can't retry
+    while (retryCount < maxRetries) {
+      try {
+        // Attempt to refresh the token
+        final refreshToken = await credentialsProvider.getRefreshToken();
+        if (refreshToken == null) {
+          // No refresh token available, can't retry
+          // FINDINGS: Fire logout event as this is irrecoverable
+          authEventBus.add(AuthEvent.loggedOut);
+          return handler.next(err);
+        }
+
+        // Get new tokens
+        final authResponse = await apiClient.refreshToken(refreshToken);
+
+        // Store the new tokens
+        await credentialsProvider.setAccessToken(authResponse.accessToken);
+        await credentialsProvider.setRefreshToken(authResponse.refreshToken);
+
+        // Clone the original request
+        final options = err.requestOptions;
+
+        // Update the authorization header with the new token
+        options.headers['Authorization'] = 'Bearer ${authResponse.accessToken}';
+
+        // Retry the request with the new token
+        // FINDINGS: Use the injected Dio instance directly
+        final response = await dio.fetch(options);
+
+        // Return the response from the retried request
+        return handler.resolve(response);
+      } on AuthException catch (e) {
+        // Check if the exception is recoverable (e.g., network error)
+        if (e == AuthException.networkError() && retryCount < maxRetries - 1) {
+          retryCount++;
+          final delay = Duration(
+            milliseconds: initialDelayMs * pow(2, retryCount - 1).toInt(),
+          );
+          await Future.delayed(delay);
+        } else {
+          // Irrecoverable AuthException (e.g., refreshTokenInvalid, etc.)
+          // or max retries reached for network error.
+          // FINDINGS: Fire logout event
+          authEventBus.add(AuthEvent.loggedOut);
+          return handler.next(err);
+        }
+      } catch (e) {
+        // Unexpected error during refresh, propagate the original error
+        // Treat other errors as potentially transient for retry purposes?
+        // For now, let's assume unexpected errors are not recoverable here.
+        // TODO: Re-evaluate if other exception types should trigger retries
         return handler.next(err);
       }
-
-      // Get new tokens
-      final authResponse = await apiClient.refreshToken(refreshToken);
-
-      // Store the new tokens
-      await credentialsProvider.setAccessToken(authResponse.accessToken);
-      await credentialsProvider.setRefreshToken(authResponse.refreshToken);
-
-      // Clone the original request
-      final options = err.requestOptions;
-
-      // Update the authorization header with the new token
-      options.headers['Authorization'] = 'Bearer ${authResponse.accessToken}';
-
-      // Retry the request with the new token
-      final response = await dio!.fetch(options);
-
-      // Return the response from the retried request
-      return handler.resolve(response);
-    } on AuthException {
-      // Token refresh failed, propagate the original error
-      return handler.next(err);
-    } catch (e) {
-      // Unexpected error during refresh, propagate the original error
-      return handler.next(err);
     }
+
+    // If loop completes (max retries reached), propagate the original error
+    return handler.next(err);
   }
 
   /// Checks if the path corresponds to an authentication endpoint
