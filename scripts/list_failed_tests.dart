@@ -183,8 +183,9 @@ class TestEventProcessor {
   }) {
     final Map<String, List<FailedTest>> failedTestsByFile = {};
     final Map<int, Map<String, dynamic>> errorEventsById = {};
+    final Map<int, Map<String, dynamic>> testStartEventsById = {};
 
-    // First pass: collect explicit error events
+    // First pass: collect explicit error events and testStart events
     for (final event in allEvents) {
       if (event['type'] == 'error' && event['testID'] != null) {
         errorEventsById[event['testID']] = event;
@@ -193,6 +194,8 @@ class TestEventProcessor {
             '[SCRIPT_DEBUG] Found explicit error event for testID: ${event['testID']}',
           );
         }
+      } else if (event['type'] == 'testStart' && event['test']?['id'] != null) {
+        testStartEventsById[event['test']['id']] = event;
       }
     }
 
@@ -208,25 +211,46 @@ class TestEventProcessor {
           continue;
         }
 
-        final testStartEvent = allEvents.lastWhere(
-          (e) => e['type'] == 'testStart' && e['test']?['id'] == testId,
-          orElse:
-              () => {
-                'test': {'url': 'unknown_file.dart'},
-              },
-        );
+        final testStartEvent = testStartEventsById[testId];
 
         // Add warning for missing test start event
-        if (testStartEvent['type'] != 'testStart') {
+        if (testStartEvent == null) {
           stderr.writeln(
             '[WARN] Could not find testStart event for failed/error testID: $testId',
           );
+          // Attempt to find *some* file association if possible, maybe from error?
+          // For now, we'll likely end up with unknown_file.dart below.
         }
 
-        final testInfo = testStartEvent['test'] as Map<String, dynamic>? ?? {};
-        final String filePath = _getRelativePath(testInfo['url'] as String?);
+        final testInfo = testStartEvent?['test'] as Map<String, dynamic>? ?? {};
+        String? filePathUrl = testInfo['url'] as String?;
         final String testName =
             testInfo['name'] as String? ?? 'Unknown Test Name';
+
+        String filePath;
+        if (filePathUrl != null && filePathUrl.isNotEmpty) {
+          filePath = _getRelativePath(filePathUrl);
+        } else if (testName.startsWith('loading ')) {
+          // Try extracting path from name for loading errors
+          final potentialPath = testName.substring('loading '.length);
+          // Basic check if it looks like a path
+          if (potentialPath.contains('/') && potentialPath.endsWith('.dart')) {
+            filePath = _getRelativePath(
+              potentialPath,
+            ); // Use existing helper, assumes it can handle absolute paths
+          } else {
+            filePath = 'unknown_file.dart'; // Fallback
+          }
+        } else {
+          filePath =
+              'unknown_file.dart'; // Fallback if no URL and not a loading error
+          if (testStartEvent != null) {
+            // Only warn if we actually had a start event but no URL
+            stderr.writeln(
+              '[WARN] Test $testName (ID: $testId) failed but has no associated file URL. Grouping under unknown_file.dart.',
+            );
+          }
+        }
 
         // Skip debug_test.dart unless explicitly targeted
         if (suppressDebugTests && filePath.contains('debug_test.dart')) {
@@ -256,14 +280,16 @@ class TestEventProcessor {
     return failedTestsByFile;
   }
 
-  String _getRelativePath(String? fileUrl) {
-    if (fileUrl == null) return 'unknown_file.dart';
-    String path = fileUrl.replaceFirst('file://', '');
+  String _getRelativePath(String? pathOrUrl) {
+    if (pathOrUrl == null) return 'unknown_file.dart';
+    String path = pathOrUrl.replaceFirst('file://', '');
     try {
       final projectRoot = Directory.current.path;
       if (path.startsWith(projectRoot)) {
         path = path.substring(projectRoot.length + 1);
       }
+      // Remove leading slash if it's still absolute after potential projectRoot removal
+      // (e.g., if the path was outside the project root but still absolute)
       if (path.startsWith('/')) {
         path = path.substring(1);
       }
@@ -382,7 +408,12 @@ class ResultFormatter {
       final tests = failedTestsByFile[filePath]!;
       for (final failure in tests) {
         // Make the test name red
-        print('  • \x1B[31mTest: ${failure.name}\x1B[0m');
+        final String displayName =
+            failure.name.startsWith('loading ')
+                ? 'File loading error' // Display generic name for loading errors
+                : failure.name; // Display original name otherwise
+
+        print('  • \x1B[31mTest: $displayName\x1B[0m');
 
         // Conditionally print details based on mode
         if (exceptMode) {

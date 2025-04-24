@@ -46,7 +46,7 @@ class TestEventProcessorMock implements TestEventProcessor {
 Map<String, dynamic> _createTestStartEvent(
   int id,
   String name,
-  String url,
+  String? url,
   int time,
 ) {
   return {
@@ -338,6 +338,48 @@ void main() {
       }, // success: false because of failures
     ];
 
+    // ---- NEW TEST DATA FOR LOADING ERRORS ----
+    final int loadingErrorTimeBase = 5000;
+    final String loadingFilePath1 =
+        '${Directory.current.path}/test/core/di/injection_container_test.dart';
+    final String loadingFilePath2 =
+        '${Directory.current.path}/test/features/jobs/presentation/pages/job_list_page_test.dart';
+
+    final loadingErrorEvents = [
+      _createTestStartEvent(
+        200,
+        "loading $loadingFilePath1", // Name contains absolute path
+        null, // URL is null
+        loadingErrorTimeBase,
+      ),
+      _createErrorEvent(
+        200,
+        "Failed to load test file.",
+        "Some stack trace for loading error 1",
+        loadingErrorTimeBase + 10,
+      ),
+      _createTestDoneEvent(200, "error", time: loadingErrorTimeBase + 20),
+      _createTestStartEvent(
+        201,
+        "loading $loadingFilePath2", // Name contains absolute path
+        null, // URL is null
+        loadingErrorTimeBase + 100,
+      ),
+      _createErrorEvent(
+        201,
+        "Another loading failure.",
+        "Some stack trace for loading error 2",
+        loadingErrorTimeBase + 110,
+      ),
+      _createTestDoneEvent(201, "error", time: loadingErrorTimeBase + 120),
+    ];
+
+    final allEventsWithLoadingErrors = [
+      ...allTestEvents,
+      ...loadingErrorEvents,
+    ];
+    // ---- END NEW TEST DATA ----
+
     test(
       'printResults --except mode should group by file and show exceptions',
       () async {
@@ -411,6 +453,102 @@ void main() {
         // Ensure no default/debug formatting appears
         expect(output, isNot(contains('Failed tests grouped by source file')));
         expect(output, isNot(contains('--- Console output ---')));
+      },
+    );
+
+    test(
+      'printResults should correctly handle loading errors where path is in name',
+      () async {
+        // Given
+        // Use allEventsWithLoadingErrors which includes the new loading error events
+        final failedTests = processor.extractFailedTests(
+          allEventsWithLoadingErrors,
+          false,
+        );
+        final result = TestRunResult(
+          failedTestsByFile: failedTests,
+          allEvents: allEventsWithLoadingErrors,
+          exitCode: 1,
+          testTarget: null, // Simulate running all tests
+        );
+
+        // When - Check default output
+        final outputDefault = await capturePrint(
+          () => formatter.printResults(result, false, false), // Default mode
+        );
+        // When - Check except output
+        final outputExcept = await capturePrint(
+          () => formatter.printResults(result, false, true), // Except mode
+        );
+
+        // Then - Verify both modes correctly group by the actual file path
+        final expectedPath1 = 'test/core/di/injection_container_test.dart';
+        final expectedPath2 =
+            'test/features/jobs/presentation/pages/job_list_page_test.dart';
+        final loadingName1 = 'loading $loadingFilePath1';
+        final loadingName2 = 'loading $loadingFilePath2';
+
+        // Default Mode Assertions
+        expect(
+          outputDefault,
+          contains('\x1B[31mFailed tests in: $expectedPath1\x1B[0m'),
+          reason: "Default mode should show correct file path $expectedPath1",
+        );
+        expect(
+          outputDefault,
+          contains('  • \x1B[31mTest: File loading error\x1B[0m'),
+          reason: "Default mode should show generic loading test name",
+        );
+        expect(
+          outputDefault,
+          contains('\x1B[31mFailed tests in: $expectedPath2\x1B[0m'),
+          reason: "Default mode should show correct file path $expectedPath2",
+        );
+        expect(
+          outputDefault,
+          contains('  • \x1B[31mTest: File loading error\x1B[0m'),
+          reason: "Default mode should show generic loading test name",
+        );
+        expect(
+          outputDefault,
+          isNot(contains('unknown_file.dart')),
+          reason: "Default mode should not show unknown_file.dart",
+        );
+
+        // Except Mode Assertions
+        expect(
+          outputExcept,
+          contains('\x1B[31mFailed tests in: $expectedPath1\x1B[0m'),
+          reason: "Except mode should show correct file path $expectedPath1",
+        );
+        expect(
+          outputExcept,
+          contains('  • \x1B[31mTest: File loading error\x1B[0m'),
+          reason: "Except mode should show generic loading test name",
+        );
+        expect(
+          outputExcept,
+          contains('    \x1B[31mError:\x1B[0m Failed to load test file.'),
+        );
+        expect(
+          outputExcept,
+          contains('\x1B[31mFailed tests in: $expectedPath2\x1B[0m'),
+          reason: "Except mode should show correct file path $expectedPath2",
+        );
+        expect(
+          outputExcept,
+          contains('  • \x1B[31mTest: File loading error\x1B[0m'),
+          reason: "Except mode should show generic loading test name",
+        );
+        expect(
+          outputExcept,
+          contains('    \x1B[31mError:\x1B[0m Another loading failure.'),
+        );
+        expect(
+          outputExcept,
+          isNot(contains('unknown_file.dart')),
+          reason: "Except mode should not show unknown_file.dart",
+        );
       },
     );
 
