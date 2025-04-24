@@ -485,8 +485,6 @@ void main() {
         final expectedPath1 = 'test/core/di/injection_container_test.dart';
         final expectedPath2 =
             'test/features/jobs/presentation/pages/job_list_page_test.dart';
-        final loadingName1 = 'loading $loadingFilePath1';
-        final loadingName2 = 'loading $loadingFilePath2';
 
         // Default Mode Assertions
         expect(

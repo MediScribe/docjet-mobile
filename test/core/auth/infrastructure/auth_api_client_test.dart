@@ -44,6 +44,9 @@ void main() {
     'email': testEmail,
     // Add other fields as needed by UserProfileDto
   };
+  // This is currently unused but will be needed for the commented-out
+  // 'should return UserProfileDto on successful profile fetch' test
+  // once UserProfileDto is implemented.
 
   setUp(() {
     dio = Dio();

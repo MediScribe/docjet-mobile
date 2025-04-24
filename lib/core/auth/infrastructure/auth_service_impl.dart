@@ -147,15 +147,14 @@ class AuthServiceImpl implements AuthService {
 
       // TODO: Implement actual DTO and mapping
       // final UserProfileDto profileDto = await apiClient.getUserProfile();
-      // For now, assume apiClient.getUserProfile returns a Map
-      final profileData =
-          await apiClient.getUserProfile(); // Correct call without arguments
+      // For now, assume apiClient.getUserProfile returns void
+      await apiClient.getUserProfile(); // Call API, ignore void return for now
 
-      // Basic mapping assuming profileData is Map<String, dynamic>
+      // Basic mapping using only the ID we already confirmed
       return User(
-        id: userId, // Use the ID we already confirmed
-        // name: profileData['name'] as String?,
-        // email: profileData['email'] as String?,
+        id: userId,
+        // name: profileData['name'] as String?, // Cannot use profileData yet
+        // email: profileData['email'] as String?, // Cannot use profileData yet
         // Add other fields as needed based on User entity and API response
       );
     } on AuthException {
