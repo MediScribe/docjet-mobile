@@ -182,15 +182,19 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
     7.5. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
         *   **Finding:** `dart analyze lib/core/auth test/core/auth` found **no issues** in `test/core/auth`. It reported 2 warnings in `lib/core/auth`: `unused_local_variable` in `auth_service_impl.dart` and `unused_field` for `_authService` in `secure_storage_auth_session_provider.dart`, confirming it doesn't use the injected service. The critical problems (placeholder logic, sync/async mismatch, unused `AuthService`) are architectural and not caught by static analysis. No fixes suggested based on analyzer results; fundamental implementation overhaul needed first.
 
-8. [ ] **TDD for Repository Implementation (continued)** 
-    8.1. [ ] Test authentication validation behavior
-    8.2. [ ] Test error propagation when no user is authenticated
-    8.3. [ ] Run all tests relevant to this task and ensure they are passing.
-    8.4. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
-
+8. [x] **TDD for Repository Implementation (continued)** 
+    8.1. [x] Test authentication validation behavior
+        *   **Finding:** Added tests to `job_repository_impl_test.dart` mocking `AuthSessionProvider` to return `true` for `isAuthenticated` and a valid ID for `getCurrentUserId`. Verified the `writerService` was called.
+    8.2. [x] Test error propagation when no user is authenticated
+        *   **Finding:** Added tests to `job_repository_impl_test.dart` mocking `AuthSessionProvider` to: a) return `false` for `isAuthenticated`, b) return `true` for `isAuthenticated` but throw an `Exception` for `getCurrentUserId`. Verified that `createJob` returned `Left(AuthFailure())` in both cases without calling the `writerService`.
+    8.3. [x] Run all tests relevant to this task and ensure they are passing.
+        *   **Finding:** Followed TDD: New tests failed (RED) -> Implemented auth logic -> Original delegation test failed (MissingStubError) -> Fixed original test with auth mocks -> All tests passed (GREEN).
+    8.4. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+        *   **Finding:** `dart analyze lib/features/jobs/data/repositories/job_repository_impl.dart test/features/jobs/data/repositories/job_repository_impl_test.dart` found **No issues found!**
+        *   **Task 8 Refactoring Follow-up:** Corrected `JobRepositoryImpl.createJob` to only check `isAuthenticated` and delegate to `JobWriterService` without `userId`. Removed `getCurrentUserId` call and related error handling from the repository. Updated repository tests (`job_repository_impl_test.dart`) to reflect this: verified `isAuthenticated` is checked, `getCurrentUserId` is NOT called by the repo, and the writer service is called without `userId`. Removed outdated tests related to repo handling `getCurrentUserId` errors. Verified `JobWriterService` implementation and tests were already correct in handling `getCurrentUserId` internally. Ran build runner, tests, and analyze - all clear.
 
 9. [ ] **TDD Fix for `SecureStorageAuthSessionProvider` Implementation**
-    9.1. [ ] **Update Dependencies:** Modify `SecureStorageAuthSessionProvider` to depend on `AuthCredentialsProvider`, not `AuthService` (aligns with [auth_architecture.md](cci:7://file:///Users/eburgwedel/Developer/Git/docjet-mobile/docs/current/auth_architecture.md:0:0-0:0))
+    9.1. [ ] **Update Dependencies:** Modify `SecureStorageAuthSessionProvider` to depend on `AuthCredentialsProvider`, not `AuthService` (aligns with [auth_architecture.md](/docs/current/auth_architecture.md)
     9.2. [ ] **TDD for `isAuthenticated` Method:**
         * [ ] Write a test: `isAuthenticated returns true when credentials provider has userId`
         * [ ] Write a test: `isAuthenticated returns false when credentials provider has no userId`
@@ -203,7 +207,7 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
         * [ ] Run tests (they will fail initially)
         * [ ] Implement `getCurrentUserId` using `AuthCredentialsProvider.getUserId()`, throwing when null
         * [ ] Run tests again (they should pass)
-    9.4. [ ] **Run All Tests:** Ensure all tests in [secure_storage_auth_session_provider_test.dart](cci:7://file:///Users/eburgwedel/Developer/Git/docjet-mobile/test/core/auth/infrastructure/secure_storage_auth_session_provider_test.dart:0:0-0:0) are passing
+    9.4. [ ] **Run All Tests:** Ensure all tests in [secure_storage_auth_session_provider_test.dart](/test/core/auth/infrastructure/secure_storage_auth_session_provider_test.dart) are passing
     9.5. [ ] **Run Analyze:** Run `dart analyze` on the implementation and test files; fix any issues
 
 10. [ ] **Integration Testing**

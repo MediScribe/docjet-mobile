@@ -64,6 +64,9 @@ void main() {
   const tExpectedUpdateData = JobUpdateData(text: 'new text');
   final tJobList = [tJob];
 
+  // --- New Authentication Test Data ---
+  final tAuthFailure = AuthFailure();
+
   // --- Tests ---
 
   group('constructor', () {
@@ -75,25 +78,79 @@ void main() {
   });
 
   group('createJob', () {
-    test('should delegate to writer service with correct parameters', () async {
-      // Arrange
-      when(
-        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
-      ).thenAnswer((_) async => Right(tJob));
+    test(
+      'should delegate to writer service when authenticated without fetching userId',
+      () async {
+        // Arrange
+        when(mockAuthSessionProvider.isAuthenticated()).thenAnswer((_) => true);
+        // DO NOT mock or expect getCurrentUserId here
+        when(
+          mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+        ).thenAnswer((_) async => Right(tJob));
 
-      // Act
-      final result = await repository.createJob(
-        audioFilePath: tAudioPath,
-        text: tText,
-      );
+        // Act
+        final result = await repository.createJob(
+          audioFilePath: tAudioPath,
+          text: tText,
+        );
 
-      // Assert
-      expect(result, equals(Right(tJob)));
-      verify(
-        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
-      ).called(1);
-      verifyNoMoreInteractions(mockWriterService);
-    });
+        // Assert
+        expect(result, equals(Right(tJob)));
+        verify(mockAuthSessionProvider.isAuthenticated()).called(1);
+        verifyNever(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ); // Ensure repo DOES NOT call this
+        verify(
+          mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+        ).called(1); // Verify writer service is called (without userId)
+        verifyNoMoreInteractions(mockWriterService);
+        verifyNoMoreInteractions(mockAuthSessionProvider);
+        verifyZeroInteractions(mockReaderService);
+        verifyZeroInteractions(mockDeleterService);
+        verifyZeroInteractions(mockOrchestratorService);
+      },
+    );
+
+    test(
+      'should return AuthFailure and not call writer service when user is not authenticated',
+      () async {
+        // Arrange
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) => false);
+
+        // Act
+        final result = await repository.createJob(
+          audioFilePath: tAudioPath,
+          text: tText,
+        );
+
+        // Assert
+        expect(result, equals(Left(tAuthFailure)));
+        verify(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).called(1); // Check if auth status was checked
+        verifyNever(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ); // Should not try to get user ID if not authenticated
+        verifyNever(
+          mockWriterService.createJob(
+            audioFilePath: anyNamed('audioFilePath'),
+            text: anyNamed('text'),
+          ),
+        ); // Writer service should not be called
+        verifyNoMoreInteractions(mockAuthSessionProvider);
+        verifyZeroInteractions(mockWriterService);
+        verifyZeroInteractions(mockReaderService);
+        verifyZeroInteractions(mockDeleterService);
+        verifyZeroInteractions(mockOrchestratorService);
+      },
+    );
+  });
+
+  group('authentication', () {
+    // Moved createJob auth tests into the 'createJob' group above.
+    // Keeping this group structure in case other methods need auth tests later.
   });
 
   group('getJobs', () {

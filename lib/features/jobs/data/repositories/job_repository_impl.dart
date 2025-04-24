@@ -63,12 +63,21 @@ class JobRepositoryImpl implements JobRepository {
   Future<Either<Failure, Job>> createJob({
     required String audioFilePath,
     String? text,
-  }) {
+  }) async {
     _logger.d(
       '$_tag createJob called with audioFilePath: $audioFilePath, text: $text',
     );
 
-    // No longer need to get userId here - JobWriterService will get it from AuthSessionProvider
+    // --- Authentication Check ---
+    if (!_authSessionProvider.isAuthenticated()) {
+      _logger.w('$_tag User not authenticated. Cannot create job.');
+      return Left(AuthFailure());
+    }
+
+    // No longer call getCurrentUserId here. The writer service will handle that.
+    _logger.d('$_tag User authenticated, proceeding to delegate job creation.');
+
+    // Delegate to writer service - NO userId passed from here
     return _writerService.createJob(audioFilePath: audioFilePath, text: text);
   }
 
