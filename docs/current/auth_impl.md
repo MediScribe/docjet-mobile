@@ -30,105 +30,247 @@ This list tracks the necessary enhancements to align the authentication implemen
 ## 1. Core Exception Hierarchy (Bottom Layer)
 
 1.  [ ] **Enhance Auth Exception Handling**
-    1.1. [ ] Write failing tests for new exception class hierarchy in `test/features/auth/domain/errors/auth_exceptions_test.dart`
-    1.2. [ ] Create or extend base `AuthException` class in `lib/features/auth/domain/errors/auth_exceptions.dart`
-    1.3. [ ] Implement specific exception subtypes: `InvalidCredentialsException`, `TokenExpiredException`, `RefreshTokenInvalidException`, `NetworkException`, `UserProfileFetchException`, etc.
+    - FINDINGS: There is already an existing `AuthException` class in `lib/core/auth/auth_exception.dart` that uses factory methods pattern instead of class hierarchy. It contains: `invalidCredentials()`, `networkError()`, `serverError(statusCode)`, `tokenExpired()`, and `unauthenticated([customMessage])`. Tests for this class already exist in `test/core/auth/auth_exception_test.dart`.
+    
+    1.1. [ ] Write failing tests for new exception types in `test/core/auth/auth_exception_test.dart`
+       - FINDINGS: No need to create a new test file. Will extend the existing test file.
+    
+    1.2. [ ] Extend existing `AuthException` class in `lib/core/auth/auth_exception.dart`
+       - FINDINGS: Will add new factory methods to the existing class rather than creating a class hierarchy.
+    
+    1.3. [ ] Implement additional exception types as factory methods: `refreshTokenInvalid()`, `userProfileFetchFailed()`, `unauthorizedOperation()`, `offlineOperationFailed()`
+       - FINDINGS: Will follow the existing pattern of static factory methods instead of creating subclasses.
+    
     1.4. [ ] Write tests for exception mapping from underlying errors (HTTP, Dio) to domain exceptions
-    1.5. [ ] Implement the exception mapping functions/utilities
+       - FINDINGS: Will add these tests to the existing AuthApiClient test file at `test/core/auth/infrastructure/auth_api_client_test.dart`.
+    
+    1.5. [ ] Enhance the existing exception mapping function in `lib/core/auth/infrastructure/auth_api_client.dart`
+       - FINDINGS: Will expand the `_handleDioException` method to map to the new exception types.
+    
     1.6. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will use the existing test runner.
 
 ## 2. Token Validation (Core Infrastructure)
 
 2.  [ ] **Add Explicit Token Validation**
-    2.1. [ ] Write failing tests for JWT token validation in `test/features/auth/data/utils/jwt_validator_test.dart`
-    2.2. [ ] Implement simple JWT validation utility in `lib/features/auth/data/utils/jwt_validator.dart` with method to check expiration
+    - FINDINGS: The codebase already has an `AuthCredentialsProvider` interface in `lib/core/auth/auth_credentials_provider.dart` with a concrete implementation `SecureStorageAuthCredentialsProvider`. No JWT validation exists yet. There's no `jwt_decoder` package in the `pubspec.yaml`.
+    
+    2.1. [ ] Write failing tests for JWT token validation in `test/core/auth/utils/jwt_validator_test.dart`
+       - FINDINGS: Will create a new utility class in core/auth/utils instead of features directory.
+    
+    2.2. [ ] Implement simple JWT validation utility in `lib/core/auth/utils/jwt_validator.dart` with method to check expiration
+       - FINDINGS: Will implement a utility class in the existing core/auth directory structure.
+    
     2.3. [ ] Add `jwt_decoder` package to `pubspec.yaml`
+       - FINDINGS: Need to add this package as it's not in the current dependencies.
+    
     2.4. [ ] Write failing tests for enhanced `AuthCredentialsProvider` with token validation methods
+       - FINDINGS: Will extend the existing interface in `lib/core/auth/auth_credentials_provider.dart`.
+    
     2.5. [ ] Update the `AuthCredentialsProvider` interface with new validation methods
+       - FINDINGS: Will add methods like `isTokenValid` to the existing interface.
+    
     2.6. [ ] Implement the methods in `SecureStorageAuthCredentialsProvider`
+       - FINDINGS: Will implement in the existing `lib/core/auth/secure_storage_auth_credentials_provider.dart`.
+    
     2.7. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will use the existing test runner.
 
 ## 3. Auth Events System (Core Infrastructure)
 
 3.  [ ] **Setup Auth Event System**
-    3.1. [ ] Write failing tests for auth events in `test/features/auth/domain/events/auth_events_test.dart`
-    3.2. [ ] Define `AuthEvent` enum or sealed class in `lib/features/auth/domain/events/auth_events.dart`
-    3.3. [ ] Write failing tests for auth event bus in `test/features/auth/domain/events/auth_event_bus_test.dart`
-    3.4. [ ] Implement simple event bus in `lib/features/auth/domain/events/auth_event_bus.dart`
+    - FINDINGS: There appears to be no existing event bus or auth event system yet. The codebase uses both Riverpod and BLoC/Cubit for state management, but no specific event bus pattern. In a typical Flutter app, there are multiple ways to handle events (Streams, event_bus package, or state management solutions), so we need to choose one that integrates well with the existing architecture.
+    
+    3.1. [ ] Write failing tests for auth events in `test/core/auth/events/auth_events_test.dart`
+       - FINDINGS: Will create auth events in the core/auth directory structure instead of features directory.
+    
+    3.2. [ ] Define `AuthEvent` enum or sealed class in `lib/core/auth/events/auth_events.dart`
+       - FINDINGS: Will use a sealed class or enum to define various authentication events.
+    
+    3.3. [ ] Write failing tests for auth event bus in `test/core/auth/events/auth_event_bus_test.dart`
+       - FINDINGS: Will create a simple event bus using Streams or a dedicated package.
+    
+    3.4. [ ] Implement simple event bus in `lib/core/auth/events/auth_event_bus.dart`
+       - FINDINGS: Will implement using either StreamController or an existing package.
+    
     3.5. [ ] Add necessary package dependencies (e.g., `event_bus`) to `pubspec.yaml` if needed
+       - FINDINGS: May use existing dependencies like rxdart which is already included.
+    
     3.6. [ ] Register event bus in dependency injection container
+       - FINDINGS: Will add to the existing DI container in `lib/core/di/injection_container.dart`.
+    
     3.7. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will use the existing test runner.
 
 ## 4. Domain Interface Enhancements
 
 4.  [ ] **Extend Auth Service Interface**
-    4.1. [ ] Write failing tests for enhanced `AuthService` interface in `test/features/auth/domain/repositories/auth_service_test.dart`
-    4.2. [ ] Update the interface in `lib/features/auth/domain/repositories/auth_service.dart`:
-        4.2.1. [ ] Add optional `validateTokenLocally` parameter to `isAuthenticated()`
-        4.2.2. [ ] Add `getUserProfile()` method
-        4.2.3. [ ] Add event emission contract
+    - FINDINGS: The existing `AuthService` interface is in `lib/core/auth/auth_service.dart`, not in the features directory. It already defines core methods like `login()`, `refreshSession()`, `logout()`, `isAuthenticated()`, and `getCurrentUserId()`. The TODOs mention adding a `getUserProfile()` method and local token validation.
+    
+    4.1. [ ] Write failing tests for enhanced `AuthService` interface in `test/core/auth/auth_service_test.dart`
+       - FINDINGS: Will extend or create tests for the existing interface in the core/auth directory.
+    
+    4.2. [ ] Update the interface in `lib/core/auth/auth_service.dart`:
+       - FINDINGS: Will update the existing interface in the core directory.
+    
+       4.2.1. [ ] Add optional `validateTokenLocally` parameter to `isAuthenticated()`
+          - FINDINGS: Will add this parameter to perform offline token validation.
+    
+       4.2.2. [ ] Add `getUserProfile()` method
+          - FINDINGS: Will add this method to retrieve the full user profile.
+    
+       4.2.3. [ ] Add event emission contract
+          - FINDINGS: Will add methods or documentation for emitting auth events.
+    
     4.3. [ ] Update mock implementations for tests
+       - FINDINGS: Will update existing mocks after interface changes.
+    
     4.4. [ ] Verify interface tests pass without actual implementation (GREEN)
+       - FINDINGS: Will run tests against the interface to ensure contract is well-defined.
 
 ## 5. Data Layer - Auth API Client  
 
 5.  [ ] **Enhance Auth API Client**
-    5.1. [ ] Write failing tests for `getUserProfile()` method in `test/features/auth/data/sources/auth_api_client_test.dart`
+    - FINDINGS: The existing `AuthApiClient` is in `lib/core/auth/infrastructure/auth_api_client.dart` with tests in `test/core/auth/infrastructure/auth_api_client_test.dart`. It handles login and token refresh, but no user profile retrieval yet. The error mapping function `_handleDioException` would need to be enhanced to use new exception types.
+    
+    5.1. [ ] Write failing tests for `getUserProfile()` method in `test/core/auth/infrastructure/auth_api_client_test.dart`
+       - FINDINGS: Will extend the existing test file to cover the new method.
+    
     5.2. [ ] Write failing tests for improved error handling in API client
-    5.3. [ ] Implement `getUserProfile()` in `lib/features/auth/data/sources/auth_api_client.dart`
+       - FINDINGS: Will add tests for the new exception types to the existing test file.
+    
+    5.3. [ ] Implement `getUserProfile()` in `lib/core/auth/infrastructure/auth_api_client.dart`
+       - FINDINGS: Will add a new method to the existing client class.
+    
     5.4. [ ] Enhance error handling to use the new exception types
+       - FINDINGS: Will update the `_handleDioException` method to map errors to the new exception types.
+    
     5.5. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will run the existing tests to ensure all features work correctly.
 
 ## 6. Auth Service Implementation
 
 6.  [ ] **Update Auth Service Implementation**
-    6.1. [ ] Write failing tests for local token validation in `test/features/auth/data/repositories/auth_service_impl_test.dart`
+    - FINDINGS: The existing implementation is in `lib/core/auth/infrastructure/auth_service_impl.dart`. It has a placeholder implementation for `getCurrentUserId()` that mentions it should extract the user ID from the JWT token in a real implementation, and it does not yet have offline support.
+    
+    6.1. [ ] Write failing tests for local token validation in `test/core/auth/infrastructure/auth_service_impl_test.dart`
+       - FINDINGS: Will extend the existing test file with new validation tests.
+    
     6.2. [ ] Write failing tests for `getUserProfile()` implementation
+       - FINDINGS: Will add tests for the new method to the existing test file.
+    
     6.3. [ ] Write failing tests for offline support
+       - FINDINGS: Will add tests for offline functionality to the existing test file.
+    
     6.4. [ ] Write failing tests for event emission
-    6.5. [ ] Update `AuthServiceImpl` in `lib/features/auth/data/repositories/auth_service_impl.dart`:
-        6.5.1. [ ] Implement local token validation in `isAuthenticated()`
-        6.5.2. [ ] Implement `getUserProfile()`
-        6.5.3. [ ] Add offline support logic
-        6.5.4. [ ] Integrate auth events emission
+       - FINDINGS: Will add tests for event emission functionality to the existing test file.
+    
+    6.5. [ ] Update `AuthServiceImpl` in `lib/core/auth/infrastructure/auth_service_impl.dart`:
+       - FINDINGS: Will update the existing implementation with new features.
+    
+       6.5.1. [ ] Implement local token validation in `isAuthenticated()`
+          - FINDINGS: Will use the new JWT validator utility.
+    
+       6.5.2. [ ] Implement `getUserProfile()`
+          - FINDINGS: Will add a new method to get the user profile.
+    
+       6.5.3. [ ] Add offline support logic
+          - FINDINGS: Will add logic to gracefully handle offline scenarios.
+    
+       6.5.4. [ ] Integrate auth events emission
+          - FINDINGS: Will use the new auth event bus for notifications.
+    
     6.6. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will run the existing tests to ensure the implementation works correctly.
 
 ## 7. Auth Interceptor Enhancements
 
 7.  [ ] **Update Interceptor Error Recovery**
-    7.1. [ ] Write failing tests for retry logic in `test/core/network/interceptors/auth_interceptor_test.dart`
+    - FINDINGS: The existing auth interceptor is in `lib/core/auth/infrastructure/auth_interceptor.dart` with tests in `test/core/auth/infrastructure/auth_interceptor_test.dart`. It intercepts 401 errors and attempts to refresh tokens, but could be enhanced with better retry logic and error handling.
+    
+    7.1. [ ] Write failing tests for retry logic in `test/core/auth/infrastructure/auth_interceptor_test.dart`
+       - FINDINGS: Will extend the existing test file with exponential backoff tests.
+    
     7.2. [ ] Write failing tests for forced logout on irrecoverable errors
-    7.3. [ ] Modify `AuthInterceptor` in `lib/core/network/interceptors/auth_interceptor.dart`:
-        7.3.1. [ ] Implement exponential backoff retry for transient errors
-        7.3.2. [ ] Add logic to trigger logout for irrecoverable auth errors
-        7.3.3. [ ] Enhance error mapping using new exception types
+       - FINDINGS: Will add tests for forced logout scenarios.
+    
+    7.3. [ ] Modify `AuthInterceptor` in `lib/core/auth/infrastructure/auth_interceptor.dart`:
+       - FINDINGS: Will update the existing interceptor with new features.
+    
+       7.3.1. [ ] Implement exponential backoff retry for transient errors
+          - FINDINGS: Will add retry logic for temporary network issues.
+    
+       7.3.2. [ ] Add logic to trigger logout for irrecoverable auth errors
+          - FINDINGS: Will integrate with auth events for coordinated logout.
+    
+       7.3.3. [ ] Enhance error mapping using new exception types
+          - FINDINGS: Will use the new exception types for better error reporting.
+    
     7.4. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will run the existing tests to verify the changes.
 
 ## 8. Presentation Layer - Auth State
 
 8.  [ ] **Update Auth State & Notifier**
-    8.1. [ ] Write failing tests for offline state in `test/features/auth/presentation/state/auth_state_test.dart`
-    8.2. [ ] Enhance `AuthState` in `lib/features/auth/presentation/state/auth_state.dart` to include offline indicator
+    - FINDINGS: The existing auth state and notifier classes are in `lib/core/auth/presentation/auth_state.dart` and `lib/core/auth/presentation/auth_notifier.dart`. The app uses Riverpod for state management as evidenced by the provider annotations.
+    
+    8.1. [ ] Write failing tests for offline state in `test/core/auth/presentation/auth_state_test.dart`
+       - FINDINGS: Will extend or create tests for offline state indicators.
+    
+    8.2. [ ] Enhance `AuthState` in `lib/core/auth/presentation/auth_state.dart` to include offline indicator
+       - FINDINGS: Will add offline status field to the state class.
+    
     8.3. [ ] Write failing tests for enhanced `AuthNotifier` with profile fetching and offline handling
+       - FINDINGS: Will test the new functionality in the notifier.
+    
     8.4. [ ] Update `AuthNotifier` to:
-        8.4.1. [ ] Replace placeholder user with real profile fetching
-        8.4.2. [ ] Handle offline scenarios
-        8.4.3. [ ] Listen for auth events (if using event bus approach)
+       - FINDINGS: Will update the existing notifier with new features.
+    
+       8.4.1. [ ] Replace placeholder user with real profile fetching
+          - FINDINGS: Will use the new getUserProfile method.
+    
+       8.4.2. [ ] Handle offline scenarios
+          - FINDINGS: Will add logic to update state with offline indicators.
+    
+       8.4.3. [ ] Listen for auth events (if using event bus approach)
+          - FINDINGS: Will subscribe to auth events and update state accordingly.
+    
     8.5. [ ] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will run the existing tests to verify the changes.
 
 ## 9. Integration Tests & Component Reaction
 
 9.  [ ] **Verify Component Integration**
+    - FINDINGS: This involves ensuring different components in the app respond correctly to authentication events, especially logout events.
+    
     9.1. [ ] Write integration tests for auth event reactions in other components
+       - FINDINGS: Will create integration tests for component reactions.
+    
     9.2. [ ] Identify components that should react to auth state changes
+       - FINDINGS: Will identify components like job repositories that need to clear cached data on logout.
+    
     9.3. [ ] Write tests for these components' reactions
+       - FINDINGS: Will test the reaction behavior in these components.
+    
     9.4. [ ] Implement listeners in identified components
+       - FINDINGS: Will add auth event listeners to the identified components.
+    
     9.5. [ ] Verify integration tests pass (GREEN)
+       - FINDINGS: Will run integration tests to verify the full system behaves correctly.
 
 ## 10. UI Layer Enhancements
 
 10. [ ] **Update UI Components**
+    - FINDINGS: This involves updating the UI to display offline indicators and handle authentication-related UI states.
+    
     10.1. [ ] Write widget tests for offline indicators in auth-dependent screens
+        - FINDINGS: Will create widget tests for UI components.
+    
     10.2. [ ] Implement offline indicators and user profile display
+        - FINDINGS: Will update UI components to show offline status and user profile information.
+    
     10.3. [ ] Verify widget tests pass (GREEN)
-    10.4. [ ] Run app manually to verify behavior 
+        - FINDINGS: Will run widget tests to verify UI behavior.
+    
+    10.4. [ ] Run app manually to verify behavior
+        - FINDINGS: Will perform manual testing of the app to verify the full user experience. 
