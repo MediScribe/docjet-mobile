@@ -17,79 +17,40 @@ class SecureStorageAuthSessionProvider implements AuthSessionProvider {
     required AuthCredentialsProvider credentialsProvider,
   }) : _credentialsProvider = credentialsProvider;
 
+  /// Retrieves the ID of the currently authenticated user asynchronously
+  ///
+  /// Returns the authenticated user's ID.
+  /// Throws an [AuthException.unauthenticated] if no user ID is found.
   @override
-  String getCurrentUserId() {
-    // The interface requires a synchronous return value.
-    // We cannot directly await the async _credentialsProvider.getUserId().
-    // The current placeholder simulates a synchronous check (e.g., reading cached state).
-    // It needs to throw AuthException.unauthenticated if no ID is found.
+  Future<String> getCurrentUserId() async {
     try {
-      final userId = _getUserIdSynchronously();
+      final userId = await _credentialsProvider.getUserId();
       if (userId == null) {
-        // This path won't be hit with the current placeholder _getUserIdSynchronously
-        throw AuthException.unauthenticated(
-          'Synchronous user ID check failed (no user found)',
-        );
+        throw AuthException.unauthenticated('No authenticated user ID found.');
       }
       return userId;
     } catch (e) {
       // Rethrow specific AuthExceptions, wrap others.
       if (e is AuthException) rethrow;
       throw AuthException.unauthenticated(
-        'Error during synchronous user ID check: ${e.toString()}',
+        'Failed to retrieve user ID: ${e.toString()}',
       );
     }
   }
 
+  /// Checks if a user is currently authenticated asynchronously
+  ///
+  /// Returns true if an access token exists, false otherwise.
+  /// Does not validate the token's expiry.
   @override
-  bool isAuthenticated() {
-    // The interface requires a synchronous return value.
-    // We cannot directly await the async _credentialsProvider.getAccessToken().
-    // The current placeholder simulates a synchronous check (e.g., reading cached state
-    // or checking if a token variable is non-null). We will keep the placeholder
-    // logic for now, acknowledging the sync/async mismatch.
+  Future<bool> isAuthenticated() async {
     try {
-      final isAuth = _isAuthenticatedSynchronously();
-      return isAuth ?? false;
+      final accessToken = await _credentialsProvider.getAccessToken();
+      return accessToken != null;
     } catch (e) {
-      // If sync check fails for any reason, assume not authenticated
+      // If checking fails for any reason, assume not authenticated
+      // Consider logging the error here
       return false;
-    }
-  }
-
-  /// Internal method to get user ID synchronously
-  ///
-  /// Placeholder: In a real implementation, this would retrieve the user ID
-  /// synchronously (e.g., from a cached variable or decoded JWT payload).
-  /// It CANNOT directly call the async provider method.
-  String? _getUserIdSynchronously() {
-    try {
-      // Placeholder: Simulate checking if credentials provider *would* have a userId.
-      // Since we can't call it, we return a placeholder ID, assuming the login flow
-      // would populate whatever synchronous state this method reads.
-      // If _credentialsProvider.getUserId() could be called sync, it would be:
-      // return _credentialsProvider.getUserId();
-      return 'cached-user-id'; // Keep placeholder
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Internal method to check authentication status synchronously
-  ///
-  /// Placeholder: In a real implementation, this would check token existence
-  /// synchronously (e.g., from a cached variable or decoded JWT payload).
-  /// It CANNOT directly call the async provider method.
-  bool? _isAuthenticatedSynchronously() {
-    try {
-      // Placeholder: Simulate checking if credentials provider *would* have a token.
-      // Since we can't call it, we return true, assuming the login flow
-      // would populate whatever synchronous state this method reads.
-      // If _credentialsProvider.getAccessToken() could be called sync, it would be:
-      // return _credentialsProvider.getAccessToken() != null;
-      return true; // Keep placeholder
-    } catch (e) {
-      return null;
     }
   }
 }

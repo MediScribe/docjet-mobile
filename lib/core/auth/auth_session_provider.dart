@@ -9,10 +9,10 @@ abstract class AuthSessionProvider {
   ///
   /// Returns the authenticated user's ID.
   /// Throws an exception if no user is authenticated.
-  String getCurrentUserId();
+  Future<String> getCurrentUserId();
 
   /// Checks if a user is currently authenticated
   ///
   /// Returns true if a user is authenticated, false otherwise.
-  bool isAuthenticated();
+  Future<bool> isAuthenticated();
 }

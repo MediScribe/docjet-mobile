@@ -218,22 +218,39 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
 10. [ ] **Refactor AuthSessionProvider to Async**
     *   **Reason:** The synchronous interface of `AuthSessionProvider` prevents correct implementation and testing when using asynchronous dependencies like `AuthCredentialsProvider`.
     *   **Plan:**
-        10.1. [ ] Update `AuthSessionProvider` interface: Change `isAuthenticated` and `getCurrentUserId` to return `Future`.
-        10.2. [ ] Update `SecureStorageAuthSessionProvider`: Implement methods using `async`/`await` and `AuthCredentialsProvider`. (Requires adding `getUserId` to `AuthCredentialsProvider` first - **Note:** This dependency needs to be added in a prior step or as part of this refactoring).
-        10.3. [ ] Update `MockAuthSessionProvider` in tests and regenerate mocks.
-        10.4. [ ] Update consumer classes to use `async`/`await`:
-            *   [ ] `lib/features/jobs/data/repositories/job_repository_impl.dart`
-            *   [ ] `lib/features/jobs/data/services/job_writer_service.dart`
-            *   [ ] `lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart`
+        10.1. [x] Update `AuthSessionProvider` interface: Change `isAuthenticated` and `getCurrentUserId` to return `Future`.
+            *   **Finding:** Successfully updated `lib/core/auth/auth_session_provider.dart`. Changed `getCurrentUserId` to return `Future<String>` and `isAuthenticated` to return `Future<bool>`.
+        10.2. [x] Update `SecureStorageAuthSessionProvider`: Implement methods using `async`/`await` and `AuthCredentialsProvider`. (Requires adding `getUserId` to `AuthCredentialsProvider` first - **Note:** This dependency needs to be added in a prior step or as part of this refactoring).
+            *   **Finding 10.2.A (AuthCredentialsProvider Interface):** Added `Future<String?> getUserId()` and `Future<void> setUserId(String userId)` to `lib/core/auth/auth_credentials_provider.dart`.
+            *   **Finding 10.2.B (SecureStorageAuthCredentialsProvider Impl):** Implemented `getUserId` and `setUserId` in `lib/core/auth/secure_storage_auth_credentials_provider.dart` using `FlutterSecureStorage`.
+            *   **Finding 10.2.C (Mock):** Confirmed `test/core/auth/secure_storage_auth_credentials_provider_test.dart` uses `@GenerateMocks`. No manual mock update needed; `build_runner` required later.
+            *   **Finding 10.2.D (SecureStorageAuthSessionProvider Impl):** Updated `lib/core/auth/infrastructure/secure_storage_auth_session_provider.dart`. Removed placeholder synchronous methods. Implemented `isAuthenticated` using `await _credentialsProvider.getAccessToken() != null`. Implemented `getCurrentUserId` using `await _credentialsProvider.getUserId()` and throwing `AuthException.unauthenticated()` if the result is null.
+        10.3. [x] Update `MockAuthSessionProvider` in tests and regenerate mocks.
+            *   **Finding:** Ran `dart run build_runner build --delete-conflicting-outputs` successfully. This regenerated mocks for `AuthCredentialsProvider` (new methods) and `AuthSessionProvider` (async signatures) used across various tests.
+        10.4. [x] Update consumer classes to use `async`/`await`:
+            *   [x] `lib/features/jobs/data/repositories/job_repository_impl.dart`
+                *   **Finding:** Added `await` to `_authSessionProvider.isAuthenticated()` in `createJob`.
+            *   [x] `lib/features/jobs/data/services/job_writer_service.dart`
+                *   **Finding:** Added `await` to `_authSessionProvider.getCurrentUserId()` in `createJob`.
+            *   [x] `lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart`
+                *   **Finding:** Added `await` to `authSessionProvider.isAuthenticated()` and `authSessionProvider.getCurrentUserId()` in `_createJobFormData`. Apply model repeatedly failed to add `async` keyword to method signature.
         10.5. [ ] Update corresponding test files for consumers (DI setup, mocks, verification):
-            *   [ ] `test/core/di/injection_container_test.dart`
-            *   [ ] `test/features/jobs/data/repositories/job_repository_impl_test.dart`
-            *   [ ] `test/features/jobs/data/services/job_writer_service_test.dart`
-            *   [ ] `test/features/jobs/data/datasources/api_job_remote_data_source_impl_test.dart`
-            *   [ ] E2E tests (`test/features/jobs/e2e/`)
-            *   [ ] Integration tests (`test/features/jobs/integration/`)
-        10.6. [ ] Run all affected tests and ensure they pass.
-        10.7. [ ] Run `dart analyze` on modified files and fix issues.
+            *   [x] `test/core/di/injection_container_test.dart`
+                *   **Finding:** Updated the inline `MockAuthSessionProvider` to implement the async methods `Future<String> getCurrentUserId()` and `Future<bool> isAuthenticated()`.
+            *   [x] `test/features/jobs/data/repositories/job_repository_impl_test.dart`
+                *   **Finding:** Updated `when(mockAuthSessionProvider.isAuthenticated()).thenAnswer(...)` in two tests (`createJob` group) to return `Future<bool>` using `async => ...`.
+            *   [x] `test/features/jobs/data/services/job_writer_service_test.dart`
+                *   **Finding:** Updated `when(mockAuthSessionProvider.getCurrentUserId()).thenAnswer(...)` in three tests (`createJob` group) to return `Future<String>` using `async => ...`.
+            *   [x] `test/features/jobs/data/datasources/api_job_remote_data_source_impl_test.dart`
+                *   **Finding:** Updated `when(...).thenAnswer(...)` for `getCurrentUserId` and `isAuthenticated` in `setUp()` and two tests to return `Future`s using `async => ...`.
+            *   [x] E2E tests (`test/features/jobs/e2e/`)
+                *   **Finding:** Updated `when(...).thenAnswer(...)` for `getCurrentUserId` and `isAuthenticated` in `e2e_setup_helpers.dart` to return `Future`s using `async => ...`. Linter errors related to previous incorrect `thenReturn` were implicitly fixed.
+            *   [x] Integration tests (`test/features/jobs/integration/`)
+                *   **Finding:** Updated `when(...).thenAnswer(...)` for `isAuthenticated` (in main `setUp`) and `getCurrentUserId` (in inner `setUp`) in `job_lifecycle_test.dart` to return `Future`s using `async => ...`. Fixed linter error caused by incorrect `thenReturn` in inner `setUp`.
+        10.6. [x] Run all affected tests and ensure they pass.
+            *   **Finding:** Initial run showed 4 failures in `secure_storage_auth_session_provider_test.dart` and 6 E2E loading failures. Rewrote tests in `secure_storage_auth_session_provider_test.dart` to use async/await and correct mocks; they passed. Diagnosed E2E loading failures using `--except` flag and `flutter test`, revealing compilation errors due to incorrect `thenReturn` usage for async mocks in `e2e_setup_helpers.dart` and several specific E2E test files (`job_sync_reset_failed...`, `job_sync_retry...`, `job_sync_creation_failure...`, `job_sync_deletion_failure...`). Fixed all incorrect `thenReturn` stubs to use `thenAnswer((_) async => ...)` in the helper and individual E2E test files. Final run of `./scripts/list_failed_tests.dart` on all affected paths showed **No failed tests found.**
+        10.7. [x] Run `dart analyze` on modified files and fix issues; make sure to only fix the ones relevant to the current task.
+            *   **Finding:** `dart analyze` reported 1 warning: `unused_local_variable` for `accessToken` in `lib/core/auth/infrastructure/auth_service_impl.dart`. This is an existing, documented issue related to placeholder code in `AuthServiceImpl` and is **not** related to the async refactoring of `AuthSessionProvider`. Ignored for now per guidelines.
     *   **Note on `AuthCredentialsProvider.getUserId`**: This refactoring assumes `AuthCredentialsProvider` will be updated (or has been updated) to include `Future<String?> getUserId()` and `Future<void> setUserId(String userId)`. This needs to be addressed separately if not already done.
 
 11. [ ] **Integration Testing** (was 10)

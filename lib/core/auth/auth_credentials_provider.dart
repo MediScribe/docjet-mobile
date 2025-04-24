@@ -25,4 +25,10 @@ abstract class AuthCredentialsProvider {
 
   /// Deletes the stored refresh token
   Future<void> deleteRefreshToken();
+
+  /// Stores the user ID in secure storage
+  Future<void> setUserId(String userId);
+
+  /// Retrieves the stored user ID
+  Future<String?> getUserId();
 }

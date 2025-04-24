@@ -67,7 +67,9 @@ void main() {
     );
 
     // Add default mock for isAuthenticated for the whole group
-    when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+    when(
+      mockAuthSessionProvider.isAuthenticated(),
+    ).thenAnswer((_) async => true); // Use thenAnswer and async
   });
 
   // Helper function to create a Job entity
@@ -132,8 +134,9 @@ void main() {
 
     setUp(() {
       // Set up auth session provider for all tests
-      // This can likely be removed now as it's handled in the main setUp
-      // when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+      when(
+        mockAuthSessionProvider.getCurrentUserId(),
+      ).thenAnswer((_) async => userId); // Use thenAnswer and async
     });
 
     test('should create job through repository', () async {

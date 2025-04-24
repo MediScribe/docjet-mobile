@@ -57,7 +57,9 @@ void main() {
           // 1. Stub UUID generation using v4()
           when(mockUuid.v4()).thenReturn(tLocalId);
           // 2. Stub auth provider to return a user ID
-          when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
+          when(
+            mockAuthSessionProvider.getCurrentUserId(),
+          ).thenAnswer((_) async => tUserId);
           // 3. Stub local save to succeed
           when(mockLocalDataSource.saveJob(any)).thenAnswer(
             (_) async => unit,
@@ -155,7 +157,9 @@ void main() {
         // 1. Stub UUID generation using v4()
         when(mockUuid.v4()).thenReturn(tLocalId);
         // 2. Stub auth provider to return a user ID
-        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenAnswer((_) async => tUserId);
         // 3. Stub local save to succeed
         when(
           mockLocalDataSource.saveJob(any),
@@ -214,7 +218,9 @@ void main() {
         // 1. Stub UUID generation using v4()
         when(mockUuid.v4()).thenReturn(tLocalId);
         // 2. Stub auth provider
-        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenAnswer((_) async => tUserId);
         // 3. Stub local save to throw CacheException
         when(
           mockLocalDataSource.saveJob(any),

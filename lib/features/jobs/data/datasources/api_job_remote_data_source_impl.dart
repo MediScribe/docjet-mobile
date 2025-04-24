@@ -182,7 +182,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     // Get the current user ID from the auth session provider
     // This should be outside the main try-catch to properly handle auth errors
     // Authentication errors should not be caught by the regular error handling
-    if (!authSessionProvider.isAuthenticated()) {
+    if (!await authSessionProvider.isAuthenticated()) {
       const errorMessage = 'Cannot create job: No authenticated user';
       _logger.e(
         '$_tag Authentication error in _createJobFormData: $errorMessage',
@@ -192,7 +192,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
     String userId;
     try {
-      userId = authSessionProvider.getCurrentUserId();
+      userId = await authSessionProvider.getCurrentUserId();
     } catch (e) {
       // Convert any auth-related exceptions to ApiException with clear message
       final errorMessage =

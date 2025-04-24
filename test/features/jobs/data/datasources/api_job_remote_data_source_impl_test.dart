@@ -49,8 +49,12 @@ void main() {
     when(
       mockAuthCredentialsProvider.getAccessToken(),
     ).thenAnswer((_) async => tAccessToken);
-    when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
-    when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+    when(
+      mockAuthSessionProvider.getCurrentUserId(),
+    ).thenAnswer((_) async => tUserId);
+    when(
+      mockAuthSessionProvider.isAuthenticated(),
+    ).thenAnswer((_) async => true);
   });
 
   group('createJob', () {
@@ -99,7 +103,9 @@ void main() {
 
     test('should throw ApiException when user is not authenticated', () async {
       // Arrange
-      when(mockAuthSessionProvider.isAuthenticated()).thenReturn(false);
+      when(
+        mockAuthSessionProvider.isAuthenticated(),
+      ).thenAnswer((_) async => false);
 
       // Act & Assert
       expect(
@@ -121,7 +127,9 @@ void main() {
       'should throw ApiException when getCurrentUserId throws an exception',
       () async {
         // Arrange
-        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) async => true);
         when(
           mockAuthSessionProvider.getCurrentUserId(),
         ).thenThrow(Exception('Auth error'));

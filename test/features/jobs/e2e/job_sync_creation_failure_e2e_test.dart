@@ -90,8 +90,12 @@ void main() {
 
         // Arrange: Setup auth session provider
         final userId = 'test-user-id-creation-failure';
-        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
-        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) async => true);
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenAnswer((_) async => userId);
 
         // Arrange: Create a job locally
         _logger.d('$_tag Arranging: Creating job locally...');

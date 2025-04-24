@@ -69,7 +69,7 @@ class JobRepositoryImpl implements JobRepository {
     );
 
     // --- Authentication Check ---
-    if (!_authSessionProvider.isAuthenticated()) {
+    if (!await _authSessionProvider.isAuthenticated()) {
       _logger.w('$_tag User not authenticated. Cannot create job.');
       return Left(AuthFailure());
     }

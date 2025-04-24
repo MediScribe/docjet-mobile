@@ -11,6 +11,7 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
 
   static const String _accessTokenKey = 'accessToken';
   static const String _refreshTokenKey = 'refreshToken';
+  static const String _userIdKey = 'userId'; // Added key for user ID
   static const String _apiKeyEnvVariable =
       'API_KEY'; // Keep variable name for clarity
 
@@ -66,5 +67,17 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   @override
   Future<void> deleteRefreshToken() async {
     await _secureStorage.delete(key: _refreshTokenKey);
+  }
+
+  /// Stores the user ID securely.
+  @override
+  Future<void> setUserId(String userId) async {
+    await _secureStorage.write(key: _userIdKey, value: userId);
+  }
+
+  /// Retrieves the stored user ID.
+  @override
+  Future<String?> getUserId() async {
+    return _secureStorage.read(key: _userIdKey);
   }
 }

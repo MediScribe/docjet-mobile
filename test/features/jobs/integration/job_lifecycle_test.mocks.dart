@@ -341,26 +341,26 @@ class MockAuthSessionProvider extends _i1.Mock
   }
 
   @override
-  String getCurrentUserId() => (super.noSuchMethod(
+  _i4.Future<String> getCurrentUserId() => (super.noSuchMethod(
         Invocation.method(
           #getCurrentUserId,
           [],
         ),
-        returnValue: _i13.dummyValue<String>(
+        returnValue: _i4.Future<String>.value(_i13.dummyValue<String>(
           this,
           Invocation.method(
             #getCurrentUserId,
             [],
           ),
-        ),
-      ) as String);
+        )),
+      ) as _i4.Future<String>);
 
   @override
-  bool isAuthenticated() => (super.noSuchMethod(
+  _i4.Future<bool> isAuthenticated() => (super.noSuchMethod(
         Invocation.method(
           #isAuthenticated,
           [],
         ),
-        returnValue: false,
-      ) as bool);
+        returnValue: _i4.Future<bool>.value(false),
+      ) as _i4.Future<bool>);
 }

@@ -11,12 +11,12 @@ import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 // Add a MockAuthSessionProvider class
 class MockAuthSessionProvider implements AuthSessionProvider {
   @override
-  String getCurrentUserId() {
+  Future<String> getCurrentUserId() async {
     return 'test-user-id';
   }
 
   @override
-  bool isAuthenticated() {
+  Future<bool> isAuthenticated() async {
     return true;
   }
 }

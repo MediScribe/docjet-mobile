@@ -94,8 +94,12 @@ void main() {
 
         // Arrange: Set up auth session provider
         final userId = 'test-user-id-retry';
-        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
-        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) async => true);
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenAnswer((_) async => userId);
 
         // Arrange: Create a job locally
         _logger.d('$_tag Arranging: Creating job locally...');
@@ -201,8 +205,12 @@ void main() {
         reset(mockRemoteDataSource); // Reset previous when
 
         // Ensure auth session provider is still set up correctly
-        when(mockAuthSessionProvider.isAuthenticated()).thenReturn(true);
-        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) async => true);
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenAnswer((_) async => userId);
 
         when(
           mockRemoteDataSource.createJob(

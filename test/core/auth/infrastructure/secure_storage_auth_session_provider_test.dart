@@ -1,5 +1,5 @@
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
-// import 'package:docjet_mobile/core/auth/auth_exception.dart'; // Removed
+import 'package:docjet_mobile/core/auth/auth_exception.dart'; // Re-added
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -31,13 +31,12 @@ void main() {
           ).thenAnswer((_) async => 'some-access-token');
 
           // Act
-          // Implementation is sync, but underlying check might become async later
-          final result = authSessionProvider.isAuthenticated();
+          final result =
+              await authSessionProvider.isAuthenticated(); // Use await
 
           // Assert
           expect(result, isTrue);
-          // Verification might change depending on final implementation
-          // verify(mockCredentialsProvider.getAccessToken()).called(1);
+          verify(mockCredentialsProvider.getAccessToken()).called(1);
         },
       );
 
@@ -50,11 +49,30 @@ void main() {
           ).thenAnswer((_) async => null);
 
           // Act
-          final result = authSessionProvider.isAuthenticated();
+          final result =
+              await authSessionProvider.isAuthenticated(); // Use await
 
           // Assert
           expect(result, isFalse);
-          // verify(mockCredentialsProvider.getAccessToken()).called(1);
+          verify(mockCredentialsProvider.getAccessToken()).called(1);
+        },
+      );
+
+      test(
+        'returns false when credentials provider throws exception',
+        () async {
+          // Arrange
+          when(
+            mockCredentialsProvider.getAccessToken(),
+          ).thenThrow(Exception('Storage error'));
+
+          // Act
+          final result =
+              await authSessionProvider.isAuthenticated(); // Use await
+
+          // Assert
+          expect(result, isFalse);
+          verify(mockCredentialsProvider.getAccessToken()).called(1);
         },
       );
     });
@@ -63,35 +81,64 @@ void main() {
       test('returns userId when credentials provider has userId', () async {
         // Arrange
         const expectedUserId = 'user-123';
-        // Assume AuthCredentialsProvider will have getUserId returning Future<String?>
-        // when(mockCredentialsProvider.getUserId()).thenAnswer((_) async => expectedUserId);
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => expectedUserId);
 
         // Act
-        // Implementation is sync, but underlying check might become async
-        final result = authSessionProvider.getCurrentUserId();
+        final result =
+            await authSessionProvider.getCurrentUserId(); // Use await
 
         // Assert
-        // Placeholder implementation returns 'cached-user-id' currently
-        expect(result, 'cached-user-id');
-        // Verification requires knowing how the sync implementation works
-        // verify(mockCredentialsProvider.getUserId()).called(1);
+        expect(result, expectedUserId);
+        verify(mockCredentialsProvider.getUserId()).called(1);
       });
 
-      test('throws AuthException when credentials provider has no userId', () async {
-        // Arrange
-        // Assume AuthCredentialsProvider will have getUserId returning Future<String?>
-        // when(mockCredentialsProvider.getUserId()).thenAnswer((_) async => null);
+      test(
+        'throws AuthException when credentials provider has no userId',
+        () async {
+          // Arrange
+          when(
+            mockCredentialsProvider.getUserId(),
+          ).thenAnswer((_) async => null);
 
-        // Act & Assert
-        // Placeholder implementation returns 'cached-user-id' currently, doesn't throw
-        expect(
-          () => authSessionProvider.getCurrentUserId(),
-          returnsNormally,
-          // Expected: throwsA(isA<AuthException>()),
-        );
-        // Verification requires knowing how the sync implementation works
-        // verify(mockCredentialsProvider.getUserId()).called(1);
-      });
+          // Act & Assert
+          expect(
+            // Use expectLater for async throws
+            () => authSessionProvider.getCurrentUserId(), // Use await
+            throwsA(
+              isA<AuthException>().having(
+                (e) => e.message,
+                'message',
+                'No authenticated user ID found.',
+              ),
+            ),
+          );
+          verify(mockCredentialsProvider.getUserId()).called(1);
+        },
+      );
+
+      test(
+        'throws AuthException when credentials provider throws exception',
+        () async {
+          // Arrange
+          final exception = Exception('Storage error');
+          when(mockCredentialsProvider.getUserId()).thenThrow(exception);
+
+          // Act & Assert
+          expect(
+            () => authSessionProvider.getCurrentUserId(), // Use await
+            throwsA(
+              isA<AuthException>().having(
+                (e) => e.message,
+                'message',
+                contains('Failed to retrieve user ID'),
+              ),
+            ),
+          );
+          verify(mockCredentialsProvider.getUserId()).called(1);
+        },
+      );
     });
   });
 }

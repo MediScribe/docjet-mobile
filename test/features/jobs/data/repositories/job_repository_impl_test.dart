@@ -82,7 +82,9 @@ void main() {
       'should delegate to writer service when authenticated without fetching userId',
       () async {
         // Arrange
-        when(mockAuthSessionProvider.isAuthenticated()).thenAnswer((_) => true);
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) async => true);
         // DO NOT mock or expect getCurrentUserId here
         when(
           mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
@@ -117,7 +119,7 @@ void main() {
         // Arrange
         when(
           mockAuthSessionProvider.isAuthenticated(),
-        ).thenAnswer((_) => false);
+        ).thenAnswer((_) async => false);
 
         // Act
         final result = await repository.createJob(

@@ -913,6 +913,25 @@ class MockAuthCredentialsProvider extends _i1.Mock
         returnValue: _i8.Future<void>.value(),
         returnValueForMissingStub: _i8.Future<void>.value(),
       ) as _i8.Future<void>);
+
+  @override
+  _i8.Future<void> setUserId(String? userId) => (super.noSuchMethod(
+        Invocation.method(
+          #setUserId,
+          [userId],
+        ),
+        returnValue: _i8.Future<void>.value(),
+        returnValueForMissingStub: _i8.Future<void>.value(),
+      ) as _i8.Future<void>);
+
+  @override
+  _i8.Future<String?> getUserId() => (super.noSuchMethod(
+        Invocation.method(
+          #getUserId,
+          [],
+        ),
+        returnValue: _i8.Future<String?>.value(),
+      ) as _i8.Future<String?>);
 }
 
 /// A class which mocks [AuthSessionProvider].
@@ -925,26 +944,26 @@ class MockAuthSessionProvider extends _i1.Mock
   }
 
   @override
-  String getCurrentUserId() => (super.noSuchMethod(
+  _i8.Future<String> getCurrentUserId() => (super.noSuchMethod(
         Invocation.method(
           #getCurrentUserId,
           [],
         ),
-        returnValue: _i12.dummyValue<String>(
+        returnValue: _i8.Future<String>.value(_i12.dummyValue<String>(
           this,
           Invocation.method(
             #getCurrentUserId,
             [],
           ),
-        ),
-      ) as String);
+        )),
+      ) as _i8.Future<String>);
 
   @override
-  bool isAuthenticated() => (super.noSuchMethod(
+  _i8.Future<bool> isAuthenticated() => (super.noSuchMethod(
         Invocation.method(
           #isAuthenticated,
           [],
         ),
-        returnValue: false,
-      ) as bool);
+        returnValue: _i8.Future<bool>.value(false),
+      ) as _i8.Future<bool>);
 }

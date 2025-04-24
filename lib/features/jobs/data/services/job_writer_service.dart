@@ -44,7 +44,7 @@ class JobWriterService {
     // Get the userId from AuthSessionProvider outside the try/catch
     // to properly handle authentication errors
     try {
-      final userId = _authSessionProvider.getCurrentUserId();
+      final userId = await _authSessionProvider.getCurrentUserId();
 
       try {
         final localId = _uuid.v4();

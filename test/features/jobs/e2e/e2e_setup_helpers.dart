@@ -244,8 +244,12 @@ Future<void> setupDI({
     () => MockAuthSessionProvider(),
   );
   // Configure the mock AuthSessionProvider with default test behaviors
-  when(sl<AuthSessionProvider>().getCurrentUserId()).thenReturn('test-user-id');
-  when(sl<AuthSessionProvider>().isAuthenticated()).thenReturn(true);
+  when(
+    sl<AuthSessionProvider>().getCurrentUserId(),
+  ).thenAnswer((_) async => 'test-user-id');
+  when(
+    sl<AuthSessionProvider>().isAuthenticated(),
+  ).thenAnswer((_) async => true);
 
   sl.registerLazySingleton<Uuid>(() => const Uuid());
   sl.registerLazySingleton<FileSystem>(() => MockFileSystem());
@@ -363,8 +367,10 @@ void resetTestMocks() {
     reset(sl<AuthSessionProvider>());
     when(
       sl<AuthSessionProvider>().getCurrentUserId(),
-    ).thenReturn('test-user-id');
-    when(sl<AuthSessionProvider>().isAuthenticated()).thenReturn(true);
+    ).thenAnswer((_) async => 'test-user-id');
+    when(
+      sl<AuthSessionProvider>().isAuthenticated(),
+    ).thenAnswer((_) async => true);
   }
   if (sl.isRegistered<FileSystem>()) {
     reset(sl<FileSystem>());
