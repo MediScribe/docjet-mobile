@@ -6,6 +6,20 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+
+// Add a MockAuthSessionProvider class
+class MockAuthSessionProvider implements AuthSessionProvider {
+  @override
+  String getCurrentUserId() {
+    return 'test-user-id';
+  }
+
+  @override
+  bool isAuthenticated() {
+    return true;
+  }
+}
 
 // Mock implementation of the platform interface
 class MockFlutterSecureStoragePlatform
@@ -106,6 +120,9 @@ void main() {
     PathProviderPlatform.instance = MockPathProviderPlatform();
     FlutterSecureStoragePlatform.instance = MockFlutterSecureStoragePlatform();
 
+    // Register a mock AuthSessionProvider for tests
+    getIt.registerSingleton<AuthSessionProvider>(MockAuthSessionProvider());
+
     // REMOVE GetIt registrations here. di.init() should handle them now,
     // using the platform mocks we just set.
     // getIt.registerLazySingleton<FlutterSecureStorage>(() => const FlutterSecureStorage());
@@ -128,6 +145,13 @@ void main() {
     // Act: Initialize the dependency container
     await tester.runAsync(() async {
       await di.init();
+
+      // Override the AuthSessionProvider with our mock
+      // This is necessary in case di.init() registers a real AuthSessionProvider
+      if (getIt.isRegistered<AuthSessionProvider>()) {
+        getIt.unregister<AuthSessionProvider>();
+      }
+      getIt.registerSingleton<AuthSessionProvider>(MockAuthSessionProvider());
     });
 
     // Assert: Try to resolve JobListCubit and check its type

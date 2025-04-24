@@ -96,12 +96,10 @@ void main() {
         final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio for retry');
         final audioFilePath = dummyAudioFile.path;
-        final userId = 'test-user-id-retry';
         final initialText = 'Job created before first failure';
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(
-          userId: userId,
           audioFilePath: audioFilePath,
           text: initialText,
         );
@@ -120,7 +118,6 @@ void main() {
         _logger.d('$_tag Arranging: Mocking FIRST remote call to throw 500...');
         when(
           mockRemoteDataSource.createJob(
-            userId: userId,
             audioFilePath: audioFilePath,
             text: initialText,
             additionalText: null,
@@ -196,7 +193,6 @@ void main() {
         reset(mockRemoteDataSource); // Reset previous when
         when(
           mockRemoteDataSource.createJob(
-            userId: userId,
             audioFilePath: audioFilePath,
             text: initialText,
             additionalText: null,
@@ -251,7 +247,6 @@ void main() {
         // Assert: Verify the remote createJob was called again
         verify(
           mockRemoteDataSource.createJob(
-            userId: userId,
             audioFilePath: audioFilePath,
             text: initialText,
             additionalText: null,

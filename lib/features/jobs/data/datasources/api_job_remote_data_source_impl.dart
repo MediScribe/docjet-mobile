@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Import the new provider
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Import the AuthSessionProvider
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
@@ -25,6 +26,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// Provider for authentication credentials (JWT, API Key).
   final AuthCredentialsProvider authCredentialsProvider;
 
+  /// Provider for authentication session information like user ID.
+  final AuthSessionProvider authSessionProvider;
+
   /// Function used to create a [MultipartFile] from a file path.
   /// Injected for testability.
   final MultipartFileCreator _multipartFileCreator;
@@ -42,7 +46,8 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// function. If no creator is provided, it defaults to [MultipartFile.fromFile].
   ApiJobRemoteDataSourceImpl({
     required this.dio,
-    required this.authCredentialsProvider, // Add provider to constructor
+    required this.authCredentialsProvider,
+    required this.authSessionProvider,
     // Default to the actual static method for production
     MultipartFileCreator multipartFileCreator = MultipartFile.fromFile,
   }) : _multipartFileCreator = multipartFileCreator;
@@ -168,13 +173,18 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// Uses the injected [_multipartFileCreator] to handle file creation,
   /// allowing for mocking during tests.
   Future<FormData> _createJobFormData({
-    required String userId,
     required String audioFilePath,
     String? text,
     String? additionalText,
   }) async {
     _logger.d('$_tag Preparing FormData for job creation...');
     try {
+      // Get the current user ID from the auth session provider
+      final userId = authSessionProvider.getCurrentUserId();
+      if (!authSessionProvider.isAuthenticated()) {
+        throw ApiException(message: 'Cannot create job: No authenticated user');
+      }
+
       // Use Dio's default boundary handling.
       final formData = FormData();
 
@@ -350,20 +360,16 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
 
   @override
   Future<Job> createJob({
-    required String userId,
     required String audioFilePath,
     String? text,
     String? additionalText,
   }) async {
     final urlPath = '/jobs';
-    _logger.d(
-      '$_tag Creating job for user $userId with audio $audioFilePath at $urlPath',
-    );
+    _logger.d('$_tag Creating job with audio $audioFilePath at $urlPath');
 
     try {
       // Prepare FormData using the helper method
       final formData = await _createJobFormData(
-        userId: userId,
         audioFilePath: audioFilePath,
         text: text,
         additionalText: additionalText,

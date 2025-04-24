@@ -1,9 +1,7 @@
-import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 
 // Generate mocks for dependencies
 @GenerateMocks([AuthService])

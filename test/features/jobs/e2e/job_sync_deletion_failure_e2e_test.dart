@@ -130,7 +130,6 @@ void main() {
         reset(mockRemoteDataSource); // Clear previous mocks if any
         when(
           mockRemoteDataSource.createJob(
-            userId: userId,
             audioFilePath: audioFilePath,
             text: initialText,
             additionalText: null,

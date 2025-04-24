@@ -17,11 +17,10 @@ abstract class JobRemoteDataSource {
 
   /// Creates a new job via the API by uploading audio and metadata.
   /// Corresponds to `POST /api/v1/jobs`.
-  /// Requires `userId`, path to the `audioFile`, and optional `text`.
+  /// The user ID is obtained internally from AuthSessionProvider.
+  /// Requires path to the `audioFile`, and optional `text`.
   /// Throws a [ServerException] or [ApiException] for all error cases.
   Future<Job> createJob({
-    required String
-    userId, // User ID needs to be passed from the session/auth state
     required String audioFilePath,
     String? text,
     String? additionalText, // Added based on spec

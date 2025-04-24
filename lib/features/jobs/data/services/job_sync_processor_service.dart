@@ -51,7 +51,6 @@ class JobSyncProcessorService {
           return Left(ValidationFailure('Audio file path is required'));
         }
         remoteJob = await _remoteDataSource.createJob(
-          userId: job.userId,
           audioFilePath: job.audioFilePath!,
           text: job.text,
           additionalText: job.additionalText,

@@ -128,7 +128,6 @@ void main() {
         printLog('[JobSyncProcessorTest] Arranging mocks for failure scenario');
         when(
           mockRemoteDataSource.createJob(
-            userId: anyNamed('userId'),
             audioFilePath: anyNamed('audioFilePath'),
             text: anyNamed('text'),
             additionalText: anyNamed('additionalText'),
@@ -187,7 +186,6 @@ void main() {
         // Verify create was called
         verify(
           mockRemoteDataSource.createJob(
-            userId: initialJob.userId,
             audioFilePath: initialJob.audioFilePath!,
             text: initialJob.text,
             additionalText: initialJob.additionalText,
@@ -215,7 +213,6 @@ void main() {
         printLog('[JobSyncProcessorTest] Arranging mocks for failure scenario');
         when(
           mockRemoteDataSource.createJob(
-            userId: anyNamed('userId'),
             audioFilePath: anyNamed('audioFilePath'),
             text: anyNamed('text'),
             additionalText: anyNamed('additionalText'),
@@ -260,7 +257,6 @@ void main() {
 
         verify(
           mockRemoteDataSource.createJob(
-            userId: initialJob.userId,
             audioFilePath: initialJob.audioFilePath!,
             text: initialJob.text,
             additionalText: initialJob.additionalText,
@@ -436,7 +432,6 @@ void main() {
         );
         when(
           mockRemoteDataSource.createJob(
-            userId: anyNamed('userId'),
             audioFilePath: anyNamed('audioFilePath'),
             text: anyNamed('text'),
             additionalText: anyNamed('additionalText'),
@@ -470,7 +465,6 @@ void main() {
         // Verify remote create was called
         verify(
           mockRemoteDataSource.createJob(
-            userId: tPendingJobNew.userId,
             audioFilePath: tPendingJobNew.audioFilePath!,
             text: tPendingJobNew.text,
             additionalText: tPendingJobNew.additionalText,
@@ -556,7 +550,6 @@ void main() {
         );
         when(
           mockRemoteDataSource.createJob(
-            userId: anyNamed('userId'),
             audioFilePath: anyNamed('audioFilePath'),
             text: anyNamed('text'),
             additionalText: anyNamed('additionalText'),
@@ -587,7 +580,6 @@ void main() {
         }, (r) => fail('Expected Left, got Right: $r'));
         verify(
           mockRemoteDataSource.createJob(
-            userId: tPendingJobNew.userId,
             audioFilePath: tPendingJobNew.audioFilePath!,
             text: tPendingJobNew.text,
             additionalText: tPendingJobNew.additionalText,

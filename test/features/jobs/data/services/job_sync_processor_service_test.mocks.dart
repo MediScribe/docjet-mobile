@@ -341,7 +341,6 @@ class MockJobRemoteDataSource extends _i1.Mock
 
   @override
   _i6.Future<_i2.Job> createJob({
-    required String? userId,
     required String? audioFilePath,
     String? text,
     String? additionalText,
@@ -351,7 +350,6 @@ class MockJobRemoteDataSource extends _i1.Mock
           #createJob,
           [],
           {
-            #userId: userId,
             #audioFilePath: audioFilePath,
             #text: text,
             #additionalText: additionalText,
@@ -363,7 +361,6 @@ class MockJobRemoteDataSource extends _i1.Mock
             #createJob,
             [],
             {
-              #userId: userId,
               #audioFilePath: audioFilePath,
               #text: text,
               #additionalText: additionalText,
@@ -376,7 +373,6 @@ class MockJobRemoteDataSource extends _i1.Mock
             #createJob,
             [],
             {
-              #userId: userId,
               #audioFilePath: audioFilePath,
               #text: text,
               #additionalText: additionalText,

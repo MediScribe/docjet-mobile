@@ -239,10 +239,11 @@ Future<void> setupDI({
     sl<AuthCredentialsProvider>().getAccessToken(),
   ).thenAnswer((_) async => 'fake-test-token');
 
-  // Register AuthSessionProvider mock
+  // Register AuthSessionProvider mock with consistently stubbed methods
   sl.registerLazySingleton<AuthSessionProvider>(
     () => MockAuthSessionProvider(),
   );
+  // Configure the mock AuthSessionProvider with default test behaviors
   when(sl<AuthSessionProvider>().getCurrentUserId()).thenReturn('test-user-id');
   when(sl<AuthSessionProvider>().isAuthenticated()).thenReturn(true);
 
@@ -257,7 +258,11 @@ Future<void> setupDI({
   );
   // Register the real implementation with a specific name (optional, but good practice)
   sl.registerLazySingleton<ApiJobRemoteDataSourceImpl>(
-    () => ApiJobRemoteDataSourceImpl(dio: sl(), authCredentialsProvider: sl()),
+    () => ApiJobRemoteDataSourceImpl(
+      dio: sl(),
+      authCredentialsProvider: sl(),
+      authSessionProvider: sl(),
+    ),
     instanceName: 'realDataSource',
   );
 

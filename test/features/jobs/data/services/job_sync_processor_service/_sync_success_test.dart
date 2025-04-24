@@ -98,7 +98,6 @@ void main() {
         printLog('[JobSyncProcessorTest][SyncSuccess] Arranging mocks...');
         when(
           mockRemoteDataSource.createJob(
-            userId: anyNamed('userId'),
             audioFilePath: anyNamed('audioFilePath'),
             text: anyNamed('text'),
             additionalText: anyNamed('additionalText'),
@@ -133,7 +132,6 @@ void main() {
         expect(result.isRight(), isTrue);
         verify(
           mockRemoteDataSource.createJob(
-            userId: tPendingJobNew.userId,
             audioFilePath: tPendingJobNew.audioFilePath!,
             text: tPendingJobNew.text,
             additionalText: tPendingJobNew.additionalText,

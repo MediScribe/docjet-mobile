@@ -110,7 +110,8 @@ Future<void> init() async {
     () => ApiJobRemoteDataSourceImpl(
       dio: sl(),
       authCredentialsProvider: sl(),
-    ), // Depends on Dio & AuthProvider
+      authSessionProvider: sl(),
+    ), // Depends on Dio, AuthCredentialsProvider, and AuthSessionProvider
   );
 
   // Features - Jobs - Domain - Use Cases (Register necessary use cases)

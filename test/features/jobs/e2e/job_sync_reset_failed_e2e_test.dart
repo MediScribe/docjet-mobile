@@ -93,7 +93,6 @@ void main() {
         final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio for reset fail');
         final audioFilePath = dummyAudioFile.path;
-        final userId = 'test-user-id-reset-fail';
         final initialText = 'Job to be failed and reset';
         expect(await dummyAudioFile.exists(), isTrue);
 
