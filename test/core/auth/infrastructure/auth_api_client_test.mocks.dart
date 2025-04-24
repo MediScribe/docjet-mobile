@@ -116,4 +116,22 @@ class MockAuthCredentialsProvider extends _i1.Mock
         ),
         returnValue: _i3.Future<String?>.value(),
       ) as _i3.Future<String?>);
+
+  @override
+  _i3.Future<bool> isAccessTokenValid() => (super.noSuchMethod(
+        Invocation.method(
+          #isAccessTokenValid,
+          [],
+        ),
+        returnValue: _i3.Future<bool>.value(false),
+      ) as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> isRefreshTokenValid() => (super.noSuchMethod(
+        Invocation.method(
+          #isRefreshTokenValid,
+          [],
+        ),
+        returnValue: _i3.Future<bool>.value(false),
+      ) as _i3.Future<bool>);
 }

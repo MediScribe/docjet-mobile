@@ -1,4 +1,5 @@
 import 'package:docjet_mobile/core/auth/entities/user.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 
 /// Defines the authentication service contract
 ///
@@ -10,6 +11,7 @@ abstract class AuthService {
   ///
   /// Returns a [User] entity if login is successful.
   /// May throw [AuthException] if authentication fails.
+  /// Implementations should fire [AuthEvent.loggedIn] on success.
   Future<User> login(String email, String password);
 
   /// Refreshes the current authentication session
@@ -18,18 +20,29 @@ abstract class AuthService {
   Future<bool> refreshSession();
 
   /// Logs out the current user by clearing stored credentials
+  ///
+  /// Implementations should fire [AuthEvent.loggedOut].
   Future<void> logout();
 
   /// Checks if a user is currently authenticated
   ///
-  /// Returns true if the user is authenticated, false otherwise.
-  /// This performs a basic check of stored credentials; it does not
-  /// validate with the server if the credentials are still valid.
-  Future<bool> isAuthenticated();
+  /// - [validateTokenLocally]: If true, performs a local validation of the access
+  ///   token's expiry without contacting the server. Defaults to false.
+  ///
+  /// Returns true if the user is considered authenticated based on the check,
+  /// false otherwise.
+  Future<bool> isAuthenticated({bool validateTokenLocally = false});
 
   /// Retrieves the ID of the currently authenticated user
   ///
   /// Returns the user ID if a user is authenticated.
   /// Throws an [AuthException] if no user is authenticated.
   Future<String> getCurrentUserId();
+
+  /// Retrieves the full profile of the currently authenticated user
+  ///
+  /// Returns the [User] entity containing profile details.
+  /// Throws an [AuthException] if the user is not authenticated or the profile
+  /// cannot be fetched.
+  Future<User> getUserProfile();
 }

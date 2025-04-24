@@ -293,6 +293,24 @@ class MockAuthCredentialsProvider extends _i1.Mock
         ),
         returnValue: _i6.Future<String?>.value(),
       ) as _i6.Future<String?>);
+
+  @override
+  _i6.Future<bool> isAccessTokenValid() => (super.noSuchMethod(
+        Invocation.method(
+          #isAccessTokenValid,
+          [],
+        ),
+        returnValue: _i6.Future<bool>.value(false),
+      ) as _i6.Future<bool>);
+
+  @override
+  _i6.Future<bool> isRefreshTokenValid() => (super.noSuchMethod(
+        Invocation.method(
+          #isRefreshTokenValid,
+          [],
+        ),
+        returnValue: _i6.Future<bool>.value(false),
+      ) as _i6.Future<bool>);
 }
 
 /// A class which mocks [Dio].

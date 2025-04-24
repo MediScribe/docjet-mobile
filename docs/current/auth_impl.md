@@ -104,29 +104,29 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 ## 4. Domain Interface Enhancements
 
-4.  [ ] **Extend Auth Service Interface**
+4.  [x] **Extend Auth Service Interface**
     - FINDINGS: The existing `AuthService` interface is in `lib/core/auth/auth_service.dart`, not in the features directory. It already defines core methods like `login()`, `refreshSession()`, `logout()`, `isAuthenticated()`, and `getCurrentUserId()`. The TODOs mention adding a `getUserProfile()` method and local token validation.
-    
-    4.1. [ ] Write failing tests for enhanced `AuthService` interface in `test/core/auth/auth_service_test.dart`
-       - FINDINGS: Will extend or create tests for the existing interface in the core/auth directory.
-    
-    4.2. [ ] Update the interface in `lib/core/auth/auth_service.dart`:
-       - FINDINGS: Will update the existing interface in the core directory.
-    
-       4.2.1. [ ] Add optional `validateTokenLocally` parameter to `isAuthenticated()`
-          - FINDINGS: Will add this parameter to perform offline token validation.
-    
-       4.2.2. [ ] Add `getUserProfile()` method
-          - FINDINGS: Will add this method to retrieve the full user profile.
-    
-       4.2.3. [ ] Add event emission contract
-          - FINDINGS: Will add methods or documentation for emitting auth events.
-    
-    4.3. [ ] Update mock implementations for tests
-       - FINDINGS: Will update existing mocks after interface changes.
-    
-    4.4. [ ] Verify interface tests pass without actual implementation (GREEN)
-       - FINDINGS: Will run tests against the interface to ensure contract is well-defined.
+
+    4.1. [x] Write failing tests for enhanced `AuthService` interface in `test/core/auth/auth_service_test.dart`
+       - FINDINGS: Extended the existing test file. Replaced initial barebones test with proper Mockito-based tests verifying all method signatures, including the new ones and the optional parameter. Added tests to verify the *documented expectation* of event firing (without mocking the actual firing mechanism in the interface test).
+
+    4.2. [x] Update the interface in `lib/core/auth/auth_service.dart`:
+       - FINDINGS: Updated the existing interface in the core directory.
+
+       4.2.1. [x] Add optional `validateTokenLocally` parameter to `isAuthenticated()`
+          - FINDINGS: Added `isAuthenticated({bool validateTokenLocally = false})` with a default value and documentation.
+
+       4.2.2. [x] Add `getUserProfile()` method
+          - FINDINGS: Added `Future<User> getUserProfile()` with documentation.
+
+       4.2.3. [x] Add event emission contract
+          - FINDINGS: Added documentation comments to `login()` and `logout()` methods specifying that implementations should fire `AuthEvent.loggedIn` and `AuthEvent.loggedOut` respectively.
+
+    4.3. [x] Update mock implementations for tests
+       - FINDINGS: Switched test file from incorrect `mocktail` usage to `Mockito`. Used `@GenerateMocks` annotation and ran `build_runner` to generate mocks. Removed verification logic for event bus from setup, relying on documentation tests for the interface contract.
+
+    4.4. [x] Verify interface tests pass without actual implementation (GREEN)
+       - FINDINGS: Fixed initial linter/dependency issues related to mocking framework confusion. Ran `dart analyze` (clean) and `flutter test test/core/auth/auth_service_test.dart` (passed).
 
 ## 5. Data Layer - Auth API Client  
 
