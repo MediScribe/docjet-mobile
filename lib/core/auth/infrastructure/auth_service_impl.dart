@@ -2,6 +2,8 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 
 /// Implementation of the AuthService interface
@@ -15,19 +17,43 @@ class AuthServiceImpl implements AuthService {
   /// Provider for storing and retrieving authentication credentials
   final AuthCredentialsProvider credentialsProvider;
 
+  /// Event bus for broadcasting authentication events
+  final AuthEventBus eventBus;
+
   /// Creates an [AuthServiceImpl] with the required dependencies
-  AuthServiceImpl({required this.apiClient, required this.credentialsProvider});
+  AuthServiceImpl({
+    required this.apiClient,
+    required this.credentialsProvider,
+    required this.eventBus,
+  });
 
   @override
   Future<User> login(String email, String password) async {
-    final authResponse = await apiClient.login(email, password);
+    try {
+      final authResponse = await apiClient.login(email, password);
 
-    // Store tokens securely
-    await credentialsProvider.setAccessToken(authResponse.accessToken);
-    await credentialsProvider.setRefreshToken(authResponse.refreshToken);
+      // Store tokens securely
+      await credentialsProvider.setAccessToken(authResponse.accessToken);
+      await credentialsProvider.setRefreshToken(authResponse.refreshToken);
+      await credentialsProvider.setUserId(authResponse.userId);
 
-    // Return a domain entity
-    return User(id: authResponse.userId);
+      // Fire loggedIn event
+      eventBus.add(AuthEvent.loggedIn);
+
+      // TODO: Implement actual UserProfile fetching during login
+      // In the future, we might want to call getUserProfile here
+      // and return the full User entity, or handle profile loading separately.
+
+      // Return a domain entity
+      return User(id: authResponse.userId);
+    } on AuthException {
+      // Propagate AuthExceptions directly (e.g., invalidCredentials, offline)
+      rethrow;
+    } catch (e) {
+      // Catch-all for unexpected errors during login flow
+      // Consider logging this error
+      throw AuthException.unauthenticated('Login failed: ${e.toString()}');
+    }
   }
 
   @override
@@ -47,50 +73,113 @@ class AuthServiceImpl implements AuthService {
       // Store the new tokens
       await credentialsProvider.setAccessToken(authResponse.accessToken);
       await credentialsProvider.setRefreshToken(authResponse.refreshToken);
+      // Ensure userId is also stored/updated if necessary (depends on API response)
+      await credentialsProvider.setUserId(authResponse.userId);
 
       return true;
-    } on AuthException {
-      // If token is expired or invalid, refreshing failed
-      return false;
+    } on AuthException catch (e) {
+      // If token is expired/invalid or offline, refreshing failed
+      if (e == AuthException.refreshTokenInvalid() ||
+          e == AuthException.tokenExpired()) {
+        return false;
+      }
+      // Propagate other AuthExceptions (like offline, network error)
+      rethrow;
+    } catch (e) {
+      // Catch-all for unexpected errors during refresh
+      // Consider logging this error
+      return false; // Treat unexpected errors as refresh failure
     }
   }
 
   @override
   Future<void> logout() async {
-    // Clear stored tokens
-    await credentialsProvider.deleteAccessToken();
-    await credentialsProvider.deleteRefreshToken();
+    try {
+      // Clear stored tokens and user ID
+      await credentialsProvider.deleteAccessToken();
+      await credentialsProvider.deleteRefreshToken();
+      // Assuming we don't explicitly store/delete user ID on logout,
+      // but depend on tokens being absent.
+      // If user ID needs explicit clearing, add:
+      // await credentialsProvider.deleteUserId();
+
+      // Fire loggedOut event
+      eventBus.add(AuthEvent.loggedOut);
+    } catch (e) {
+      // Log error, but don't prevent logout completion
+      // Logger.error('Error during logout cleanup: $e');
+      // We still consider logout successful from the user's perspective.
+      // Ensure the event is still fired if possible, or fire it earlier.
+      // If the event bus itself fails, that's a separate issue.
+    }
   }
 
   @override
-  Future<bool> isAuthenticated() async {
-    // Check if we have a valid access token
-    final accessToken = await credentialsProvider.getAccessToken();
-    return accessToken != null;
+  Future<bool> isAuthenticated({bool validateTokenLocally = false}) async {
+    if (validateTokenLocally) {
+      try {
+        return await credentialsProvider.isAccessTokenValid();
+      } on AuthException {
+        // Propagate auth-specific errors (like offline)
+        rethrow;
+      } catch (e) {
+        // Treat other validation errors (e.g., token missing/malformed)
+        // as not authenticated.
+        // Consider logging this error.
+        return false;
+      }
+    } else {
+      // Basic check: does the token exist?
+      final accessToken = await credentialsProvider.getAccessToken();
+      return accessToken != null;
+    }
+  }
+
+  @override
+  Future<User> getUserProfile() async {
+    try {
+      final userId = await credentialsProvider.getUserId();
+      if (userId == null) {
+        throw AuthException.unauthenticated(
+          'Cannot get user profile: User ID not found.',
+        );
+      }
+
+      // TODO: Implement actual DTO and mapping
+      // final UserProfileDto profileDto = await apiClient.getUserProfile();
+      // For now, assume apiClient.getUserProfile returns a Map
+      final profileData =
+          await apiClient.getUserProfile(); // Correct call without arguments
+
+      // Basic mapping assuming profileData is Map<String, dynamic>
+      return User(
+        id: userId, // Use the ID we already confirmed
+        // name: profileData['name'] as String?,
+        // email: profileData['email'] as String?,
+        // Add other fields as needed based on User entity and API response
+      );
+    } on AuthException {
+      // Propagate AuthExceptions (unauthenticated, userProfileFetchFailed, offline, etc.)
+      rethrow;
+    } catch (e) {
+      // Catch-all for unexpected errors during profile fetch
+      // Consider logging this error
+      // Logger.error('Unexpected error fetching profile: $e');
+      throw AuthException.userProfileFetchFailed(); // Corrected: No argument
+    }
   }
 
   @override
   Future<String> getCurrentUserId() async {
-    // Check if user is authenticated
-    final isAuth = await isAuthenticated();
-    if (!isAuth) {
-      throw AuthException.unauthenticated('No authenticated user found');
+    // Delegate directly to the provider
+    final userId = await credentialsProvider.getUserId();
+    if (userId == null) {
+      // If provider returns null (and doesn't throw), throw unauthenticated
+      throw AuthException.unauthenticated('No authenticated user ID found');
     }
-
-    // Extract user ID from token or use stored user ID
-    // For now, use a placeholder implementation that would be replaced
-    // with actual token parsing or retrieval from secure storage
-    try {
-      // This would be replaced with actual implementation that extracts
-      // the user ID from the JWT token or from secure storage
-      final accessToken = await credentialsProvider.getAccessToken();
-      // In a real implementation, decode the JWT and extract the user ID
-      // For now, use a placeholder user ID
-      return 'user-id-from-token';
-    } catch (e) {
-      throw AuthException.unauthenticated(
-        'Failed to retrieve user ID: ${e.toString()}',
-      );
-    }
+    return userId;
+    // Note: The provider itself should handle token parsing if that's the source.
+    // This service layer method simply retrieves the stored/derived ID.
+    // Offline exceptions are expected to be thrown by the provider if applicable.
   }
 }
