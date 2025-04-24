@@ -31,4 +31,10 @@ abstract class AuthCredentialsProvider {
 
   /// Retrieves the stored user ID
   Future<String?> getUserId();
+
+  /// Checks if the stored access token is present and not expired.
+  Future<bool> isAccessTokenValid();
+
+  /// Checks if the stored refresh token is present and not expired.
+  Future<bool> isRefreshTokenValid();
 }

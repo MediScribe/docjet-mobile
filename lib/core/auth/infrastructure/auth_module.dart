@@ -9,6 +9,7 @@ import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 
 /// Authentication module for dependency injection setup
 ///
@@ -21,10 +22,14 @@ class AuthModule {
       () => const FlutterSecureStorage(),
     );
 
+    // Register the JWT Validator
+    getIt.registerLazySingleton<JwtValidator>(() => JwtValidator());
+
     // Register the credentials provider
     getIt.registerLazySingleton<AuthCredentialsProvider>(
       () => SecureStorageAuthCredentialsProvider(
         secureStorage: getIt<FlutterSecureStorage>(),
+        jwtValidator: getIt<JwtValidator>(),
       ),
     );
 

@@ -35,6 +35,7 @@ import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Add Auth
 import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService import
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; // Add AuthServiceImpl import
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // Add SecureStorageAuthSessionProvider
+import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
 
 final sl = GetIt.instance;
 
@@ -152,12 +153,19 @@ Future<void> init() async {
     () => const FlutterSecureStorage(),
   );
 
-  // Register the concrete provider
+  // Register the JWT Validator
+  sl.registerLazySingleton<JwtValidator>(() => JwtValidator());
+
+  // Register the concrete provider (CORRECTED)
   sl.registerLazySingleton<SecureStorageAuthCredentialsProvider>(
-    () => SecureStorageAuthCredentialsProvider(secureStorage: sl()),
+    () => SecureStorageAuthCredentialsProvider(
+      secureStorage: sl(),
+      jwtValidator: sl(), // Add JwtValidator injection
+    ),
   );
 
   // Register the AuthCredentialsProvider INTERFACE
+  // This now points to the correctly configured concrete instance
   sl.registerLazySingleton<AuthCredentialsProvider>(
     () => sl<SecureStorageAuthCredentialsProvider>(),
   );

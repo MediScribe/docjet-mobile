@@ -5,6 +5,7 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i3;
 
+import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart' as _i4;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 
@@ -157,4 +158,22 @@ class MockFlutterSecureStorage extends _i1.Mock
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),
       ) as _i3.Future<void>);
+}
+
+/// A class which mocks [JwtValidator].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJwtValidator extends _i1.Mock implements _i4.JwtValidator {
+  MockJwtValidator() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  bool isTokenExpired(String? token) => (super.noSuchMethod(
+        Invocation.method(
+          #isTokenExpired,
+          [token],
+        ),
+        returnValue: false,
+      ) as bool);
 }

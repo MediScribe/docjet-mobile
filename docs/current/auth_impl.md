@@ -52,29 +52,29 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 ## 2. Token Validation (Core Infrastructure)
 
-2.  [ ] **Add Explicit Token Validation**
-    - FINDINGS: The codebase already has an `AuthCredentialsProvider` interface in `lib/core/auth/auth_credentials_provider.dart` with a concrete implementation `SecureStorageAuthCredentialsProvider`. No JWT validation exists yet. There's no `jwt_decoder` package in the `pubspec.yaml`.
+2.  [x] **Add Explicit Token Validation**
+    - FINDINGS: The codebase already had an `AuthCredentialsProvider` interface in `lib/core/auth/auth_credentials_provider.dart` with a concrete implementation `SecureStorageAuthCredentialsProvider`. No JWT validation existed yet, and there was no `jwt_decoder` package in the dependencies. We discovered a confusing situation where another interface file `auth_credentials_provider.interface.dart` was being created in parallel, so we consolidated them.
     
-    2.1. [ ] Write failing tests for JWT token validation in `test/core/auth/utils/jwt_validator_test.dart`
-       - FINDINGS: Will create a new utility class in core/auth/utils instead of features directory.
+    2.1. [x] Write failing tests for JWT token validation in `test/core/auth/utils/jwt_validator_test.dart`
+       - FINDINGS: Created a new test file with comprehensive tests for token validation including expired tokens, valid tokens, tokens without expiry, invalid token formats, and null tokens.
     
-    2.2. [ ] Implement simple JWT validation utility in `lib/core/auth/utils/jwt_validator.dart` with method to check expiration
-       - FINDINGS: Will implement a utility class in the existing core/auth directory structure.
+    2.2. [x] Implement simple JWT validation utility in `lib/core/auth/utils/jwt_validator.dart` with method to check expiration
+       - FINDINGS: Implemented a utility class that wraps the `jwt_decoder` package with proper error handling. The implementation includes null checking and properly handles different error scenarios.
     
-    2.3. [ ] Add `jwt_decoder` package to `pubspec.yaml`
-       - FINDINGS: Need to add this package as it's not in the current dependencies.
+    2.3. [x] Add `jwt_decoder` package to `pubspec.yaml`
+       - FINDINGS: Added the package successfully with `flutter pub add jwt_decoder` and verified it was installed.
     
-    2.4. [ ] Write failing tests for enhanced `AuthCredentialsProvider` with token validation methods
-       - FINDINGS: Will extend the existing interface in `lib/core/auth/auth_credentials_provider.dart`.
+    2.4. [x] Write failing tests for enhanced `AuthCredentialsProvider` with token validation methods
+       - FINDINGS: Added tests for both `isAccessTokenValid()` and `isRefreshTokenValid()` methods with proper mocking of the JWT validator and different test cases.
     
-    2.5. [ ] Update the `AuthCredentialsProvider` interface with new validation methods
-       - FINDINGS: Will add methods like `isTokenValid` to the existing interface.
+    2.5. [x] Update the `AuthCredentialsProvider` interface with new validation methods
+       - FINDINGS: Added the methods to the existing interface. Discovered a duplicate interface file that was causing confusion - deleted it and consolidated our changes.
     
-    2.6. [ ] Implement the methods in `SecureStorageAuthCredentialsProvider`
-       - FINDINGS: Will implement in the existing `lib/core/auth/secure_storage_auth_credentials_provider.dart`.
+    2.6. [x] Implement the methods in `SecureStorageAuthCredentialsProvider`
+       - FINDINGS: Implemented the validation logic with proper error handling. Initially added logging calls but discovered they were causing issues, so we removed them for a later PR. Fixed key name mismatches between tests and implementation.
     
-    2.7. [ ] Verify all tests pass (GREEN) and refactor if needed
-       - FINDINGS: Will use the existing test runner.
+    2.7. [x] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Fixed all issues and verified that both JWT validator tests and provider tests pass. Also fixed dependency injection in both places it was defined (auth_module.dart and injection_container.dart). Some analyzer warnings remain but they are minor and can be fixed in a separate PR.
 
 ## 3. Auth Events System (Core Infrastructure)
 

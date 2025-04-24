@@ -1,13 +1,14 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// import 'package:flutter_dotenv/flutter_dotenv.dart'; // Removed - Use String.fromEnvironment
+import 'package:flutter/services.dart'; // For PlatformException
 
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
+import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 
 /// Concrete implementation of [AuthCredentialsProvider] using
 /// flutter_secure_storage for JWT and String.fromEnvironment for the API Key.
 class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   final FlutterSecureStorage _secureStorage;
-  // final EnvReader _envReader; // Removed
+  final JwtValidator _jwtValidator;
 
   static const String _accessTokenKey = 'accessToken';
   static const String _refreshTokenKey = 'refreshToken';
@@ -15,12 +16,12 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   static const String _apiKeyEnvVariable =
       'API_KEY'; // Keep variable name for clarity
 
-  // Constructor updated - removed EnvReader dependency
+  // Constructor updated - removed EnvReader dependency and added JwtValidator dependency
   SecureStorageAuthCredentialsProvider({
     required FlutterSecureStorage secureStorage,
-    // EnvReader? envReader, // Removed
-  }) : _secureStorage = secureStorage;
-  // _envReader = envReader ?? DotEnvReader(); // Removed
+    required JwtValidator jwtValidator,
+  }) : _secureStorage = secureStorage,
+       _jwtValidator = jwtValidator;
 
   @override
   Future<String?> getAccessToken() async {
@@ -79,5 +80,37 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   @override
   Future<String?> getUserId() async {
     return _secureStorage.read(key: _userIdKey);
+  }
+
+  @override
+  Future<bool> isAccessTokenValid() async {
+    try {
+      final token = await getAccessToken();
+      if (token == null) {
+        return false;
+      }
+      final isExpired = _jwtValidator.isTokenExpired(token);
+      return !isExpired;
+    } on PlatformException {
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> isRefreshTokenValid() async {
+    try {
+      final token = await getRefreshToken();
+      if (token == null) {
+        return false;
+      }
+      final isExpired = _jwtValidator.isTokenExpired(token);
+      return !isExpired;
+    } on PlatformException {
+      return false;
+    } catch (e) {
+      return false;
+    }
   }
 }

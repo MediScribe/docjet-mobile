@@ -68,6 +68,7 @@ dependencies:
 
   # Internationalization
   intl: # Added for date formatting
+  jwt_decoder: ^2.0.1
 
 dev_dependencies:
   flutter_test:

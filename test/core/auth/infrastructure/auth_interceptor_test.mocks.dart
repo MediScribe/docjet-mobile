@@ -178,6 +178,25 @@ class MockAuthApiClient extends _i1.Mock implements _i5.AuthApiClient {
           ),
         )),
       ) as _i6.Future<_i4.AuthResponseDto>);
+
+  @override
+  _i6.Future<void> getUserProfile() => (super.noSuchMethod(
+        Invocation.method(
+          #getUserProfile,
+          [],
+        ),
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
+
+  @override
+  void testHandleDioException(_i2.DioException? e) => super.noSuchMethod(
+        Invocation.method(
+          #testHandleDioException,
+          [e],
+        ),
+        returnValueForMissingStub: null,
+      );
 }
 
 /// A class which mocks [AuthCredentialsProvider].
