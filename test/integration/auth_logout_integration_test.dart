@@ -15,7 +15,6 @@ import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.da
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -159,38 +158,10 @@ void main() {
   });
 
   test(
-    'JobRepositoryImpl should react to AuthEvent.loggedOut and clear local user data',
+    'JobRepositoryImpl should call clearUserData on JobLocalDataSource upon logout event',
     () async {
-      // Arrange: Simulate login
-      await mockAuthService.login('test@test.com', 'password');
-
-      // Verify repository is properly set up
-      expect(jobRepository, isA<JobRepositoryImpl>());
-
-      // Act: Trigger logout via the event bus
-      authEventBus.add(AuthEvent.loggedOut);
-
-      // Allow time for the asynchronous event listener to react
-      await Future.delayed(Duration.zero);
-
-      // Assert: Verify clearUserData was called on the local data source
-      verify(mockJobLocalDataSource.clearUserData()).called(1);
-    },
-  );
-
-  test(
-    'JobRepositoryImpl should properly clean up all job data for different statuses',
-    () async {
-      // Arrange: Add jobs data with different statuses to verify all are cleared
-      when(
-        mockJobLocalDataSource.getJobsByStatus(SyncStatus.synced),
-      ).thenAnswer((_) async => []);
-      when(
-        mockJobLocalDataSource.getJobsByStatus(SyncStatus.pending),
-      ).thenAnswer((_) async => []);
-      when(
-        mockJobLocalDataSource.getJobsByStatus(SyncStatus.error),
-      ).thenAnswer((_) async => []);
+      // Arrange: No specific job data arrangement needed, as we only mock/verify
+      // the call to clearUserData() on the local data source.
 
       // Verify repository is ready
       expect(jobRepository, isNotNull);
