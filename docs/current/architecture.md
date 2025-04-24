@@ -210,3 +210,34 @@ Detailed architecture documentation for specific features:
 1. [Jobs Feature Architecture](./job_dataflow.md) - Components and data flow for jobs
 2. [Jobs Feature: Presentation Layer](./job_presentation_layer.md) - State management and UI interaction
 3. [Authentication Architecture](./auth_architecture.md) - Authentication components and flows
+
+## Authentication
+
+The application uses a domain-level authentication context approach, keeping user identity concerns properly isolated:
+
+### Authentication Components
+- **AuthCredentialsProvider**: Infrastructure-level provider managing secure storage and retrieval of authentication tokens and user identity
+- **AuthSessionProvider**: Domain-level interface that provides authentication context to components without exposing implementation details
+  - **Methods**: `isAuthenticated()` → `Future<bool>`, `getCurrentUserId()` → `Future<String>`
+  - **Error Handling**: Throws `AuthException.unauthenticated()` when no user is authenticated
+- **SecureStorageAuthSessionProvider**: Implementation connecting the domain-level interface to infrastructure
+- **AuthService**: Higher-level service for user login, logout, and session management
+
+### Authentication Context Flow
+This architecture avoids passing user IDs through UI and domain layers:
+- UI components don't need to track or pass user IDs
+- Domain interfaces are simpler and focus on business operations
+- Repository implementations retrieve user context directly from `AuthSessionProvider` 
+- Authentication errors are handled consistently at the data layer
+
+### Future Authentication Enhancements
+The following enhancements identified in the [Authentication Architecture](./auth_architecture.md) document are planned:
+
+1. **User Profile Retrieval**: Enhance the system to retrieve full user profile after authentication
+2. **Local Token Validation**: Add JWT expiration validation without requiring API calls
+3. **Improved Exception Handling**: Develop more specific authentication exception types
+4. **Offline Authentication Support**: Implement graceful fallbacks when network is unavailable
+5. **Robust Error Recovery**: Add exponential backoff for transient auth errors
+6. **Auth Event System**: Create centralized event notification for auth state changes
+
+The introduction of `AuthSessionProvider` lays groundwork for items 2 and 3, by providing a clean domain-level abstraction for authentication state and centralizing error handling through standard exceptions.

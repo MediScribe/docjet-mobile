@@ -551,6 +551,12 @@ Key methods include:
 
 Interface for remote API operations. Implemented by `ApiJobRemoteDataSourceImpl`.
 
+Key features:
+* Handles direct communication with the REST API
+* Uses `AuthSessionProvider` to get the current user ID for job operations rather than requiring it as a parameter
+* Provides proper authentication error handling
+* Wraps API failures in domain-specific exceptions
+
 ### Job Model Enhancements
 
 #### SyncStatus Enum
@@ -567,6 +573,28 @@ Enhanced with additional states:
 Enhanced with error recovery fields:
 * `retryCount`: Number of failed sync attempts (default: 0)
 * `lastSyncAttemptAt`: Timestamp of last sync attempt for backoff calculation
+
+## Authentication and Job Operations
+
+The job feature interacts with authentication through the `AuthSessionProvider` interface:
+
+### Authentication Context
+- Repository and services obtain the current user ID through the `AuthSessionProvider` interface
+- Components verify authentication state before performing operations
+- Authentication errors are translated to domain-specific `AuthFailure` objects
+
+### Authentication Error Handling
+Job operations fail cleanly when authentication is invalid:
+- `JobRepositoryImpl` checks `isAuthenticated()` before proceeding with job creation
+- `JobWriterService` gets the current user ID from `getCurrentUserId()` and handles authentication exceptions
+- `ApiJobRemoteDataSource` verifies authentication before making API calls
+
+### Future Authentication Integrations
+The following planned authentication enhancements (see [Architecture: Authentication](./architecture.md#future-authentication-enhancements)) will further improve the Job feature:
+
+1. **Offline Authentication**: Will allow job operations to work offline with cached authentication
+2. **Robust Error Recovery**: Will enable better handling of transient authentication failures during job sync
+3. **Auth Event System**: Will allow job components to react to authentication state changes (logout/token expiry)
 
 ## Sync Strategy
 

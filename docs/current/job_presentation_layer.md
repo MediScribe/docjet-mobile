@@ -98,6 +98,18 @@ graph TD
 
 - **Reactive Data:** The Cubits primarily rely on the `Watch...` use cases (`StreamUseCase`) to get notified of data changes originating from the data layer (e.g., local Hive changes, sync updates).
 - **Actions:** User actions initiated from the UI (e.g., create, update, delete, reset failed job) typically trigger calls to the corresponding single-action Use Cases (e.g., `CreateJobUseCase`, `DeleteJobUseCase`). These actions modify the data layer, which in turn causes the `Watch...` use cases to emit updates, closing the reactive loop and updating the UI via the Cubits.
+- **Authentication Context:** User ID is never passed from the UI layer. The data layer obtains the current user's ID through the `AuthSessionProvider` interface, which is injected into repositories and services that need it. This eliminates the need for Cubits, Use Cases, or other UI components to manage or pass user IDs.
+
+## Job Creation Flow
+
+When a user creates a new job, the flow is:
+
+1. **UI** initiates job creation with content parameters only (no user ID)
+2. **CreateJobUseCase** passes parameters to repository
+3. **JobRepository** delegates to services
+4. **JobWriterService** obtains user ID from `AuthSessionProvider`
+5. Service creates the job entity with the obtained user ID
+6. Creation flows back up the reactive chain, updating UI via streams
 
 ## Handling File System Issues (Example)
 
