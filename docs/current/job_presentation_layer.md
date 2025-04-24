@@ -98,18 +98,18 @@ graph TD
 
 - **Reactive Data:** The Cubits primarily rely on the `Watch...` use cases (`StreamUseCase`) to get notified of data changes originating from the data layer (e.g., local Hive changes, sync updates).
 - **Actions:** User actions initiated from the UI (e.g., create, update, delete, reset failed job) typically trigger calls to the corresponding single-action Use Cases (e.g., `CreateJobUseCase`, `DeleteJobUseCase`). These actions modify the data layer, which in turn causes the `Watch...` use cases to emit updates, closing the reactive loop and updating the UI via the Cubits.
-- **Authentication Context:** User ID is never passed from the UI layer. The data layer obtains the current user's ID through the `AuthSessionProvider` interface, which is injected into repositories and services that need it. This eliminates the need for Cubits, Use Cases, or other UI components to manage or pass user IDs.
+- **Authentication Context:** User context (like User ID or the User entity) is **never** passed down from the UI layer. The data layer (specifically, services like `JobWriterService` or the `JobRepository`) obtains the necessary authenticated user information by interacting with the `AuthService` or potentially observing the application's central `AuthNotifier` / `AuthState`. Alternatively, if only the ID is needed and stored securely, the `AuthCredentialsProvider` might be queried directly. This ensures the UI/Presentation layer remains decoupled from authentication details.
 
 ## Job Creation Flow
 
 When a user creates a new job, the flow is:
 
-1. **UI** initiates job creation with content parameters only (no user ID)
-2. **CreateJobUseCase** passes parameters to repository
-3. **JobRepository** delegates to services
-4. **JobWriterService** obtains user ID from `AuthSessionProvider`
-5. Service creates the job entity with the obtained user ID
-6. Creation flows back up the reactive chain, updating UI via streams
+1.  **UI** initiates job creation with content parameters only (no user ID).
+2.  **CreateJobUseCase** passes parameters to the `JobRepository`.
+3.  **JobRepository** delegates to relevant services (e.g., `JobWriterService`).
+4.  **JobWriterService** (or `JobRepository`) obtains the current authenticated user's context (e.g., User ID) from the central authentication system (`AuthService`, `AuthNotifier`, or `AuthCredentialsProvider` as appropriate).
+5.  Service creates the job entity, associating it with the obtained user context.
+6.  Creation is persisted, triggering updates through the reactive stream via `WatchJobsUseCase`, ultimately updating the UI.
 
 ## Handling File System Issues (Example)
 
