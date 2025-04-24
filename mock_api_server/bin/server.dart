@@ -132,6 +132,9 @@ final _router = Router()
   ..post('/$_versionedApiPath/auth/login', _loginHandler)
   ..post('/$_versionedApiPath/auth/refresh-session', _refreshHandler)
 
+  // User profile endpoint (prefixed)
+  ..get('/$_versionedApiPath/users/profile', _getUserProfileHandler)
+
   // Job endpoints (prefixed)
   ..post('/$_versionedApiPath/jobs', _createJobHandler)
   ..get('/$_versionedApiPath/jobs', _listJobsHandler)
@@ -275,6 +278,29 @@ Future<Response> _refreshHandler(Request request) async {
       headers: {'content-type': 'application/json'},
     );
   }
+}
+
+// Get User Profile handler logic
+Future<Response> _getUserProfileHandler(Request request) async {
+  if (_verboseLoggingEnabled) print('DEBUG: Get User Profile handler called');
+
+  // Note: Header validation (API Key, Auth) is done by the middleware
+
+  final responseBody = jsonEncode({
+    'id': 'fake-user-id-123', // Consistent with login response
+    'name': 'Mock User',
+    'email': 'mock.user@example.com',
+    'settings': {
+      'theme': 'dark',
+      'notifications_enabled': true,
+    },
+    // Add any other fields the app might expect
+  });
+
+  return Response.ok(
+    responseBody,
+    headers: {'content-type': 'application/json'},
+  );
 }
 
 // Create Job handler logic

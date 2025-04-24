@@ -181,4 +181,59 @@ void main() {
       expect(response.statusCode, 400);
     });
   });
+
+  group('GET /api/v1/users/profile', () {
+    test('should return user profile on successful GET', () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final headers = {
+        'X-API-Key': testApiKey,
+        'Authorization': 'Bearer $dummyJwt' // Assuming auth is needed
+      };
+
+      // Act
+      final response = await http.get(url, headers: headers);
+
+      // Assert
+      expect(response.statusCode, 200);
+      expect(response.headers['content-type'], contains('application/json'));
+      final body = jsonDecode(response.body);
+      expect(body, isA<Map<String, dynamic>>());
+      expect(body['id'], equals('fake-user-id-123')); // Keep ID consistent
+      expect(body['name'], isNotNull);
+      expect(body['email'], isNotNull);
+      expect(body['settings'], isA<Map>()); // Example extra data
+    });
+
+    test('should return 401 Unauthorized if X-API-Key is missing', () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final headers = {
+        // No X-API-Key
+        'Authorization': 'Bearer $dummyJwt'
+      };
+
+      // Act
+      final response = await http.get(url, headers: headers);
+
+      // Assert
+      expect(response.statusCode, 401);
+    });
+
+    test('should return 401 Unauthorized if Authorization header is missing',
+        () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final headers = {
+        'X-API-Key': testApiKey
+        // No Authorization header
+      };
+
+      // Act
+      final response = await http.get(url, headers: headers);
+
+      // Assert
+      expect(response.statusCode, 401);
+    });
+  });
 }
