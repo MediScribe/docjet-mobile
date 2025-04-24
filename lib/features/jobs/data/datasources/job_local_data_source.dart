@@ -104,4 +104,15 @@ abstract class JobLocalDataSource {
   /// Returns a stream that emits [Right(Job?)] with the updated job (or null
   /// if deleted) on each relevant change, or [Left(Failure)] if an error occurs.
   Stream<Either<Failure, Job?>> watchJobById(String id);
+
+  /// Gets all job models that are currently marked as pending synchronization.
+  ///
+  /// Throws a [CacheException] on failure.
+  Future<List<JobHiveModel>> getJobsPendingSync();
+
+  /// Clears all user-specific data from the local storage.
+  ///
+  /// This is intended to be called on user logout.
+  /// Throws a [CacheException] on failure.
+  Future<void> clearUserData();
 }

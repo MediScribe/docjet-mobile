@@ -1,6 +1,10 @@
+import 'dart:async'; // Import for StreamController
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
@@ -21,6 +25,8 @@ import 'package:mockito/mockito.dart';
   JobDeleterService,
   JobSyncOrchestratorService,
   AuthSessionProvider,
+  AuthEventBus,
+  JobLocalDataSource,
 ])
 import 'job_repository_impl_test.mocks.dart';
 
@@ -31,6 +37,8 @@ void main() {
   late MockJobDeleterService mockDeleterService;
   late MockJobSyncOrchestratorService mockOrchestratorService;
   late MockAuthSessionProvider mockAuthSessionProvider;
+  late MockAuthEventBus mockAuthEventBus;
+  late MockJobLocalDataSource mockLocalDataSource;
 
   setUp(() {
     mockReaderService = MockJobReaderService();
@@ -38,12 +46,21 @@ void main() {
     mockDeleterService = MockJobDeleterService();
     mockOrchestratorService = MockJobSyncOrchestratorService();
     mockAuthSessionProvider = MockAuthSessionProvider();
+    mockAuthEventBus = MockAuthEventBus();
+    mockLocalDataSource = MockJobLocalDataSource();
+
+    // Setup mocks for AuthEventBus stream
+    final controller = StreamController<AuthEvent>();
+    when(mockAuthEventBus.stream).thenAnswer((_) => controller.stream);
+
     repository = JobRepositoryImpl(
       readerService: mockReaderService,
       writerService: mockWriterService,
       deleterService: mockDeleterService,
       orchestratorService: mockOrchestratorService,
       authSessionProvider: mockAuthSessionProvider,
+      authEventBus: mockAuthEventBus,
+      localDataSource: mockLocalDataSource,
     );
   });
 

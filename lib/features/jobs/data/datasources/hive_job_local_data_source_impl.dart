@@ -680,4 +680,46 @@ class HiveJobLocalDataSourceImpl implements JobLocalDataSource {
     // Return a stream that starts with initial data then continues with changes
     return Rx.concat([initialDataStream, changesStream]);
   }
+
+  @override
+  Future<List<JobHiveModel>> getJobsPendingSync() async {
+    _logger.d('$_tag getJobsPendingSync called');
+    try {
+      final box = await _getOpenBox();
+      final pendingModels =
+          box.values
+              .where((job) => job.syncStatus == SyncStatus.pending.index)
+              .toList();
+      _logger.d('$_tag Found ${pendingModels.length} models pending sync.');
+      return pendingModels;
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to get jobs pending sync from cache',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw CacheException('Failed to get jobs to sync: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> clearUserData() async {
+    _logger.i('$_tag clearUserData called - clearing all job data');
+    try {
+      // Open the jobs box
+      final box = await _getOpenBox();
+
+      // Clear all job data
+      await box.clear();
+
+      _logger.i('$_tag Successfully cleared all job data from local storage');
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Failed to clear user data from cache',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw CacheException('Failed to clear user data: ${e.toString()}');
+    }
+  }
 }

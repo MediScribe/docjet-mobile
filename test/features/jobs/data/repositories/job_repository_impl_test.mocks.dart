@@ -3,22 +3,28 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
 import 'package:dartz/dartz.dart' as _i2;
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i12;
-import 'package:docjet_mobile/core/error/failures.dart' as _i5;
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i14;
+import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i15;
+import 'package:docjet_mobile/core/error/failures.dart' as _i6;
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
+    as _i16;
+import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
+    as _i17;
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart'
     as _i9;
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'
     as _i10;
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart'
-    as _i3;
+    as _i4;
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'
     as _i11;
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'
     as _i8;
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i6;
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i3;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
 import 'package:mockito/mockito.dart' as _i1;
@@ -48,85 +54,105 @@ class _FakeEither_0<L, R> extends _i1.SmartFake implements _i2.Either<L, R> {
         );
 }
 
+class _FakeJob_1 extends _i1.SmartFake implements _i3.Job {
+  _FakeJob_1(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeUnit_2 extends _i1.SmartFake implements _i2.Unit {
+  _FakeUnit_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
 /// A class which mocks [JobReaderService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockJobReaderService extends _i1.Mock implements _i3.JobReaderService {
+class MockJobReaderService extends _i1.Mock implements _i4.JobReaderService {
   MockJobReaderService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>> getJobs() =>
+  _i5.Future<_i2.Either<_i6.Failure, List<_i3.Job>>> getJobs() =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobs,
           [],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>.value(
-            _FakeEither_0<_i5.Failure, List<_i6.Job>>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, List<_i3.Job>>>.value(
+            _FakeEither_0<_i6.Failure, List<_i3.Job>>(
           this,
           Invocation.method(
             #getJobs,
             [],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, List<_i3.Job>>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> getJobById(String? localId) =>
+  _i5.Future<_i2.Either<_i6.Failure, _i3.Job>> getJobById(String? localId) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobById,
           [localId],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i3.Job>(
           this,
           Invocation.method(
             #getJobById,
             [localId],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>> getJobsByStatus(
+  _i5.Future<_i2.Either<_i6.Failure, List<_i3.Job>>> getJobsByStatus(
           _i7.SyncStatus? status) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobsByStatus,
           [status],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>.value(
-            _FakeEither_0<_i5.Failure, List<_i6.Job>>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, List<_i3.Job>>>.value(
+            _FakeEither_0<_i6.Failure, List<_i3.Job>>(
           this,
           Invocation.method(
             #getJobsByStatus,
             [status],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, List<_i6.Job>>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, List<_i3.Job>>>);
 
   @override
-  _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>> watchJobs() =>
+  _i5.Stream<_i2.Either<_i6.Failure, List<_i3.Job>>> watchJobs() =>
       (super.noSuchMethod(
         Invocation.method(
           #watchJobs,
           [],
         ),
-        returnValue: _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>.empty(),
-      ) as _i4.Stream<_i2.Either<_i5.Failure, List<_i6.Job>>>);
+        returnValue: _i5.Stream<_i2.Either<_i6.Failure, List<_i3.Job>>>.empty(),
+      ) as _i5.Stream<_i2.Either<_i6.Failure, List<_i3.Job>>>);
 
   @override
-  _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>> watchJobById(String? localId) =>
+  _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>> watchJobById(String? localId) =>
       (super.noSuchMethod(
         Invocation.method(
           #watchJobById,
           [localId],
         ),
-        returnValue: _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>.empty(),
-      ) as _i4.Stream<_i2.Either<_i5.Failure, _i6.Job?>>);
+        returnValue: _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>>.empty(),
+      ) as _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>>);
 }
 
 /// A class which mocks [JobWriterService].
@@ -138,7 +164,7 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
   }
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> createJob({
+  _i5.Future<_i2.Either<_i6.Failure, _i3.Job>> createJob({
     required String? audioFilePath,
     String? text,
   }) =>
@@ -151,8 +177,8 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             #text: text,
           },
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i3.Job>(
           this,
           Invocation.method(
             #createJob,
@@ -163,10 +189,10 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             },
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> updateJob({
+  _i5.Future<_i2.Either<_i6.Failure, _i3.Job>> updateJob({
     required String? localId,
     required _i9.JobUpdateData? updates,
   }) =>
@@ -179,8 +205,8 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             #updates: updates,
           },
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i3.Job>(
           this,
           Invocation.method(
             #updateJob,
@@ -191,10 +217,10 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             },
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> updateJobSyncStatus({
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> updateJobSyncStatus({
     required String? localId,
     required _i7.SyncStatus? status,
   }) =>
@@ -207,8 +233,8 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             #status: status,
           },
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i5.Failure, _i2.Unit>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #updateJobSyncStatus,
@@ -219,25 +245,25 @@ class MockJobWriterService extends _i1.Mock implements _i8.JobWriterService {
             },
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.Job>> resetDeletionFailureCounter(
+  _i5.Future<_i2.Either<_i6.Failure, _i3.Job>> resetDeletionFailureCounter(
           String? localId) =>
       (super.noSuchMethod(
         Invocation.method(
           #resetDeletionFailureCounter,
           [localId],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>.value(
-            _FakeEither_0<_i5.Failure, _i6.Job>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>.value(
+            _FakeEither_0<_i6.Failure, _i3.Job>(
           this,
           Invocation.method(
             #resetDeletionFailureCounter,
             [localId],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i6.Job>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i3.Job>>);
 }
 
 /// A class which mocks [JobDeleterService].
@@ -249,39 +275,39 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
   }
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> deleteJob(String? localId) =>
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> deleteJob(String? localId) =>
       (super.noSuchMethod(
         Invocation.method(
           #deleteJob,
           [localId],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i5.Failure, _i2.Unit>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #deleteJob,
             [localId],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> permanentlyDeleteJob(
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> permanentlyDeleteJob(
           String? localId) =>
       (super.noSuchMethod(
         Invocation.method(
           #permanentlyDeleteJob,
           [localId],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i5.Failure, _i2.Unit>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #permanentlyDeleteJob,
             [localId],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
 }
 
 /// A class which mocks [JobSyncOrchestratorService].
@@ -294,24 +320,24 @@ class MockJobSyncOrchestratorService extends _i1.Mock
   }
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> syncPendingJobs() =>
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> syncPendingJobs() =>
       (super.noSuchMethod(
         Invocation.method(
           #syncPendingJobs,
           [],
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i5.Failure, _i2.Unit>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #syncPendingJobs,
             [],
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> resetFailedJob(
+  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> resetFailedJob(
           {required String? localId}) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -319,8 +345,8 @@ class MockJobSyncOrchestratorService extends _i1.Mock
           [],
           {#localId: localId},
         ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i5.Failure, _i2.Unit>(
+        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i6.Failure, _i2.Unit>(
           this,
           Invocation.method(
             #resetFailedJob,
@@ -328,7 +354,7 @@ class MockJobSyncOrchestratorService extends _i1.Mock
             {#localId: localId},
           ),
         )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
 }
 
 /// A class which mocks [AuthSessionProvider].
@@ -341,26 +367,286 @@ class MockAuthSessionProvider extends _i1.Mock
   }
 
   @override
-  _i4.Future<String> getCurrentUserId() => (super.noSuchMethod(
+  _i5.Future<String> getCurrentUserId() => (super.noSuchMethod(
         Invocation.method(
           #getCurrentUserId,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i13.dummyValue<String>(
+        returnValue: _i5.Future<String>.value(_i13.dummyValue<String>(
           this,
           Invocation.method(
             #getCurrentUserId,
             [],
           ),
         )),
-      ) as _i4.Future<String>);
+      ) as _i5.Future<String>);
 
   @override
-  _i4.Future<bool> isAuthenticated() => (super.noSuchMethod(
+  _i5.Future<bool> isAuthenticated() => (super.noSuchMethod(
         Invocation.method(
           #isAuthenticated,
           [],
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
+}
+
+/// A class which mocks [AuthEventBus].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthEventBus extends _i1.Mock implements _i14.AuthEventBus {
+  MockAuthEventBus() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Stream<_i15.AuthEvent> get stream => (super.noSuchMethod(
+        Invocation.getter(#stream),
+        returnValue: _i5.Stream<_i15.AuthEvent>.empty(),
+      ) as _i5.Stream<_i15.AuthEvent>);
+
+  @override
+  void add(_i15.AuthEvent? event) => super.noSuchMethod(
+        Invocation.method(
+          #add,
+          [event],
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
+}
+
+/// A class which mocks [JobLocalDataSource].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobLocalDataSource extends _i1.Mock
+    implements _i16.JobLocalDataSource {
+  MockJobLocalDataSource() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.Future<List<_i17.JobHiveModel>> getAllJobHiveModels() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getAllJobHiveModels,
+          [],
+        ),
+        returnValue:
+            _i5.Future<List<_i17.JobHiveModel>>.value(<_i17.JobHiveModel>[]),
+      ) as _i5.Future<List<_i17.JobHiveModel>>);
+
+  @override
+  _i5.Future<_i17.JobHiveModel?> getJobHiveModelById(String? id) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobHiveModelById,
+          [id],
+        ),
+        returnValue: _i5.Future<_i17.JobHiveModel?>.value(),
+      ) as _i5.Future<_i17.JobHiveModel?>);
+
+  @override
+  _i5.Future<void> saveJobHiveModel(_i17.JobHiveModel? model) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #saveJobHiveModel,
+          [model],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> deleteJobHiveModel(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJobHiveModel,
+          [id],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<DateTime?> getLastFetchTime() => (super.noSuchMethod(
+        Invocation.method(
+          #getLastFetchTime,
+          [],
+        ),
+        returnValue: _i5.Future<DateTime?>.value(),
+      ) as _i5.Future<DateTime?>);
+
+  @override
+  _i5.Future<void> saveLastFetchTime(DateTime? time) => (super.noSuchMethod(
+        Invocation.method(
+          #saveLastFetchTime,
+          [time],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<_i3.Job>> getJobsToSync() => (super.noSuchMethod(
+        Invocation.method(
+          #getJobsToSync,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i3.Job>>.value(<_i3.Job>[]),
+      ) as _i5.Future<List<_i3.Job>>);
+
+  @override
+  _i5.Future<void> updateJobSyncStatus(
+    String? id,
+    _i7.SyncStatus? status,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateJobSyncStatus,
+          [
+            id,
+            status,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<_i3.Job>> getSyncedJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #getSyncedJobs,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i3.Job>>.value(<_i3.Job>[]),
+      ) as _i5.Future<List<_i3.Job>>);
+
+  @override
+  _i5.Future<List<_i3.Job>> getJobsToRetry(
+    int? maxRetries,
+    Duration? baseBackoffDuration,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsToRetry,
+          [
+            maxRetries,
+            baseBackoffDuration,
+          ],
+        ),
+        returnValue: _i5.Future<List<_i3.Job>>.value(<_i3.Job>[]),
+      ) as _i5.Future<List<_i3.Job>>);
+
+  @override
+  _i5.Future<List<_i3.Job>> getJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #getJobs,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i3.Job>>.value(<_i3.Job>[]),
+      ) as _i5.Future<List<_i3.Job>>);
+
+  @override
+  _i5.Future<_i3.Job> getJobById(String? localId) => (super.noSuchMethod(
+        Invocation.method(
+          #getJobById,
+          [localId],
+        ),
+        returnValue: _i5.Future<_i3.Job>.value(_FakeJob_1(
+          this,
+          Invocation.method(
+            #getJobById,
+            [localId],
+          ),
+        )),
+      ) as _i5.Future<_i3.Job>);
+
+  @override
+  _i5.Future<_i2.Unit> saveJob(_i3.Job? job) => (super.noSuchMethod(
+        Invocation.method(
+          #saveJob,
+          [job],
+        ),
+        returnValue: _i5.Future<_i2.Unit>.value(_FakeUnit_2(
+          this,
+          Invocation.method(
+            #saveJob,
+            [job],
+          ),
+        )),
+      ) as _i5.Future<_i2.Unit>);
+
+  @override
+  _i5.Future<_i2.Unit> deleteJob(String? localId) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJob,
+          [localId],
+        ),
+        returnValue: _i5.Future<_i2.Unit>.value(_FakeUnit_2(
+          this,
+          Invocation.method(
+            #deleteJob,
+            [localId],
+          ),
+        )),
+      ) as _i5.Future<_i2.Unit>);
+
+  @override
+  _i5.Future<List<_i3.Job>> getJobsByStatus(_i7.SyncStatus? status) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsByStatus,
+          [status],
+        ),
+        returnValue: _i5.Future<List<_i3.Job>>.value(<_i3.Job>[]),
+      ) as _i5.Future<List<_i3.Job>>);
+
+  @override
+  _i5.Stream<_i2.Either<_i6.Failure, List<_i3.Job>>> watchJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobs,
+          [],
+        ),
+        returnValue: _i5.Stream<_i2.Either<_i6.Failure, List<_i3.Job>>>.empty(),
+      ) as _i5.Stream<_i2.Either<_i6.Failure, List<_i3.Job>>>);
+
+  @override
+  _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>> watchJobById(String? id) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #watchJobById,
+          [id],
+        ),
+        returnValue: _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>>.empty(),
+      ) as _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>>);
+
+  @override
+  _i5.Future<List<_i17.JobHiveModel>> getJobsPendingSync() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsPendingSync,
+          [],
+        ),
+        returnValue:
+            _i5.Future<List<_i17.JobHiveModel>>.value(<_i17.JobHiveModel>[]),
+      ) as _i5.Future<List<_i17.JobHiveModel>>);
+
+  @override
+  _i5.Future<void> clearUserData() => (super.noSuchMethod(
+        Invocation.method(
+          #clearUserData,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 }

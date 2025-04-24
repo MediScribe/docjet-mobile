@@ -77,6 +77,8 @@ Future<void> init() async {
       deleterService: sl(),
       orchestratorService: sl<JobSyncOrchestratorService>(),
       authSessionProvider: sl(),
+      authEventBus: sl(),
+      localDataSource: sl(),
     ),
   );
 

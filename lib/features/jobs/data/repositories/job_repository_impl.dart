@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart'; // Import dartz
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
+import 'package:docjet_mobile/core/auth/events/auth_events.dart'; // Import AuthEvent enum
 import 'package:docjet_mobile/core/error/failures.dart'; // Import Failure
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // Import LocalDataSource directly
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
@@ -20,27 +23,69 @@ class JobRepositoryImpl implements JobRepository {
   final JobWriterService _writerService;
   final JobDeleterService _deleterService;
   final JobSyncOrchestratorService _orchestratorService;
-  // Currently unused - will be needed for authz validation in future methods
   final AuthSessionProvider _authSessionProvider;
+  final AuthEventBus
+  _authEventBus; // Auth event bus for listening to auth events
+  final JobLocalDataSource
+  _localDataSource; // Direct reference to local data source
   final Logger _logger = LoggerFactory.getLogger(JobRepositoryImpl);
   static final String _tag = logTag(JobRepositoryImpl);
 
+  // Subscription to auth events
+  StreamSubscription<AuthEvent>? _authEventSubscription;
+
   /// Creates an instance of [JobRepositoryImpl].
   ///
-  /// Requires instances of all the specialized job services and an AuthSessionProvider
-  /// to provide the authenticated user's context.
+  /// Requires instances of all the specialized job services, an AuthSessionProvider
+  /// to provide the authenticated user's context, and an AuthEventBus to listen
+  /// for authentication events.
   JobRepositoryImpl({
     required JobReaderService readerService,
     required JobWriterService writerService,
     required JobDeleterService deleterService,
     required JobSyncOrchestratorService orchestratorService,
     required AuthSessionProvider authSessionProvider,
+    required AuthEventBus authEventBus,
+    required JobLocalDataSource
+    localDataSource, // Add direct access to local data source
   }) : _readerService = readerService,
        _writerService = writerService,
        _deleterService = deleterService,
        _orchestratorService = orchestratorService,
-       _authSessionProvider = authSessionProvider {
+       _authSessionProvider = authSessionProvider,
+       _authEventBus = authEventBus,
+       _localDataSource = localDataSource {
     _logger.i('$_tag JobRepositoryImpl initialized.');
+
+    // Subscribe to auth events
+    _subscribeToAuthEvents();
+  }
+
+  /// Subscribes to authentication events to react to login/logout
+  void _subscribeToAuthEvents() {
+    _logger.d('$_tag Subscribing to auth events.');
+    _authEventSubscription = _authEventBus.stream.listen((event) {
+      if (event == AuthEvent.loggedOut) {
+        _handleLogout();
+      }
+    });
+  }
+
+  /// Handles logout event by clearing user-specific data
+  Future<void> _handleLogout() async {
+    _logger.i('$_tag Handling logout event. Clearing user data.');
+    try {
+      await _localDataSource.clearUserData();
+      _logger.i('$_tag Successfully cleared user data on logout.');
+    } catch (e) {
+      _logger.e('$_tag Error clearing user data on logout: $e');
+    }
+  }
+
+  /// Disposes resources used by this repository
+  void dispose() {
+    _authEventSubscription?.cancel();
+    _logger.d('$_tag Disposed auth event subscription.');
   }
 
   // --- FETCHING OPERATIONS ---

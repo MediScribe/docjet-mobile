@@ -269,6 +269,27 @@ class MockJobLocalDataSource extends _i1.Mock
         ),
         returnValue: _i5.Stream<_i3.Either<_i8.Failure, _i2.Job?>>.empty(),
       ) as _i5.Stream<_i3.Either<_i8.Failure, _i2.Job?>>);
+
+  @override
+  _i5.Future<List<_i6.JobHiveModel>> getJobsPendingSync() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsPendingSync,
+          [],
+        ),
+        returnValue:
+            _i5.Future<List<_i6.JobHiveModel>>.value(<_i6.JobHiveModel>[]),
+      ) as _i5.Future<List<_i6.JobHiveModel>>);
+
+  @override
+  _i5.Future<void> clearUserData() => (super.noSuchMethod(
+        Invocation.method(
+          #clearUserData,
+          [],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 }
 
 /// A class which mocks [JobRemoteDataSource].

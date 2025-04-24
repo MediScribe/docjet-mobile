@@ -28,6 +28,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 
 // Generate mocks for NetworkInfo, AuthCredentialsProvider, and FileSystem
 @GenerateMocks([
@@ -239,6 +240,9 @@ Future<void> setupDI({
     sl<AuthCredentialsProvider>().getAccessToken(),
   ).thenAnswer((_) async => 'fake-test-token');
 
+  // Register AuthEventBus
+  sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
+
   // Register AuthSessionProvider mock with consistently stubbed methods
   sl.registerLazySingleton<AuthSessionProvider>(
     () => MockAuthSessionProvider(),
@@ -332,6 +336,8 @@ Future<void> setupDI({
       deleterService: sl(),
       orchestratorService: sl<JobSyncOrchestratorService>(),
       authSessionProvider: sl<AuthSessionProvider>(),
+      localDataSource: sl(),
+      authEventBus: sl<AuthEventBus>(),
     ),
   );
 

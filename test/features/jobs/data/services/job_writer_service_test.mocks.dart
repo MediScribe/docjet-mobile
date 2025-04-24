@@ -269,6 +269,27 @@ class MockJobLocalDataSource extends _i1.Mock
         ),
         returnValue: _i6.Stream<_i3.Either<_i9.Failure, _i2.Job?>>.empty(),
       ) as _i6.Stream<_i3.Either<_i9.Failure, _i2.Job?>>);
+
+  @override
+  _i6.Future<List<_i7.JobHiveModel>> getJobsPendingSync() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getJobsPendingSync,
+          [],
+        ),
+        returnValue:
+            _i6.Future<List<_i7.JobHiveModel>>.value(<_i7.JobHiveModel>[]),
+      ) as _i6.Future<List<_i7.JobHiveModel>>);
+
+  @override
+  _i6.Future<void> clearUserData() => (super.noSuchMethod(
+        Invocation.method(
+          #clearUserData,
+          [],
+        ),
+        returnValue: _i6.Future<void>.value(),
+        returnValueForMissingStub: _i6.Future<void>.value(),
+      ) as _i6.Future<void>);
 }
 
 /// A class which mocks [Uuid].

@@ -3,6 +3,9 @@ import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -20,6 +23,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.da
 // import 'package:docjet_mobile/features/jobs/data/services/job_sync_service.dart'; // OLD
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'; // NEW
 // Added this line
+import 'dart:async'; // Import for StreamController
 
 // Update GenerateMocks to mock the services
 @GenerateMocks([
@@ -29,6 +33,8 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
   // JobSyncService, // OLD
   JobSyncOrchestratorService, // NEW
   AuthSessionProvider, // Add AuthSessionProvider
+  AuthEventBus, // Add AuthEventBus
+  JobLocalDataSource, // Add JobLocalDataSource
 ])
 import 'job_lifecycle_test.mocks.dart';
 
@@ -47,6 +53,9 @@ void main() {
   // late MockJobSyncService mockSyncService; // OLD
   late MockJobSyncOrchestratorService mockOrchestratorService; // NEW
   late MockAuthSessionProvider mockAuthSessionProvider;
+  late MockAuthEventBus mockAuthEventBus; // Add mock for AuthEventBus
+  late MockJobLocalDataSource
+  mockLocalDataSource; // Add mock for JobLocalDataSource
 
   setUp(() {
     // Instantiate service mocks
@@ -56,6 +65,13 @@ void main() {
     // mockSyncService = MockJobSyncService(); // OLD
     mockOrchestratorService = MockJobSyncOrchestratorService(); // NEW
     mockAuthSessionProvider = MockAuthSessionProvider();
+    mockAuthEventBus = MockAuthEventBus(); // Initialize mock AuthEventBus
+    mockLocalDataSource =
+        MockJobLocalDataSource(); // Initialize mock JobLocalDataSource
+
+    // Setup mocks for AuthEventBus stream
+    final controller = StreamController<AuthEvent>();
+    when(mockAuthEventBus.stream).thenAnswer((_) => controller.stream);
 
     // Instantiate repository with mocked services
     repository = JobRepositoryImpl(
@@ -64,6 +80,8 @@ void main() {
       deleterService: mockDeleterService,
       orchestratorService: mockOrchestratorService,
       authSessionProvider: mockAuthSessionProvider,
+      authEventBus: mockAuthEventBus, // Pass AuthEventBus
+      localDataSource: mockLocalDataSource, // Pass JobLocalDataSource
     );
 
     // Add default mock for isAuthenticated for the whole group
