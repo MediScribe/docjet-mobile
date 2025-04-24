@@ -6,7 +6,6 @@ import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
-import 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart'; // Assuming provider is here
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart'; // Corrected import
-import 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
 // Import ValueGetter for copyWith test
 
 void main() {

@@ -3,6 +3,8 @@ import 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart'; // Import ValueGetter
 
+export 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
+
 /// Represents the current authentication state for the UI
 ///
 /// This class is used by UI components to render the appropriate

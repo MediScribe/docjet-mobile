@@ -1,8 +1,12 @@
+import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
+import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
+import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
+import 'package:docjet_mobile/features/home/presentation/screens/home_screen.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
-import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 // Define the key for the compile-time environment variable
@@ -30,14 +34,19 @@ Future<void> main() async {
   // Initialize dependency injection - this now handles ALL registrations
   await di.init();
 
-  runApp(const MyApp());
+  // Wrap runApp with ProviderScope for Riverpod
+  runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+// Make MyApp a ConsumerWidget to access providers
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the authentication state
+    final authState = ref.watch(authNotifierProvider);
+
     return MultiBlocProvider(
       providers: [
         BlocProvider<JobListCubit>(create: (context) => getIt<JobListCubit>()),
@@ -48,7 +57,11 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        home: const JobListPage(),
+        // Conditionally show LoginScreen or HomeScreen based on auth state
+        home:
+            authState.status == AuthStatus.authenticated
+                ? const HomeScreen()
+                : const LoginScreen(),
       ),
     );
   }
