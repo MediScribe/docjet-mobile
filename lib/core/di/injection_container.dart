@@ -33,6 +33,8 @@ import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Add AuthSessionProvider import
 import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService import
+import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; // Add AuthServiceImpl import
+import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // Add SecureStorageAuthSessionProvider
 
 final sl = GetIt.instance;
 
@@ -144,24 +146,32 @@ Future<void> init() async {
   // Register HiveInterface now that it's initialized and boxes are open
   sl.registerLazySingleton<HiveInterface>(() => Hive);
 
-  // Assume AuthCredentialsProvider is registered elsewhere // REMOVE THIS ASSUMPTION
   // Register FlutterSecureStorage FIRST
   sl.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(),
   );
+
   // Register the concrete provider
   sl.registerLazySingleton<SecureStorageAuthCredentialsProvider>(
     () => SecureStorageAuthCredentialsProvider(secureStorage: sl()),
   );
-  // Register the INTERFACE, pointing to the concrete implementation
+
+  // Register the AuthCredentialsProvider INTERFACE
   sl.registerLazySingleton<AuthCredentialsProvider>(
     () => sl<SecureStorageAuthCredentialsProvider>(),
   );
 
-  // Register AuthSessionProvider (we'll use a temporary implementation for now)
+  // Register the AuthService
+  sl.registerLazySingleton<AuthService>(
+    () => AuthServiceImpl(
+      apiClient: sl(), // This assumes AuthApiClient is registered elsewhere
+      credentialsProvider: sl(),
+    ),
+  );
+
+  // Register the AuthSessionProvider with SecureStorageAuthSessionProvider implementation
   sl.registerLazySingleton<AuthSessionProvider>(
-    () =>
-        _TemporaryAuthSessionProvider(), // Temporary implementation until proper implementation is created
+    () => SecureStorageAuthSessionProvider(authService: sl()),
   );
 
   // Get document path once during init
@@ -175,30 +185,4 @@ Future<void> init() async {
   sl.registerLazySingleton<NetworkInfo>(
     () => NetworkInfoImpl(sl()),
   ); // Depends on Connectivity
-
-  // Network Interfaces - Handled by registering Dio directly
-
-  // Database Interfaces - Not needed for this feature
-
-  // TODO: Ensure HiveInterface and AuthCredentialsProvider are registered elsewhere,
-  // Remove the outdated TODO about AuthCredentialsProvider registration
-  // likely during app startup before this init() is called.
-  // TODO: Consider Dio setup (interceptors, base URL) if needed.
-  // TODO: Consider Hive setup (init, box opening) if needed.
-}
-
-/// Temporary implementation of AuthSessionProvider until a proper one is created.
-/// This will be replaced with a SecureStorageAuthSessionProvider in the next step.
-class _TemporaryAuthSessionProvider implements AuthSessionProvider {
-  @override
-  String getCurrentUserId() {
-    // Hardcoded user ID for now
-    return 'temp-user-id';
-  }
-
-  @override
-  bool isAuthenticated() {
-    // Always return true for now
-    return true;
-  }
 }

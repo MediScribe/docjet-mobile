@@ -68,4 +68,29 @@ class AuthServiceImpl implements AuthService {
     final accessToken = await credentialsProvider.getAccessToken();
     return accessToken != null;
   }
+
+  @override
+  Future<String> getCurrentUserId() async {
+    // Check if user is authenticated
+    final isAuth = await isAuthenticated();
+    if (!isAuth) {
+      throw AuthException.unauthenticated('No authenticated user found');
+    }
+
+    // Extract user ID from token or use stored user ID
+    // For now, use a placeholder implementation that would be replaced
+    // with actual token parsing or retrieval from secure storage
+    try {
+      // This would be replaced with actual implementation that extracts
+      // the user ID from the JWT token or from secure storage
+      final accessToken = await credentialsProvider.getAccessToken();
+      // In a real implementation, decode the JWT and extract the user ID
+      // For now, use a placeholder user ID
+      return 'user-id-from-token';
+    } catch (e) {
+      throw AuthException.unauthenticated(
+        'Failed to retrieve user ID: ${e.toString()}',
+      );
+    }
+  }
 }

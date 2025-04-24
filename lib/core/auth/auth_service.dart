@@ -26,4 +26,10 @@ abstract class AuthService {
   /// This performs a basic check of stored credentials; it does not
   /// validate with the server if the credentials are still valid.
   Future<bool> isAuthenticated();
+
+  /// Retrieves the ID of the currently authenticated user
+  ///
+  /// Returns the user ID if a user is authenticated.
+  /// Throws an [AuthException] if no user is authenticated.
+  Future<String> getCurrentUserId();
 }

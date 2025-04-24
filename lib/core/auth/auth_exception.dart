@@ -29,6 +29,13 @@ class AuthException implements Exception {
     return const AuthException._(message: 'Authentication token expired');
   }
 
+  /// Creates an unauthenticated exception with an optional custom message
+  factory AuthException.unauthenticated([String? customMessage]) {
+    return AuthException._(
+      message: customMessage ?? 'No authenticated user session found',
+    );
+  }
+
   @override
   String toString() {
     return 'AuthException: $message';
