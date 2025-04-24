@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -27,6 +28,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
   JobDeleterService,
   // JobSyncService, // OLD
   JobSyncOrchestratorService, // NEW
+  AuthSessionProvider, // Add AuthSessionProvider
 ])
 import 'job_lifecycle_test.mocks.dart';
 
@@ -44,6 +46,7 @@ void main() {
   late MockJobDeleterService mockDeleterService;
   // late MockJobSyncService mockSyncService; // OLD
   late MockJobSyncOrchestratorService mockOrchestratorService; // NEW
+  late MockAuthSessionProvider mockAuthSessionProvider;
 
   setUp(() {
     // Instantiate service mocks
@@ -52,6 +55,7 @@ void main() {
     mockDeleterService = MockJobDeleterService();
     // mockSyncService = MockJobSyncService(); // OLD
     mockOrchestratorService = MockJobSyncOrchestratorService(); // NEW
+    mockAuthSessionProvider = MockAuthSessionProvider();
 
     // Instantiate repository with mocked services
     // This needs the processor too now, which wasn't mocked here.
@@ -66,6 +70,7 @@ void main() {
       deleterService: mockDeleterService,
       // syncService: mockSyncService, // OLD
       orchestratorService: mockOrchestratorService, // NEW
+      authSessionProvider: mockAuthSessionProvider,
       // TODO: Add processor mock if needed for more detailed sync tests
       // processorService:
       //     MockJobSyncProcessorService(), // REMOVED: Repo doesn't take processor
@@ -109,7 +114,11 @@ void main() {
         const updatedText = 'Updated transcription';
         const localId = 'local-uuid-1234';
         const serverId = 'server-id-5678';
+        const userId = 'integration-test-user';
         final now = DateTime.now();
+
+        // Set up the mock auth session provider to return the test user ID
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
 
         // Initial job state (after creation)
         final initialJob = createJobEntity(
@@ -118,6 +127,7 @@ void main() {
           audioFilePath: audioPath,
           syncStatus: SyncStatus.pending, // Status after creation
           createdAt: now,
+          userId: userId,
         );
 
         // Synced job state (after first sync)
@@ -143,7 +153,7 @@ void main() {
         // Create Job
         when(
           mockWriterService.createJob(
-            userId: 'integration-test-user',
+            userId: userId,
             audioFilePath: audioPath,
             text: jobText,
           ),
@@ -168,14 +178,14 @@ void main() {
 
         // 1. Create Job
         final createResult = await repository.createJob(
-          userId: 'integration-test-user',
           audioFilePath: audioPath,
           text: jobText,
         );
         expect(createResult, Right(initialJob));
+        verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
         verify(
           mockWriterService.createJob(
-            userId: 'integration-test-user',
+            userId: userId,
             audioFilePath: audioPath,
             text: jobText,
           ),
@@ -224,6 +234,7 @@ void main() {
         verifyNoMoreInteractions(
           mockOrchestratorService,
         ); // Check orchestrator mock
+        verifyNoMoreInteractions(mockAuthSessionProvider);
       },
     );
 

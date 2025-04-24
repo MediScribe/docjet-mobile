@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
@@ -32,6 +33,7 @@ import 'package:uuid/uuid.dart';
 @GenerateMocks([
   NetworkInfo,
   AuthCredentialsProvider,
+  AuthSessionProvider,
   FileSystem,
   ApiJobRemoteDataSourceImpl,
 ])
@@ -237,6 +239,13 @@ Future<void> setupDI({
     sl<AuthCredentialsProvider>().getAccessToken(),
   ).thenAnswer((_) async => 'fake-test-token');
 
+  // Register AuthSessionProvider mock
+  sl.registerLazySingleton<AuthSessionProvider>(
+    () => MockAuthSessionProvider(),
+  );
+  when(sl<AuthSessionProvider>().getCurrentUserId()).thenReturn('test-user-id');
+  when(sl<AuthSessionProvider>().isAuthenticated()).thenReturn(true);
+
   sl.registerLazySingleton<Uuid>(() => const Uuid());
   sl.registerLazySingleton<FileSystem>(() => MockFileSystem());
   sl.registerLazySingleton<HiveInterface>(() => Hive);
@@ -309,6 +318,7 @@ Future<void> setupDI({
       writerService: sl(),
       deleterService: sl(),
       orchestratorService: sl<JobSyncOrchestratorService>(),
+      authSessionProvider: sl<AuthSessionProvider>(),
     ),
   );
 
@@ -339,6 +349,13 @@ void resetTestMocks() {
     when(
       sl<AuthCredentialsProvider>().getAccessToken(),
     ).thenAnswer((_) async => 'fake-test-token');
+  }
+  if (sl.isRegistered<AuthSessionProvider>()) {
+    reset(sl<AuthSessionProvider>());
+    when(
+      sl<AuthSessionProvider>().getCurrentUserId(),
+    ).thenReturn('test-user-id');
+    when(sl<AuthSessionProvider>().isAuthenticated()).thenReturn(true);
   }
   if (sl.isRegistered<FileSystem>()) {
     reset(sl<FileSystem>());

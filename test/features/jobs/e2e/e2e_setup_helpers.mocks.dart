@@ -5,18 +5,19 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i8;
 import 'dart:io' as _i2;
-import 'dart:typed_data' as _i10;
+import 'dart:typed_data' as _i12;
 
 import 'package:dartz/dartz.dart' as _i6;
 import 'package:dio/dio.dart' as _i3;
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i4;
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i9;
 import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i7;
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i9;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i11;
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart'
-    as _i12;
+    as _i13;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i5;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i11;
+import 'package:mockito/src/dummies.dart' as _i10;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -181,10 +182,44 @@ class MockAuthCredentialsProvider extends _i1.Mock
       ) as _i8.Future<void>);
 }
 
+/// A class which mocks [AuthSessionProvider].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthSessionProvider extends _i1.Mock
+    implements _i9.AuthSessionProvider {
+  MockAuthSessionProvider() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  String getCurrentUserId() => (super.noSuchMethod(
+        Invocation.method(
+          #getCurrentUserId,
+          [],
+        ),
+        returnValue: _i10.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getCurrentUserId,
+            [],
+          ),
+        ),
+      ) as String);
+
+  @override
+  bool isAuthenticated() => (super.noSuchMethod(
+        Invocation.method(
+          #isAuthenticated,
+          [],
+        ),
+        returnValue: false,
+      ) as bool);
+}
+
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
   MockFileSystem() {
     _i1.throwOnMissingStub(this);
   }
@@ -260,7 +295,7 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
   @override
   _i8.Future<void> writeFile(
     String? path,
-    _i10.Uint8List? bytes,
+    _i12.Uint8List? bytes,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -289,7 +324,7 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
           #resolvePath,
           [path],
         ),
-        returnValue: _i11.dummyValue<String>(
+        returnValue: _i10.dummyValue<String>(
           this,
           Invocation.method(
             #resolvePath,
@@ -303,7 +338,7 @@ class MockFileSystem extends _i1.Mock implements _i9.FileSystem {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockApiJobRemoteDataSourceImpl extends _i1.Mock
-    implements _i12.ApiJobRemoteDataSourceImpl {
+    implements _i13.ApiJobRemoteDataSourceImpl {
   MockApiJobRemoteDataSourceImpl() {
     _i1.throwOnMissingStub(this);
   }

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
@@ -65,6 +66,10 @@ void main() {
     if (sl.isRegistered<FileSystem>()) {
       reset(sl<FileSystem>());
     }
+    // Ensure mock auth session provider is reset if registered
+    if (sl.isRegistered<AuthSessionProvider>()) {
+      reset(sl<AuthSessionProvider>());
+    }
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -88,6 +93,8 @@ void main() {
         final mockFileSystem =
             sl<FileSystem>() as MockFileSystem; // Need for verification
         final mockNetworkInfo = sl<NetworkInfo>() as MockNetworkInfo;
+        final mockAuthSessionProvider =
+            sl<AuthSessionProvider>() as MockAuthSessionProvider;
 
         // Arrange: Ensure network is online
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
@@ -103,8 +110,10 @@ void main() {
         final initialText = 'Job to fail deletion sync';
         expect(await dummyAudioFile.exists(), isTrue);
 
+        // Set up the mock auth session provider to return the test user ID
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(userId);
+
         final createResult = await jobRepository.createJob(
-          userId: userId,
           audioFilePath: audioFilePath,
           text: initialText,
         );

@@ -62,39 +62,45 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
     2.4. [x] Update `CreateJobParams` class to remove userId
     2.5. [x] Modify `call()` implementation to not pass userId to repository
 
-3. [ ] **TDD for Repository Implementation** 
-    3.1. [ ] Write failing test for `JobRepositoryImpl` constructor with `AuthSessionProvider`
-    3.2. [ ] Test that `createJob()` retrieves userId from provider not parameters
-    3.3. [ ] Update `JobRepositoryImpl` to inject `AuthSessionProvider` and use it in the `createJob()` method
+3. [x] **TDD for Repository Implementation** 
+    3.1. [x] Write failing test for `JobRepositoryImpl` constructor with `AuthSessionProvider`
+    3.2. [x] Test that `createJob()` retrieves userId from provider not parameters
+    3.3. [x] Update `JobRepositoryImpl` to inject `AuthSessionProvider` and use it in the `createJob()` method
 
-4. [ ] **Fix Test Implementations**
-    4.1. [ ] Generate new mocks for test files
-    4.2. [ ] Update `CreateJobParams` usage in test files
-    4.3. [ ] Add mock `AuthSessionProvider` to test setup
-    4.4. [ ] Update DI container for tests
-    4.5. [ ] Remove `userId` parameter from UI layer
+4. [x] **Fix Test Implementations**
+    4.1. [x] Generate new mocks for test files
+    4.2. [x] Update `CreateJobParams` usage in test files
+    4.3. [x] Add mock `AuthSessionProvider` to test setup
+    4.4. [x] Update DI container for tests
+    4.5. [x] Remove `userId` parameter from UI layer
 
 5. [ ] **TDD for Services Layer**
-    5.1. [ ] Write failing test for `JobWriterService` to get `userId` from injected provider
-    5.2. [ ] Add `AuthSessionProvider` to `JobWriterService` constructor
-    5.3. [ ] Modify `JobWriterService` implementation to use injected provider
-      5.3.1. [ ] Move `getCurrentUserId()` call outside the try/catch block to properly throw authentication errors
-      5.3.2. [ ] Remove `userId` parameter from `createJob()` method
-      5.3.3. [ ] Updated error handling for authentication errors
-    5.4. [ ] Add `getCurrentUserId()` method to `AuthService` interface
-    5.5. [ ] Implement `getCurrentUserId()` in `MockAuthService` and `AuthServiceImpl`
-    5.6. [ ] Enhance `SecureStorageAuthSessionProvider` to initialize from `AuthService`
-    5.7. [ ] Update tests for `SecureStorageAuthSessionProvider` to handle the constructor changes
-    5.8. [ ] Update `injection_container.dart` to provide `AuthSessionProvider` to `JobWriterService`
-    5.9. [ ] Fix test implementations for `JobRepositoryImpl` and integration tests
-    5.10. [ ] Update E2E test setup helpers to include `AuthSessionProvider` in service registration
-    5.11. [ ] Update tests for Job Remote Data Source to use AuthSessionProvider
-      5.11.1. [ ] Create test file to verify `JobRemoteDataSource` interface no longer requires `userId`
-      5.11.2. [ ] Create tests to verify `ApiJobRemoteDataSourceImpl` uses `AuthSessionProvider` correctly
-    5.12. [ ] Update Remote Data Source implementation
-      5.12.1. [ ] Update interface to remove `userId` parameter from `createJob` method
-      5.12.2. [ ] Update implementation to inject and use `AuthSessionProvider`
-      5.12.3. [ ] Add proper error handling for authentication errors
+
+    **5.A. [ ] JobWriterService Refactoring**
+    5.A.1. [ ] Write failing test for `JobWriterService` to get `userId` from injected provider
+    5.A.2. [ ] Add `AuthSessionProvider` to `JobWriterService` constructor
+    5.A.3. [ ] Modify `JobWriterService` implementation to use injected provider
+      5.A.3.1. [ ] Move `getCurrentUserId()` call outside the try/catch block to properly throw authentication errors
+      5.A.3.2. [ ] Remove `userId` parameter from `createJob()` method
+      5.A.3.3. [ ] Update error handling for authentication errors
+    5.A.4. [ ] Update `injection_container.dart` to provide `AuthSessionProvider` to `JobWriterService`
+
+    **5.B. [ ] AuthService Updates**
+    5.B.1. [ ] Add `getCurrentUserId()` method to `AuthService` interface
+    5.B.2. [ ] Implement `getCurrentUserId()` in `MockAuthService` and `AuthServiceImpl`
+    5.B.3. [ ] Enhance `SecureStorageAuthSessionProvider` to initialize from `AuthService`
+    5.B.4. [ ] Update tests for `SecureStorageAuthSessionProvider` to handle the constructor changes
+
+    **5.C. [ ] Test Infrastructure Updates**
+    5.C.1. [ ] Fix test implementations for `JobRepositoryImpl` and integration tests
+    5.C.2. [ ] Update E2E test setup helpers to include `AuthSessionProvider` in service registration
+    
+    **5.D. [ ] Remote DataSource Refactoring**
+    5.D.1. [ ] Create test file to verify `JobRemoteDataSource` interface no longer requires `userId`
+    5.D.2. [ ] Create tests to verify `ApiJobRemoteDataSourceImpl` uses `AuthSessionProvider` correctly
+    5.D.3. [ ] Update interface to remove `userId` parameter from `createJob` method
+    5.D.4. [ ] Update implementation to inject and use `AuthSessionProvider`
+    5.D.5. [ ] Add proper error handling for authentication errors
 
 6. [ ] **Fix Exception Handling in Data Source Implementation**
     6.1. [ ] Update `_createJobFormData` method to handle authentication errors consistently

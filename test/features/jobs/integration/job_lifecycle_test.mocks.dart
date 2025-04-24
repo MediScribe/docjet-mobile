@@ -6,6 +6,7 @@
 import 'dart:async' as _i4;
 
 import 'package:dartz/dartz.dart' as _i2;
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i12;
 import 'package:docjet_mobile/core/error/failures.dart' as _i5;
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart'
     as _i9;
@@ -21,6 +22,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i6;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -330,4 +332,38 @@ class MockJobSyncOrchestratorService extends _i1.Mock
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+}
+
+/// A class which mocks [AuthSessionProvider].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthSessionProvider extends _i1.Mock
+    implements _i12.AuthSessionProvider {
+  MockAuthSessionProvider() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  String getCurrentUserId() => (super.noSuchMethod(
+        Invocation.method(
+          #getCurrentUserId,
+          [],
+        ),
+        returnValue: _i13.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getCurrentUserId,
+            [],
+          ),
+        ),
+      ) as String);
+
+  @override
+  bool isAuthenticated() => (super.noSuchMethod(
+        Invocation.method(
+          #isAuthenticated,
+          [],
+        ),
+        returnValue: false,
+      ) as bool);
 }
