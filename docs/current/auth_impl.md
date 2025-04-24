@@ -29,26 +29,26 @@ This list tracks the necessary enhancements to align the authentication implemen
 
 ## 1. Core Exception Hierarchy (Bottom Layer)
 
-1.  [ ] **Enhance Auth Exception Handling**
+1.  [x] **Enhance Auth Exception Handling**
     - FINDINGS: There is already an existing `AuthException` class in `lib/core/auth/auth_exception.dart` that uses factory methods pattern instead of class hierarchy. It contains: `invalidCredentials()`, `networkError()`, `serverError(statusCode)`, `tokenExpired()`, and `unauthenticated([customMessage])`. Tests for this class already exist in `test/core/auth/auth_exception_test.dart`.
     
-    1.1. [ ] Write failing tests for new exception types in `test/core/auth/auth_exception_test.dart`
-       - FINDINGS: No need to create a new test file. Will extend the existing test file.
+    1.1. [x] Write failing tests for new exception types in `test/core/auth/auth_exception_test.dart`
+       - FINDINGS: No need to create a new test file. Will extend the existing test file. Added tests for `refreshTokenInvalid()`, `userProfileFetchFailed()`, `unauthorizedOperation()`, `offlineOperationFailed()`. Tests currently fail as expected (linter errors).
     
-    1.2. [ ] Extend existing `AuthException` class in `lib/core/auth/auth_exception.dart`
+    1.2. [x] Extend existing `AuthException` class in `lib/core/auth/auth_exception.dart`
        - FINDINGS: Will add new factory methods to the existing class rather than creating a class hierarchy.
     
-    1.3. [ ] Implement additional exception types as factory methods: `refreshTokenInvalid()`, `userProfileFetchFailed()`, `unauthorizedOperation()`, `offlineOperationFailed()`
-       - FINDINGS: Will follow the existing pattern of static factory methods instead of creating subclasses.
+    1.3. [x] Implement additional exception types as factory methods: `refreshTokenInvalid()`, `userProfileFetchFailed()`, `unauthorizedOperation()`, `offlineOperationFailed()`
+       - FINDINGS: Will follow the existing pattern of static factory methods instead of creating subclasses. Added the new factory methods to `AuthException`.
     
-    1.4. [ ] Write tests for exception mapping from underlying errors (HTTP, Dio) to domain exceptions
-       - FINDINGS: Will add these tests to the existing AuthApiClient test file at `test/core/auth/infrastructure/auth_api_client_test.dart`.
+    1.4. [x] Write tests for exception mapping from underlying errors (HTTP, Dio) to domain exceptions
+       - FINDINGS: Will add these tests to the existing AuthApiClient test file at `test/core/auth/infrastructure/auth_api_client_test.dart`. Added tests for mapping Dio 401 (refresh), 403, connection errors, and placeholders for offline/profile fetch errors. Exposed `_handleDioException` for testing. Tests currently fail as expected.
     
-    1.5. [ ] Enhance the existing exception mapping function in `lib/core/auth/infrastructure/auth_api_client.dart`
-       - FINDINGS: Will expand the `_handleDioException` method to map to the new exception types.
+    1.5. [x] Enhance the existing exception mapping function in `lib/core/auth/infrastructure/auth_api_client.dart`
+       - FINDINGS: Will expand the `_handleDioException` method to map to the new exception types. Updated `_handleDioException` to map 401 (refresh) -> `refreshTokenInvalid`, 403 -> `unauthorizedOperation`, connection errors with SocketException -> `offlineOperationFailed`, errors on profile path -> `userProfileFetchFailed`. Added `@visibleForTesting` helper `testHandleDioException`.
     
-    1.6. [ ] Verify all tests pass (GREEN) and refactor if needed
-       - FINDINGS: Will use the existing test runner.
+    1.6. [x] Verify all tests pass (GREEN) and refactor if needed
+       - FINDINGS: Will use the existing test runner. Ran `dart analyze` (passed) and `flutter test` for `auth_exception_test.dart` (passed) and `auth_api_client_test.dart` (passed after fixing placeholder expectations). No refactoring needed for now.
 
 ## 2. Token Validation (Core Infrastructure)
 

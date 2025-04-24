@@ -32,7 +32,33 @@ class AuthException implements Exception {
   /// Creates an unauthenticated exception with an optional custom message
   factory AuthException.unauthenticated([String? customMessage]) {
     return AuthException._(
-      message: customMessage ?? 'No authenticated user session found',
+      message: customMessage ?? 'User is not authenticated',
+    );
+  }
+
+  /// Creates a refresh token invalid or expired exception
+  factory AuthException.refreshTokenInvalid() {
+    return const AuthException._(
+      message: 'Refresh token is invalid or expired',
+    );
+  }
+
+  /// Creates a user profile fetch failed exception
+  factory AuthException.userProfileFetchFailed() {
+    return const AuthException._(message: 'Failed to fetch user profile');
+  }
+
+  /// Creates an unauthorized operation exception
+  factory AuthException.unauthorizedOperation() {
+    return const AuthException._(
+      message: 'User is not authorized to perform this operation',
+    );
+  }
+
+  /// Creates an offline operation failed exception
+  factory AuthException.offlineOperationFailed() {
+    return const AuthException._(
+      message: 'Operation failed due to being offline',
     );
   }
 
