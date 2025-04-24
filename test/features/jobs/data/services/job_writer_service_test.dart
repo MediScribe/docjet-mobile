@@ -8,6 +8,7 @@ import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 // Corrected import path
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Add this import
 // Removed unused import for JobHiveModel
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -18,18 +19,25 @@ import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dar
 import 'job_writer_service_test.mocks.dart'; // Will be generated
 
 // Mocks - Changed UuidGenerator to Uuid
-@GenerateMocks([JobLocalDataSource, Uuid])
+@GenerateMocks([
+  JobLocalDataSource,
+  Uuid,
+  AuthSessionProvider,
+]) // Add AuthSessionProvider to the mocks
 void main() {
   late MockJobLocalDataSource mockLocalDataSource;
   late MockUuid mockUuid; // Mock Uuid directly
+  late MockAuthSessionProvider mockAuthSessionProvider; // Add this mock
   late JobWriterService service;
 
   setUp(() {
     mockLocalDataSource = MockJobLocalDataSource();
     mockUuid = MockUuid(); // Instantiate MockUuid
+    mockAuthSessionProvider = MockAuthSessionProvider(); // Initialize the mock
     service = JobWriterService(
       localDataSource: mockLocalDataSource,
       uuid: mockUuid, // Inject MockUuid
+      authSessionProvider: mockAuthSessionProvider, // Inject the mock
     );
   });
 
@@ -38,21 +46,123 @@ void main() {
       const tAudioPath = '/path/to/new_audio.mp3';
       const tText = 'This is the transcript text.';
       const tLocalId = 'generated-uuid-123';
+      const tUserId = 'user123'; // We'll still need this for verification
       final tNow = DateTime.now(); // Changed back to final
+
+      // Add this new test for AuthSessionProvider
+      test(
+        'should get userId from AuthSessionProvider and create job',
+        () async {
+          // Arrange
+          // 1. Stub UUID generation using v4()
+          when(mockUuid.v4()).thenReturn(tLocalId);
+          // 2. Stub auth provider to return a user ID
+          when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
+          // 3. Stub local save to succeed
+          when(mockLocalDataSource.saveJob(any)).thenAnswer(
+            (_) async => unit,
+          ); // Assume saveJob returns Future<Unit>
+
+          // Act
+          final result = await service.createJob(
+            audioFilePath: tAudioPath,
+            text: tText,
+          );
+
+          // Assert
+          // 1. Check the result is Right(Job)
+          expect(result, isA<Right<Failure, Job>>());
+          result.fold(
+            (failure) => fail('Expected Right(Job), got Left: $failure'),
+            (job) {
+              expect(job.localId, tLocalId);
+              expect(job.serverId, isNull);
+              expect(
+                job.userId,
+                tUserId,
+              ); // Should come from AuthSessionProvider
+              expect(job.syncStatus, SyncStatus.pending);
+              expect(job.audioFilePath, tAudioPath);
+              expect(job.text, tText);
+              expect(job.status, JobStatus.created); // Check initial status
+              // Allow a small tolerance for timestamp comparison
+              expect(job.createdAt.difference(tNow).inSeconds, lessThan(2));
+              expect(job.updatedAt.difference(tNow).inSeconds, lessThan(2));
+            },
+          );
+          // 2. Verify UUID generation was called using v4()
+          verify(mockUuid.v4()).called(1);
+          // 3. Verify AuthSessionProvider.getCurrentUserId was called
+          verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
+          // 4. Verify local save was called with the correct Job structure
+          verify(
+            mockLocalDataSource.saveJob(
+              argThat(
+                predicate<Job>((job) {
+                  return job.localId == tLocalId &&
+                      job.serverId == null &&
+                      job.userId ==
+                          tUserId && // Verify userId from auth provider
+                      job.syncStatus == SyncStatus.pending &&
+                      job.audioFilePath == tAudioPath &&
+                      job.text == tText &&
+                      job.status == JobStatus.created;
+                }),
+              ),
+            ),
+          ).called(1);
+          // 5. Verify no other interactions
+          verifyNoMoreInteractions(mockUuid);
+          verifyNoMoreInteractions(mockAuthSessionProvider);
+          verifyNoMoreInteractions(mockLocalDataSource);
+        },
+      );
+
+      test('should handle authentication errors during job creation', () async {
+        // Arrange
+        // 1. Stub UUID generation
+        when(mockUuid.v4()).thenReturn(tLocalId);
+        // 2. Stub auth provider to throw an exception
+        when(
+          mockAuthSessionProvider.getCurrentUserId(),
+        ).thenThrow(Exception('Not authenticated'));
+
+        // Act
+        final result = await service.createJob(
+          audioFilePath: tAudioPath,
+          text: tText,
+        );
+
+        // Assert
+        // 1. Check the result is Left(AuthFailure)
+        expect(result, isA<Left<Failure, Job>>());
+        result.fold(
+          (failure) => expect(failure, isA<AuthFailure>()),
+          (_) => fail('Expected Left(AuthFailure), got Right'),
+        );
+        // 2. Verify AuthSessionProvider.getCurrentUserId was called
+        verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
+        // 3. Verify no UUID generation or local save was attempted
+        verifyNever(mockUuid.v4());
+        verifyNever(mockLocalDataSource.saveJob(any));
+        // 4. Verify no other interactions
+        verifyNoMoreInteractions(mockAuthSessionProvider);
+        verifyNoMoreInteractions(mockLocalDataSource);
+      });
 
       test('should create, save, and return pending job', () async {
         // Arrange
         // 1. Stub UUID generation using v4()
         when(mockUuid.v4()).thenReturn(tLocalId);
-        // 2. Stub local save to succeed
-        // We expect saveJob to be called with a Job entity.
+        // 2. Stub auth provider to return a user ID
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
+        // 3. Stub local save to succeed
         when(
           mockLocalDataSource.saveJob(any),
         ).thenAnswer((_) async => unit); // Assume saveJob returns Future<Unit>
 
         // Act
         final result = await service.createJob(
-          userId: 'user123',
           audioFilePath: tAudioPath,
           text: tText,
         );
@@ -76,7 +186,9 @@ void main() {
         );
         // 2. Verify UUID generation was called using v4()
         verify(mockUuid.v4()).called(1);
-        // 3. Verify local save was called with the correct Job structure
+        // 3. Verify auth provider was called
+        verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
+        // 4. Verify local save was called with the correct Job structure
         verify(
           mockLocalDataSource.saveJob(
             argThat(
@@ -91,8 +203,9 @@ void main() {
             ),
           ),
         ).called(1);
-        // 4. Verify no other interactions
+        // 5. Verify no other interactions
         verifyNoMoreInteractions(mockUuid);
+        verifyNoMoreInteractions(mockAuthSessionProvider);
         verifyNoMoreInteractions(mockLocalDataSource);
       });
 
@@ -100,14 +213,15 @@ void main() {
         // Arrange
         // 1. Stub UUID generation using v4()
         when(mockUuid.v4()).thenReturn(tLocalId);
-        // 2. Stub local save to throw CacheException
+        // 2. Stub auth provider
+        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
+        // 3. Stub local save to throw CacheException
         when(
           mockLocalDataSource.saveJob(any),
         ).thenThrow(CacheException('Failed to write'));
 
         // Act
         final result = await service.createJob(
-          userId: 'user123',
           audioFilePath: tAudioPath,
           text: tText,
         );
@@ -121,10 +235,13 @@ void main() {
         );
         // 2. Verify UUID generation was called using v4()
         verify(mockUuid.v4()).called(1);
-        // 3. Verify local save attempt was made
+        // 3. Verify auth provider was called
+        verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
+        // 4. Verify local save attempt was made
         verify(mockLocalDataSource.saveJob(any)).called(1);
-        // 4. Verify no other interactions
+        // 5. Verify no other interactions
         verifyNoMoreInteractions(mockUuid);
+        verifyNoMoreInteractions(mockAuthSessionProvider);
         verifyNoMoreInteractions(mockLocalDataSource);
       });
     }); // End createJob group

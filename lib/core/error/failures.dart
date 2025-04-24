@@ -135,3 +135,9 @@ class ApiFailure extends Failure {
     return 'ApiFailure(message: $message, statusCode: $statusCode, errorCode: $errorCode)';
   }
 }
+
+/// Authentication error
+class AuthFailure extends Failure {
+  @override
+  String get message => 'Authentication failed';
+}

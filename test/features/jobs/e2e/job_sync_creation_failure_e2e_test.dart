@@ -95,7 +95,6 @@ void main() {
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(
-          userId: 'test-user-id-5xx-fail',
           audioFilePath: audioFilePath,
           text: 'Job created before server 5xx failure',
         );
@@ -121,7 +120,6 @@ void main() {
         // Use the named arguments matching the createJob signature
         when(
           mockRemoteDataSource.createJob(
-            userId: anyNamed('userId'),
             audioFilePath: anyNamed('audioFilePath'),
             text: anyNamed('text'),
             additionalText: anyNamed('additionalText'),
@@ -171,7 +169,6 @@ void main() {
         // Assert: Verify the remote createJob was called once
         verify(
           mockRemoteDataSource.createJob(
-            userId: 'test-user-id-5xx-fail',
             audioFilePath: audioFilePath,
             text: 'Job created before server 5xx failure',
             additionalText: null, // Explicitly null if not provided

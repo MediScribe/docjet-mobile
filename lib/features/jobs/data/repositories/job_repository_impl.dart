@@ -20,6 +20,7 @@ class JobRepositoryImpl implements JobRepository {
   final JobWriterService _writerService;
   final JobDeleterService _deleterService;
   final JobSyncOrchestratorService _orchestratorService;
+  // Currently unused - will be needed for authz validation in future methods
   final AuthSessionProvider _authSessionProvider;
   final Logger _logger = LoggerFactory.getLogger(JobRepositoryImpl);
   static final String _tag = logTag(JobRepositoryImpl);
@@ -67,14 +68,8 @@ class JobRepositoryImpl implements JobRepository {
       '$_tag createJob called with audioFilePath: $audioFilePath, text: $text',
     );
 
-    // Get the userId from the AuthSessionProvider
-    final userId = _authSessionProvider.getCurrentUserId();
-
-    return _writerService.createJob(
-      userId: userId,
-      audioFilePath: audioFilePath,
-      text: text,
-    );
+    // No longer need to get userId here - JobWriterService will get it from AuthSessionProvider
+    return _writerService.createJob(audioFilePath: audioFilePath, text: text);
   }
 
   @override

@@ -75,37 +75,25 @@ void main() {
   });
 
   group('createJob', () {
-    test(
-      'should get userId from AuthSessionProvider and pass it to writer service',
-      () async {
-        // Arrange
-        when(mockAuthSessionProvider.getCurrentUserId()).thenReturn(tUserId);
-        when(
-          mockWriterService.createJob(
-            userId: tUserId,
-            audioFilePath: tAudioPath,
-            text: tText,
-          ),
-        ).thenAnswer((_) async => Right(tJob));
+    test('should delegate to writer service with correct parameters', () async {
+      // Arrange
+      when(
+        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+      ).thenAnswer((_) async => Right(tJob));
 
-        // Act
-        final result = await repository.createJob(
-          audioFilePath: tAudioPath,
-          text: tText,
-        );
+      // Act
+      final result = await repository.createJob(
+        audioFilePath: tAudioPath,
+        text: tText,
+      );
 
-        // Assert
-        expect(result, equals(Right(tJob)));
-        verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
-        verify(
-          mockWriterService.createJob(
-            userId: tUserId,
-            audioFilePath: tAudioPath,
-            text: tText,
-          ),
-        ).called(1);
-      },
-    );
+      // Assert
+      expect(result, equals(Right(tJob)));
+      verify(
+        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+      ).called(1);
+      verifyNoMoreInteractions(mockWriterService);
+    });
   });
 
   group('getJobs', () {

@@ -6,6 +6,7 @@
 import 'dart:async' as _i6;
 
 import 'package:dartz/dartz.dart' as _i3;
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i13;
 import 'package:docjet_mobile/core/error/failures.dart' as _i9;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i5;
@@ -729,4 +730,38 @@ class MockUuid extends _i1.Mock implements _i10.Uuid {
           ),
         ),
       ) as _i4.UuidValue);
+}
+
+/// A class which mocks [AuthSessionProvider].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthSessionProvider extends _i1.Mock
+    implements _i13.AuthSessionProvider {
+  MockAuthSessionProvider() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  String getCurrentUserId() => (super.noSuchMethod(
+        Invocation.method(
+          #getCurrentUserId,
+          [],
+        ),
+        returnValue: _i12.dummyValue<String>(
+          this,
+          Invocation.method(
+            #getCurrentUserId,
+            [],
+          ),
+        ),
+      ) as String);
+
+  @override
+  bool isAuthenticated() => (super.noSuchMethod(
+        Invocation.method(
+          #isAuthenticated,
+          [],
+        ),
+        returnValue: false,
+      ) as bool);
 }

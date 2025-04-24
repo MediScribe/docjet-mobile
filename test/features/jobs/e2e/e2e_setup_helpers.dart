@@ -291,7 +291,11 @@ Future<void> setupDI({
     ),
   );
   sl.registerLazySingleton<JobWriterService>(
-    () => JobWriterService(localDataSource: sl(), uuid: sl()),
+    () => JobWriterService(
+      localDataSource: sl(),
+      uuid: sl(),
+      authSessionProvider: sl(),
+    ),
   );
   sl.registerLazySingleton<JobDeleterService>(
     () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),

@@ -31,6 +31,8 @@ import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Add interface import
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'; // Add concrete class import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Add AuthSessionProvider import
+import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService import
 
 final sl = GetIt.instance;
 
@@ -58,6 +60,7 @@ Future<void> init() async {
       writerService: sl(),
       deleterService: sl(),
       orchestratorService: sl<JobSyncOrchestratorService>(),
+      authSessionProvider: sl(),
     ),
   );
 
@@ -71,7 +74,11 @@ Future<void> init() async {
     ),
   );
   sl.registerLazySingleton<JobWriterService>(
-    () => JobWriterService(localDataSource: sl(), uuid: sl()),
+    () => JobWriterService(
+      localDataSource: sl(),
+      uuid: sl(),
+      authSessionProvider: sl(),
+    ),
   );
   sl.registerLazySingleton<JobDeleterService>(
     () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),
@@ -151,6 +158,12 @@ Future<void> init() async {
     () => sl<SecureStorageAuthCredentialsProvider>(),
   );
 
+  // Register AuthSessionProvider (we'll use a temporary implementation for now)
+  sl.registerLazySingleton<AuthSessionProvider>(
+    () =>
+        _TemporaryAuthSessionProvider(), // Temporary implementation until proper implementation is created
+  );
+
   // Get document path once during init
   final appDocDir = await getApplicationDocumentsDirectory();
   final documentsPath = appDocDir.path;
@@ -172,4 +185,20 @@ Future<void> init() async {
   // likely during app startup before this init() is called.
   // TODO: Consider Dio setup (interceptors, base URL) if needed.
   // TODO: Consider Hive setup (init, box opening) if needed.
+}
+
+/// Temporary implementation of AuthSessionProvider until a proper one is created.
+/// This will be replaced with a SecureStorageAuthSessionProvider in the next step.
+class _TemporaryAuthSessionProvider implements AuthSessionProvider {
+  @override
+  String getCurrentUserId() {
+    // Hardcoded user ID for now
+    return 'temp-user-id';
+  }
+
+  @override
+  bool isAuthenticated() {
+    // Always return true for now
+    return true;
+  }
 }

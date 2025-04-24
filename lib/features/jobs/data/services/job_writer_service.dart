@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -14,57 +15,75 @@ import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart';
 class JobWriterService {
   final JobLocalDataSource _localDataSource;
   final Uuid _uuid;
+  final AuthSessionProvider _authSessionProvider;
   final Logger _logger = LoggerFactory.getLogger(JobWriterService);
   static final String _tag = logTag(JobWriterService);
 
   JobWriterService({
     required JobLocalDataSource localDataSource,
     required Uuid uuid,
+    required AuthSessionProvider authSessionProvider,
   }) : _localDataSource = localDataSource,
-       _uuid = uuid;
+       _uuid = uuid,
+       _authSessionProvider = authSessionProvider;
 
   /// Creates a new job with the given audio file path and optional text.
   ///
-  /// Generates a unique local ID for the job, assigns the initial
+  /// Gets the current user ID from the AuthSessionProvider,
+  /// generates a unique local ID for the job, assigns the initial
   /// [SyncStatus.pending], saves it to the local data source, and returns
   /// the created job entity.
   ///
   /// Returns [Right] with the created [Job] on success.
+  /// Returns [Left] with an [AuthFailure] if not authenticated.
   /// Returns [Left] with a [CacheFailure] on exception.
   Future<Either<Failure, Job>> createJob({
-    required String userId,
     required String audioFilePath,
     String? text,
   }) async {
+    // Get the userId from AuthSessionProvider outside the try/catch
+    // to properly handle authentication errors
     try {
-      final localId = _uuid.v4();
-      final now = DateTime.now(); // Capture consistent timestamp
+      final userId = _authSessionProvider.getCurrentUserId();
 
-      final job = Job(
-        localId: localId,
-        serverId: null, // No server ID on creation
-        userId: userId,
-        status: JobStatus.created, // Initial status
-        syncStatus: SyncStatus.pending, // Needs sync
-        displayTitle: '', // TODO: Define how displayTitle is set initially
-        audioFilePath: audioFilePath,
-        text: text, // Use provided text or null
-        createdAt: now,
-        updatedAt: now,
-      );
+      try {
+        final localId = _uuid.v4();
+        final now = DateTime.now(); // Capture consistent timestamp
 
-      await _localDataSource.saveJob(job);
-      return Right(job);
-    } on CacheException catch (e, st) {
-      _logger.e('$_tag Error creating job', error: e, stackTrace: st);
-      return Left(CacheFailure());
-    } on Exception catch (e, st) {
+        final job = Job(
+          localId: localId,
+          serverId: null, // No server ID on creation
+          userId: userId,
+          status: JobStatus.created, // Initial status
+          syncStatus: SyncStatus.pending, // Needs sync
+          displayTitle: '', // TODO: Define how displayTitle is set initially
+          audioFilePath: audioFilePath,
+          text: text, // Use provided text or null
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await _localDataSource.saveJob(job);
+        return Right(job);
+      } on CacheException catch (e, st) {
+        _logger.e('$_tag Error creating job', error: e, stackTrace: st);
+        return Left(CacheFailure());
+      } on Exception catch (e, st) {
+        _logger.e(
+          '$_tag Unexpected error creating job',
+          error: e,
+          stackTrace: st,
+        );
+        return Left(CacheFailure());
+      }
+    } catch (e, st) {
+      // Handle authentication errors
       _logger.e(
-        '$_tag Unexpected error creating job',
+        '$_tag Authentication error when creating job',
         error: e,
         stackTrace: st,
       );
-      return Left(CacheFailure());
+      return Left(AuthFailure());
     }
   }
 

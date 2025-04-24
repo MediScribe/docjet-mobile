@@ -109,7 +109,6 @@ void main() {
         // Act: Create the job locally
         _logger.i('$_tag Creating job locally...');
         final createResult = await jobRepository.createJob(
-          userId: 'test-user-id-123',
           audioFilePath: dummyAudioFile.path,
           text: 'Initial test text',
         );
@@ -217,7 +216,6 @@ void main() {
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(
-          userId: 'test-user-id-update',
           audioFilePath: dummyAudioFile.path,
           text: 'Initial text before update',
         );
@@ -351,7 +349,6 @@ void main() {
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(
-          userId: 'test-user-id-delete',
           audioFilePath: audioFilePath,
           text: 'Job to be deleted',
         );
@@ -454,7 +451,6 @@ void main() {
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(
-          userId: 'test-user-id-network-fail',
           audioFilePath: audioFilePath,
           text: 'Job created before network failure',
         );

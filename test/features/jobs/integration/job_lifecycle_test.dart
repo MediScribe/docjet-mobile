@@ -152,11 +152,7 @@ void main() {
 
         // Create Job
         when(
-          mockWriterService.createJob(
-            userId: userId,
-            audioFilePath: audioPath,
-            text: jobText,
-          ),
+          mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
         ).thenAnswer((_) async => Right(initialJob));
 
         // Sync (All sync logic is delegated to JobSyncOrchestratorService now)
@@ -184,11 +180,7 @@ void main() {
         expect(createResult, Right(initialJob));
         verify(mockAuthSessionProvider.getCurrentUserId()).called(1);
         verify(
-          mockWriterService.createJob(
-            userId: userId,
-            audioFilePath: audioPath,
-            text: jobText,
-          ),
+          mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
         ).called(1);
 
         // 2. Initial Sync

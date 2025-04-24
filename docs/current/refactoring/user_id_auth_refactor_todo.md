@@ -74,33 +74,41 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
     4.4. [x] Update DI container for tests
     4.5. [x] Remove `userId` parameter from UI layer
 
-5. [ ] **TDD for Services Layer**
+5. [x] **TDD for Services Layer**
 
-    **5.A. [ ] JobWriterService Refactoring**
-    5.A.1. [ ] Write failing test for `JobWriterService` to get `userId` from injected provider
-    5.A.2. [ ] Add `AuthSessionProvider` to `JobWriterService` constructor
-    5.A.3. [ ] Modify `JobWriterService` implementation to use injected provider
-      5.A.3.1. [ ] Move `getCurrentUserId()` call outside the try/catch block to properly throw authentication errors
-      5.A.3.2. [ ] Remove `userId` parameter from `createJob()` method
-      5.A.3.3. [ ] Update error handling for authentication errors
-    5.A.4. [ ] Update `injection_container.dart` to provide `AuthSessionProvider` to `JobWriterService`
+    **5.A. [x] JobWriterService Refactoring**
+    5.A.1. [x] Write failing test for `JobWriterService` to get `userId` from injected provider
+    5.A.2. [x] Add `AuthSessionProvider` to `JobWriterService` constructor
+    5.A.3. [x] Modify `JobWriterService` implementation to use injected provider
+      5.A.3.1. [x] Move `getCurrentUserId()` call outside the try/catch block to properly throw authentication errors
+      5.A.3.2. [x] Remove `userId` parameter from `createJob()` method
+      5.A.3.3. [x] Update error handling for authentication errors
+    5.A.4. [x] Update `injection_container.dart` to provide `AuthSessionProvider` to `JobWriterService`
+    5.A.5. [x] Run all tests relevant to this task and ensure they are passing.
+    5.A.6. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
     **5.B. [ ] AuthService Updates**
     5.B.1. [ ] Add `getCurrentUserId()` method to `AuthService` interface
     5.B.2. [ ] Implement `getCurrentUserId()` in `MockAuthService` and `AuthServiceImpl`
     5.B.3. [ ] Enhance `SecureStorageAuthSessionProvider` to initialize from `AuthService`
     5.B.4. [ ] Update tests for `SecureStorageAuthSessionProvider` to handle the constructor changes
+    5.B.5. [ ] Run all tests relevant to this task and ensure they are passing.
+    5.B.6. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
     **5.C. [ ] Test Infrastructure Updates**
     5.C.1. [ ] Fix test implementations for `JobRepositoryImpl` and integration tests
     5.C.2. [ ] Update E2E test setup helpers to include `AuthSessionProvider` in service registration
-    
+    5.C.3. [ ] Run all tests relevant to this task and ensure they are passing.
+    5.C.4. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+
     **5.D. [ ] Remote DataSource Refactoring**
     5.D.1. [ ] Create test file to verify `JobRemoteDataSource` interface no longer requires `userId`
     5.D.2. [ ] Create tests to verify `ApiJobRemoteDataSourceImpl` uses `AuthSessionProvider` correctly
     5.D.3. [ ] Update interface to remove `userId` parameter from `createJob` method
     5.D.4. [ ] Update implementation to inject and use `AuthSessionProvider`
     5.D.5. [ ] Add proper error handling for authentication errors
+    5.D.6. [ ] Run all tests relevant to this task and ensure they are passing.
+    5.D.7. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
 6. [ ] **Fix Exception Handling in Data Source Implementation**
     6.1. [ ] Update `_createJobFormData` method to handle authentication errors consistently
@@ -112,38 +120,56 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
       6.4.3. [ ] Fix mocks in job_sync_retry_e2e_test.dart to handle updated method signature
       6.4.4. [ ] Fix mocks in job_sync_creation_failure_e2e_test.dart to handle updated method signature
     6.5. [ ] Ensure expect statements check for correct status state
+    6.6. [ ] Run all tests relevant to this task and ensure they are passing.
+    6.7. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+
 
 7. [ ] **TDD for Domain Authentication Component**
     7.1. [ ] Verify existing `AuthSessionProvider` interface tests are comprehensive
     7.2. [ ] Add missing tests for edge cases (no user authentication)
     7.3. [ ] Check alignment with domain needs (do we need additional methods?)
+    7.4. [ ] Run all tests relevant to this task and ensure they are passing.
+    7.5. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
 8. [ ] **TDD for Repository Implementation (continued)** 
     8.1. [ ] Test authentication validation behavior
     8.2. [ ] Test error propagation when no user is authenticated
+    8.3. [ ] Run all tests relevant to this task and ensure they are passing.
+    8.4. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
+
 
 9. [ ] **TDD for Infrastructure Layer**
     9.1. [ ] Review existing `SecureStorageAuthSessionProvider` implementation and tests
     9.2. [ ] Add missing tests for behavior with `AuthService`
     9.3. [ ] Fix any implementation issues discovered
+    9.4. [ ] Run all tests relevant to this task and ensure they are passing.
+    9.5. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
 10. [ ] **Integration Testing**
     10.1. [ ] Write integration test for `JobRepository` -> `AuthSessionProvider` flow
     10.2. [ ] Test end-to-end job creation without explicit userId
     10.3. [ ] Test authentication error flow
     10.4. [ ] Test recovery after authentication
+    10.5. [ ] Run all tests relevant to this task and ensure they are passing.
+    10.6. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
 11. [ ] **UI Layer and DI Container**
     11.1. [ ] Update `job_list_playground.dart` to remove userId parameter
     11.2. [ ] Verify `SecureStorageAuthSessionProvider` is registered in DI container
     11.3. [ ] Update affected component registrations with new dependencies
+    11.4. [ ] Run all tests relevant to this task and ensure they are passing.
+    11.5. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
 
 12. [ ] **Documentation and Architecture Updates**
     12.1. [ ] Update architecture docs to explain user context handling
     12.2. [ ] Document fixes in `job_dataflow.md`
     12.3. [ ] Add notes about authentication context to `job_presentation_layer.md`
+    12.4. [ ] Run all tests relevant to this task and ensure they are passing.
+    12.5. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have.  Add your findings here.
 
 13. [ ] **Documentation Updates**
     13.1. [ ] Update `docs/current/architecture.md` under "Authentication" to describe domain‑level `AuthSessionProvider`
     13.2. [ ] Update `docs/current/job_dataflow.md` to note that `ApiJobRemoteDataSource` now uses `AuthSessionProvider` for user context
-    13.3. [ ] Update `docs/current/job_presentation_layer.md` to show Cubits and UseCases no longer require a userId parameter 
+    13.3. [ ] Update `docs/current/job_presentation_layer.md` to show Cubits and UseCases no longer require a userId parameter
+    13.4. [ ] Run all tests relevant to this task and ensure they are passing.
+    13.5. [ ] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.

@@ -98,7 +98,6 @@ void main() {
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(
-          userId: userId,
           audioFilePath: audioFilePath,
           text: initialText,
         );
@@ -113,7 +112,6 @@ void main() {
         );
         when(
           mockRemoteDataSource.createJob(
-            userId: userId,
             audioFilePath: audioFilePath,
             text: initialText,
             additionalText: null,
@@ -161,7 +159,6 @@ void main() {
         reset(mockRemoteDataSource); // Reset the previous failure mock
         when(
           mockRemoteDataSource.createJob(
-            userId: userId,
             audioFilePath: audioFilePath,
             text: initialText,
             additionalText: null,
