@@ -5,13 +5,92 @@ import 'package:docjet_mobile/features/auth/presentation/widgets/auth_loading_in
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String? _emailError;
+  String? _passwordError;
+  bool _formValid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(_validateForm);
+    _passwordController.addListener(_validateForm);
+  }
+
+  @override
+  void dispose() {
+    _emailController.removeListener(_validateForm);
+    _passwordController.removeListener(_validateForm);
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _validateForm() {
+    final email = _emailController.text;
+    final password = _passwordController.text;
+    bool emailValid = true;
+    bool passwordValid = true;
+    String? currentEmailError;
+    String? currentPasswordError;
+
+    // Basic email validation
+    if (email.isEmpty) {
+      emailValid = false;
+      currentEmailError = 'Email cannot be empty';
+    } else if (!RegExp(
+      r"^[a-zA-Z0-9.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$",
+    ).hasMatch(email)) {
+      emailValid = false;
+      currentEmailError = 'Please enter a valid email address';
+    }
+
+    // Basic password validation
+    if (password.isEmpty) {
+      passwordValid = false;
+      currentPasswordError = 'Password cannot be empty';
+    }
+
+    // Update state only if errors or validity change
+    if (mounted &&
+        (_emailError != currentEmailError ||
+            _passwordError != currentPasswordError ||
+            _formValid != (emailValid && passwordValid))) {
+      setState(() {
+        _emailError = currentEmailError;
+        _passwordError = currentPasswordError;
+        _formValid = emailValid && passwordValid;
+      });
+    }
+  }
+
+  void _handleLogin() {
+    _validateForm(); // Ensure validation runs on submit too
+    if (!_formValid) return; // Don't submit if invalid
+
+    // Call the CORRECT method on the notifier
+    ref
+        .read(authNotifierProvider.notifier)
+        .login(_emailController.text, _passwordController.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Watch the auth state
     final authState = ref.watch(authNotifierProvider);
+    final bool isLoading = authState.status == AuthStatus.loading;
+
+    // Disable button if loading or form is invalid
+    final bool isButtonDisabled = isLoading || !_formValid;
 
     return CupertinoPageScaffold(
       navigationBar: const CupertinoNavigationBar(middle: Text('DocJet Login')),
@@ -22,22 +101,96 @@ class LoginScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Login Screen Placeholder',
-                textAlign: TextAlign.center,
+              CupertinoTextField(
+                controller: _emailController,
+                placeholder: 'Email',
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                prefix: const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Icon(CupertinoIcons.mail),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 8,
+                ),
+                clearButtonMode: OverlayVisibilityMode.editing,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color:
+                        _emailError != null
+                            ? CupertinoColors.systemRed
+                            : CupertinoColors.inactiveGray,
+                  ),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
               ),
+              if (_emailError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                  child: Text(
+                    _emailError!,
+                    style: const TextStyle(
+                      color: CupertinoColors.systemRed,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: _passwordController,
+                placeholder: 'Password',
+                obscureText: true,
+                prefix: const Padding(
+                  padding: EdgeInsets.only(left: 8.0),
+                  child: Icon(CupertinoIcons.lock),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 8,
+                ),
+                clearButtonMode: OverlayVisibilityMode.editing,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color:
+                        _passwordError != null
+                            ? CupertinoColors.systemRed
+                            : CupertinoColors.inactiveGray,
+                  ),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              if (_passwordError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                  child: Text(
+                    _passwordError!,
+                    style: const TextStyle(
+                      color: CupertinoColors.systemRed,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
 
-              // Show loading indicator during authentication
-              if (authState.status == AuthStatus.loading)
-                const AuthLoadingIndicator(),
-
-              // Show error messages if present
+              // Show server/auth error messages if present
               if (authState.status == AuthStatus.error &&
                   authState.errorMessage != null)
-                _buildErrorMessage(authState),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: _buildErrorMessage(authState),
+                ),
+
+              // Show loading indicator OR Login Button
+              isLoading
+                  ? const AuthLoadingIndicator()
+                  : CupertinoButton.filled(
+                    onPressed: isButtonDisabled ? null : _handleLogin,
+                    child: const Text('Login'),
+                  ),
 
               // Conditionally display offline indicator
+              if (authState.isOffline) const SizedBox(height: 10),
               if (authState.isOffline) AuthErrorMessage.offlineMode(),
             ],
           ),

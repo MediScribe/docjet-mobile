@@ -66,8 +66,8 @@ void main() {
       // Act: Let the UI rebuild
       await tester.pump();
 
-      // Assert: Check for the placeholder text AND the offline indicator
-      expect(find.text('Login Screen Placeholder'), findsOneWidget);
+      // Assert: Check for the login UI elements AND the offline indicator
+      expect(find.text('DocJet Login'), findsOneWidget);
       expect(find.text('Offline Mode'), findsOneWidget);
     },
   );
