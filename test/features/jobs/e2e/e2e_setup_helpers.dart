@@ -37,6 +37,12 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
   AuthSessionProvider,
   FileSystem,
   ApiJobRemoteDataSourceImpl,
+  JobLocalDataSource,
+  JobReaderService,
+  JobWriterService,
+  JobDeleterService,
+  JobSyncOrchestratorService,
+  AuthEventBus,
 ])
 import 'e2e_setup_helpers.mocks.dart'; // Import the generated mocks for this file
 
