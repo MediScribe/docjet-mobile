@@ -33,7 +33,7 @@ graph TD
         AuthCredProviderImpl -->|Stores/Reads JWT| SecureStorage([FlutterSecureStorage])
         AuthCredProviderImpl -->|Validates Tokens via| JwtValidator([JWT Validator])
         
-        AuthApiClient -->|Uses| HttpClient([HTTP Client<br>- dio/http])
+        AuthApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
         AuthApiClient -->|Gets API Key from| AuthCredProvider
         AuthApiClient -->|Gets User Profile| AuthAPI
         
@@ -43,7 +43,7 @@ graph TD
         AuthInterceptor -->|Uses Exponential Backoff| TokenRefresh
         AuthInterceptor -->|Listens to| AuthEventBus
         
-        HttpClient -->|Makes Requests to| AuthAPI{REST API /api/v1/auth/login <br>/api/v1/auth/refresh-session<br>/api/v1/users/profile}
+        HttpClient -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>(e.g., /api/v1/auth/login)}
     end
 
     subgraph "Other Components"
@@ -210,6 +210,7 @@ Implements the `AuthService` interface, orchestrating the authentication flow:
 
 #### AuthApiClient
 Responsible for communication with authentication endpoints:
+- Uses `ApiConfig` constants for endpoint paths (e.g., `ApiConfig.loginEndpoint`)
 - `login()` - Authenticates with email/password
 - `refreshToken()` - Refreshes tokens when expired
 - `getUserProfile()` - Retrieves full user profile data
@@ -251,10 +252,8 @@ Immutable state object representing the current authentication state:
 
 #### AuthNotifier
 State management for authentication, connecting UI to domain services:
-- `login()` - Authenticates a user with proper error handling
-- `logout()` - Logs out the current user and broadcasts logout event
-- `checkAuthStatus()` - Verifies authentication on app startup
-- `getUserProfile()` - Fetches user profile data
-- Listens to `AuthEventBus` for auth events from other components
+- Exposes the `AuthState` to the UI.
+- Provides methods like `login()`, `logout()`, `checkAuthStatus()`, `getUserProfile()` which interact with the `AuthService`.
+- Crucially, listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
 
 The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed. 
