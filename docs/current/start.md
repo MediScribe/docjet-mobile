@@ -15,6 +15,7 @@ This document serves as the central index for the project documentation.
 *   [Overall Architecture](./architecture-overview.md)
 *   [Riverpod Guide](./architecture-riverpod-guide.md)
 *   [API Versioning](./architecture-api-versioning.md)
+*   [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
 
 ### Feature Deep Dive: Authentication
 *   [Authentication Architecture](./feature-auth-architecture.md)
@@ -53,6 +54,9 @@ This document serves as the central index for the project documentation.
 
 #### [API Versioning](./architecture-api-versioning.md)
 *   **Description**: Describes the centralized API versioning strategy using `ApiConfig` and environment variables, ensuring consistency across the app and mock server.
+
+#### [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
+*   **Description**: Hard-won lessons and guidelines for handling audio playback complexities, reactive stream management (debouncing), state synchronization, and testing to avoid UI flickering and integration issues, based on past failures (`docs/old_system/audio_player_analysis.md`).
 
 ### Feature Deep Dive: Authentication
 #### [Authentication Architecture](./feature-auth-architecture.md)
