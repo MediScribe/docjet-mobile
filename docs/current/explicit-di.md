@@ -92,9 +92,18 @@ Our codebase currently suffers from:
 ### Phase 2: Core Infrastructure Migration
 
 4.  **[✓] Migrate `AppConfig` to Explicit DI**
-    *   [✓] 4.1 RED: Write failing tests for `AppConfig` - Tests exist in `app_config_test.dart`
-    *   [✓] 4.2 GREEN: Implement `AppConfig` with constructor parameter dependencies - Private constructor with factory methods
-    *   [✓] 4.3 REFACTOR: Clean up, document, and validate the new `AppConfig` - Good docs and test coverage
+    *   [✓] 4.1 RED: Write failing tests for `AppConfig`
+        * What: Create tests for the `AppConfig` class.
+        * How: Implemented in `test/core/config/app_config_test.dart`.
+        * Findings: Tests exist and cover the factory constructors (`.fromEnvironment`, `.development`) and the `isDevelopment` getter and `toString` method. The tests correctly acknowledge the compile-time nature of `String.fromEnvironment` for the default factory.
+    *   [✓] 4.2 GREEN: Implement `AppConfig` with constructor parameter dependencies
+        * What: Create the `AppConfig` class that takes its values via parameters.
+        * How: Implemented in `lib/core/config/app_config.dart`. Uses a private `const AppConfig._({required this.apiDomain, required this.apiKey})` constructor. Factory constructors (`fromEnvironment`, `test`, `development`) are used to create instances, passing the required values to the private constructor.
+        * Findings: The implementation uses a private constructor accepting explicit parameters (`apiDomain`, `apiKey`). Factory methods provide controlled ways to instantiate the class, encapsulating the reading of environment variables or providing defaults. This aligns with the goal of making dependencies explicit at the point of creation.
+    *   [✓] 4.3 REFACTOR: Clean up, document, and validate the new `AppConfig`
+        * What: Ensure the `AppConfig` code is clean, documented, and has good test coverage.
+        * How: Reviewing `lib/core/config/app_config.dart` and `test/core/config/app_config_test.dart`.
+        * Findings: The `AppConfig` class has clear documentation comments (`///`). The code is clean and uses `final` fields and a `const` private constructor. The tests cover the main factory methods and helpers (`isDevelopment`, `toString`). The `toString` method correctly redacts the API key.
 5.  **[⚠️] Create Factory Functions with Explicit Parameters**
     *   [✓] 5.1 RED: Write failing tests for explicit parameter factory versions (e.g., `DioFactory`) - Tests exist for mock variants
     *   [✓] 5.2 GREEN: Implement explicit parameter factory versions for testing - `createBasicDioMocked` and `createAuthenticatedDioMocked` created
