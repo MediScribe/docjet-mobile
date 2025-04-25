@@ -20,24 +20,34 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 /// Instances of this class are responsible for registering services into a GetIt
 /// container using provided dependencies.
 class AuthModule {
+  final DioFactory _dioFactory;
+  final AuthCredentialsProvider _credentialsProvider;
+  final AuthEventBus _authEventBus;
+
   /// Logger for AuthModule instances
   final _logger = LoggerFactory.getLogger('AuthModule');
   final _tag = logTag('AuthModule');
 
-  /// Registers authentication services with the provided GetIt instance using
-  /// explicitly passed dependencies. This avoids implicit lookups and ensures
-  /// testability by allowing direct injection of mocks or specific implementations.
-  ///
-  /// Dependencies like AuthCredentialsProvider and AuthSessionProvider are expected
-  /// to be pre-registered in GetIt *before* calling this method if specific
-  /// instances (like mocks) are required. Otherwise, default implementations
-  /// will be registered if they are not already present.
-  void register(
-    GetIt getIt, {
-    // Explicit dependencies needed for registration logic
+  /// Creates an AuthModule instance with explicitly provided dependencies.
+  AuthModule({
     required DioFactory dioFactory,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
+  }) : _dioFactory = dioFactory,
+       _credentialsProvider = credentialsProvider,
+       _authEventBus = authEventBus;
+
+  /// Registers authentication services with the provided GetIt instance using
+  /// the dependencies provided during construction. This avoids implicit lookups
+  /// and ensures testability.
+  ///
+  /// Optional dependencies like FlutterSecureStorage, JwtValidator, and
+  /// AuthSessionProvider can still be passed to override default registrations,
+  /// but the core dependencies (`DioFactory`, `AuthCredentialsProvider`,
+  /// `AuthEventBus`) are taken from the instance fields.
+  void register(
+    GetIt getIt, {
+    // Core dependencies are now instance fields, removed from parameters
     // Optional explicit dependencies (will register defaults if not provided and not already in GetIt)
     FlutterSecureStorage? secureStorage,
     JwtValidator? jwtValidator,
@@ -46,6 +56,11 @@ class AuthModule {
     _logger.i(
       '$_tag Registering auth module components via instance method...',
     );
+    _logger.d('$_tag Using internal dioFactory: $_dioFactory');
+    _logger.d(
+      '$_tag Using internal credentialsProvider: $_credentialsProvider',
+    );
+    _logger.d('$_tag Using internal authEventBus: $_authEventBus');
 
     // Register FlutterSecureStorage if not provided and not already registered
     if (secureStorage == null && !getIt.isRegistered<FlutterSecureStorage>()) {
@@ -64,8 +79,8 @@ class AuthModule {
       );
     }
     // Resolve the instance to be used downstream (might be provided, existing, or newly registered)
-    final FlutterSecureStorage finalSecureStorage =
-        secureStorage ?? getIt<FlutterSecureStorage>();
+    // final FlutterSecureStorage finalSecureStorage =
+    //     secureStorage ?? getIt<FlutterSecureStorage>(); // Removed as unused
 
     // Register JwtValidator if not provided and not already registered
     if (jwtValidator == null && !getIt.isRegistered<JwtValidator>()) {
@@ -80,18 +95,18 @@ class AuthModule {
       );
     }
     // Resolve the instance to be used downstream
-    final JwtValidator finalJwtValidator =
-        jwtValidator ?? getIt<JwtValidator>();
+    // final JwtValidator finalJwtValidator =
+    //     jwtValidator ?? getIt<JwtValidator>(); // Removed as unused
 
-    // Ensure AuthCredentialsProvider is registered (uses the provided one)
-    // Note: We assume the caller registers the *correct* provider (real or mock) beforehand.
-    // This method now only uses the provided instance.
-    _logger.d('$_tag Using provided AuthCredentialsProvider.');
+    // Use the constructor-provided instance for AuthCredentialsProvider
+    _logger.d('$_tag Using constructor-provided AuthCredentialsProvider.');
+    final AuthCredentialsProvider finalCredentialsProvider =
+        _credentialsProvider;
 
-    // Register basic Dio (using the provided factory instance)
+    // Register basic Dio (using the constructor-provided factory instance)
     if (!getIt.isRegistered<Dio>(instanceName: 'basicDio')) {
       getIt.registerLazySingleton<Dio>(
-        () => dioFactory.createBasicDio(), // Use instance method
+        () => _dioFactory.createBasicDio(), // Use instance field
         instanceName: 'basicDio',
       );
       _logger.d('$_tag Registered basicDio.');
@@ -99,12 +114,13 @@ class AuthModule {
       _logger.i('$_tag basicDio already registered. Skipping registration.');
     }
 
-    // Register the auth API client (depends on basicDio and provided credentialsProvider)
+    // Register the auth API client (depends on basicDio and constructor-provided credentialsProvider)
     if (!getIt.isRegistered<AuthApiClient>()) {
       getIt.registerLazySingleton<AuthApiClient>(
         () => AuthApiClient(
           httpClient: getIt<Dio>(instanceName: 'basicDio'),
-          credentialsProvider: credentialsProvider, // Use provided instance
+          credentialsProvider:
+              finalCredentialsProvider, // Use instance field via variable
         ),
       );
       _logger.d('$_tag Registered AuthApiClient.');
@@ -114,22 +130,35 @@ class AuthModule {
       );
     }
 
-    // Ensure AuthEventBus is registered (uses the provided one)
-    _logger.d('$_tag Using provided AuthEventBus.');
+    // Use the constructor-provided instance for AuthEventBus
+    _logger.d('$_tag Using constructor-provided AuthEventBus.');
+    final AuthEventBus finalAuthEventBus = _authEventBus;
 
-    // Register the authenticated Dio client (using provided dependencies)
+    // Register the authenticated Dio client (using constructor-provided dependencies)
     if (!getIt.isRegistered<Dio>(instanceName: 'authenticatedDio')) {
-      getIt.registerLazySingleton<Dio>(
-        () => dioFactory.createAuthenticatedDio(
-          authApiClient:
-              getIt<
-                AuthApiClient
-              >(), // Depends on the one just registered/existing
-          credentialsProvider: credentialsProvider, // Use provided instance
-          authEventBus: authEventBus, // Use provided instance
-        ),
-        instanceName: 'authenticatedDio',
+      _logger.d(
+        '$_tag About to create authenticatedDio via createAuthenticatedDio...',
       );
+      _logger.d('$_tag AuthApiClient to be passed: ${getIt<AuthApiClient>()}');
+      _logger.d(
+        '$_tag CredentialsProvider to be passed: $finalCredentialsProvider',
+      );
+      _logger.d('$_tag AuthEventBus to be passed: $finalAuthEventBus');
+
+      getIt.registerLazySingleton<Dio>(() {
+        _logger.d('$_tag Inside factory function for authenticatedDio...');
+        final authenticatedDio = _dioFactory.createAuthenticatedDio(
+          authApiClient:
+              getIt<AuthApiClient>(), // Depends on registered/existing
+          credentialsProvider:
+              finalCredentialsProvider, // Use instance field via variable
+          authEventBus: finalAuthEventBus, // Use instance field via variable
+        );
+        _logger.d(
+          '$_tag Successfully created authenticatedDio: $authenticatedDio',
+        );
+        return authenticatedDio;
+      }, instanceName: 'authenticatedDio');
       _logger.d('$_tag Registered authenticatedDio.');
     } else {
       _logger.i(
@@ -137,21 +166,22 @@ class AuthModule {
       );
     }
 
-    // Register the auth service implementation (depends on apiClient, provider, eventBus)
+    // Register the auth service implementation (depends on apiClient, provider, eventBus from instance fields)
     if (!getIt.isRegistered<AuthService>()) {
       _logger.d('$_tag Registering AuthServiceImpl');
       getIt.registerLazySingleton<AuthService>(
         () => AuthServiceImpl(
           apiClient: getIt<AuthApiClient>(), // Depends on registered/existing
-          credentialsProvider: credentialsProvider, // Use provided instance
-          eventBus: authEventBus, // Use provided instance
+          credentialsProvider:
+              finalCredentialsProvider, // Use instance field via variable
+          eventBus: finalAuthEventBus, // Use instance field via variable
         ),
       );
     } else {
       _logger.i('$_tag AuthService already registered. Skipping registration.');
     }
 
-    // Register AuthSessionProvider if not provided and not already registered
+    // Register AuthSessionProvider using the constructor-provided credentialsProvider
     if (authSessionProvider == null &&
         !getIt.isRegistered<AuthSessionProvider>()) {
       _logger.d(
@@ -159,7 +189,8 @@ class AuthModule {
       );
       getIt.registerLazySingleton<AuthSessionProvider>(
         () => SecureStorageAuthSessionProvider(
-          credentialsProvider: credentialsProvider, // Use provided instance
+          credentialsProvider:
+              finalCredentialsProvider, // Use instance field via variable
         ),
       );
     } else if (authSessionProvider != null &&
@@ -174,8 +205,8 @@ class AuthModule {
       );
     }
     // Resolve the instance to be used downstream
-    final AuthSessionProvider finalAuthSessionProvider =
-        authSessionProvider ?? getIt<AuthSessionProvider>();
+    // final AuthSessionProvider finalAuthSessionProvider =
+    //     authSessionProvider ?? getIt<AuthSessionProvider>(); // Removed as unused
     _logger.d(
       '$_tag Final AuthSessionProvider instance resolved.',
     ); // Added log

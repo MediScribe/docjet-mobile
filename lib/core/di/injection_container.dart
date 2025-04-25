@@ -9,15 +9,15 @@ import 'package:hive_flutter/hive_flutter.dart'; // Add Hive Flutter import
 import 'package:get_it/get_it.dart';
 import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Add interface import
-import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'; // Add concrete class import
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
+// Add concrete class import
+// Add FlutterSecureStorage import
 // Add AuthSessionProvider import
 // Add AuthService import
 // Add AuthApiClient import
 // Add AuthServiceImpl import
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // <<< ADDED
-import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // <<< ADDED
-import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
+// <<< ADDED
+// Import JwtValidator
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart'; // Import DioFactory
@@ -27,7 +27,7 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart'; // Imp
 import 'package:docjet_mobile/features/jobs/di/jobs_module.dart'; // Import JobsModule
 import 'package:docjet_mobile/core/di/core_module.dart'; // Import CoreModule
 // Import HiveInterface
-import 'package:hive/hive.dart'; // Keep HiveInterface
+// Keep HiveInterface
 import 'package:dio/dio.dart'; // Import Dio
 
 final sl = GetIt.instance;
@@ -106,17 +106,20 @@ Future<void> init() async {
 
   // --- Register Auth Module FOURTH ---
   logger.d('$tag Registering Auth Module...');
-  final authModule = AuthModule();
   // Resolve dependencies needed by AuthModule AFTER CoreModule has run
   final dioFactory = sl<DioFactory>();
   final credentialsProvider = sl<AuthCredentialsProvider>();
   final authEventBus = sl<AuthEventBus>();
-  authModule.register(
-    sl, // Pass the GetIt instance
+
+  // Create AuthModule with explicit constructor dependencies
+  final authModule = AuthModule(
     dioFactory: dioFactory,
     credentialsProvider: credentialsProvider,
     authEventBus: authEventBus,
   );
+
+  // Call register without the dependencies (they're now held by the instance)
+  authModule.register(sl);
   logger.i('$tag AuthModule registration completed via instance method.');
 
   // --- Features - Jobs FIFTH ---
