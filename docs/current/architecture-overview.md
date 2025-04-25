@@ -81,7 +81,7 @@ graph TD
 
 ### Presentation Layer
 - UI components (screens, widgets)
-- State management (Cubits/BLoCs)
+- State management (Cubits/BLoCs, specifically using Riverpod with code generation - see [Riverpod Guide](./architecture-riverpod-guide.md))
 - Navigation
 
 ### Use Cases Layer
@@ -209,7 +209,7 @@ Detailed architecture documentation for specific features:
 
 1. [Jobs Feature Architecture](./feature-job-dataflow.md) - Components and data flow for jobs
 2. [Jobs Feature: Presentation Layer](./feature-job-presentation.md) - State management and UI interaction
-3. [Authentication Architecture](./auth_architecture.md) - Authentication components and flows
+3. [Authentication Architecture](./feature-auth-architecture.md) - Authentication components and flows
 
 ## Authentication
 
