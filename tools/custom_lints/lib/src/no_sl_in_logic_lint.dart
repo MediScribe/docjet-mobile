@@ -21,6 +21,8 @@ class NoSlInLogicLint extends DartLintRule {
   static const _allowedTestFile = 'test/core/di/injection_container_test.dart';
   static const _allowedMainFilesPrefix = 'main_';
   static const _allowedMainFilesDir = 'lib';
+  static const _allowedDIContainerFile = 'lib/core/di/injection_container.dart';
+  static const _allowedModuleSuffix = '_module.dart';
 
   @override
   void run(
@@ -40,6 +42,8 @@ class NoSlInLogicLint extends DartLintRule {
 
     // Performance: Bail out early if the file itself is allowed
     if (relativePath == _allowedTestFile ||
+        relativePath == _allowedDIContainerFile ||
+        fileName.endsWith(_allowedModuleSuffix) || // Allow module files
         (fileName.startsWith(_allowedMainFilesPrefix) &&
             absoluteFilePath.contains('/$_allowedMainFilesDir/'))) {
       return;

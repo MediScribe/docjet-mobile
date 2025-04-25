@@ -13,46 +13,33 @@ The mock server provides a local implementation of the DocJet backend API for de
 - **Document management** (multipart uploads)
 - **Configurable responses** for testing error scenarios
 
-## Running with Mock Server
+## Running the App with Mock Server
 
-### Using the Helper Script
-
-The easiest way to run the app with the mock server is using the provided script:
-
+For the best development experience using the mock server, use our convenience script:
 ```bash
 ./scripts/run_with_mock.sh
 ```
 
 This script:
-1. Starts the mock server on port 8080
-2. Waits for the server to be ready
-3. Runs the Flutter app with `secrets.test.json` configuration
-4. Properly cleans up when the app exits
+1. Starts the mock API server on port 8080 (if not already running)
+2. Runs the Flutter app using the dedicated development entry point (`flutter run -t lib/main_dev.dart`), which automatically configures the app for the mock server via runtime DI overrides.
+3. Handles automatic cleanup on exit
 
-### Manual Setup
+> **Note:** This script **no longer uses** `--dart-define` or `secrets.test.json`. Configuration is handled internally by `main_dev.dart`.
 
-If you need to run things manually:
+### Manual Run (Alternative, Not Recommended for Dev)
 
-1. **Start the mock server**:
-   ```bash
-   cd mock_api_server && dart bin/server.dart --port 8080
-   ```
+If you cannot use the script, you can run manually, but you **must use the development entry point** to get the correct configuration:
 
-2. **Run the Flutter app with test configuration**:
-   ```bash
-   flutter run --dart-define-from-file=secrets.test.json
-   ```
+```bash
+# 1. Start the mock server (if not running)
+# cd mock_api_server && dart bin/server.dart &
 
-### Configuration File
-
-The `secrets.test.json` file contains environment variables for the mock server:
-
-```json
-{
-  "API_KEY": "test-api-key",
-  "API_DOMAIN": "localhost:8080"
-}
+# 2. Run the app using the dev entry point
+flutter run -t lib/main_dev.dart 
 ```
+
+(Using `flutter run -t lib/main.dart --dart-define-from-file=secrets.test.json` is the **old method** and is no longer the standard way for local development with the mock server).
 
 ## Testing With Mock Server
 

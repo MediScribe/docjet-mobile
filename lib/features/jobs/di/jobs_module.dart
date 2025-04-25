@@ -170,6 +170,7 @@ class JobsModule {
       () => JobListCubit(
         watchJobsUseCase: getIt<WatchJobsUseCase>(),
         mapper: getIt<JobViewModelMapper>(),
+        createJobUseCase: getIt<CreateJobUseCase>(),
       ),
     );
   }

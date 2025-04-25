@@ -345,14 +345,14 @@ Critical TODOs to ensure proper authentication works with both real API and mock
     13.2.2. [x] **GREEN**: Implement environment handling
        - Verified DioFactory already properly handles API_DOMAIN environment variable
        - Confirmed ApiConfig.baseUrlFromDomain correctly determines protocol based on domain
-       - Verified run_with_mock.sh uses secrets.test.json which includes API_DOMAIN parameter
+       - Verified `run_with_mock.sh` uses `main_dev.dart` (which internally sets `API_DOMAIN=localhost:8080` via `AppConfig.development()`), not `secrets.test.json`.
        - Confirmed all tests pass with the existing implementation
     
     13.2.3. [x] **REFACTOR**: Document and standardize
        - Created comprehensive environment configuration guide at `docs/current/setup-environment-config.md`
        - Documented all environment variables needed for auth (API_KEY, API_DOMAIN)
-       - Documented how to run the app with different configurations (secrets.json vs direct parameters)
-       - Documented mock server integration with run_with_mock.sh
+       - Documented how to run the app with different configurations (using `main_dev.dart` for local/mock, `--dart-define` for release)
+       - Documented mock server integration with `run_with_mock.sh` (now uses `main_dev.dart`)
        - Verified all tests still pass
 
 13.3. [x] **Auth API Client Mock Server Integration (TDD)**

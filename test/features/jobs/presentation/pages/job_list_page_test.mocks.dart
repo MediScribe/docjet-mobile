@@ -5,7 +5,9 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 
-import 'package:bloc/bloc.dart' as _i5;
+import 'package:bloc/bloc.dart' as _i6;
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart'
+    as _i5;
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart'
     as _i3;
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart'
@@ -66,6 +68,17 @@ class MockJobListCubit extends _i1.Mock implements _i3.JobListCubit {
       ) as bool);
 
   @override
+  _i4.Future<void> createJob(_i5.CreateJobParams? params) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #createJob,
+          [params],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
   _i4.Future<void> close() => (super.noSuchMethod(
         Invocation.method(
           #close,
@@ -85,7 +98,7 @@ class MockJobListCubit extends _i1.Mock implements _i3.JobListCubit {
       );
 
   @override
-  void onChange(_i5.Change<_i2.JobListState>? change) => super.noSuchMethod(
+  void onChange(_i6.Change<_i2.JobListState>? change) => super.noSuchMethod(
         Invocation.method(
           #onChange,
           [change],

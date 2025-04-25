@@ -3,16 +3,18 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
+import 'dart:async' as _i6;
 
-import 'package:dartz/dartz.dart' as _i6;
+import 'package:dartz/dartz.dart' as _i4;
 import 'package:docjet_mobile/core/error/failures.dart' as _i7;
 import 'package:docjet_mobile/core/usecases/usecase.dart' as _i9;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i8;
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'
     as _i2;
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart'
+    as _i11;
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart'
-    as _i4;
+    as _i5;
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart'
     as _i10;
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart'
@@ -53,10 +55,20 @@ class _FakeJobViewModel_1 extends _i1.SmartFake implements _i3.JobViewModel {
         );
 }
 
+class _FakeEither_2<L, R> extends _i1.SmartFake implements _i4.Either<L, R> {
+  _FakeEither_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
 /// A class which mocks [WatchJobsUseCase].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockWatchJobsUseCase extends _i1.Mock implements _i4.WatchJobsUseCase {
+class MockWatchJobsUseCase extends _i1.Mock implements _i5.WatchJobsUseCase {
   MockWatchJobsUseCase() {
     _i1.throwOnMissingStub(this);
   }
@@ -71,15 +83,15 @@ class MockWatchJobsUseCase extends _i1.Mock implements _i4.WatchJobsUseCase {
       ) as _i2.JobRepository);
 
   @override
-  _i5.Stream<_i6.Either<_i7.Failure, List<_i8.Job>>> call(
+  _i6.Stream<_i4.Either<_i7.Failure, List<_i8.Job>>> call(
           _i9.NoParams? params) =>
       (super.noSuchMethod(
         Invocation.method(
           #call,
           [params],
         ),
-        returnValue: _i5.Stream<_i6.Either<_i7.Failure, List<_i8.Job>>>.empty(),
-      ) as _i5.Stream<_i6.Either<_i7.Failure, List<_i8.Job>>>);
+        returnValue: _i6.Stream<_i4.Either<_i7.Failure, List<_i8.Job>>>.empty(),
+      ) as _i6.Stream<_i4.Either<_i7.Failure, List<_i8.Job>>>);
 }
 
 /// A class which mocks [JobViewModelMapper].
@@ -105,4 +117,40 @@ class MockJobViewModelMapper extends _i1.Mock
           ),
         ),
       ) as _i3.JobViewModel);
+}
+
+/// A class which mocks [CreateJobUseCase].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockCreateJobUseCase extends _i1.Mock implements _i11.CreateJobUseCase {
+  MockCreateJobUseCase() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i2.JobRepository get repository => (super.noSuchMethod(
+        Invocation.getter(#repository),
+        returnValue: _FakeJobRepository_0(
+          this,
+          Invocation.getter(#repository),
+        ),
+      ) as _i2.JobRepository);
+
+  @override
+  _i6.Future<_i4.Either<_i7.Failure, _i8.Job>> call(
+          _i11.CreateJobParams? params) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #call,
+          [params],
+        ),
+        returnValue: _i6.Future<_i4.Either<_i7.Failure, _i8.Job>>.value(
+            _FakeEither_2<_i7.Failure, _i8.Job>(
+          this,
+          Invocation.method(
+            #call,
+            [params],
+          ),
+        )),
+      ) as _i6.Future<_i4.Either<_i7.Failure, _i8.Job>>);
 }

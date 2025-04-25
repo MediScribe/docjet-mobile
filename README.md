@@ -14,6 +14,7 @@ A mobile app for the DocJet platform.
     - [Mock Server Capabilities & Limitations](#mock-server-capabilities--limitations)
   - [End-to-End (E2E) Tests (integration_test)](#end-to-end-e2e-tests-integration_test)
   - [Configuring the App (API Key & Domain)](#configuring-the-app-api-key--domain)
+  - [Linting](#linting)
 
 ## Features
 
@@ -133,6 +134,22 @@ See [Logging Guide](docs/logging_guide.md) for comprehensive examples and implem
 4. Run `flutter run` to start the app in debug mode.
    *Note: For configuring API keys and endpoints (e.g., using the mock server), see the "Configuring the App (API Key & Domain)" section below.*
 
+### Linting
+
+We use the standard `dart analyze` for basic analysis, but we also have custom lint rules (e.g., to prevent misuse of the service locator). To run these custom rules, use the `custom_lint` package runner:
+
+```bash
+flutter pub run custom_lint
+```
+
+To enforce these rules strictly (e.g., in CI), use the `--fatal-infos` and `--fatal-warnings` flags:
+
+```bash
+flutter pub run custom_lint --fatal-infos --fatal-warnings
+```
+
+*Note: The standard `dart analyze` command does **not** run these custom rules.*
+
 ### Integration Tests
 
 The project includes integration tests that use a mock API server to simulate the backend.
@@ -210,12 +227,11 @@ For the best development experience using the mock server, use our convenience s
 ```
 
 This script:
-1. Starts the mock API server on port 8080
-2. Configures proper environment variables via `secrets.test.json`
-3. Runs the Flutter app with the correct configuration
-4. Handles automatic cleanup on exit
+1. Starts the mock API server on port 8080 (if not already running)
+2. Runs the Flutter app using the dedicated development entry point (`flutter run -t lib/main_dev.dart`), which automatically configures the app for the mock server via runtime DI overrides.
+3. Handles automatic cleanup on exit
 
-> **Note:** When running the app with the mock server, you can use any email/password combination for login, as the mock server accepts all credentials. The app will display a simulated user profile from the mock server.
+> **Note:** When running the app with the mock server (via `main_dev.dart`), you can use any email/password combination for login, as the mock server accepts all credentials. The app will display a simulated user profile from the mock server.
 
 For more details about the mock server, see `mock_api_server/README.md`.
 
@@ -246,81 +262,36 @@ We use a wrapper script to handle the mock server lifecycle, as direct process m
 
 #### Configuring the App (API Key & Domain)
 
-Forget `.env` files like some amateur. We use compile-time definitions via `--dart-define` for configuration. It's cleaner, safer (keeps secrets out of the repo), and the standard Flutter way.
+The app uses an `AppConfig` object (managed via Dependency Injection) to hold configuration values like API keys and domains. We primarily use **runtime DI overrides** for development and testing, and **compile-time definitions** (`--dart-define`) for release builds.
 
-The app expects two main variables:
-- `API_KEY`: Your API key.
-- `API_DOMAIN`: The domain for the API (e.g., `api.docjet.com` or `localhost:8080`).
+**Key Concepts:**
+
+*   **`AppConfig`**: Contains different configurations (e.g., `development()`, `fromEnvironment()`).
+*   **`main_dev.dart`**: Development entry point. Automatically uses `AppConfig.development()` (pointing to `localhost:8080` with `test-api-key`) via a runtime DI override. **This is the recommended way for local development/testing.**
+*   **`main.dart`**: Standard entry point. Uses `AppConfig.fromEnvironment()`, which reads compile-time `--dart-define` variables. **Use this for release builds.**
+*   **`--dart-define` / `--dart-define-from-file`**: Compile-time mechanism used primarily to inject secrets/config into **release builds** run via `main.dart`.
+
+**Variables managed by `AppConfig`:**
+
+*   `apiKey`: Your API key. (`test-api-key` in `development()`)
+*   `apiDomain`: The domain/host for the API (e.g., `api.docjet.com` or `localhost:8080`). (`localhost:8080` in `development()`)
 
 **API Versioning**:
 We use a centralized approach to API versioning with `ApiConfig`. The version is specified in a single location and used consistently across the app. See [API Versioning](docs/current/architecture-api-versioning.md) for details.
 
-**How to Use:**
+**How to Run/Build:**
 
-Pass these variables when running or building the app:
-
-*   **Running Locally with Mock Server:**
-    For easy local development against the mock server, use the provided script. It handles starting the server, running the app with the correct configuration (`secrets.test.json`), and stopping the server automatically when you quit.
+*   **Running Locally with Mock Server (Recommended):**
+    Use the dedicated development entry point and the provided script. It handles starting the server and running the app configured for the mock server.
     ```bash
-    # Make sure it's executable (first time only)
-    chmod +x ./scripts/run_with_mock.sh
-    # Run the app
+    # This script now simply runs: flutter run -t lib/main_dev.dart
     ./scripts/run_with_mock.sh
     ```
-    This is the recommended way to run the app for testing features that require a backend.
+    The `main_dev.dart` entry point ensures the app connects to `http://localhost:8080/api/v1` using the test API key, without needing `--dart-define` or `secrets.json` for local runs.
 
 *   **Running E2E Tests (Handled by `run_e2e_tests.sh`):**
-    The E2E test script (`scripts/run_e2e_tests.sh`) uses the `secrets.test.json` file to load configuration automatically:
-    `--dart-define-from-file=secrets.test.json`
-    Ensure you have copied `secrets.test.json.example` to `secrets.test.json`.
-
-*   **Running Manually (e.g., against a Staging API):**
+    The E2E test script (`scripts/run_e2e_tests.sh`) likely still uses `--dart-define` or `--dart-define-from-file=secrets.test.json` for configuration, as E2E tests might require specific compile-time setup. Refer to the script itself and `secrets.test.json.example` for details.
     ```bash
-    flutter run \
-      --dart-define=API_KEY=YOUR_STAGING_API_KEY \
-      --dart-define=API_DOMAIN=staging.docjet.com
+    ./scripts/run_e2e_tests.sh
     ```
-
-*   **Building for Production:**
-    Inject your production keys via your CI/CD pipeline or build script:
-    ```bash
-    flutter build <target> \
-      --dart-define=API_KEY=YOUR_PROD_API_KEY \
-      --dart-define=API_DOMAIN=www.docjet.com
-    ```
-
-*   **Using a JSON File (for multiple variables):**
-    For managing different environments (test, dev, prod), create separate files like `secrets.test.json`, `secrets.dev.json`, etc. (add these to `.gitignore`!). A template for the test configuration is provided in `secrets.test.json.example`. After cloning, copy it: `cp secrets.test.json.example secrets.test.json`.
-
-    Example `secrets.json` files:
-    ```json
-    // secrets.test.json (for local mock server)
-    {
-      "API_KEY": "test-api-key",
-      "API_DOMAIN": "localhost:8080"
-    }
-
-    // secrets.staging.json (for staging environment)
-    {
-      "API_KEY": "staging-api-key",
-      "API_DOMAIN": "staging.docjet.com"
-    }
-
-    // secrets.prod.json (for production)
-    {
-      "API_KEY": "prod-api-key",
-      "API_DOMAIN": "www.docjet.com"
-    }
-    ```
-    Then run/build with the appropriate file:
-    ```bash
-    flutter run --dart-define-from-file=secrets.staging.json
-    # The E2E test script (`./scripts/run_e2e_tests.sh`) uses secrets.test.json
-    # The local run script (`./scripts/run_with_mock.sh`) also uses secrets.test.json
-    ```
-
-Inside the Dart code, the domain is transformed into a full URL with the correct API version using `ApiConfig`:
-```dart
-// In DioFactory
-final baseUrl = ApiConfig.baseUrlFromDomain(_apiDomain);
-```
+    Ensure you have copied `secrets.test.json.example` to `

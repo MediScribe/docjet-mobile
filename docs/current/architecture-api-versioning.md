@@ -94,4 +94,21 @@ To test a version change:
 ### Related Sections
 
 * [Overall Architecture](./architecture-overview.md)
-* [Environment Configuration](./setup-environment-config.md) 
+* [Environment Configuration](./setup-environment-config.md)
+
+For example, to configure the app to use the staging environment, you might define the API domain in your configuration source:
+
+```json
+// Example: secrets.staging.json (used with `flutter run --dart-define-from-file=...` for release builds)
+{
+  "API_KEY": "staging-api-key",
+  "API_DOMAIN": "staging.docjet.ai"
+}
+
+// NOTE: For local development against the mock server, the domain (`localhost:8080`)
+// is typically set internally via `AppConfig.development()` when running 
+// with the `main_dev.dart` entry point (`./scripts/run_with_mock.sh`).
+// The use of `secrets.test.json` is now primarily limited to specific test setups like E2E.
+```
+
+Then, within the `DioFactory` or similar network setup code, the base URL is constructed using the domain from the runtime `AppConfig`: 

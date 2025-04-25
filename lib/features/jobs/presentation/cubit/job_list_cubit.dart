@@ -6,6 +6,7 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 
 class JobListCubit extends Cubit<JobListState> {
   // Get logger instance for this class
@@ -15,13 +16,16 @@ class JobListCubit extends Cubit<JobListState> {
 
   final WatchJobsUseCase _watchJobsUseCase;
   final JobViewModelMapper _mapper;
+  final CreateJobUseCase _createJobUseCase;
   StreamSubscription? _jobSubscription;
 
   JobListCubit({
     required WatchJobsUseCase watchJobsUseCase,
     required JobViewModelMapper mapper,
+    required CreateJobUseCase createJobUseCase,
   }) : _watchJobsUseCase = watchJobsUseCase,
        _mapper = mapper,
+       _createJobUseCase = createJobUseCase,
        super(const JobListInitial()) {
     _logger.d('$_tag: Initializing...');
     // Start loading immediately and subscribe to the stream
@@ -70,6 +74,29 @@ class JobListCubit extends Cubit<JobListState> {
   //         },
   //       );
   // }
+
+  /// Creates a new job using the injected use case.
+  Future<void> createJob(CreateJobParams params) async {
+    _logger.d('$_tag: Attempting to create job with params: $params');
+    // Note: We might want loading/error states specific to creation
+    // For now, just call the use case and let the list update via the stream.
+    try {
+      final result = await _createJobUseCase(params);
+      result.fold(
+        (failure) {
+          _logger.e('$_tag: Failed to create job: $failure');
+          // Optionally emit a specific creation error state
+        },
+        (success) {
+          _logger.i('$_tag: Successfully initiated job creation.');
+          // List will update via the stream watcher
+        },
+      );
+    } catch (e) {
+      _logger.e('$_tag: Exception during job creation: $e');
+      // Optionally emit a specific creation error state
+    }
+  }
 
   void _subscribeToJobStream() {
     // Emit loading state right before subscribing

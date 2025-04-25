@@ -166,9 +166,9 @@ This section outlines the remaining work organized by component dependencies, no
        *Findings*: Heavy usage across integration tests (`integration_test/`), E2E tests (`test/features/jobs/e2e/`), and integration tests (`test/integration/`). Specific test setup helpers (`test/features/jobs/e2e/e2e_setup_helpers.dart`) are major offenders. The DI container test (`test/core/di/injection_container_test.dart`) uses `sl` correctly for verification.
        *Detailed File List & Status*:
          *   UI Components:
-             *   `lib/features/jobs/presentation/pages/job_list_playground.dart`: `sl<JobListCubit>()`, `sl<CreateJobUseCase>()` - ✅ **REFACTORED** (Uses BlocProvider/context, removed direct `sl`)
+             *   `lib/features/jobs/presentation/pages/job_list_playground.dart`: `sl<JobListCubit>()`, `sl<CreateJobUseCase>()` - ✅ **REFACTORED** (Verified: `sl<CreateJobUseCase>` removed, now uses Cubit method. `sl<JobListCubit>` remains in allowed `BlocProvider.create`.)
          *   Integration Tests:
-             *   `integration_test/app_test.dart`: `sl<JobListCubit>()`, `sl<AuthService>()`, `sl<AppConfig>()` - ✅ **REFACTORED** (Removed `sl` usage, uses `di.overrides`)
+             *   `integration_test/app_test.dart`: `sl<AppConfig>()` - **OK (Verification)** (Verified: `sl<AppConfig>` used correctly to assert DI container state after override. Other `sl` usage removed previously.)
          *   E2E Tests:
              *   `test/features/jobs/e2e/job_sync_*.dart` (ALL): All E2E tests use the refactored helper (`e2e_setup_helpers.dart`) and `E2EDependencyContainer` for explicit dependencies - ✅ **REFACTORED**
              *   `test/features/jobs/e2e/e2e_setup_helpers.dart`: `sl<NetworkInfo>()`, `sl<AuthCredentialsProvider>()`, `sl<AuthSessionProvider>()`, etc. - ✅ **REFACTORED** (Removed `sl`, now creates/returns `E2EDependencyContainer`)
@@ -197,6 +197,7 @@ This section outlines the remaining work organized by component dependencies, no
        *How*: Tests will call the updated helper functions or use the new explicit setup defined in their `setUp` blocks.
        *Findings*: This prepares the ground for migrating repositories/services (Task 3).
      - [✓] **Helper Refactoring**: Refactored `e2e_setup_helpers.dart` to provide dependencies via `E2EDependencyContainer`, removing internal `sl` usage.
+    *Overall Finding*: After re-running grep and investigating remaining sites, confirmed all improper `sl` usage outside `injection_container.dart` has been removed or is justified (DI verification tests). The `job_list_playground.dart` required fixing. Marking GREEN phase as complete.
 
 #### REFACTOR Phase
 3. **[✓] Document Boundary Pattern for UI Components**
@@ -511,12 +512,22 @@ This pattern will be replicated across all components that currently use service
 
 Based on the assessment and handover brief, the following immediate actions are prioritized:
 
-1. **[ ] Complete AuthModule Refactoring** (HIGHEST PRIORITY)
-   - [ ] 1.1 Follow pattern established by JobsModule
-   - [ ] 1.2 Take all dependencies explicitly through constructor
-   - [ ] 1.3 Update `injection_container.dart` to provide these dependencies
+1.  ~~**[✓] Complete AuthModule Refactoring**~~ (HIGHEST PRIORITY - Verified Complete)
+    - [✓] 1.1 Follow pattern established by JobsModule
+      *What*: Verify if `AuthModule` follows the explicit constructor injection pattern established by `JobsModule`.
+      *How*: Read `lib/features/jobs/di/jobs_module.dart` and `lib/core/auth/infrastructure/auth_module.dart`. Compared the constructor signature and `register` method implementation.
+      *Findings*: Confirmed `AuthModule` adheres to the pattern: constructor takes external dependencies (`DioFactory`, `AuthCredentialsProvider`, `AuthEventBus`), `register` method uses these via instance fields and resolves other internal dependencies via `getIt()`. The "Immediate Next Steps" summary was incorrect; this part of the refactoring was already completed as per the detailed task list above.
+    - [✓] 1.2 Take all dependencies explicitly through constructor
+      *What*: Verify `AuthModule` constructor signature.
+      *How*: Read `lib/core/auth/infrastructure/auth_module.dart`.
+      *Findings*: Confirmed constructor requires `dioFactory`, `credentialsProvider`, and `authEventBus`. This was already completed.
+    - [✓] 1.3 Update `injection_container.dart` to provide these dependencies
+      *What*: Verify how `AuthModule` is instantiated in the main DI setup.
+      *How*: Read `lib/core/di/injection_container.dart`.
+      *Findings*: Confirmed `injection_container.dart` correctly resolves dependencies via `sl` and passes them explicitly to the `AuthModule` constructor, then calls `register(sl)`. This was already completed.
+    *Overall Finding*: The entire `AuthModule` refactoring listed under "Immediate Next Steps" was already completed according to the detailed task list and verified by code review. This summary item was outdated.
 
-2. **[ ] Identify and Categorize All `sl<T>()` Usage** 
+2.  **[ ] Identify and Categorize All `sl<T>()` Usage** 
    - [ ] 2.1 Run systematic grep to find all direct usage
    - [ ] 2.2 Prioritize business logic components over UI components
 

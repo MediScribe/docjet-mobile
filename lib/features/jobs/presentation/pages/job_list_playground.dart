@@ -43,8 +43,8 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
   static final String _tag = logTag('JobListPlayground');
 
   // Dependencies obtained via context or constructor
-  late final CreateJobUseCase
-  _createJobUseCase; // Assuming provided elsewhere or fetched via sl ONCE if needed
+  // late final CreateJobUseCase
+  // _createJobUseCase; // REMOVED - Now accessed via Cubit
 
   // We'll keep a small set of mock jobs as fallback
   final List<JobViewModel> _mockJobs = [
@@ -66,7 +66,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     // Get UseCase via sl - acceptable ONLY IF this widget is considered
     // a "composition root" for this specific playground scenario.
     // In a real app, this would likely be injected into the Cubit itself.
-    _createJobUseCase = di.sl<CreateJobUseCase>();
+    // _createJobUseCase = di.sl<CreateJobUseCase>(); // REMOVED
   }
 
   Future<void> _createLoremIpsumJob() async {
@@ -76,16 +76,16 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
 
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-      // Create job with minimal required parameters
-      await _createJobUseCase(
-        CreateJobParams(
-          audioFilePath: 'playground_job_$timestamp.m4a',
-          text:
-              'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-        ),
+      final params = CreateJobParams(
+        audioFilePath: 'playground_job_$timestamp.m4a',
+        text:
+            'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       );
-      _logger.i('$_tag Created new Lorem Ipsum job');
+
+      // Get Cubit from context and call its createJob method
+      context.read<JobListCubit>().createJob(params);
+
+      _logger.i('$_tag Called Cubit to create new Lorem Ipsum job');
     } catch (e) {
       _logger.e('$_tag Error creating job: $e');
     } finally {

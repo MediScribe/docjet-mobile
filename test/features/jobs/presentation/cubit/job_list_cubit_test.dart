@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -18,12 +19,13 @@ import 'package:mockito/mockito.dart';
 import 'package:uuid/uuid.dart';
 
 // Generate mocks
-@GenerateMocks([WatchJobsUseCase, JobViewModelMapper])
+@GenerateMocks([WatchJobsUseCase, JobViewModelMapper, CreateJobUseCase])
 import 'job_list_cubit_test.mocks.dart';
 
 void main() {
   late MockWatchJobsUseCase mockWatchJobsUseCase;
   late MockJobViewModelMapper mockJobViewModelMapper;
+  late MockCreateJobUseCase mockCreateJobUseCase;
   late JobListCubit jobListCubit;
   late StreamController<Either<Failure, List<Job>>> streamController;
 
@@ -72,6 +74,7 @@ void main() {
   setUp(() {
     mockWatchJobsUseCase = MockWatchJobsUseCase();
     mockJobViewModelMapper = MockJobViewModelMapper();
+    mockCreateJobUseCase = MockCreateJobUseCase();
     streamController = StreamController<Either<Failure, List<Job>>>.broadcast();
 
     // Default stub for use case stream
@@ -89,6 +92,7 @@ void main() {
     return JobListCubit(
       watchJobsUseCase: mockWatchJobsUseCase,
       mapper: mockJobViewModelMapper,
+      createJobUseCase: mockCreateJobUseCase,
     );
   }
 

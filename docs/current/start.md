@@ -80,4 +80,24 @@ This document serves as the central index for the project documentation.
 *   **Description**: Provides an overview of the mobile app's UI screens (Login, Home, Job List, Playground) with a navigation flow diagram, screen purposes, current states, and key widgets.
 
 #### [Playground](./dev-ui-playground.md)
-*   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow. 
+*   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow.
+
+## Project Documentation
+
+The `docs/` directory contains detailed documentation on various aspects of the project:
+
+*   **`docs/current/`**: Contains the most up-to-date guides for active development.
+    *   `logging_guide.md`: Comprehensive details on the logging system and testing patterns.
+    *   `setup-environment-config.md`: **Crucial guide** explaining how to configure the app for different environments (local dev, staging, prod) using runtime DI and `--dart-define`.
+    *   `explicit-di-revisited.md`: Detailed plan and status for the migration to explicit dependency injection.
+    *   `architecture-api-versioning.md`: Explanation of the centralized API versioning strategy.
+    *   `setup-mock-server.md`: Information specifically about setting up and running the mock API server.
+    *   Various feature-specific documents (e.g., `feature-auth-implementation.md`).
+*   **`docs/adr/`**: Architecture Decision Records, documenting significant technical choices.
+
+Key guides to read first:
+- `setup-environment-config.md`: Understand how to run the app locally vs. for release.
+- `logging_guide.md`: Learn how to use the logging system effectively.
+- `explicit-di-revisited.md`: Grasp the dependency injection patterns.
+
+For details on running the app with the mock server, testing integration, and common troubleshooting steps, refer primarily to `setup-environment-config.md` and `setup-mock-server.md`. 

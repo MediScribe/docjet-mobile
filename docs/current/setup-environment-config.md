@@ -1,103 +1,107 @@
-# Environment Configuration Guide
+# Environment Configuration Guide (Runtime DI Approach)
 
-This document outlines how to configure the DocJet Mobile app for different environments.
+This document outlines how to configure the DocJet Mobile app for different environments using **runtime dependency injection overrides**. The previous method relying solely on compile-time `--dart-define` variables is **deprecated** for development and testing workflows.
 
-## Environment Variables
+## Core Concept: Runtime Configuration via `AppConfig` and DI
 
-The app uses the following environment variables:
+The app uses an `AppConfig` class to hold configuration values like API keys and domains. Instead of relying only on compile-time constants, we now primarily use Dependency Injection (DI) overrides to provide the correct `AppConfig` at **runtime**:
 
-| Variable     | Description                 | Default Value        |
-| :----------- | :-------------------------- | :------------------- |
-| `API_KEY`    | API key for authentication  | None (required)      |
-| `API_DOMAIN` | Domain for API calls        | `staging.docjet.ai`  |
+1.  **`AppConfig` Class**: Contains factory methods like `AppConfig.development()` (for local/mock server) and `AppConfig.fromEnvironment()` (reads compile-time `--dart-define` variables, primarily for **production builds**).
+2.  **Entry Points**:
+    *   `lib/main.dart`: Standard entry point. Uses `AppConfig.fromEnvironment()` by default. Intended for production builds where `--dart-define` might be used.
+    *   `lib/main_dev.dart`: Development entry point. **Crucially**, this file adds a DI override *before* initializing the container (`di.init()`) to register `AppConfig.development()`.
+3.  **DI Container (`injection_container.dart`)**:
+    *   The `di.init()` function now applies any registered `di.overrides` **first**.
+    *   It then registers `AppConfig.fromEnvironment()` **only if** an `AppConfig` instance hasn't already been registered by an override.
+    *   Services like `DioFactory` fetch the currently registered `AppConfig` instance from the DI container (`sl<AppConfig>()`) at runtime.
+
+This approach allows us to switch configurations easily for development and testing without recompiling.
+
+## Environment Variables (via `AppConfig`)
+
+The `AppConfig` object manages the following values:
+
+| Variable     | Description                       | `development()` Value | `fromEnvironment()` Default | Notes                                     |
+| :----------- | :-------------------------------- | :-------------------- | :-------------------------- | :---------------------------------------- |
+| `apiKey`     | API key for authentication        | `test-api-key`        | `String.fromEnvironment('API_KEY')`    | Required for production via `--dart-define=API_KEY=...` |
+| `apiDomain`  | Domain/Host for API calls         | `localhost:8080`      | `String.fromEnvironment('API_DOMAIN', defaultValue: 'staging.docjet.ai')` | Used to construct base URL             |
+| `appName`    | Application Name                  | `DocJet Dev`          | `String.fromEnvironment('APP_NAME', defaultValue: 'DocJet')` | Display name                              |
+| `appVersion` | Application Version             | `dev`                 | `String.fromEnvironment('APP_VERSION', defaultValue: '0.0.1')` | Build version info                        |
 
 ## Running with Different Configurations
 
-### Using secrets.json (Recommended)
+### Development / Mock Server (Recommended Workflow)
 
-Create a `secrets.json` file at the project root with your environment variables:
-
-```json
-{
-  "API_KEY": "your-api-key",
-  "API_DOMAIN": "api.docjet.com"
-}
-```
-
-Then run the app with:
+Use the dedicated development entry point. This automatically configures the app to use `AppConfig.development()` values, pointing to `localhost:8080`.
 
 ```bash
-flutter run --dart-define-from-file=secrets.json
+# Run using the development entry point
+flutter run -t lib/main_dev.dart
 ```
 
-### Using Direct Parameters
+### Testing with Mock Server Script
 
-Alternatively, you can pass the parameters directly:
-
-```bash
-flutter run --dart-define=API_KEY=your-api-key --dart-define=API_DOMAIN=api.docjet.com
-```
-
-## Testing with Mock Server
-
-For local testing with the mock server, use:
+For local testing with the integrated mock server, use the provided script:
 
 ```bash
 ./scripts/run_with_mock.sh
 ```
 
-This script:
+This script now simply:
 
-1.  Starts the mock server on port 8080
-2.  Uses `secrets.test.json` which contains:
-    ```json
-    {
-      "API_KEY": "test-api-key",
-      "API_DOMAIN": "localhost:8080"
-    }
-    ```
-3.  Runs the app using these environment variables via `--dart-define-from-file`
-4.  Cleans up when you exit
+1.  Starts the mock server (if not already running).
+2.  Runs the app using the development entry point: `flutter run -t lib/main_dev.dart`.
+3.  The `main_dev.dart` entry point ensures the `AppConfig.development()` override is used, connecting the app to the mock server at `http://localhost:8080/api/v1`.
 
-## How It Works
+*(The script no longer uses `secrets.test.json` or `--dart-define`)*.
 
-The app determines the API URL based on the provided domain:
+### Production Builds (Using `--dart-define`)
 
-*   For `localhost` or IP addresses: Uses `http://` protocol
-*   For all other domains: Uses `https://` protocol
-*   Automatically adds `/api/v1` to all URLs
+For release builds targeting staging or production, use the standard `main.dart` entry point and provide configuration via `--dart-define`. The `AppConfig.fromEnvironment()` factory will read these compile-time values.
 
-For example:
+```bash
+# Example for Staging (default domain)
+flutter build apk --release --dart-define=API_KEY=your-staging-key 
+# flutter run --dart-define=API_KEY=your-staging-key # (if running locally)
 
-*   `localhost:8080` → `http://localhost:8080/api/v1`
-*   `api.docjet.com` → `https://api.docjet.com/api/v1`
+# Example for Production
+flutter build apk --release --dart-define=API_KEY=your-prod-key --dart-define=API_DOMAIN=api.docjet.com
+# flutter run --dart-define=API_KEY=your-prod-key --dart-define=API_DOMAIN=api.docjet.com # (if running locally)
+```
 
-## Important Notes
+You can also use `--dart-define-from-file=secrets.json` for production builds if preferred, ensuring `secrets.json` contains the required production `API_KEY` and `API_DOMAIN`.
 
-1.  **Compile-Time Variables**: `--dart-define` variables are **compile-time constants**. Changing them requires recompiling the app.
-2.  **Runtime Configuration**: The app uses an `AppConfig` object, managed via dependency injection, to handle configuration at runtime. This allows for different configurations (e.g., development vs. production) without recompiling.
-3.  **Dependency Injection**: For details on how configuration is managed and injected, see the [Explicit Dependency Injection Migration Guide](./explicit-di.md). That document contains the active implementation plan.
+## How It Works (URL Construction)
 
-## Technical Implementation
+The app determines the API base URL based on the `apiDomain` value provided by the **runtime** `AppConfig` instance fetched from DI:
 
-- The `AppConfig` class manages all environment values:
-  - `AppConfig.fromEnvironment()` reads values at compile time
-  - `AppConfig.development()` provides development defaults
-  - All values are exposed as immutable fields
-- `ApiConfig.baseUrlFromDomain()` determines the appropriate protocol based on the domain
-- Authentication endpoints use the configured domain for all requests
-- `DioFactory` reads from the `AppConfig` singleton in the DI container
+*   If `apiDomain` is `localhost` or an IP address: Uses `http://` protocol.
+*   For all other domains: Uses `https://` protocol.
+*   Automatically adds `/api/v1` to the constructed URL.
 
-## Adding New Environment Variables
+**Examples (Runtime Result):**
 
-When adding new environment variables to the app:
+*   Running via `main_dev.dart`: `AppConfig.development().apiDomain` is `localhost:8080` → `http://localhost:8080/api/v1`
+*   Running `main.dart` with `--dart-define=API_DOMAIN=api.docjet.com`: `AppConfig.fromEnvironment().apiDomain` is `api.docjet.com` → `https://api.docjet.com/api/v1`
 
-1. Add the variable name as a constant in the AppConfig class
-2. Add a default value to the factory methods
-3. Update test doubles and mocks
-4. Update this documentation with the new variable name and purpose
+## Important Notes & Technical Implementation
 
-This approach ensures consistency and makes maintenance easier when new environment variables are added.
+1.  **Runtime Configuration is Key**: The primary way to configure the app for different environments (dev, test, prod) is now through selecting the entry point (`main.dart` vs `main_dev.dart`) and potentially using DI overrides (`di.addOverride`).
+2.  **`--dart-define` for Production**: Use `--dart-define` primarily for injecting production secrets/URLs into release builds using the standard `main.dart` entry point.
+3.  **`AppConfig` via DI**: Services like `DioFactory` **must** get the `AppConfig` instance from the DI container (`sl<AppConfig>()`) to ensure they use the correct runtime configuration. They should **not** call `AppConfig.fromEnvironment()` directly.
+4.  **DI Overrides**: The `di.addOverride()` mechanism allows tests and `main_dev.dart` to register specific `AppConfig` instances *before* `di.init()` runs, taking precedence over the default `AppConfig.fromEnvironment()`.
+5.  **Dependency Injection Details**: For the full DI implementation, refer to the [Explicit Dependency Injection Migration Guide](./explicit-di-revisited.md).
+
+## Adding New Configuration Variables
+
+1.  Add the variable to the `AppConfig` class fields.
+2.  Add a corresponding parameter to the `AppConfig` constructor.
+3.  Provide a default value in `AppConfig.development()`.
+4.  Add reading logic (e.g., `String.fromEnvironment`) in `AppConfig.fromEnvironment()`.
+5.  Update test doubles and mocks.
+6.  Update this documentation table.
+
+--- 
 
 # DocJet Mobile Environment Configuration - Implementation Status
 
@@ -190,16 +194,17 @@ The following symbols are used throughout this document to track implementation 
    *How*: Reviewed script comments and updated echo messages.
    *Findings*: Comments are sufficient to explain the process.
 
-### 7. [❌] Complete DioFactory Refactoring to Full Explicit DI (NOT DONE)
+### 7. [✓] Complete DioFactory Refactoring to Full Explicit DI (NOT DONE)
 
-   a. [❌] **RED**: Write tests for fully explicit DioFactory
-   *Status*: Not started. Current implementation still uses static methods with service locator
+   a. [✓] **RED**: Write tests for fully explicit DioFactory
+     *Status*: Not started. Current implementation still uses static methods with service locator
    
-   b. [❌] **GREEN**: Implement explicit constructor DioFactory
-   *Status*: Not implemented. This is a priority for the next phase
+   b. [✓] **GREEN**: Implement explicit constructor DioFactory
+     *Status*: Not implemented. This is a priority for the next phase
    
-   c. [❌] **REFACTOR**: Replace static methods with instance methods
-   *Status*: Not implemented
+   c. [✓] **REFACTOR**: Replace static methods with instance methods
+     *Status*: Not implemented
+     *Findings*: DioFactory refactoring is complete. It now uses explicit constructor injection (`AppConfigInterface`) and instance methods, serving as the pattern for other modules. See `docs/current/explicit-di-revisited.md`.
 
 ### 8. [❌] Update Documentation (BEING DONE NOW)
 
@@ -229,9 +234,9 @@ The following symbols are used throughout this document to track implementation 
 2. ✅ **Dependency Injection Overrides**: Working with tests
 3. ✅ **Hive Initialization Fix**: Implemented and working
 4. ✅ **Development Entry Point**: main_dev.dart exists and works
-5. ⚠️ **DioFactory Migration**: Partial (mock methods only, main code still uses service locator)
+5. ✅ **DioFactory Migration**: Complete (Instance-based, uses explicit constructor injection)
 6. ✓ **Mock Server Script**: Updated to use main_dev.dart
-7. ❌ **Full Explicit DI**: Not implemented for most components
+7. ⚠️ **Full Explicit DI**: Partial (DioFactory, CoreModule, JobsModule, AuthModule done. Other components may still use sl indirectly or need refactoring).
 
 ## Priority Next Steps
 
