@@ -29,16 +29,20 @@ class FakeProcessRunner implements ProcessRunner {
 // Mock implementation of TestEventProcessor for tests without using the real implementation
 class TestEventProcessorMock implements TestEventProcessor {
   final Map<String, List<FailedTest>> predefinedResult;
+  final int predefinedTotalTests; // Add total tests count
 
-  TestEventProcessorMock(this.predefinedResult);
+  TestEventProcessorMock(this.predefinedResult, this.predefinedTotalTests);
 
   @override
-  Map<String, List<FailedTest>> extractFailedTests(
+  ProcessedTestResult extractFailedTests(
     List<Map<String, dynamic>> allEvents,
     bool debugMode, {
     bool suppressDebugTests = true,
   }) {
-    return predefinedResult;
+    return ProcessedTestResult(
+      failedTestsByFile: predefinedResult,
+      totalTestsRun: predefinedTotalTests,
+    );
   }
 }
 
@@ -140,7 +144,7 @@ void main() {
     test('should run test command with correct arguments', () async {
       // Given
       final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
-      final mockProcessor = TestEventProcessorMock({});
+      final mockProcessor = TestEventProcessorMock({}, 0);
 
       final runner = FailedTestRunner(
         processRunner: fakeRunner,
@@ -163,38 +167,6 @@ void main() {
       ]);
     });
 
-    test('should support multiple test targets', () async {
-      // Given
-      final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
-      final mockProcessor = TestEventProcessorMock({});
-
-      final runner = FailedTestRunner(
-        processRunner: fakeRunner,
-        eventProcessor: mockProcessor,
-        formatter: ResultFormatter(),
-      );
-
-      // When
-      await runner.run(
-        [
-          'test/first_test.dart',
-          'test/second_test.dart',
-          'test/third_test.dart',
-        ],
-        debugMode: false,
-        exceptMode: false,
-      );
-
-      // Then
-      expect(fakeRunner.capturedArguments, [
-        'test',
-        '--machine',
-        'test/first_test.dart',
-        'test/second_test.dart',
-        'test/third_test.dart',
-      ]);
-    });
-
     test('should parse test events from stdout', () async {
       // Given
       final testEvents = [
@@ -205,7 +177,7 @@ void main() {
       final fakeRunner = FakeProcessRunner(
         ProcessResult(0, 0, jsonEncode(testEvents), ''),
       );
-      final mockProcessor = TestEventProcessorMock({});
+      final mockProcessor = TestEventProcessorMock({}, 2);
 
       final runner = FailedTestRunner(
         processRunner: fakeRunner,
@@ -227,7 +199,7 @@ void main() {
       () async {
         // Given
         final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
-        final mockProcessor = TestEventProcessorMock({});
+        final mockProcessor = TestEventProcessorMock({}, 0);
         final runner = FailedTestRunner(
           processRunner: fakeRunner,
           eventProcessor: mockProcessor,
@@ -253,7 +225,7 @@ void main() {
       () async {
         // Given
         final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
-        final mockProcessor = TestEventProcessorMock({});
+        final mockProcessor = TestEventProcessorMock({}, 0);
         final runner = FailedTestRunner(
           processRunner: fakeRunner,
           eventProcessor: mockProcessor,
@@ -418,10 +390,12 @@ void main() {
         // Given
         final failedTests = processor.extractFailedTests(allTestEvents, false);
         final result = TestRunResult(
-          failedTestsByFile: failedTests,
+          failedTestsByFile: failedTests.failedTestsByFile,
           allEvents: allTestEvents,
           exitCode: 1,
           testTargets: [], // Empty list for no targets
+          totalTestsRun: failedTests.totalTestsRun, // Use actual count
+          totalTestsFailed: failedTests.totalTestsFailed,
         );
 
         // When
@@ -481,6 +455,16 @@ void main() {
 
         expect(output, contains('\x1B[31m--- End of Exceptions ---\x1B[0m'));
 
+        // Check for summary
+        final failedCount = failedTests.totalTestsFailed;
+        final totalCount = failedTests.totalTestsRun;
+        expect(
+          output,
+          contains(
+            '\x1B[31mSummary: $failedCount/$totalCount tests failed.\x1B[0m',
+          ),
+        );
+
         // Ensure no default/debug formatting appears
         expect(output, isNot(contains('Failed tests grouped by source file')));
         expect(output, isNot(contains('--- Console output ---')));
@@ -497,10 +481,12 @@ void main() {
           false,
         );
         final result = TestRunResult(
-          failedTestsByFile: failedTests,
+          failedTestsByFile: failedTests.failedTestsByFile,
           allEvents: allEventsWithLoadingErrors,
           exitCode: 1,
           testTargets: [], // Empty list for no targets
+          totalTestsRun: failedTests.totalTestsRun, // Use actual count
+          totalTestsFailed: failedTests.totalTestsFailed,
         );
 
         // When - Check default output
@@ -578,6 +564,16 @@ void main() {
           isNot(contains('unknown_file.dart')),
           reason: "Except mode should not show unknown_file.dart",
         );
+
+        // Check summary in except mode
+        final failedCountExcept = failedTests.totalTestsFailed;
+        final totalCountExcept = failedTests.totalTestsRun;
+        expect(
+          outputExcept,
+          contains(
+            '\x1B[31mSummary: $failedCountExcept/$totalCountExcept tests failed.\x1B[0m',
+          ),
+        );
       },
     );
 
@@ -587,10 +583,12 @@ void main() {
         // Given
         final failedTests = processor.extractFailedTests(allTestEvents, false);
         final result = TestRunResult(
-          failedTestsByFile: failedTests,
+          failedTestsByFile: failedTests.failedTestsByFile,
           allEvents: allTestEvents,
           exitCode: 1,
           testTargets: [], // Empty list for no targets
+          totalTestsRun: failedTests.totalTestsRun, // Use actual count
+          totalTestsFailed: failedTests.totalTestsFailed,
         );
 
         // When
@@ -642,10 +640,12 @@ void main() {
           true,
         ); // Need debug true for processor potentially
         final result = TestRunResult(
-          failedTestsByFile: failedTests,
+          failedTestsByFile: failedTests.failedTestsByFile,
           allEvents: allTestEvents,
           exitCode: 1,
           testTargets: [], // Empty list for no targets
+          totalTestsRun: failedTests.totalTestsRun, // Use actual count
+          totalTestsFailed: failedTests.totalTestsFailed,
         );
 
         // When
@@ -738,7 +738,17 @@ void main() {
         expect(output, isNot(contains('Stack A1')));
         expect(output, isNot(contains('--- Failed Test Exceptions ---')));
 
-        // Check for Tips (only except tip should show in debug mode)
+        // Check for summary
+        final failedCount = failedTests.totalTestsFailed;
+        final totalCount = failedTests.totalTestsRun;
+        expect(
+          output,
+          contains(
+            '\x1B[31mSummary: $failedCount/$totalCount tests failed.\x1B[0m',
+          ),
+        );
+
+        // Check for Tips
         expect(output, isNot(contains('Tip: Run with --debug')));
         expect(output, contains('Tip: Run with --except'));
       },
@@ -790,10 +800,12 @@ void main() {
           suppressDebugTests: true,
         );
         final resultDefault = TestRunResult(
-          failedTestsByFile: failedTestsDefault,
+          failedTestsByFile: failedTestsDefault.failedTestsByFile,
           allEvents: combinedEvents,
           exitCode: 1,
           testTargets: [], // Empty list for no targets
+          totalTestsRun: failedTestsDefault.totalTestsRun, // Add total
+          totalTestsFailed: failedTestsDefault.totalTestsFailed, // Add failed
         );
 
         final outputDefault = await capturePrint(
@@ -807,10 +819,12 @@ void main() {
           suppressDebugTests: false,
         );
         final resultTargeted = TestRunResult(
-          failedTestsByFile: failedTestsTargeted,
+          failedTestsByFile: failedTestsTargeted.failedTestsByFile,
           allEvents: combinedEvents,
           exitCode: 1,
           testTargets: ['test/scripts/debug_test.dart'], // Single target
+          totalTestsRun: failedTestsTargeted.totalTestsRun, // Add total
+          totalTestsFailed: failedTestsTargeted.totalTestsFailed, // Add failed
         );
 
         final outputTargeted = await capturePrint(
@@ -828,6 +842,16 @@ void main() {
         expect(outputTargeted, contains('Normal Test Failure'));
         expect(outputTargeted, contains('Debug Test Failure'));
         expect(outputTargeted, contains('Error from debug test'));
+
+        // Check summary in both cases
+        expect(
+          outputDefault,
+          contains('\x1B[31mSummary: 1/2 tests failed.\x1B[0m'),
+        );
+        expect(
+          outputTargeted,
+          contains('\x1B[31mSummary: 2/2 tests failed.\x1B[0m'),
+        );
       },
     );
 
@@ -836,10 +860,12 @@ void main() {
       // Given
       final failedTests = processor.extractFailedTests(allTestEvents, false);
       final result = TestRunResult(
-        failedTestsByFile: failedTests,
+        failedTestsByFile: failedTests.failedTestsByFile,
         allEvents: allTestEvents,
         exitCode: 1,
         testTargets: [], // No test target
+        totalTestsRun: failedTests.totalTestsRun, // Use actual count
+        totalTestsFailed: failedTests.totalTestsFailed,
       );
 
       // When
@@ -851,7 +877,7 @@ void main() {
       expect(
         output,
         contains(
-          'Tip: You can run with specific paths or directories to test only a subset of tests:',
+          'Tip: You can run with a specific path or directory to test only a subset of tests:',
         ),
       );
       expect(
@@ -868,10 +894,12 @@ void main() {
       // Given
       final failedTests = processor.extractFailedTests(allTestEvents, false);
       final result = TestRunResult(
-        failedTestsByFile: failedTests,
+        failedTestsByFile: failedTests.failedTestsByFile,
         allEvents: allTestEvents,
         exitCode: 1,
         testTargets: ['test/some_directory'], // Test target provided
+        totalTestsRun: failedTests.totalTestsRun, // Use actual count
+        totalTestsFailed: failedTests.totalTestsFailed,
       );
 
       // When
@@ -899,6 +927,8 @@ void main() {
           allEvents: [],
           exitCode: 0,
           testTargets: [], // No test targets
+          totalTestsRun: 5, // Example total test count
+          totalTestsFailed: 0, // No failed
         );
 
         // When
@@ -908,10 +938,11 @@ void main() {
 
         // Then
         expect(output, contains('No failed tests found.'));
+        expect(output, contains('All 5 tests passed.')); // Check passed summary
         expect(
           output,
           contains(
-            'Tip: You can run with specific paths or directories to test only a subset of tests:',
+            'Tip: You can run with a specific path or directory to test only a subset of tests:',
           ),
         );
       },
@@ -926,6 +957,8 @@ void main() {
           allEvents: [],
           exitCode: 0,
           testTargets: ['test/some_test.dart'], // Target provided
+          totalTestsRun: 3, // Example total test count
+          totalTestsFailed: 0, // No failed
         );
 
         // When
@@ -935,11 +968,12 @@ void main() {
 
         // Then
         expect(output, contains('No failed tests found.'));
+        expect(output, contains('All 3 tests passed.')); // Check passed summary
         expect(
           output,
           isNot(
             contains(
-              'Tip: You can run with specific paths or directories to test only a subset of tests:',
+              'Tip: You can run with a specific path or directory to test only a subset of tests:',
             ),
           ),
         );

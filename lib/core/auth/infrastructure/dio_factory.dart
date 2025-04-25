@@ -6,26 +6,31 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
-import 'package:docjet_mobile/core/config/app_config.dart';
-import 'package:docjet_mobile/core/di/injection_container.dart';
+import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter/foundation.dart';
 
-/// Factory for creating [Dio] HTTP client instances with authentication support
+/// Factory for creating [Dio] HTTP client instances with authentication support.
 ///
-/// This factory creates and configures Dio instances with appropriate
-/// interceptors for authentication and token refresh.
+/// This factory creates and configures Dio instances based on the provided
+/// [AppConfigInterface].
 class DioFactory {
   static final _logger = LoggerFactory.getLogger('DioFactory');
+  final AppConfigInterface _appConfig;
+
+  /// Creates a DioFactory instance.
+  ///
+  /// Requires an [AppConfigInterface] to configure the Dio clients.
+  DioFactory({required AppConfigInterface appConfig}) : _appConfig = appConfig {
+    _logger.d('DioFactory initialized with config: ${_appConfig.toString()}');
+  }
 
   /// Creates a basic Dio instance without authentication interceptors.
   /// Suitable for non-authenticated API calls or initial setup.
-  static Dio createBasicDio() {
-    // Get AppConfig from the service locator
-    final appConfig = sl<AppConfig>();
-    final baseUrl = ApiConfig.baseUrlFromDomain(appConfig.apiDomain);
+  Dio createBasicDio() {
+    final baseUrl = ApiConfig.baseUrlFromDomain(_appConfig.apiDomain);
     _logger.i(
-      'Creating basic Dio instance for domain: ${appConfig.apiDomain} -> $baseUrl',
+      'Creating basic Dio instance for domain: ${_appConfig.apiDomain} -> $baseUrl',
     );
 
     final options = BaseOptions(
@@ -53,17 +58,14 @@ class DioFactory {
 
   /// Creates a Dio instance configured with authentication interceptors.
   /// Requires AuthApiClient and AuthCredentialsProvider for token refresh.
-  static Dio createAuthenticatedDio({
+  Dio createAuthenticatedDio({
     required AuthApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
   }) {
-    // Get AppConfig from the service locator
-    final appConfig = sl<AppConfig>();
-    // Create basic Dio using the AppConfig retrieved above (no need to pass env)
     final dio = createBasicDio();
 
-    if (appConfig.apiKey.isEmpty) {
+    if (_appConfig.apiKey.isEmpty) {
       _logger.w('API_KEY from AppConfig is empty!');
       // Depending on requirements, could throw an error here or allow proceeding
       // For now, we log a warning.
@@ -73,8 +75,8 @@ class DioFactory {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          if (appConfig.apiKey.isNotEmpty) {
-            options.headers['x-api-key'] = appConfig.apiKey;
+          if (_appConfig.apiKey.isNotEmpty) {
+            options.headers['x-api-key'] = _appConfig.apiKey;
             _logger.t('Injected x-api-key header.');
           } else {
             _logger.w('Skipping x-api-key header injection: Key not found.');
@@ -100,11 +102,12 @@ class DioFactory {
     return dio;
   }
 
-  /// Creates a basic Dio client with a mock AppConfig for testing
+  /// Creates a basic Dio client with a specific AppConfig for testing
   ///
   /// This allows tests to specify a custom AppConfig without needing to
-  /// register it in GetIt first
-  static Dio createBasicDioMocked(AppConfig mockConfig) {
+  /// instantiate the factory itself (useful for legacy tests perhaps).
+  /// NOTE: Prefer instantiating DioFactory with a mock config for new tests.
+  static Dio createBasicDioMocked(AppConfigInterface mockConfig) {
     final baseUrl = ApiConfig.baseUrlFromDomain(mockConfig.apiDomain);
     _logger.d('Creating basic Dio with mock config: baseUrl=$baseUrl');
 
@@ -118,14 +121,16 @@ class DioFactory {
     return Dio(options);
   }
 
-  /// Creates a Dio instance configured with authentication interceptors.
+  /// Creates an authenticated Dio instance with a specific AppConfig for testing.
   /// Suitable for tests where a mock AppConfig is provided
+  /// NOTE: Prefer instantiating DioFactory with a mock config for new tests.
   static Dio createAuthenticatedDioMocked({
     required AuthApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
-    required AppConfig mockConfig,
+    required AppConfigInterface mockConfig,
   }) {
+    // Use the static mocked basic dio creator
     final dio = createBasicDioMocked(mockConfig);
 
     if (mockConfig.apiKey.isEmpty) {

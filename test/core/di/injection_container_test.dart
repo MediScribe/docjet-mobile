@@ -135,12 +135,14 @@ void main() {
     PathProviderPlatform.instance = MockPathProviderPlatform();
     FlutterSecureStoragePlatform.instance = MockFlutterSecureStoragePlatform();
 
-    // Register a mock AuthSessionProvider for tests
+    // Register mocks NEEDED BY di.init() BEFORE it runs
+    // If di.init() expects certain types to be already registered (like mocks for testing),
+    // they should be registered here.
+    // Example: AuthSessionProvider seems needed by JobRepository
     sl.registerSingleton<AuthSessionProvider>(MockAuthSessionProvider());
   });
 
   tearDown(() {
-    // Just reset GetIt after each test.
     sl.reset();
   });
 
@@ -150,26 +152,17 @@ void main() {
     // Arrange: Ensure Flutter bindings are initialized
     TestWidgetsFlutterBinding.ensureInitialized();
 
-    // Act: Initialize the container within runAsync to avoid timing issues
+    // Act: Initialize the container
     await tester.runAsync(() async {
-      // Call di.init() to register all dependencies
       await di.init();
-
-      // Override the AuthSessionProvider with our mock
-      // This is necessary in case di.init() registers a real AuthSessionProvider
-      // (Though in this setup, the mock is registered before init)
-      if (sl.isRegistered<AuthSessionProvider>()) {
-        sl.unregister<AuthSessionProvider>();
-      }
-      sl.registerSingleton<AuthSessionProvider>(MockAuthSessionProvider());
     });
 
     // Assert: Try to resolve JobListCubit and check its type
     expect(() => sl<JobListCubit>(), returnsNormally);
-    expect(sl<JobListCubit>(), isA<JobListCubit>());
+    final cubit = sl<JobListCubit>();
+    expect(cubit, isA<JobListCubit>());
   });
 
-  // Renamed test, kept essential logic
   testWidgets('AppConfig registration and initialization', (
     WidgetTester tester,
   ) async {
@@ -177,10 +170,6 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
 
     logger.i('$tag Testing AppConfig registration as part of di.init()');
-
-    // Ensure isolation - sl should be clean at this point (handled by setUp/tearDown)
-
-    // Register mocks needed for initialization (handled by setUp)
 
     // Verify AppConfig isn't registered yet (before init)
     expect(
@@ -205,8 +194,6 @@ void main() {
     expect(() => sl<AppConfig>(), returnsNormally);
     final config = sl<AppConfig>();
     expect(config, isA<AppConfig>());
-    // Optionally check default value if needed:
-    // expect(config.apiDomain, 'staging.docjet.ai');
   });
 
   // Removed the excessive diagnostic tests

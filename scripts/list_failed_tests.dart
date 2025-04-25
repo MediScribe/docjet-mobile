@@ -55,7 +55,7 @@ void main(List<String> arguments) async {
     );
 
     final result = await runner.run(
-      argResults.rest,
+      testTargets,
       debugMode: debugMode,
       exceptMode: exceptMode,
       suppressDebugTests: suppressDebugTests,
@@ -185,7 +185,8 @@ class ProcessRunnerImpl implements ProcessRunner {
 
 /// Class to process test events and extract failed tests
 class TestEventProcessor {
-  Map<String, List<FailedTest>> extractFailedTests(
+  /// Processes a list of test events and returns the processed results.
+  ProcessedTestResult extractFailedTests(
     List<Map<String, dynamic>> allEvents,
     bool debugMode, {
     bool suppressDebugTests = true,
@@ -193,6 +194,7 @@ class TestEventProcessor {
     final Map<String, List<FailedTest>> failedTestsByFile = {};
     final Map<int, Map<String, dynamic>> errorEventsById = {};
     final Map<int, Map<String, dynamic>> testStartEventsById = {};
+    int totalTestsRun = 0; // Initialize total test counter
 
     // First pass: collect explicit error events and testStart events
     for (final event in allEvents) {
@@ -208,85 +210,93 @@ class TestEventProcessor {
       }
     }
 
-    // Second pass: process testDone events for failures/errors
+    // Second pass: process testDone events for failures/errors AND count totals
     for (final event in allEvents) {
-      if (event['type'] == 'testDone' &&
-          (event['result'] == 'failure' || event['result'] == 'error')) {
-        final int testId = event['testID'] as int? ?? -1;
-        if (testId == -1) {
-          stderr.writeln(
-            '[WARN] Found failed/error testDone event with missing testID: $event',
-          );
-          continue;
-        }
+      if (event['type'] == 'testDone') {
+        totalTestsRun++; // Count every test completion
 
-        final testStartEvent = testStartEventsById[testId];
-
-        // Add warning for missing test start event
-        if (testStartEvent == null) {
-          stderr.writeln(
-            '[WARN] Could not find testStart event for failed/error testID: $testId',
-          );
-          // Attempt to find *some* file association if possible, maybe from error?
-          // For now, we'll likely end up with unknown_file.dart below.
-        }
-
-        final testInfo = testStartEvent?['test'] as Map<String, dynamic>? ?? {};
-        String? filePathUrl = testInfo['url'] as String?;
-        final String testName =
-            testInfo['name'] as String? ?? 'Unknown Test Name';
-
-        String filePath;
-        if (filePathUrl != null && filePathUrl.isNotEmpty) {
-          filePath = _getRelativePath(filePathUrl);
-        } else if (testName.startsWith('loading ')) {
-          // Try extracting path from name for loading errors
-          final potentialPath = testName.substring('loading '.length);
-          // Basic check if it looks like a path
-          if (potentialPath.contains('/') && potentialPath.endsWith('.dart')) {
-            filePath = _getRelativePath(
-              potentialPath,
-            ); // Use existing helper, assumes it can handle absolute paths
-          } else {
-            filePath = 'unknown_file.dart'; // Fallback
-          }
-        } else {
-          filePath =
-              'unknown_file.dart'; // Fallback if no URL and not a loading error
-          if (testStartEvent != null) {
-            // Only warn if we actually had a start event but no URL
+        if (event['result'] == 'failure' || event['result'] == 'error') {
+          final int testId = event['testID'] as int? ?? -1;
+          if (testId == -1) {
             stderr.writeln(
-              '[WARN] Test $testName (ID: $testId) failed but has no associated file URL. Grouping under unknown_file.dart.',
+              '[WARN] Found failed/error testDone event with missing testID: $event',
             );
+            continue;
           }
+
+          final testStartEvent = testStartEventsById[testId];
+
+          // Add warning for missing test start event
+          if (testStartEvent == null) {
+            stderr.writeln(
+              '[WARN] Could not find testStart event for failed/error testID: $testId',
+            );
+            // Attempt to find *some* file association if possible, maybe from error?
+            // For now, we'll likely end up with unknown_file.dart below.
+          }
+
+          final testInfo =
+              testStartEvent?['test'] as Map<String, dynamic>? ?? {};
+          String? filePathUrl = testInfo['url'] as String?;
+          final String testName =
+              testInfo['name'] as String? ?? 'Unknown Test Name';
+
+          String filePath;
+          if (filePathUrl != null && filePathUrl.isNotEmpty) {
+            filePath = _getRelativePath(filePathUrl);
+          } else if (testName.startsWith('loading ')) {
+            // Try extracting path from name for loading errors
+            final potentialPath = testName.substring('loading '.length);
+            // Basic check if it looks like a path
+            if (potentialPath.contains('/') &&
+                potentialPath.endsWith('.dart')) {
+              filePath = _getRelativePath(
+                potentialPath,
+              ); // Use existing helper, assumes it can handle absolute paths
+            } else {
+              filePath = 'unknown_file.dart'; // Fallback
+            }
+          } else {
+            filePath =
+                'unknown_file.dart'; // Fallback if no URL and not a loading error
+            if (testStartEvent != null) {
+              // Only warn if we actually had a start event but no URL
+              stderr.writeln(
+                '[WARN] Test $testName (ID: $testId) failed but has no associated file URL. Grouping under unknown_file.dart.',
+              );
+            }
+          }
+
+          // Skip debug_test.dart unless explicitly targeted
+          if (suppressDebugTests && filePath.contains('debug_test.dart')) {
+            continue;
+          }
+
+          // Get error information
+          final errorEvent = errorEventsById[testId];
+          final String? error =
+              errorEvent?['error'] as String? ?? event['error'] as String?;
+          final String? stackTrace =
+              errorEvent?['stackTrace'] as String? ??
+              event['stackTrace'] as String?;
+
+          final failedTest = FailedTest(
+            id: testId,
+            name: testName,
+            error: error,
+            stackTrace: stackTrace,
+            testDoneEvent: event,
+            errorEvent: errorEvent,
+          );
+
+          failedTestsByFile.putIfAbsent(filePath, () => []).add(failedTest);
         }
-
-        // Skip debug_test.dart unless explicitly targeted
-        if (suppressDebugTests && filePath.contains('debug_test.dart')) {
-          continue;
-        }
-
-        // Get error information
-        final errorEvent = errorEventsById[testId];
-        final String? error =
-            errorEvent?['error'] as String? ?? event['error'] as String?;
-        final String? stackTrace =
-            errorEvent?['stackTrace'] as String? ??
-            event['stackTrace'] as String?;
-
-        final failedTest = FailedTest(
-          id: testId,
-          name: testName,
-          error: error,
-          stackTrace: stackTrace,
-          testDoneEvent: event,
-          errorEvent: errorEvent,
-        );
-
-        failedTestsByFile.putIfAbsent(filePath, () => []).add(failedTest);
       }
     }
-    return failedTestsByFile;
+    return ProcessedTestResult(
+      failedTestsByFile: failedTestsByFile,
+      totalTestsRun: totalTestsRun,
+    );
   }
 
   String _getRelativePath(String? pathOrUrl) {
@@ -331,23 +341,24 @@ class FailedTest {
 /// Class to handle test result formatting
 class ResultFormatter {
   void printResults(TestRunResult result, bool debugMode, bool exceptMode) {
-    if (result.failedTestsByFile.isEmpty) {
+    final int failedCount = result.totalTestsFailed;
+    final int totalCount = result.totalTestsRun;
+
+    if (failedCount == 0) {
       print('No failed tests found.');
+      print('All $totalCount tests passed.'); // Summary for passed tests
 
       // Add tip about specifying test target if no target was provided
       if (result.testTargets == null || result.testTargets!.isEmpty) {
         print('');
         print(
-          '\x1B[33mTip: You can run with specific paths or directories to test only a subset of tests:\x1B[0m',
+          '\x1B[33mTip: You can run with a specific path or directory to test only a subset of tests:\x1B[0m',
         );
         print(
           '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file.dart\x1B[0m',
         );
         print(
           '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_directory\x1B[0m',
-        );
-        print(
-          '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file1.dart path/to/test_file2.dart\x1B[0m',
         );
       }
       return;
@@ -368,14 +379,15 @@ class ResultFormatter {
     }
 
     // Add helpful hints
-    if (!debugMode && !exceptMode) {
+    if (!debugMode && !exceptMode && failedCount > 0) {
+      // Only show debug tip if tests failed
       print('');
       print(
         '\x1B[33mTip: Run with --debug to see console output from the failing tests.\x1B[0m',
       );
     }
-    if (!exceptMode) {
-      // Show except tip unless already in except mode
+    if (!exceptMode && failedCount > 0) {
+      // Only show except tip if tests failed
       print(
         '\x1B[33mTip: Run with --except to see exception details (grouped by file).\x1B[0m',
       );
@@ -385,7 +397,7 @@ class ResultFormatter {
     if (result.testTargets == null || result.testTargets!.isEmpty) {
       print('');
       print(
-        '\x1B[33mTip: You can run with specific paths or directories to test only a subset of tests:\x1B[0m',
+        '\x1B[33mTip: You can run with a specific path or directory to test only a subset of tests:\x1B[0m',
       );
       print(
         '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file.dart\x1B[0m',
@@ -397,6 +409,17 @@ class ResultFormatter {
         '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file1.dart path/to/test_file2.dart\x1B[0m',
       );
     }
+
+    // --- Add Summary ---
+    print(''); // Blank line before summary
+    if (failedCount > 0) {
+      print(
+        '[31mSummary: $failedCount/$totalCount tests failed.[0m',
+      ); // Red summary
+    } else {
+      // Already printed "All X tests passed." above if failedCount is 0
+    }
+    // --- End Summary ---
   }
 
   // Renamed and refactored from _printFailedTestDetails
@@ -574,7 +597,6 @@ class FailedTestRunner {
   }) async {
     final List<String> testTargets = args.isNotEmpty ? args : [];
     final arguments = ['test', '--machine'];
-    // Add all test targets to the arguments
     if (testTargets.isNotEmpty) {
       arguments.addAll(testTargets);
     }
@@ -616,17 +638,19 @@ class FailedTestRunner {
 
     print('Processing ${allEvents.length} test events...');
 
-    final failedTestsByFile = eventProcessor.extractFailedTests(
+    final processedResult = eventProcessor.extractFailedTests(
       allEvents,
       debugMode,
       suppressDebugTests: suppressDebugTests,
     );
 
     return TestRunResult(
-      failedTestsByFile: failedTestsByFile,
+      failedTestsByFile: processedResult.failedTestsByFile,
       allEvents: allEvents,
       exitCode: processResult.exitCode,
-      testTargets: testTargets,
+      testTargets: testTargets.isNotEmpty ? testTargets : null,
+      totalTestsRun: processedResult.totalTestsRun,
+      totalTestsFailed: processedResult.totalTestsFailed,
     );
   }
 
@@ -666,11 +690,30 @@ class TestRunResult {
   final List<Map<String, dynamic>> allEvents;
   final int exitCode;
   final List<String>? testTargets;
+  final int totalTestsRun;
+  final int totalTestsFailed;
 
   TestRunResult({
     required this.failedTestsByFile,
     required this.allEvents,
     required this.exitCode,
     this.testTargets,
+    required this.totalTestsRun,
+    required this.totalTestsFailed,
   });
+}
+
+// --- Corrected Class to hold processed results ---
+class ProcessedTestResult {
+  final Map<String, List<FailedTest>> failedTestsByFile;
+  final int totalTestsRun;
+  final int totalTestsFailed;
+
+  ProcessedTestResult({
+    required this.failedTestsByFile,
+    required this.totalTestsRun,
+  }) : totalTestsFailed = failedTestsByFile.values.fold(
+         0,
+         (sum, list) => sum + list.length,
+       );
 }

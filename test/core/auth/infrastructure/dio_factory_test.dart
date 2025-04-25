@@ -5,39 +5,54 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
 
-@GenerateMocks([AuthApiClient, AuthCredentialsProvider, AuthEventBus])
+@GenerateMocks([
+  AuthApiClient,
+  AuthCredentialsProvider,
+  AuthEventBus,
+  AppConfigInterface,
+])
 import 'dio_factory_test.mocks.dart';
 
 void main() {
   late MockAuthApiClient mockApiClient;
   late MockAuthCredentialsProvider mockCredProvider;
   late MockAuthEventBus mockAuthEventBus;
-  final container = GetIt.instance;
+  late MockAppConfigInterface mockAppConfig;
 
   setUp(() {
     mockApiClient = MockAuthApiClient();
     mockCredProvider = MockAuthCredentialsProvider();
     mockAuthEventBus = MockAuthEventBus();
-    container.reset(); // Reset GetIt before each test
+    mockAppConfig = MockAppConfigInterface();
 
-    // DO NOT register default here, register in each test or group as needed
-    // container.registerSingleton<AppConfig>(AppConfig.fromEnvironment());
+    // Default stubbing for mockAppConfig used in instance-based tests
+    when(mockAppConfig.apiDomain).thenReturn('default.test.com');
+    when(mockAppConfig.apiKey).thenReturn('default-test-key');
   });
 
-  group('DioFactory', () {
+  // Refactored legacy tests to use the instance-based approach
+  group('DioFactory (Refactored Legacy Tests)', () {
+    // Helper to create factory with specific config for these tests
+    DioFactory createFactory(AppConfigInterface config) {
+      return DioFactory(appConfig: config);
+    }
+
     test('DioFactory uses AppConfig for domain configuration', () {
-      // Arrange: Override default config
-      container.registerSingleton<AppConfig>(
-        AppConfig.test(apiDomain: 'test.example.com', apiKey: 'test-key'),
+      // Arrange: Create specific config for this test
+      final testConfig = AppConfig.test(
+        apiDomain: 'test.example.com',
+        apiKey: 'test-key',
       );
+      final dioFactory = createFactory(testConfig);
 
       // Act
-      final dio = DioFactory.createBasicDio();
+      final dio = dioFactory.createBasicDio(); // Use instance method
 
       // Assert
       expect(dio.options.baseUrl, contains('test.example.com'));
@@ -47,11 +62,12 @@ void main() {
       test(
         'should return configured Dio instance with default staging URL when using default AppConfig',
         () {
-          // Arrange: Explicitly register the default config for this test
-          container.registerSingleton<AppConfig>(AppConfig.fromEnvironment());
+          // Arrange: Use the default environment config
+          final testConfig = AppConfig.fromEnvironment();
+          final dioFactory = createFactory(testConfig);
 
           // Act
-          final dio = DioFactory.createBasicDio();
+          final dio = dioFactory.createBasicDio(); // Use instance method
 
           // Assert
           expect(dio, isA<Dio>());
@@ -68,7 +84,10 @@ void main() {
             equals(const Duration(seconds: 30)),
           );
           expect(dio.options.contentType, equals('application/json'));
-          expect(dio.options.headers.containsKey('X-API-Key'), isFalse);
+          expect(
+            dio.options.headers.containsKey('x-api-key'),
+            isFalse,
+          ); // Corrected assertion key
         },
       );
 
@@ -77,18 +96,20 @@ void main() {
         () {
           // Arrange
           const testDomain = 'localhost:8080';
-          container.registerSingleton<AppConfig>(
-            AppConfig.test(apiDomain: testDomain, apiKey: ''),
-          );
+          final testConfig = AppConfig.test(apiDomain: testDomain, apiKey: '');
+          final dioFactory = createFactory(testConfig);
 
           // Act
-          final dio = DioFactory.createBasicDio();
+          final dio = dioFactory.createBasicDio(); // Use instance method
 
           // Assert
           final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
           expect(dio.options.baseUrl, expectedBaseUrl);
           expect(dio.options.baseUrl, startsWith('http://'));
-          expect(dio.options.headers.containsKey('X-API-Key'), isFalse);
+          expect(
+            dio.options.headers.containsKey('x-api-key'),
+            isFalse,
+          ); // Corrected assertion key
         },
       );
 
@@ -97,22 +118,20 @@ void main() {
         () {
           // Arrange
           const testDomain = 'api.test.com';
-          // Unregister default if exists, then register test-specific
-          if (container.isRegistered<AppConfig>()) {
-            container.unregister<AppConfig>();
-          }
-          container.registerSingleton<AppConfig>(
-            AppConfig.test(apiDomain: testDomain, apiKey: ''),
-          );
+          final testConfig = AppConfig.test(apiDomain: testDomain, apiKey: '');
+          final dioFactory = createFactory(testConfig);
 
           // Act
-          final dio = DioFactory.createBasicDio();
+          final dio = dioFactory.createBasicDio(); // Use instance method
 
           // Assert
           final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
           expect(dio.options.baseUrl, expectedBaseUrl);
           expect(dio.options.baseUrl, startsWith('https://'));
-          expect(dio.options.headers.containsKey('X-API-Key'), isFalse);
+          expect(
+            dio.options.headers.containsKey('x-api-key'),
+            isFalse,
+          ); // Corrected assertion key
         },
       );
     });
@@ -123,12 +142,15 @@ void main() {
         () {
           // Arrange
           const testApiKey = 'test-key-123';
-          container.registerSingleton<AppConfig>(
-            AppConfig.test(apiDomain: 'staging.docjet.ai', apiKey: testApiKey),
+          final testConfig = AppConfig.test(
+            apiDomain: 'staging.docjet.ai',
+            apiKey: testApiKey,
           );
+          final dioFactory = createFactory(testConfig);
 
           // Act
-          final dio = DioFactory.createAuthenticatedDio(
+          final dio = dioFactory.createAuthenticatedDio(
+            // Use instance method
             authApiClient: mockApiClient,
             credentialsProvider: mockCredProvider,
             authEventBus: mockAuthEventBus,
@@ -156,7 +178,10 @@ void main() {
             final options = RequestOptions(path: '/test');
             final handler = RequestInterceptorHandler();
             // ignore: invalid_use_of_internal_member
-            interceptor.onRequest(options, handler);
+            interceptor.onRequest.call(
+              options,
+              handler,
+            ); // Use ?.call for safety
 
             if (options.headers.containsKey('x-api-key') &&
                 options.headers['x-api-key'] == testApiKey) {
@@ -176,19 +201,15 @@ void main() {
         'should NOT add X-API-Key header if API_KEY in AppConfig is missing',
         () {
           // Arrange
-          // Unregister default if exists, then register test-specific
-          if (container.isRegistered<AppConfig>()) {
-            container.unregister<AppConfig>();
-          }
-          container.registerSingleton<AppConfig>(
-            AppConfig.test(
-              apiDomain: 'staging.docjet.ai',
-              apiKey: '',
-            ), // No API Key
+          final testConfig = AppConfig.test(
+            apiDomain: 'staging.docjet.ai',
+            apiKey: '', // No API Key
           );
+          final dioFactory = createFactory(testConfig);
 
           // Act
-          final dio = DioFactory.createAuthenticatedDio(
+          final dio = dioFactory.createAuthenticatedDio(
+            // Use instance method
             authApiClient: mockApiClient,
             credentialsProvider: mockCredProvider,
             authEventBus: mockAuthEventBus,
@@ -203,7 +224,10 @@ void main() {
             final options = RequestOptions(path: '/test');
             final handler = RequestInterceptorHandler();
             // ignore: invalid_use_of_internal_member
-            interceptor.onRequest(options, handler);
+            interceptor.onRequest.call(
+              options,
+              handler,
+            ); // Use ?.call for safety
 
             if (options.headers.containsKey('x-api-key')) {
               headerFound = true;
@@ -223,12 +247,15 @@ void main() {
       test('should use API_DOMAIN from AppConfig for base URL', () {
         // Arrange
         const testDomain = 'auth.test.com';
-        container.registerSingleton<AppConfig>(
-          AppConfig.test(apiDomain: testDomain, apiKey: 'dummy-key'),
+        final testConfig = AppConfig.test(
+          apiDomain: testDomain,
+          apiKey: 'dummy-key',
         );
+        final dioFactory = createFactory(testConfig);
 
         // Act
-        final dio = DioFactory.createAuthenticatedDio(
+        final dio = dioFactory.createAuthenticatedDio(
+          // Use instance method
           authApiClient: mockApiClient,
           credentialsProvider: mockCredProvider,
           authEventBus: mockAuthEventBus,
@@ -240,7 +267,137 @@ void main() {
         expect(dio.options.baseUrl, startsWith('https://'));
       });
     });
+  }); // End of Refactored Legacy Tests
 
-    // Removed the Environment Variable Loading group as getEnvironmentValue is deleted
-  });
+  group('Instance-Based DioFactory', () {
+    // Keep the new tests as they were
+    test('createBasicDio uses apiDomain from injected AppConfig', () {
+      // Arrange
+      const testDomain = 'instance.test.dev';
+      when(mockAppConfig.apiDomain).thenReturn(testDomain);
+      when(mockAppConfig.apiKey).thenReturn(''); // Ensure no API key for basic
+
+      // Instantiate the factory directly with the mock config
+      final dioFactory = DioFactory(appConfig: mockAppConfig);
+
+      // Act
+      final dio = dioFactory.createBasicDio();
+
+      // Assert
+      final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
+      expect(dio.options.baseUrl, expectedBaseUrl);
+      expect(
+        dio.options.baseUrl,
+        startsWith('https://'),
+      ); // Assuming test domain is remote
+      expect(dio.options.headers.containsKey('x-api-key'), isFalse);
+    });
+
+    test(
+      'createBasicDio uses http for localhost domain from injected AppConfig',
+      () {
+        // Arrange
+        const testDomain = 'localhost:9999';
+        when(mockAppConfig.apiDomain).thenReturn(testDomain);
+        when(mockAppConfig.apiKey).thenReturn('');
+
+        final dioFactory = DioFactory(appConfig: mockAppConfig);
+
+        // Act
+        final dio = dioFactory.createBasicDio();
+
+        // Assert
+        final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
+        expect(dio.options.baseUrl, expectedBaseUrl);
+        expect(dio.options.baseUrl, startsWith('http://'));
+      },
+    );
+
+    test('createAuthenticatedDio uses apiKey from injected AppConfig', () {
+      // Arrange
+      const testDomain = 'auth-instance.test.dev';
+      const testApiKey = 'instance-api-key-456';
+      when(mockAppConfig.apiDomain).thenReturn(testDomain);
+      when(mockAppConfig.apiKey).thenReturn(testApiKey);
+
+      final dioFactory = DioFactory(appConfig: mockAppConfig);
+
+      // Act
+      final dio = dioFactory.createAuthenticatedDio(
+        authApiClient: mockApiClient,
+        credentialsProvider: mockCredProvider,
+        authEventBus: mockAuthEventBus,
+      );
+
+      // Assert
+      final expectedBaseUrl = ApiConfig.baseUrlFromDomain(testDomain);
+      expect(dio.options.baseUrl, expectedBaseUrl);
+
+      // Verify API Key interceptor
+      final apiKeyInterceptors =
+          dio.interceptors.whereType<InterceptorsWrapper>();
+      expect(apiKeyInterceptors.isNotEmpty, isTrue);
+      bool apiKeyHeaderCorrect = false;
+      for (final interceptor in apiKeyInterceptors) {
+        final options = RequestOptions(path: '/test');
+        final handler = RequestInterceptorHandler();
+        // ignore: invalid_use_of_internal_member
+        interceptor.onRequest.call(
+          options,
+          handler,
+        ); // Check if onRequest is non-null before calling
+        if (options.headers['x-api-key'] == testApiKey) {
+          apiKeyHeaderCorrect = true;
+          break;
+        }
+      }
+      expect(
+        apiKeyHeaderCorrect,
+        isTrue,
+        reason: 'API Key should be injected from AppConfig',
+      );
+
+      // Verify Auth interceptor
+      expect(dio.interceptors.whereType<AuthInterceptor>().length, equals(1));
+    });
+
+    test(
+      'createAuthenticatedDio does NOT inject apiKey if missing in AppConfig',
+      () {
+        // Arrange
+        const testDomain = 'no-key-instance.test.dev';
+        when(mockAppConfig.apiDomain).thenReturn(testDomain);
+        when(mockAppConfig.apiKey).thenReturn(''); // Empty API Key
+
+        final dioFactory = DioFactory(appConfig: mockAppConfig);
+
+        // Act
+        final dio = dioFactory.createAuthenticatedDio(
+          authApiClient: mockApiClient,
+          credentialsProvider: mockCredProvider,
+          authEventBus: mockAuthEventBus,
+        );
+
+        // Assert
+        final apiKeyInterceptors =
+            dio.interceptors.whereType<InterceptorsWrapper>();
+        bool headerFound = false;
+        for (final interceptor in apiKeyInterceptors) {
+          final options = RequestOptions(path: '/test');
+          final handler = RequestInterceptorHandler();
+          // ignore: invalid_use_of_internal_member
+          interceptor.onRequest.call(options, handler);
+          if (options.headers.containsKey('x-api-key')) {
+            headerFound = true;
+            break;
+          }
+        }
+        expect(
+          headerFound,
+          isFalse,
+          reason: 'API Key header should NOT be set',
+        );
+      },
+    );
+  }); // End of Instance-Based DioFactory tests
 }

@@ -13,7 +13,9 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart'
     as _i5;
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart'
     as _i4;
+import 'package:docjet_mobile/core/interfaces/app_config_interface.dart' as _i9;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i10;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -295,4 +297,38 @@ class MockAuthEventBus extends _i1.Mock implements _i7.AuthEventBus {
         ),
         returnValueForMissingStub: null,
       );
+}
+
+/// A class which mocks [AppConfigInterface].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAppConfigInterface extends _i1.Mock
+    implements _i9.AppConfigInterface {
+  MockAppConfigInterface() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  String get apiDomain => (super.noSuchMethod(
+        Invocation.getter(#apiDomain),
+        returnValue: _i10.dummyValue<String>(
+          this,
+          Invocation.getter(#apiDomain),
+        ),
+      ) as String);
+
+  @override
+  String get apiKey => (super.noSuchMethod(
+        Invocation.getter(#apiKey),
+        returnValue: _i10.dummyValue<String>(
+          this,
+          Invocation.getter(#apiKey),
+        ),
+      ) as String);
+
+  @override
+  bool get isDevelopment => (super.noSuchMethod(
+        Invocation.getter(#isDevelopment),
+        returnValue: false,
+      ) as bool);
 }

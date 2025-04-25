@@ -31,17 +31,18 @@ import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Add interface import
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'; // Add concrete class import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
-import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Add AuthSessionProvider import
+// Add AuthSessionProvider import
 import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService import
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart'; // Add AuthApiClient import
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; // Add AuthServiceImpl import
-import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // Add SecureStorageAuthSessionProvider
+// Add SecureStorageAuthSessionProvider
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart'; // Import DioFactory
 import 'package:docjet_mobile/core/config/app_config.dart'; // Import AppConfig
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger helpers
+import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart'; // Import AuthModule
 
 final sl = GetIt.instance;
 
@@ -96,13 +97,10 @@ Future<void> init() async {
   logger.d('$tag Hive initialization complete');
 
   // --- Register AppConfig ---
-  // Check if AppConfig is *already* registered (e.g., by an override from main_dev.dart)
   if (!sl.isRegistered<AppConfig>()) {
     logger.d(
       '$tag AppConfig NOT registered, registering default from environment...',
     );
-    // Use fromEnvironment directly as the default non-overridden case.
-    // We remove the isDevMode check here, as dev mode is handled by the override in main_dev.dart
     final appConfig = AppConfig.fromEnvironment();
     sl.registerSingleton<AppConfig>(appConfig);
     logger.d('$tag Registered DEFAULT AppConfig: ${appConfig.toString()}');
@@ -121,83 +119,97 @@ Future<void> init() async {
     '$tag Before registering other dependencies - AppConfig still registered? ${sl.isRegistered<AppConfig>()}',
   );
 
-  // Repository (depends on services)
-  sl.registerLazySingleton<JobRepository>(
-    () => JobRepositoryImpl(
-      readerService: sl(),
-      writerService: sl(),
-      deleterService: sl(),
-      orchestratorService: sl<JobSyncOrchestratorService>(),
-      authSessionProvider: sl(),
-      authEventBus: sl(),
-      localDataSource: sl(),
-    ),
-  );
+  // Repository
+  if (!sl.isRegistered<JobRepository>()) {
+    sl.registerLazySingleton<JobRepository>(
+      () => JobRepositoryImpl(
+        readerService: sl(),
+        writerService: sl(),
+        deleterService: sl(),
+        orchestratorService: sl<JobSyncOrchestratorService>(),
+        authSessionProvider: sl(),
+        authEventBus: sl(),
+        localDataSource: sl(),
+      ),
+    );
+  }
 
-  // Services (depend on data sources, core utils)
-  sl.registerLazySingleton<JobReaderService>(
-    () => JobReaderService(
-      localDataSource: sl(),
-      remoteDataSource: sl(),
-      deleterService: sl<JobDeleterService>(),
-      networkInfo: sl<NetworkInfo>(),
-    ),
-  );
-  sl.registerLazySingleton<JobWriterService>(
-    () => JobWriterService(
-      localDataSource: sl(),
-      uuid: sl(),
-      authSessionProvider: sl(),
-    ),
-  );
-  sl.registerLazySingleton<JobDeleterService>(
-    () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),
-  );
-  sl.registerLazySingleton<JobSyncProcessorService>(
-    () => JobSyncProcessorService(
-      localDataSource: sl(),
-      remoteDataSource: sl(),
-      fileSystem: sl(),
-    ),
-  );
-  sl.registerLazySingleton<JobSyncOrchestratorService>(
-    () => JobSyncOrchestratorService(
-      localDataSource: sl(),
-      networkInfo: sl(),
-      processorService: sl(),
-    ),
-  );
+  // Services
+  if (!sl.isRegistered<JobReaderService>()) {
+    sl.registerLazySingleton<JobReaderService>(
+      () => JobReaderService(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+        deleterService: sl<JobDeleterService>(),
+        networkInfo: sl<NetworkInfo>(),
+      ),
+    );
+  }
+  if (!sl.isRegistered<JobWriterService>()) {
+    sl.registerLazySingleton<JobWriterService>(
+      () => JobWriterService(
+        localDataSource: sl(),
+        uuid: sl(),
+        authSessionProvider: sl(),
+      ),
+    );
+  }
+  if (!sl.isRegistered<JobDeleterService>()) {
+    sl.registerLazySingleton<JobDeleterService>(
+      () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),
+    );
+  }
+  if (!sl.isRegistered<JobSyncProcessorService>()) {
+    sl.registerLazySingleton<JobSyncProcessorService>(
+      () => JobSyncProcessorService(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+        fileSystem: sl(),
+      ),
+    );
+  }
+  if (!sl.isRegistered<JobSyncOrchestratorService>()) {
+    sl.registerLazySingleton<JobSyncOrchestratorService>(
+      () => JobSyncOrchestratorService(
+        localDataSource: sl(),
+        networkInfo: sl(),
+        processorService: sl(),
+      ),
+    );
+  }
 
-  // Data Sources Interfaces (depend on core services like DB, API Client)
-  // Register JobLocalDataSourceImpl (using HiveInterface)
-  sl.registerLazySingleton<JobLocalDataSource>(
-    () => HiveJobLocalDataSourceImpl(hive: sl()), // Depends on HiveInterface
-  );
-  // Register JobRemoteDataSourceImpl (using Dio)
-  sl.registerLazySingleton<JobRemoteDataSource>(
-    () => ApiJobRemoteDataSourceImpl(
-      dio: sl(),
-      authCredentialsProvider: sl(),
-      authSessionProvider: sl(),
-    ), // Depends on Dio, AuthCredentialsProvider, and AuthSessionProvider
-  );
+  // Data Sources Interfaces
+  if (!sl.isRegistered<JobLocalDataSource>()) {
+    sl.registerLazySingleton<JobLocalDataSource>(
+      () => HiveJobLocalDataSourceImpl(hive: sl()),
+    );
+  }
+  // NOTE: JobRemoteDataSource registration moved below Dio instances
 
-  // Features - Jobs - Domain - Use Cases (Register necessary use cases)
-  sl.registerLazySingleton(() => WatchJobByIdUseCase(repository: sl()));
-  sl.registerLazySingleton(() => WatchJobsUseCase(repository: sl()));
-  sl.registerLazySingleton(() => CreateJobUseCase(sl()));
+  // Use Cases
+  if (!sl.isRegistered<WatchJobByIdUseCase>()) {
+    sl.registerLazySingleton(() => WatchJobByIdUseCase(repository: sl()));
+  }
+  if (!sl.isRegistered<WatchJobsUseCase>()) {
+    sl.registerLazySingleton(() => WatchJobsUseCase(repository: sl()));
+  }
+  if (!sl.isRegistered<CreateJobUseCase>()) {
+    sl.registerLazySingleton(() => CreateJobUseCase(sl()));
+  }
 
-  // Register mapper for view models
-  sl.registerLazySingleton(() => JobViewModelMapper());
+  // Mapper
+  if (!sl.isRegistered<JobViewModelMapper>()) {
+    sl.registerLazySingleton(() => JobViewModelMapper());
+  }
 
-  // Features - Jobs - Presentation
+  // Presentation
+  // Factories don't usually need checks, they create new instances
   sl.registerFactoryParam<JobDetailCubit, String, void>(
     (localId, _) => JobDetailCubit(
       watchJobByIdUseCase: sl<WatchJobByIdUseCase>(),
       jobId: localId,
     ),
   );
-
   sl.registerFactory<JobListCubit>(
     () => JobListCubit(
       watchJobsUseCase: sl<WatchJobsUseCase>(),
@@ -207,83 +219,125 @@ Future<void> init() async {
 
   // --- Core Dependencies ---
 
-  // Register AuthEventBus using GetIt
-  sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
+  if (!sl.isRegistered<AuthEventBus>()) {
+    sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
+  }
 
   // External
-  sl.registerLazySingleton<Uuid>(() => const Uuid());
-  sl.registerLazySingleton<Dio>(() => Dio()); // Basic Dio instance
-  sl.registerLazySingleton<Connectivity>(() => Connectivity());
+  if (!sl.isRegistered<Uuid>()) {
+    sl.registerLazySingleton<Uuid>(() => const Uuid());
+  }
+  // NOTE: Basic Dio instance without name removed - only named instances used now
+  // if (!sl.isRegistered<Dio>()) {
+  //   sl.registerLazySingleton<Dio>(() => Dio());
+  // }
+  if (!sl.isRegistered<Connectivity>()) {
+    sl.registerLazySingleton<Connectivity>(() => Connectivity());
+  }
+  if (!sl.isRegistered<HiveInterface>()) {
+    sl.registerLazySingleton<HiveInterface>(() => Hive);
+  }
+  if (!sl.isRegistered<FlutterSecureStorage>()) {
+    sl.registerLazySingleton<FlutterSecureStorage>(
+      () => const FlutterSecureStorage(),
+    );
+  }
+  if (!sl.isRegistered<JwtValidator>()) {
+    sl.registerLazySingleton<JwtValidator>(() => JwtValidator());
+  }
 
-  // Register HiveInterface now that it's initialized and boxes are open
-  sl.registerLazySingleton<HiveInterface>(() => Hive);
+  // Auth Concrete Provider
+  if (!sl.isRegistered<SecureStorageAuthCredentialsProvider>()) {
+    sl.registerLazySingleton<SecureStorageAuthCredentialsProvider>(
+      () => SecureStorageAuthCredentialsProvider(
+        secureStorage: sl(),
+        jwtValidator: sl(),
+      ),
+    );
+  }
+  // Auth Interface Provider
+  if (!sl.isRegistered<AuthCredentialsProvider>()) {
+    sl.registerLazySingleton<AuthCredentialsProvider>(
+      () => sl<SecureStorageAuthCredentialsProvider>(),
+    );
+  }
 
-  // Register FlutterSecureStorage FIRST
-  sl.registerLazySingleton<FlutterSecureStorage>(
-    () => const FlutterSecureStorage(),
-  );
+  // --- DioFactory and Named Dio Instances ---
+  if (!sl.isRegistered<DioFactory>()) {
+    sl.registerLazySingleton<DioFactory>(
+      () => DioFactory(appConfig: sl<AppConfig>()),
+    );
+  }
+  if (!sl.isRegistered<Dio>(instanceName: 'basicDio')) {
+    sl.registerLazySingleton<Dio>(
+      () => sl<DioFactory>().createBasicDio(),
+      instanceName: 'basicDio',
+    );
+  }
+  if (!sl.isRegistered<AuthApiClient>()) {
+    sl.registerLazySingleton<AuthApiClient>(
+      () => AuthApiClient(
+        httpClient: sl<Dio>(instanceName: 'basicDio'),
+        credentialsProvider: sl<AuthCredentialsProvider>(),
+      ),
+    );
+  }
+  if (!sl.isRegistered<Dio>(instanceName: 'authenticatedDio')) {
+    sl.registerLazySingleton<Dio>(
+      () => sl<DioFactory>().createAuthenticatedDio(
+        authApiClient: sl(),
+        credentialsProvider: sl(),
+        authEventBus: sl(),
+      ),
+      instanceName: 'authenticatedDio',
+    );
+  }
 
-  // Register the JwtValidator
-  sl.registerLazySingleton<JwtValidator>(() => JwtValidator());
+  // --- Call Auth Module Registration ---
+  // This ensures AuthService and AuthSessionProvider are registered
+  // respecting any mocks provided in tests or overrides.
+  AuthModule.register(sl);
+  logger.d('$tag AuthModule registration complete.');
 
-  // Register the concrete provider (CORRECTED)
-  sl.registerLazySingleton<SecureStorageAuthCredentialsProvider>(
-    () => SecureStorageAuthCredentialsProvider(
-      secureStorage: sl(),
-      jwtValidator: sl(), // Add JwtValidator injection
-    ),
-  );
+  // --- Dependencies using Named Dio ---
+  if (!sl.isRegistered<JobRemoteDataSource>()) {
+    sl.registerLazySingleton<JobRemoteDataSource>(
+      () => ApiJobRemoteDataSourceImpl(
+        dio: sl(instanceName: 'authenticatedDio'),
+        authCredentialsProvider: sl(),
+        authSessionProvider: sl(),
+      ),
+    );
+  }
 
-  // Register the AuthCredentialsProvider INTERFACE
-  // This now points to the correctly configured concrete instance
-  sl.registerLazySingleton<AuthCredentialsProvider>(
-    () => sl<SecureStorageAuthCredentialsProvider>(),
-  );
+  // --- Remaining Auth Components ---
+  if (!sl.isRegistered<AuthService>()) {
+    sl.registerLazySingleton<AuthService>(
+      () => AuthServiceImpl(
+        apiClient: sl<AuthApiClient>(),
+        credentialsProvider: sl<AuthCredentialsProvider>(),
+        eventBus: sl<AuthEventBus>(),
+      ),
+    );
+  }
+  // NOTE: AuthSessionProvider registration is typically done in tests or specific entry points
+  // if (!sl.isRegistered<AuthSessionProvider>()) {
+  //   sl.registerLazySingleton<AuthSessionProvider>(
+  //     () => SecureStorageAuthSessionProvider(
+  //       credentialsProvider: sl(),
+  //     ),
+  //   );
+  // }
 
-  // Register a basic Dio instance for auth API client
-  sl.registerLazySingleton<Dio>(
-    () =>
-        DioFactory.createBasicDio(), // Use DioFactory to get proper URL from environment
-    instanceName: 'basicDio',
-  );
+  // --- Platform Interfaces ---
+  if (!sl.isRegistered<FileSystem>()) {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final documentsPath = appDocDir.path;
+    sl.registerLazySingleton<FileSystem>(() => IoFileSystem(documentsPath));
+  }
+  if (!sl.isRegistered<NetworkInfo>()) {
+    sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
+  }
 
-  // Register the real AuthApiClient
-  sl.registerLazySingleton<AuthApiClient>(
-    () => AuthApiClient(
-      httpClient: sl<Dio>(instanceName: 'basicDio'),
-      credentialsProvider: sl<AuthCredentialsProvider>(),
-    ),
-  );
-
-  // Register AuthService with real implementation for development/testing
-  sl.registerLazySingleton<AuthService>(
-    () => AuthServiceImpl(
-      apiClient: sl<AuthApiClient>(),
-      credentialsProvider: sl<AuthCredentialsProvider>(),
-      eventBus: sl<AuthEventBus>(),
-    ),
-  );
-
-  // Register the AuthSessionProvider with SecureStorageAuthSessionProvider implementation
-  sl.registerLazySingleton<AuthSessionProvider>(
-    () => SecureStorageAuthSessionProvider(
-      credentialsProvider: sl(), // Use the registered AuthCredentialsProvider
-    ),
-  );
-
-  // Get document path once during init
-  final appDocDir = await getApplicationDocumentsDirectory();
-  final documentsPath = appDocDir.path;
-
-  // Platform Interfaces
-  // Register FileSystem (using IoFileSystem with the actual path)
-  sl.registerLazySingleton<FileSystem>(() => IoFileSystem(documentsPath));
-  // Register NetworkInfo (using NetworkInfoImpl)
-  sl.registerLazySingleton<NetworkInfo>(
-    () => NetworkInfoImpl(sl()),
-  ); // Depends on Connectivity
-
-  logger.d(
-    '$tag End of init - AppConfig still registered? ${sl.isRegistered<AppConfig>()}',
-  );
+  logger.i('$tag Dependency injection initialization complete.');
 }

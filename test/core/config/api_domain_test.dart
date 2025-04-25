@@ -10,7 +10,11 @@ void main() {
       // Register AppConfig in GetIt
       if (!GetIt.instance.isRegistered<AppConfig>()) {
         GetIt.instance.registerSingleton<AppConfig>(
-          AppConfig.test(apiDomain: 'staging.docjet.ai', apiKey: 'test-key'),
+          // Use a specific test config, don't rely on environment defaults
+          AppConfig.test(
+            apiDomain: 'test-staging.docjet.ai',
+            apiKey: 'test-key',
+          ),
         );
       }
     });
@@ -22,21 +26,20 @@ void main() {
       }
     });
 
-    test('DioFactory uses API_DOMAIN from environment', () {
-      // We can't directly set environment variables in tests,
-      // but we can check that DioFactory is properly using AppConfig
-      // for API_DOMAIN, with appropriate defaults
+    test('DioFactory uses API_DOMAIN from injected AppConfig', () {
+      // Arrange: Get the registered AppConfig
+      final appConfig = GetIt.instance<AppConfig>();
+      // Instantiate the factory with the config from GetIt
+      final dioFactory = DioFactory(appConfig: appConfig);
 
-      // Get the Dio instance from the factory
-      final dio = DioFactory.createBasicDio();
+      // Act: Get the Dio instance using the factory instance
+      final dio = dioFactory.createBasicDio();
 
-      // Without explicitly setting API_DOMAIN, it should use the value from AppConfig
+      // Assert: Check against the specific domain used in setUp
       expect(
         dio.options.baseUrl,
-        ApiConfig.baseUrlFromDomain('staging.docjet.ai'),
+        ApiConfig.baseUrlFromDomain('test-staging.docjet.ai'),
       );
-
-      // The baseUrl should use https:// for non-localhost domains
       expect(dio.options.baseUrl, startsWith('https://'));
     });
 
