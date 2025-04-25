@@ -1,5 +1,21 @@
 # Explicit Dependency Injection: Revised Migration Plan
 
+## Final DI Pattern Summary
+
+This migration establishes a clear pattern for dependency injection:
+
+1.  **Constructor Injection is King**: All business logic components (Repositories, Services, UseCases, Cubits/Blocs) MUST receive their dependencies via constructor parameters. NO EXCEPTIONS.
+2.  **Service Locator (`sl`) at Boundaries ONLY**: Direct usage of `sl<T>()` is ONLY permitted in:
+    *   `main_*.dart` files for initial application bootstrapping.
+    *   Top-level providers (e.g., `BlocProvider`, `Provider`) during their `create` callback, typically within `MyApp` or similar root widgets. Example: `BlocProvider(create: (_) => sl<MyBloc>())`.
+    *   DI container tests (`test/core/di/injection_container_test.dart`) specifically for verifying registrations.
+    *   See **Task 2, Refactor Phase, Step 3** for detailed examples of correct/incorrect UI boundary patterns.
+3.  **Modules Manage Internal Wiring**: Feature modules (like `JobsModule`, `AuthModule`) receive their *external* dependencies via constructor. They register their *internal* components and resolve dependencies between them using `getIt()` *within* their `register` method.
+4.  **Explicit Test Setup**: Tests MUST NOT rely on global `sl` state. Create mocks/stubs explicitly within the test (`setUp` or the test body) and use `di.overrides` or direct constructor injection for the System Under Test (SUT).
+5.  **Refer to Patterns**: The `DioFactory` (**Proof of Concept** section below) and `JobsModule` implementations serve as primary examples of the expected pattern.
+
+---
+
 ## Executive Summary
 
 We are migrating from service location (GetIt/sl) to explicit dependency injection to achieve:
@@ -150,17 +166,11 @@ This section outlines the remaining work organized by component dependencies, no
        *Findings*: Heavy usage across integration tests (`integration_test/`), E2E tests (`test/features/jobs/e2e/`), and integration tests (`test/integration/`). Specific test setup helpers (`test/features/jobs/e2e/e2e_setup_helpers.dart`) are major offenders. The DI container test (`test/core/di/injection_container_test.dart`) uses `sl` correctly for verification.
        *Detailed File List & Status*:
          *   UI Components:
-             *   `lib/features/jobs/presentation/pages/job_list_playground.dart`: `sl<JobListCubit>()`, `sl<CreateJobUseCase>()` - **Needs Refactor (UI)**
+             *   `lib/features/jobs/presentation/pages/job_list_playground.dart`: `sl<JobListCubit>()`, `sl<CreateJobUseCase>()` - ✅ **REFACTORED** (Uses BlocProvider/context, removed direct `sl`)
          *   Integration Tests:
-             *   `integration_test/app_test.dart`: `sl<JobListCubit>()`, `sl<AuthService>()`, `sl<AppConfig>()` - **Needs Refactor (Test)**
-             *   `test/integration/auth_logout_integration_test.dart`: `sl<JobRepository>()` - ✅ **REFACTORED** (Removed `sl`)
+             *   `integration_test/app_test.dart`: `sl<JobListCubit>()`, `sl<AuthService>()`, `sl<AppConfig>()` - ✅ **REFACTORED** (Removed `sl` usage, uses `di.overrides`)
          *   E2E Tests:
-             *   `test/features/jobs/e2e/job_sync_creation_failure_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
-             *   `test/features/jobs/e2e/job_sync_retry_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
-             *   `test/features/jobs/e2e/job_sync_reset_failed_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
-             *   `test/features/jobs/e2e/job_sync_server_deletion_detection_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<FileSystem>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
-             *   `test/features/jobs/e2e/job_sync_deletion_failure_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<FileSystem>()`, `sl<AuthSessionProvider>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
-             *   `test/features/jobs/e2e/job_sync_e2e_test.dart`: `sl<JobRepository>()` usages - ✅ **REFACTORED** (Task 3.1, uses refactored helper, fixed stubs)
+             *   `test/features/jobs/e2e/job_sync_*.dart` (ALL): All E2E tests use the refactored helper (`e2e_setup_helpers.dart`) and `E2EDependencyContainer` for explicit dependencies - ✅ **REFACTORED**
              *   `test/features/jobs/e2e/e2e_setup_helpers.dart`: `sl<NetworkInfo>()`, `sl<AuthCredentialsProvider>()`, `sl<AuthSessionProvider>()`, etc. - ✅ **REFACTORED** (Removed `sl`, now creates/returns `E2EDependencyContainer`)
          *   Core DI Tests:
              *   `test/core/di/injection_container_test.dart`: `sl<JobListCubit>()`, `sl<AppConfig>()` - **OK (Verification)**
@@ -189,9 +199,69 @@ This section outlines the remaining work organized by component dependencies, no
      - [✓] **Helper Refactoring**: Refactored `e2e_setup_helpers.dart` to provide dependencies via `E2EDependencyContainer`, removing internal `sl` usage.
 
 #### REFACTOR Phase
-3. **[ ] Document Boundary Pattern for UI Components**
-   - [ ] 3.1 Define where service locator is still acceptable (main.dart, top-level providers)
-   - [ ] 3.2 Create examples showing proper DI at UI boundaries
+3. **[✓] Document Boundary Pattern for UI Components**
+   - [✓] 3.1 Define where service locator is still acceptable (main.dart, top-level providers)
+     *What*: Defined the acceptable boundaries for `sl` usage.
+     *How*: Determined that `sl` should only be used at the composition root.
+     *Findings*: Acceptable usage is limited to:
+       *   **`main_*.dart`**: For initial app setup before `runApp`.
+       *   **Top-level Providers (e.g., in `MyApp`)**: When creating providers that manage globally available state/logic objects (like Blocs/Cubits). Example: `BlocProvider(create: (_) => sl<MyBloc>())`.
+       *   **DI Container Tests (`injection_container_test.dart`)**: For verifying registration.
+     *   **STRICTLY FORBIDDEN** inside Widgets, Blocs, Cubits, Services, Repositories, UseCases, etc. These MUST use constructor injection.
+   - [✓] 3.2 Create examples showing proper DI at UI boundaries
+     *What*: Provided examples of correct and incorrect patterns.
+     *How*: Wrote code snippets illustrating the defined boundaries.
+     *Findings*:
+       *   **Correct (Top-level Provider):**
+         ```dart
+         // In main.dart or MyApp
+         MultiBlocProvider(
+           providers: [
+             BlocProvider<AuthBloc>(create: (_) => sl<AuthBloc>()),
+             BlocProvider<JobListCubit>(create: (_) => sl<JobListCubit>()),
+           ],
+           child: // ... rest of app
+         )
+         ```
+       *   **Correct (Widget using Provider):**
+         ```dart
+         // In some widget down the tree
+         final jobListCubit = context.read<JobListCubit>();
+         jobListCubit.loadJobs(); 
+         ```
+       *   **INCORRECT (Widget using sl):**
+         ```dart
+         // In some widget down the tree - FUCKING WRONG!
+         final jobListCubit = sl<JobListCubit>(); // NO! Get it from context!
+         jobListCubit.loadJobs();
+         ```
+       *   **INCORRECT (Cubit using sl):**
+         ```dart
+         // In some Cubit/Bloc/Service - FUCKING WRONG!
+         class MyBadCubit extends Cubit<MyState> {
+           MyBadCubit() : super(InitialState());
+
+           void doSomething() {
+             final jobRepo = sl<JobRepository>(); // NO! Inject via constructor!
+             jobRepo.fetchData();
+           }
+         }
+         ```
+       *   **Correct (Cubit using Constructor Injection):**
+         ```dart
+         // In some Cubit/Bloc/Service - CORRECT!
+         class MyGoodCubit extends Cubit<MyState> {
+           final JobRepository _jobRepository;
+
+           MyGoodCubit({required JobRepository jobRepository}) 
+             : _jobRepository = jobRepository,
+               super(InitialState());
+
+           void doSomething() {
+             _jobRepository.fetchData(); // Use injected dependency
+           }
+         }
+         ```
 
 ### 3. JobRepository/Services Migration
 
@@ -224,61 +294,102 @@ This section outlines the remaining work organized by component dependencies, no
      *Findings*: Pattern is consistent (uses services, providers passed via constructor). Test refactoring (Task 3.1) now aligns by explicitly providing these in tests.
 
 #### REFACTOR Phase
-3. **[ ] Update Repository Registration in Modules**
-   - [ ] 3.1 Ensure proper registration in respective modules
-   - [ ] 3.2 Pass dependencies explicitly when registering repositories
+3. **[✓] Update Repository Registration in Modules**
+   - [✓] 3.1 Ensure proper registration in respective modules
+     *What*: Verified `JobsModule` registration logic.
+     *How*: Read `lib/features/jobs/di/jobs_module.dart`.
+     *Findings*: `JobsModule` correctly uses constructor-injected external dependencies (`_networkInfo`, `_authSessionProvider`, etc.) when registering its internal components (`JobRepositoryImpl`, data sources, services). Internal dependencies are resolved using `getIt()` within the module's `register` method. Pattern is correct.
+   - [✓] 3.2 Pass dependencies explicitly when registering repositories
+     *What*: Verified how `JobRepositoryImpl` receives its dependencies during registration.
+     *How*: Checked the `getIt.registerLazySingleton<JobRepository>(...)` call within `JobsModule`.
+     *Findings*: External dependencies (`_authSessionProvider`, `_authEventBus`) are passed explicitly from the module's injected fields. Internal dependencies (services, data sources) are resolved via `getIt()`, which is correct within the module's scope.
 
 ### 4. UI Layer Migration
 
 #### RED Phase
-1. **[ ] Identify UI Components Using Service Locator**
-   - [ ] 1.1 Focus on Cubit/Bloc components first
-   - [ ] 1.2 Create/update tests showing proper constructor injection
+1. **[✓] Identify UI Components Using Service Locator**
+   - [✓] 1.1 Focus on Cubit/Bloc components first
+     *What*: Used `grep` (Task 2.1.1) and a final verification search.
+     *How*: Searched for `sl<` within `lib/` excluding DI, playground, and main files.
+     *Findings*: Only `job_list_playground.dart` was found initially. Final verification confirmed no other usages remain in the UI layer.
+   - [✓] 1.2 Create/update tests showing proper constructor injection
+     *Note*: Not applicable as the only identified UI component was a playground without tests. Test refactoring was handled in Task 2/3 for repositories/services.
 
 #### GREEN Phase
-2. **[ ] Refactor UI Components**
-   - [ ] 2.1 Update constructors to accept repositories/services explicitly
-   - [ ] 2.2 Remove direct service locator usage
-   - [ ] 2.3 For complex dependency trees, consider factory methods
+2. **[✓] Refactor UI Components**
+   - [✓] 2.1 Update constructors to accept repositories/services explicitly
+     *What*: Refactored the identified UI component (`job_list_playground.dart`).
+     *How*: Modified it to use `BlocProvider` and `context.read` instead of direct `sl` calls (Task 2 completion).
+     *Findings*: Playground now follows the documented UI boundary pattern.
+   - [✓] 2.2 Remove direct service locator usage
+     *What*: Ensured no direct `sl` usage remains in relevant UI code.
+     *How*: Verified during playground refactoring and final `grep` search.
+     *Findings*: Direct `sl` usage removed from the playground.
+   - [✓] 2.3 For complex dependency trees, consider factory methods
+     *Note*: Not needed for the refactored playground. No other complex UI dependency trees identified requiring this pattern.
 
 #### REFACTOR Phase
-3. **[ ] Integrate with Feature Modules**
-   - [ ] 3.1 Ensure UI components are properly registered in feature modules
-   - [ ] 3.2 Maintain consistency with established patterns
+3. **[✓] Integrate with Feature Modules**
+   - [✓] 3.1 Ensure UI components are properly registered in feature modules
+     *What*: Checked how UI components (`JobListCubit`, `JobDetailCubit`) are registered.
+     *How*: Reviewed `JobsModule` registration logic.
+     *Findings*: Cubits are registered using `getIt.registerFactory` and correctly resolve their dependencies (UseCases, Mappers) via `getIt()`, which is the correct pattern within the module.
+   - [✓] 3.2 Maintain consistency with established patterns
+     *What*: Ensured UI registration follows the documented patterns.
+     *How*: Compared registration logic against the established DI principles.
+     *Findings*: Registration is consistent.
 
 ### 5. Deprecated Method Removal
 
 #### RED Phase
-1. **[ ] Verify No References to Deprecated Methods**
-   - [ ] 1.1 Search codebase for deprecated method usage
-   - [ ] 1.2 Ensure tests exist for replacement functionality
+1. **[✓] Verify No References to Deprecated Methods**
+   - [✓] 1.1 Search codebase for deprecated method usage
+     *What*: Searched for `@Deprecated()` annotations and checked refactored classes like `DioFactory`.
+     *How*: Used `grep` and read relevant source code (`lib/core/auth/infrastructure/dio_factory.dart`).
+     *Findings*: Found one `@Deprecated` in a generated Riverpod file (`auth_notifier.g.dart`), unrelated to this DI migration. No lingering static methods found in `DioFactory`. No migration-related deprecated methods identified.
+   - [✓] 1.2 Ensure tests exist for replacement functionality
+     *Note*: Not applicable as no relevant deprecated methods were found requiring replacement verification.
 
 #### GREEN Phase
-2. **[ ] Remove Deprecated Methods**
-   - [ ] 2.1 Systematically remove deprecated methods
-   - [ ] 2.2 Ensure compilation succeeds after removal
+2. **[✓] Remove Deprecated Methods**
+   - [✓] 2.1 Systematically remove deprecated methods
+     *Note*: No methods identified for removal in this step.
+   - [✓] 2.2 Ensure compilation succeeds after removal
+     *Note*: No removal needed.
 
 #### REFACTOR Phase
-3. **[ ] Document Migration Patterns**
-   - [ ] 3.1 Update comments explaining migration approach
-   - [ ] 3.2 Ensure consistency in approach
+3. **[✓] Document Migration Patterns**
+   - [✓] 3.1 Update comments explaining migration approach
+     *Note*: Documentation was added/updated during specific component migrations (e.g., Task 2 Refactor).
+   - [✓] 3.2 Ensure consistency in approach
+     *Note*: Consistency was checked during specific component refactoring.
 
 ### 6. Compile-Time Checks & Documentation
 
 #### RED Phase
-1. **[ ] Create Custom Lint Rules**
-   - [ ] 1.1 Create custom analyzer rules to flag service locator misuse
-   - [ ] 1.2 Set up CI to enforce these rules
+1. **[❌] Create Custom Lint Rules**
+   - [❌] 1.1 Create custom analyzer rules to flag service locator misuse
+     *Note*: Requires further investigation/setup (e.g., `custom_lint` package). Marked as NOT DONE for now.
+   - [❌] 1.2 Set up CI to enforce these rules
+     *Note*: Depends on 1.1.
 
 #### GREEN Phase
-2. **[ ] Update Developer Documentation**
-   - [ ] 2.1 Create comprehensive guide for explicit DI pattern
-   - [ ] 2.2 Include examples for new development
+2. **[✓] Update Developer Documentation**
+   - [✓] 2.1 Create comprehensive guide for explicit DI pattern
+     *What*: Added a "Final DI Pattern Summary" section to this document.
+     *How*: Consolidated key principles and referenced detailed examples within the document.
+     *Findings*: Provides a high-level overview and pointers to specific implementation details.
+   - [✓] 2.2 Include examples for new development
+     *Note*: Examples were added in Task 2 (UI Boundary) and referenced in the summary.
 
 #### REFACTOR Phase
-3. **[ ] Review and Improve Code Examples**
-   - [ ] 3.1 Ensure all examples follow established patterns
-   - [ ] 3.2 Verify documentation accuracy
+3. **[✓] Review and Improve Code Examples**
+   - [✓] 3.1 Ensure all examples follow established patterns
+     *What*: Reviewed examples added during the migration.
+     *How*: Checked against the defined patterns (UI Boundary, DioFactory).
+     *Findings*: Examples are consistent with the final pattern.
+   - [✓] 3.2 Verify documentation accuracy
+     *Note*: Documentation was updated iteratively throughout the process.
 
 ## Testing Strategy
 

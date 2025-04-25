@@ -9,16 +9,14 @@
 // Import the main app entry point. Make sure it can be configured
 // (e.g., via environment variables or passed params) to use the mock server.
 import 'package:docjet_mobile/core/auth/auth_service.dart';
-import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/entities/user.dart'; // Import User entity
 import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import log helpers
 import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/main.dart' as app;
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -35,78 +33,30 @@ final sl = di.sl;
 
 // We create our own version of MyApp rather than using the one from main.dart
 // This lets us control the environment and providers precisely
-class TestApp extends StatelessWidget {
-  const TestApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [BlocProvider(create: (context) => sl<JobListCubit>())],
-      child: MaterialApp(
-        title: 'DocJet',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
-        home: const Scaffold(body: Center(child: Text('Test App Running'))),
-      ),
-    );
-  }
-}
+// REMOVED TestApp - no longer needed with explicit DI test setups
 
 // Annotate classes to generate mocks for
 @GenerateMocks([AuthService, AuthEventBus, JobListCubit])
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // Declare mocks
-  late MockAuthService mockAuthService;
-  late MockAuthEventBus mockAuthEventBus;
-  late MockJobListCubit mockJobListCubit;
+  // Declare mocks - these will be instantiated per test as needed
+  // late MockAuthService mockAuthService;
+  // late MockAuthEventBus mockAuthEventBus;
+  // late MockJobListCubit mockJobListCubit;
 
-  setUpAll(() async {
-    // Allow reassignment for test setup
-    sl.allowReassignment = true;
+  // REMOVED setUpAll - Global mocks registered via sl are an anti-pattern
+  // setUpAll(() async {
+  //   // ... removed sl registration logic ...
+  // });
 
-    // Reset GetIt for a clean slate in tests
-    await sl.reset();
-
-    // Create mock instances
-    mockAuthService = MockAuthService();
-    mockAuthEventBus = MockAuthEventBus();
-    mockJobListCubit = MockJobListCubit();
-
-    // Configure the mock behaviors
-    when(
-      mockAuthService.isAuthenticated(
-        validateTokenLocally: anyNamed('validateTokenLocally'),
-      ),
-    ).thenAnswer((_) async => true);
-
-    when(
-      mockAuthService.getUserProfile(),
-    ).thenAnswer((_) async => const User(id: 'test-user-id'));
-
-    when(mockAuthEventBus.stream).thenAnswer((_) => Stream.empty());
-
-    // Register mocks with GetIt
-    sl.registerLazySingleton<AuthService>(() => mockAuthService);
-    sl.registerLazySingleton<AuthEventBus>(() => mockAuthEventBus);
-    sl.registerLazySingleton<JobListCubit>(() => mockJobListCubit);
-  });
-
-  testWidgets('App launches and finds initial MaterialApp widget', (
-    WidgetTester tester,
-  ) async {
-    // Simply pump our TestApp directly - no need to call main()
-    await tester.pumpWidget(const ProviderScope(child: TestApp()));
-
-    // Verify the MaterialApp is present
-    expect(find.byType(MaterialApp), findsOneWidget);
-
-    // Verify our test text is displayed (confirming it's our test app that loaded)
-    expect(find.text('Test App Running'), findsOneWidget);
-  });
+  // REMOVED - This test relied on the removed TestApp and global sl setup.
+  // We can test the fundamental app launch within other tests that use the real app structure.
+  // testWidgets('App launches and finds initial MaterialApp widget', (
+  //   WidgetTester tester,
+  // ) async {
+  //   // ... removed test logic ...
+  // });
 
   setUp(() {
     // Reset GetIt before each test
@@ -118,14 +68,50 @@ void main() {
   testWidgets('App initializes and shows LoginScreen', (
     WidgetTester tester,
   ) async {
-    // Arrange: Initialize dependencies
-    await di.init();
-    final authService = di.sl<AuthService>();
+    // Arrange: Create mocks
+    final mockAuthService = MockAuthService();
+    final mockAuthEventBus =
+        MockAuthEventBus(); // Create separate mock for event bus
 
-    // Act: Build our app and trigger a frame.
+    // Arrange: Configure mock behaviors
+    when(
+      mockAuthService.isAuthenticated(
+        validateTokenLocally: anyNamed('validateTokenLocally'),
+      ),
+    ).thenAnswer((_) async => false); // Assume not authenticated
+    when(
+      mockAuthService.getUserProfile(),
+    ).thenAnswer((_) => Future.value(const User(id: 'mock-user-id')));
+    // No need to stub mockAuthService.authEventBus here
+    when(
+      mockAuthEventBus.stream,
+    ).thenAnswer((_) => Stream.empty()); // Stub the event bus stream
+
+    // Arrange: Set up DI overrides BEFORE calling init()
+    di.overrides = [
+      () {
+        // Override AuthService
+        if (di.sl.isRegistered<AuthService>()) {
+          di.sl.unregister<AuthService>();
+        }
+        di.sl.registerSingleton<AuthService>(mockAuthService);
+
+        // Override AuthEventBus
+        if (di.sl.isRegistered<AuthEventBus>()) {
+          di.sl.unregister<AuthEventBus>();
+        }
+        di.sl.registerSingleton<AuthEventBus>(mockAuthEventBus);
+      },
+    ];
+
+    // Arrange: Initialize dependencies, applying overrides
+    await di.init();
+
+    // Act: Build our actual app and trigger a frame.
+    // Use the SAME mock instance for the Riverpod provider override
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authServiceProvider.overrideWithValue(authService)],
+        overrides: [authServiceProvider.overrideWithValue(mockAuthService)],
         child: const app.MyApp(),
       ),
     );

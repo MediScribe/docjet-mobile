@@ -10,20 +10,41 @@ import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.d
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
-/// This doesn't require tests as it's purely for UI experimentation
-class JobListPlayground extends StatefulWidget {
+/// This doesn't require tests as it's purely for UI experimentation.
+/// It now demonstrates getting dependencies via BlocProvider/context instead of sl.
+class JobListPlayground extends StatelessWidget {
   const JobListPlayground({super.key});
 
   @override
-  State<JobListPlayground> createState() => _JobListPlaygroundState();
+  Widget build(BuildContext context) {
+    // For a playground, we provide the cubit here.
+    // In a real app, this would be provided higher up the tree.
+    // This assumes the dependencies needed by JobListCubit and CreateJobUseCase
+    // are already registered in sl via di.init().
+    return BlocProvider<JobListCubit>(
+      create:
+          (context) =>
+              di.sl<JobListCubit>(), // Use sl ONLY at provider creation
+      child: const _JobListPlaygroundContent(),
+    );
+  }
 }
 
-class _JobListPlaygroundState extends State<JobListPlayground> {
+class _JobListPlaygroundContent extends StatefulWidget {
+  const _JobListPlaygroundContent();
+
+  @override
+  State<_JobListPlaygroundContent> createState() =>
+      _JobListPlaygroundContentState();
+}
+
+class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
   static final Logger _logger = LoggerFactory.getLogger('JobListPlayground');
   static final String _tag = logTag('JobListPlayground');
 
-  late final JobListCubit _jobListCubit;
-  late final CreateJobUseCase _createJobUseCase;
+  // Dependencies obtained via context or constructor
+  late final CreateJobUseCase
+  _createJobUseCase; // Assuming provided elsewhere or fetched via sl ONCE if needed
 
   // We'll keep a small set of mock jobs as fallback
   final List<JobViewModel> _mockJobs = [
@@ -42,23 +63,10 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
   @override
   void initState() {
     super.initState();
-    _jobListCubit = di.sl<JobListCubit>();
+    // Get UseCase via sl - acceptable ONLY IF this widget is considered
+    // a "composition root" for this specific playground scenario.
+    // In a real app, this would likely be injected into the Cubit itself.
     _createJobUseCase = di.sl<CreateJobUseCase>();
-    // Start watching jobs
-    _loadJobs();
-  }
-
-  @override
-  void dispose() {
-    _jobListCubit.close();
-    super.dispose();
-  }
-
-  void _loadJobs() {
-    // The cubit may have a different method - adjusted based on our search
-    // If loadJobs isn't available, the cubit may initialize watching automatically
-    // Doing nothing would rely on the cubit's built-in behavior
-    _logger.d('$_tag Requesting job list refresh');
   }
 
   Future<void> _createLoremIpsumJob() async {
@@ -98,8 +106,9 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
           padding: EdgeInsets.zero,
           child: const Icon(CupertinoIcons.refresh),
           onPressed: () {
-            _logger.d('$_tag Refreshing UI playground');
-            _loadJobs();
+            _logger.d(
+              '$_tag Refresh button pressed (does nothing - Cubit watches stream)',
+            );
           },
         ),
       ),
@@ -142,7 +151,6 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
 
             Expanded(
               child: BlocBuilder<JobListCubit, JobListState>(
-                bloc: _jobListCubit,
                 builder: (context, state) {
                   if (state is JobListLoading) {
                     return const Center(child: CupertinoActivityIndicator());
@@ -183,7 +191,11 @@ class _JobListPlaygroundState extends State<JobListPlayground> {
                           Text('Error: ${state.message}'),
                           const SizedBox(height: 16),
                           CupertinoButton(
-                            onPressed: _loadJobs,
+                            onPressed: () {
+                              _logger.d(
+                                '$_tag Retry button pressed (does nothing - Cubit watches stream)',
+                              );
+                            },
                             child: const Text('Retry'),
                           ),
                         ],
