@@ -23,21 +23,20 @@ graph TD
     JobListPage -->|"Future: Tap on Job"| JobDetailPage("JobDetailPage<br>(Not Yet Implemented)")
     
     %% Planned Future Navigation (WIP)
-    HomeScreen -.->|Future Nav (WIP)| TranscriptionsPage(TranscriptionsPage)
-    
-    %% Future Navigation
-    HomeScreen -.->|"Future"| SettingsPage("SettingsPage<br>(Not Yet Implemented)")
+    HomeScreen -.->|"Future Nav (WIP)"| TranscriptionsPage(TranscriptionsPage)
 ```
-
 ## Authentication Screens
 
 ### LoginScreen
 - **Path**: `lib/features/auth/presentation/screens/login_screen.dart`
 - **Purpose**: Allows users to authenticate by entering their credentials
-- **Current State**: Placeholder implementation that displays "Login Screen Placeholder"
+- **Current State**: Fully implemented with Cupertino widgets, handles loading, error, and offline states.
 - **Key Features**:
-  - Displays an offline indicator when in offline mode
-  - Will be expanded to include email/password fields and login button
+  - Email and Password input fields (`CupertinoTextField`)
+  - Login button triggering `AuthNotifier.login`
+  - Displays specific error messages (`AuthErrorMessage`)
+  - Shows a loading indicator during login attempts (`AuthLoadingIndicator`)
+  - Displays an offline indicator when the `AuthNotifier` reports offline status
 
 ## Main Application Screens
 
@@ -94,13 +93,11 @@ The application uses a simple routing approach:
 3. **Future Navigation Needs**:
    - Navigation from `HomeScreen` to `JobListPage` 
    - Detailed job view navigation from `JobListPage`
-   - Navigation to settings or profile screens
 
 ## UI Widgets
 
 ### Record Buttons
-- `lib/features/home/presentation/widgets/record_button.dart` - Intended for use in the future `TranscriptionsPage`.
-- `lib/features/jobs/presentation/widgets/record_button.dart` - Used in `JobListPlayground` for testing/iteration (potentially reusable).
+- `lib/features/home/presentation/widgets/record_button.dart` - Intended for use in the future `TranscriptionsPage`. Appears as a skeleton in the current `TranscriptionsPage`.
 
 ### JobListItem
 - **Path**: `lib/features/jobs/presentation/widgets/job_list_item.dart`
