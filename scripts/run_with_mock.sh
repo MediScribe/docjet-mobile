@@ -77,10 +77,10 @@ while ! curl -s --fail "$SERVER_URL" >/dev/null; do
 done
 echo "Mock server is ready! (Took $ELAPSED seconds)"
 
-echo "Starting Flutter app with mock server config (secrets.test.json)..."
-# Run the flutter app, defining variables from the secrets file
-# Flutter run will keep running until interrupted (e.g., Ctrl+C) or it quits
-flutter run --dart-define-from-file=secrets.test.json
+echo "Starting Flutter app using development entry point (lib/main_dev.dart)..."
+# Run the flutter app using the development entry point which configures
+# AppConfig.development() via DI overrides.
+flutter run -t lib/main_dev.dart
 
 # Since flutter run is interactive and we want the trap to handle cleanup
 # when flutter run exits or is interrupted, we don't need a 'wait' here.
