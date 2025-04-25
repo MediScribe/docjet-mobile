@@ -1,16 +1,16 @@
 import 'dart:io';
 
 import 'package:docjet_mobile/core/error/exceptions.dart';
-import 'package:docjet_mobile/core/interfaces/network_info.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
+// import 'package:docjet_mobile/core/interfaces/network_info.dart'; // UNUSED
+// import 'package:docjet_mobile/core/platform/file_system.dart'; // UNUSED
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // UNUSED
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+// import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'; // UNUSED
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
+// import 'package:get_it/get_it.dart'; // REMOVE GetIt
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
@@ -18,8 +18,9 @@ import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 
-// Import the setup helpers
+// Import the setup helpers and container
 import 'e2e_setup_helpers.dart';
+import 'e2e_dependency_container.dart';
 // Import the generated mocks FROM the helper file
 import 'e2e_setup_helpers.mocks.dart';
 
@@ -27,9 +28,10 @@ import 'e2e_setup_helpers.mocks.dart';
 late Process? _mockServerProcess;
 late Directory _tempDir;
 late Box<JobHiveModel> _jobBox;
+late E2EDependencyContainer _dependencies; // Store the container
 
 // --- Test Globals (Managed by helpers) ---
-final sl = GetIt.instance; // Keep for easy access in tests
+// final sl = GetIt.instance; // REMOVE GetIt
 final _logger = LoggerFactory.getLogger(testSuiteName); // Use helper's logger
 final _tag = logTag(testSuiteName); // Use helper's tag
 
@@ -40,6 +42,7 @@ void main() {
     _mockServerProcess = setupResult.$1;
     _tempDir = setupResult.$2;
     _jobBox = setupResult.$3;
+    _dependencies = setupResult.$4; // Store the container
   });
 
   tearDownAll(() async {
@@ -54,16 +57,15 @@ void main() {
     // Clear the job box before each test to ensure isolation
     await _jobBox.clear();
     _logger.d('$_tag Job box cleared.');
-    // Reset mocks using helper
-    resetTestMocks(); // This should reset FileSystem too if setup correctly
-    // Ensure mock remote data source is reset if registered
-    if (sl.isRegistered<JobRemoteDataSource>()) {
-      reset(sl<JobRemoteDataSource>());
-    }
-    // Ensure mock file system is reset if registered
-    if (sl.isRegistered<FileSystem>()) {
-      reset(sl<FileSystem>());
-    }
+    // Reset mocks using helper and container
+    resetTestMocks(_dependencies); // Pass the container
+    // Remove explicit resets
+    // if (sl.isRegistered<JobRemoteDataSource>()) {
+    //   reset(sl<JobRemoteDataSource>());
+    // }
+    // if (sl.isRegistered<FileSystem>()) {
+    //   reset(sl<FileSystem>());
+    // }
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -77,15 +79,15 @@ void main() {
     // ADJUSTED Group Name
     test('should detect server-side deletion and remove the job locally', () async {
       _logger.i('$_tag --- Test: Server-Side Deletion Detection ---');
-      // Arrange: Get dependencies
-      final jobRepository = sl<JobRepository>();
-      final localDataSource = sl<JobLocalDataSource>();
+      // Arrange: Get dependencies from container
+      final jobRepository = _dependencies.jobRepository;
+      final localDataSource = _dependencies.jobLocalDataSource;
       final mockRemoteDataSource =
-          sl<JobRemoteDataSource>() as MockApiJobRemoteDataSourceImpl;
-      final mockFileSystem = sl<FileSystem>() as MockFileSystem;
-      final mockNetworkInfo = sl<NetworkInfo>() as MockNetworkInfo;
+          _dependencies.jobRemoteDataSource as MockApiJobRemoteDataSourceImpl;
+      final mockFileSystem = _dependencies.mockFileSystem;
+      final mockNetworkInfo = _dependencies.mockNetworkInfo;
 
-      // Arrange: Ensure network is online
+      // Arrange: Ensure network is online (using mock from container)
       when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
 
       // Arrange: Create a job locally
@@ -101,7 +103,7 @@ void main() {
       final initialText = 'Job to be deleted by server';
       expect(await dummyAudioFile.exists(), isTrue);
 
-      // Create job with synced status and serverId to simulate a previously synced job
+      // Create job with synced status and serverId to simulate a previously synced job (using local DS from container)
       final mockServerId = const Uuid().v4();
       final localId = const Uuid().v4();
 
@@ -126,7 +128,7 @@ void main() {
         ),
       );
 
-      // Verify the job is properly created in the synced state
+      // Verify the job is properly created in the synced state (using local DS from container)
       final jobFromDb = await localDataSource.getJobById(localId);
       expect(
         jobFromDb.syncStatus,
@@ -145,7 +147,7 @@ void main() {
       );
       _logger.d('$_tag Verified job exists in database with synced status');
 
-      // Mock all necessary remote data source calls
+      // Mock all necessary remote data source calls (using mocks from container)
       _logger.d(
         '$_tag Mocking fetchJobs() to return empty list (simulating server-side deletion)',
       );
@@ -155,7 +157,7 @@ void main() {
       _logger.d('$_tag Mocking deleteFile() to succeed');
       when(mockFileSystem.deleteFile(audioFilePath)).thenAnswer((_) async {});
 
-      // Act: Call getJobs() which should trigger the server-side deletion check
+      // Act: Call getJobs() which should trigger the server-side deletion check (using repo from container)
       _logger.i(
         '$_tag Acting: Calling getJobs() to trigger server-side deletion detection',
       );
@@ -176,10 +178,10 @@ void main() {
         reason: 'getJobs should return empty list',
       );
 
-      // Verify fetchJobs was called
+      // Verify fetchJobs was called (using mock from container)
       verify(mockRemoteDataSource.fetchJobs()).called(1);
 
-      // Assert: Verify job is GONE from local DB (asserting on exception)
+      // Assert: Verify job is GONE from local DB (asserting on exception) (using local DS from container)
       _logger.i('$_tag Verifying job is removed from local DB');
       await expectLater(
         () async => await localDataSource.getJobById(localId),
@@ -188,7 +190,7 @@ void main() {
             'Job should be deleted locally after server-side deletion detection',
       );
 
-      // Assert: Verify file system delete was called
+      // Assert: Verify file system delete was called (using mock from container)
       _logger.i('$_tag Verifying file deletion was called');
       verify(mockFileSystem.deleteFile(audioFilePath)).called(1);
 

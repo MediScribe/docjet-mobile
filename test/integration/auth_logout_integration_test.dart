@@ -7,17 +7,17 @@ import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
-import 'package:docjet_mobile/core/platform/path_provider.dart';
+// import 'package:docjet_mobile/core/platform/file_system.dart'; // REMOVE if not needed
+// import 'package:docjet_mobile/core/platform/path_provider.dart'; // REMOVE if not needed
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+// Keep for type
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
+// import 'package:get_it/get_it.dart'; // REMOVE GetIt
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
@@ -33,30 +33,19 @@ import 'package:mockito/mockito.dart';
 ])
 import 'auth_logout_integration_test.mocks.dart';
 
-/// Test-specific [PathProvider] implementation to avoid platform dependency
-class MockPathProvider implements PathProvider {
-  final String _testDirPath;
-
-  MockPathProvider(this._testDirPath);
-
-  @override
-  Future<Directory> getApplicationDocumentsDirectory() async {
-    // Create and return a test-specific directory for isolation
-    final dir = Directory(_testDirPath);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
-  }
-}
-
-/// Test-specific [FileSystem] implementation that uses the mock path provider
-class TestFileSystem extends IoFileSystem {
-  TestFileSystem(super.documentsPath);
-}
+// REMOVE Test PathProvider and FileSystem if not directly needed
+// /// Test-specific [PathProvider] implementation to avoid platform dependency
+// class MockPathProvider implements PathProvider {
+//   // ... implementation ...
+// }
+//
+// /// Test-specific [FileSystem] implementation that uses the mock path provider
+// class TestFileSystem extends IoFileSystem {
+//   TestFileSystem(super.documentsPath);
+// }
 
 void main() {
-  late GetIt sl;
+  // late GetIt sl; // REMOVE GetIt variable
   late AuthEventBus authEventBus;
   late MockAuthService mockAuthService;
   late MockJobLocalDataSource mockJobLocalDataSource;
@@ -65,21 +54,21 @@ void main() {
   late MockJobDeleterService mockJobDeleterService;
   late MockJobSyncOrchestratorService mockJobSyncOrchestratorService;
   late MockAuthSessionProvider mockAuthSessionProvider;
-  late JobRepository jobRepository; // The instance under test
+  late JobRepositoryImpl jobRepository; // Use concrete type for dispose()
   late Directory tempDir;
 
   setUp(() async {
     // Create temporary directory for tests
     tempDir = await Directory.systemTemp.createTemp('docjet_test_');
 
-    // Reset GetIt before each test
-    sl = GetIt.instance;
-    sl.reset();
-
-    // Register the test-specific PathProvider and FileSystem
-    final mockPathProvider = MockPathProvider(tempDir.path);
-    sl.registerLazySingleton<PathProvider>(() => mockPathProvider);
-    sl.registerLazySingleton<FileSystem>(() => TestFileSystem(tempDir.path));
+    // REMOVE GetIt setup
+    // sl = GetIt.instance;
+    // sl.reset();
+    //
+    // // Register the test-specific PathProvider and FileSystem
+    // final mockPathProvider = MockPathProvider(tempDir.path);
+    // sl.registerLazySingleton<PathProvider>(() => mockPathProvider);
+    // sl.registerLazySingleton<FileSystem>(() => TestFileSystem(tempDir.path));
 
     // Create mocks
     mockAuthService = MockAuthService();
@@ -93,36 +82,39 @@ void main() {
     // Create real AuthEventBus (not mocked)
     authEventBus = AuthEventBus();
 
-    // Override registrations in GetIt
-    sl.allowReassignment = true; // Allow overriding existing registrations
-    sl.registerLazySingleton<AuthEventBus>(() => authEventBus);
-    sl.registerLazySingleton<AuthService>(() => mockAuthService);
-    sl.registerLazySingleton<JobLocalDataSource>(() => mockJobLocalDataSource);
-    sl.registerLazySingleton<JobReaderService>(() => mockJobReaderService);
-    sl.registerLazySingleton<JobWriterService>(() => mockJobWriterService);
-    sl.registerLazySingleton<JobDeleterService>(() => mockJobDeleterService);
-    sl.registerLazySingleton<JobSyncOrchestratorService>(
-      () => mockJobSyncOrchestratorService,
-    );
-    sl.registerLazySingleton<AuthSessionProvider>(
-      () => mockAuthSessionProvider,
+    // REMOVE GetIt registrations
+    // sl.allowReassignment = true; // Allow overriding existing registrations
+    // sl.registerLazySingleton<AuthEventBus>(() => authEventBus);
+    // sl.registerLazySingleton<AuthService>(() => mockAuthService);
+    // sl.registerLazySingleton<JobLocalDataSource>(() => mockJobLocalDataSource);
+    // sl.registerLazySingleton<JobReaderService>(() => mockJobReaderService);
+    // sl.registerLazySingleton<JobWriterService>(() => mockJobWriterService);
+    // sl.registerLazySingleton<JobDeleterService>(() => mockJobDeleterService);
+    // sl.registerLazySingleton<JobSyncOrchestratorService>(
+    //   () => mockJobSyncOrchestratorService,
+    // );
+    // sl.registerLazySingleton<AuthSessionProvider>(
+    //   () => mockAuthSessionProvider,
+    // );
+    // sl.registerLazySingleton<JobRepository>(
+    //   () => JobRepositoryImpl(
+    //     // ... dependencies ...
+    //   ),
+    // );
+
+    // Instantiate JobRepositoryImpl directly with mocks/real instances
+    jobRepository = JobRepositoryImpl(
+      readerService: mockJobReaderService,
+      writerService: mockJobWriterService,
+      deleterService: mockJobDeleterService,
+      orchestratorService: mockJobSyncOrchestratorService,
+      authSessionProvider: mockAuthSessionProvider,
+      authEventBus: authEventBus,
+      localDataSource: mockJobLocalDataSource,
     );
 
-    // Register JobRepositoryImpl AFTER its dependencies are mocked
-    sl.registerLazySingleton<JobRepository>(
-      () => JobRepositoryImpl(
-        readerService: mockJobReaderService,
-        writerService: mockJobWriterService,
-        deleterService: mockJobDeleterService,
-        orchestratorService: mockJobSyncOrchestratorService,
-        authSessionProvider: mockAuthSessionProvider,
-        authEventBus: authEventBus,
-        localDataSource: mockJobLocalDataSource,
-      ),
-    );
-
-    // Get the repository instance
-    jobRepository = sl<JobRepository>();
+    // REMOVE GetIt retrieval
+    // jobRepository = sl<JobRepository>();
 
     // Default mock behaviors
     when(mockAuthService.login(any, any)).thenAnswer((_) async {
@@ -150,7 +142,8 @@ void main() {
   });
 
   tearDown(() async {
-    sl.reset();
+    // REMOVE GetIt reset
+    // sl.reset();
     // Clean up the temporary directory
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
@@ -163,7 +156,7 @@ void main() {
       // Arrange: No specific job data arrangement needed, as we only mock/verify
       // the call to clearUserData() on the local data source.
 
-      // Verify repository is ready
+      // Verify repository is ready (using the setup variable)
       expect(jobRepository, isNotNull);
 
       // Act: Trigger logout
@@ -178,9 +171,9 @@ void main() {
   test('JobRepositoryImpl should dispose subscription when destroyed', () async {
     // This test verifies that the repository properly cleans up its event subscription
 
-    // Act: Get a reference to the repository and explicitly dispose it
-    final repo = sl<JobRepository>() as JobRepositoryImpl;
-    repo.dispose();
+    // Act: Use the repository instance created in setUp and explicitly dispose it
+    // final repo = sl<JobRepository>() as JobRepositoryImpl; // REMOVE GetIt access
+    jobRepository.dispose(); // Call dispose directly on the instance
 
     // Simulate logout event after disposal
     authEventBus.add(AuthEvent.loggedOut);

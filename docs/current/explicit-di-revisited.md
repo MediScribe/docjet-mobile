@@ -153,15 +153,15 @@ This section outlines the remaining work organized by component dependencies, no
              *   `lib/features/jobs/presentation/pages/job_list_playground.dart`: `sl<JobListCubit>()`, `sl<CreateJobUseCase>()` - **Needs Refactor (UI)**
          *   Integration Tests:
              *   `integration_test/app_test.dart`: `sl<JobListCubit>()`, `sl<AuthService>()`, `sl<AppConfig>()` - **Needs Refactor (Test)**
-             *   `test/integration/auth_logout_integration_test.dart`: `sl<JobRepository>()` - **Needs Refactor (Test)**
+             *   `test/integration/auth_logout_integration_test.dart`: `sl<JobRepository>()` - ✅ **REFACTORED** (Removed `sl`)
          *   E2E Tests:
-             *   `test/features/jobs/e2e/job_sync_creation_failure_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - **Needs Refactor (Test)**
-             *   `test/features/jobs/e2e/job_sync_retry_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - **Needs Refactor (Test)**
-             *   `test/features/jobs/e2e/job_sync_reset_failed_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - **Needs Refactor (Test)**
-             *   `test/features/jobs/e2e/job_sync_server_deletion_detection_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<FileSystem>()`, `sl<JobRepository>()`, etc. - **Needs Refactor (Test)**
-             *   `test/features/jobs/e2e/job_sync_deletion_failure_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<FileSystem>()`, `sl<AuthSessionProvider>()`, `sl<JobRepository>()`, etc. - **Needs Refactor (Test)**
-             *   `test/features/jobs/e2e/job_sync_e2e_test.dart`: `sl<JobRepository>()` usages - **REFACTORED (Task 3.1)**
-             *   `test/features/jobs/e2e/e2e_setup_helpers.dart`: `sl<NetworkInfo>()`, `sl<AuthCredentialsProvider>()`, `sl<AuthSessionProvider>()`, etc. - **Needs Refactor (Helper)**
+             *   `test/features/jobs/e2e/job_sync_creation_failure_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
+             *   `test/features/jobs/e2e/job_sync_retry_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
+             *   `test/features/jobs/e2e/job_sync_reset_failed_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
+             *   `test/features/jobs/e2e/job_sync_server_deletion_detection_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<FileSystem>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
+             *   `test/features/jobs/e2e/job_sync_deletion_failure_e2e_test.dart`: `sl<JobRemoteDataSource>()`, `sl<FileSystem>()`, `sl<AuthSessionProvider>()`, `sl<JobRepository>()`, etc. - ✅ **REFACTORED** (uses refactored helper)
+             *   `test/features/jobs/e2e/job_sync_e2e_test.dart`: `sl<JobRepository>()` usages - ✅ **REFACTORED** (Task 3.1, uses refactored helper, fixed stubs)
+             *   `test/features/jobs/e2e/e2e_setup_helpers.dart`: `sl<NetworkInfo>()`, `sl<AuthCredentialsProvider>()`, `sl<AuthSessionProvider>()`, etc. - ✅ **REFACTORED** (Removed `sl`, now creates/returns `E2EDependencyContainer`)
          *   Core DI Tests:
              *   `test/core/di/injection_container_test.dart`: `sl<JobListCubit>()`, `sl<AppConfig>()` - **OK (Verification)**
          *   Documentation Files (Ignored):
@@ -186,6 +186,7 @@ This section outlines the remaining work organized by component dependencies, no
        *What*: Planned how tests will use the refactored setup.
        *How*: Tests will call the updated helper functions or use the new explicit setup defined in their `setUp` blocks.
        *Findings*: This prepares the ground for migrating repositories/services (Task 3).
+     - [✓] **Helper Refactoring**: Refactored `e2e_setup_helpers.dart` to provide dependencies via `E2EDependencyContainer`, removing internal `sl` usage.
 
 #### REFACTOR Phase
 3. **[ ] Document Boundary Pattern for UI Components**
@@ -200,6 +201,10 @@ This section outlines the remaining work organized by component dependencies, no
      *What*: Modified **all** tests in `test/features/jobs/e2e/job_sync_e2e_test.dart` that previously used `sl<JobRepository>()`.
      *How*: Replaced `sl<JobRepository>()` with explicit instantiation of `JobRepositoryImpl`, passing mocks. Updated `e2e_setup_helpers.dart` to generate necessary mocks. Added/adjusted stubbing for mocked methods until tests passed.
      *Findings*: All tests in `job_sync_e2e_test.dart` now pass using explicit DI for the repository. This confirms the pattern works but highlights the need for careful stubbing per test case. Other test files using `sl` for JobRepository/Services still need refactoring.
+     *Update*: Refactored `test/features/jobs/e2e/job_sync_creation_failure_e2e_test.dart` to use the new explicit helper (`e2e_setup_helpers.dart`), removing its direct `sl` calls.
+     *Update*: Refactored remaining `job_sync_*.dart` E2E tests to use the helper.
+     *Update*: Fixed stubbing and setup issues identified during E2E test refactoring in `job_sync_e2e_test.dart`.
+     *Update*: Refactored `test/integration/auth_logout_integration_test.dart` to remove `sl` usage.
    - [ ] 1.2 Remove any remaining GetIt setup in tests
      *Note*: This will happen gradually as tests are refactored.
 

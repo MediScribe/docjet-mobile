@@ -1,24 +1,25 @@
 import 'dart:io';
 
-import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+// import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // UNUSED
 import 'package:docjet_mobile/core/error/exceptions.dart';
-import 'package:docjet_mobile/core/interfaces/network_info.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
+// import 'package:docjet_mobile/core/interfaces/network_info.dart'; // UNUSED
+// import 'package:docjet_mobile/core/platform/file_system.dart'; // UNUSED
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // UNUSED
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+// import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'; // UNUSED
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
+// import 'package:get_it/get_it.dart'; // REMOVE GetIt
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-// Import the setup helpers
+// Import the setup helpers and container
 import 'e2e_setup_helpers.dart';
+import 'e2e_dependency_container.dart';
 // Import the generated mocks FROM the helper file
 import 'e2e_setup_helpers.mocks.dart';
 
@@ -26,9 +27,10 @@ import 'e2e_setup_helpers.mocks.dart';
 late Process? _mockServerProcess;
 late Directory _tempDir;
 late Box<JobHiveModel> _jobBox;
+late E2EDependencyContainer _dependencies; // Store the container
 
 // --- Test Globals (Managed by helpers) ---
-final sl = GetIt.instance; // Keep for easy access in tests
+// final sl = GetIt.instance; // REMOVE GetIt
 final _logger = LoggerFactory.getLogger(testSuiteName); // Use helper's logger
 final _tag = logTag(testSuiteName); // Use helper's tag
 
@@ -40,13 +42,12 @@ void main() {
     _mockServerProcess = setupResult.$1;
     _tempDir = setupResult.$2;
     _jobBox = setupResult.$3;
-    // REMOVE all the individual setup steps (they are now inside setupE2ETestSuite)
+    _dependencies = setupResult.$4; // Store the container
   });
 
   tearDownAll(() async {
     // --- Shared Teardown ---
     await teardownE2ETestSuite(_mockServerProcess, _tempDir, _jobBox);
-    // REMOVE all individual teardown steps (they are now inside teardownE2ETestSuite)
   });
 
   setUp(() async {
@@ -56,20 +57,18 @@ void main() {
     // Clear the job box before each test to ensure isolation
     await _jobBox.clear();
     _logger.d('$_tag Job box cleared.');
-    // Reset mocks using helper
-    resetTestMocks(); // This should reset FileSystem too if setup correctly
-    // Ensure mock remote data source is reset if registered
-    if (sl.isRegistered<JobRemoteDataSource>()) {
-      reset(sl<JobRemoteDataSource>());
-    }
-    // Ensure mock file system is reset if registered
-    if (sl.isRegistered<FileSystem>()) {
-      reset(sl<FileSystem>());
-    }
-    // Ensure mock auth session provider is reset if registered
-    if (sl.isRegistered<AuthSessionProvider>()) {
-      reset(sl<AuthSessionProvider>());
-    }
+    // Reset mocks using helper and container
+    resetTestMocks(_dependencies); // Pass the container
+    // Remove explicit resets, handled by resetTestMocks
+    // if (sl.isRegistered<JobRemoteDataSource>()) {
+    //   reset(sl<JobRemoteDataSource>());
+    // }
+    // if (sl.isRegistered<FileSystem>()) {
+    //   reset(sl<FileSystem>());
+    // }
+    // if (sl.isRegistered<AuthSessionProvider>()) {
+    //   reset(sl<AuthSessionProvider>());
+    // }
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -85,18 +84,16 @@ void main() {
       'should mark job with error status when server returns 5xx during deletion sync',
       () async {
         _logger.i('$_tag --- Test: Sync Failure - Deletion Server 5xx ---');
-        // Arrange: Get dependencies
-        final jobRepository = sl<JobRepository>();
-        final localDataSource = sl<JobLocalDataSource>();
+        // Arrange: Get dependencies from container
+        final jobRepository = _dependencies.jobRepository;
+        final localDataSource = _dependencies.jobLocalDataSource;
         final mockRemoteDataSource =
-            sl<JobRemoteDataSource>() as MockApiJobRemoteDataSourceImpl;
-        final mockFileSystem =
-            sl<FileSystem>() as MockFileSystem; // Need for verification
-        final mockNetworkInfo = sl<NetworkInfo>() as MockNetworkInfo;
-        final mockAuthSessionProvider =
-            sl<AuthSessionProvider>() as MockAuthSessionProvider;
+            _dependencies.jobRemoteDataSource as MockApiJobRemoteDataSourceImpl;
+        final mockFileSystem = _dependencies.mockFileSystem;
+        final mockNetworkInfo = _dependencies.mockNetworkInfo;
+        final mockAuthSessionProvider = _dependencies.mockAuthSessionProvider;
 
-        // Arrange: Ensure network is online
+        // Arrange: Ensure network is online (using mock from container)
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
 
         // Arrange: Create a job locally

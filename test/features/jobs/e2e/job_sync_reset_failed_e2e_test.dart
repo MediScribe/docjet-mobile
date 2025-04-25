@@ -1,24 +1,25 @@
 import 'dart:io';
 
-import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+// import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // UNUSED
 import 'package:docjet_mobile/core/error/exceptions.dart';
-import 'package:docjet_mobile/core/interfaces/network_info.dart';
+// import 'package:docjet_mobile/core/interfaces/network_info.dart'; // UNUSED
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // UNUSED
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+// import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/config/job_sync_config.dart'; // NEEDED for maxRetryAttempts
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
+// import 'package:get_it/get_it.dart'; // REMOVE GetIt
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-// Import the setup helpers
+// Import the setup helpers and container
 import 'e2e_setup_helpers.dart';
+import 'e2e_dependency_container.dart';
 // Import the generated mocks FROM the helper file
 import 'e2e_setup_helpers.mocks.dart';
 
@@ -26,9 +27,10 @@ import 'e2e_setup_helpers.mocks.dart';
 late Process? _mockServerProcess;
 late Directory _tempDir;
 late Box<JobHiveModel> _jobBox;
+late E2EDependencyContainer _dependencies; // Store the container
 
 // --- Test Globals (Managed by helpers) ---
-final sl = GetIt.instance; // Keep for easy access in tests
+// final sl = GetIt.instance; // REMOVE GetIt
 final _logger = LoggerFactory.getLogger(testSuiteName); // Use helper's logger
 final _tag = logTag(testSuiteName); // Use helper's tag
 
@@ -40,13 +42,12 @@ void main() {
     _mockServerProcess = setupResult.$1;
     _tempDir = setupResult.$2;
     _jobBox = setupResult.$3;
-    // REMOVE all the individual setup steps (they are now inside setupE2ETestSuite)
+    _dependencies = setupResult.$4; // Store the container
   });
 
   tearDownAll(() async {
     // --- Shared Teardown ---
     await teardownE2ETestSuite(_mockServerProcess, _tempDir, _jobBox);
-    // REMOVE all individual teardown steps (they are now inside teardownE2ETestSuite)
   });
 
   setUp(() async {
@@ -56,12 +57,12 @@ void main() {
     // Clear the job box before each test to ensure isolation
     await _jobBox.clear();
     _logger.d('$_tag Job box cleared.');
-    // Reset mocks using helper
-    resetTestMocks();
-    // Ensure mock remote data source is reset if registered
-    if (sl.isRegistered<JobRemoteDataSource>()) {
-      reset(sl<JobRemoteDataSource>());
-    }
+    // Reset mocks using helper and container
+    resetTestMocks(_dependencies);
+    // Remove explicit reset of remote data source, handled by resetTestMocks
+    // if (sl.isRegistered<JobRemoteDataSource>()) {
+    //   reset(sl<JobRemoteDataSource>());
+    // }
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -77,16 +78,15 @@ void main() {
       'should reset a failed job to pending and allow successful sync afterwards',
       () async {
         _logger.i('$_tag --- Test: Reset Failed Job ---');
-        // Arrange: Get dependencies
-        final jobRepository = sl<JobRepository>();
-        final localDataSource = sl<JobLocalDataSource>();
+        // Arrange: Get dependencies from container
+        final jobRepository = _dependencies.jobRepository;
+        final localDataSource = _dependencies.jobLocalDataSource;
         final mockRemoteDataSource =
-            sl<JobRemoteDataSource>() as MockApiJobRemoteDataSourceImpl;
-        final mockNetworkInfo = sl<NetworkInfo>() as MockNetworkInfo;
-        final mockAuthSessionProvider =
-            sl<AuthSessionProvider>() as MockAuthSessionProvider;
+            _dependencies.jobRemoteDataSource as MockApiJobRemoteDataSourceImpl;
+        final mockNetworkInfo = _dependencies.mockNetworkInfo;
+        final mockAuthSessionProvider = _dependencies.mockAuthSessionProvider;
 
-        // Arrange: Ensure network is online
+        // Arrange: Ensure network is online (using mock from container)
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
 
         // Arrange: Set up auth session provider
@@ -117,7 +117,7 @@ void main() {
         final localId = createdJob.localId;
         _logger.d('$_tag Job created locally with localId: $localId');
 
-        // Arrange: Mock remote call to fail repeatedly
+        // Arrange: Mock remote call to fail repeatedly (using mock from container)
         _logger.d(
           '$_tag Arranging: Mocking remote createJob to fail $maxRetryAttempts times...', // USE config constant
         );
@@ -129,7 +129,7 @@ void main() {
           ),
         ).thenThrow(ApiException(message: 'Repeated Failure', statusCode: 500));
 
-        // Act: Instead of triggering sync multiple times, directly set the job to failed status
+        // Act: Instead of triggering sync multiple times, directly set the job to failed status (using local DS from container)
         _logger.i(
           '$_tag Acting: Directly setting job to failed status to speed up the test...',
         );
@@ -142,13 +142,13 @@ void main() {
           ),
         );
 
-        // Verify the job is in failed state
+        // Verify the job is in failed state (using local DS from container)
         _logger.i('$_tag Verifying job state is failed...');
         jobFromDb = await localDataSource.getJobById(localId);
         expect(jobFromDb.syncStatus, SyncStatus.failed);
         expect(jobFromDb.retryCount, maxRetryAttempts);
 
-        // Act: Reset the failed job
+        // Act: Reset the failed job (using repo from container)
         _logger.i('$_tag Acting: Resetting failed job...');
         final resetResult = await jobRepository.resetFailedJob(localId);
         expect(
@@ -157,19 +157,21 @@ void main() {
           reason: 'Resetting failed job failed',
         );
 
-        // Assert: Verify job state is now 'pending' and retry count is 0
+        // Assert: Verify job state is now 'pending' and retry count is 0 (using local DS from container)
         _logger.i('$_tag Verifying job state is pending after reset...');
         jobFromDb = await localDataSource.getJobById(localId);
         expect(jobFromDb.syncStatus, SyncStatus.pending);
         expect(jobFromDb.retryCount, 0);
         _logger.d('$_tag Job successfully reset to pending.');
 
-        // Arrange: Mock remote call to SUCCEED now
+        // Arrange: Mock remote call to SUCCEED now (using mocks from container)
         _logger.d('$_tag Arranging: Mocking remote createJob to succeed...');
         final mockServerId = const Uuid().v4();
-        reset(mockRemoteDataSource); // Reset the previous failure mock
+        reset(
+          mockRemoteDataSource,
+        ); // Reset the previous failure mock (from container)
 
-        // Make sure auth session provider is still set correctly
+        // Make sure auth session provider mock (from container) is still set correctly
         when(
           mockAuthSessionProvider.isAuthenticated(),
         ).thenAnswer((_) async => true);
@@ -190,7 +192,7 @@ void main() {
           ),
         );
 
-        // Act: Trigger sync again (should succeed now)
+        // Act: Trigger sync again (should succeed now) (using repo from container)
         _logger.i('$_tag Acting: Triggering sync after reset...');
         final finalSyncResult = await jobRepository.syncPendingJobs();
         expect(
@@ -199,7 +201,7 @@ void main() {
           reason: 'Final sync orchestration failed',
         );
 
-        // Assert: Verify job state is 'synced'
+        // Assert: Verify job state is 'synced' (using local DS from container)
         _logger.i(
           '$_tag Verifying job state is synced after reset and sync...',
         );

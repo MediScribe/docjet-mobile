@@ -21,14 +21,15 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
-import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+
+// Import the new container
+import 'e2e_dependency_container.dart';
 
 // Generate mocks for NetworkInfo, AuthCredentialsProvider, and FileSystem
 @GenerateMocks([
@@ -52,7 +53,6 @@ const String mockServerScriptRelativePath = 'mock_api_server/bin/server.dart';
 const String testSuiteName = 'JobSyncE2eTest'; // Centralized test suite name
 
 // --- Globals (Managed within setup/teardown) ---
-final sl = GetIt.instance;
 final logger = LoggerFactory.getLogger(testSuiteName);
 final tag = logTag(testSuiteName);
 
@@ -162,7 +162,6 @@ Future<(Directory, Box<JobHiveModel>)> setupHive() async {
   final tempDir = await Directory.systemTemp.createTemp('hive_e2e_test_');
   logHelper('Hive temp directory: ${tempDir.path}');
   // Use init, not initFlutter, for Dart tests
-  // await Hive.initFlutter(tempDir.path); // WRONG for Dart tests
   Hive.init(tempDir.path); // CORRECT for Dart tests
 
   // Register Adapters (Essential!)
@@ -197,207 +196,188 @@ Future<void> teardownHive(Directory tempDir, Box<JobHiveModel> jobBox) async {
   }
 }
 
-/// Sets up Dependency Injection container.
+/// Sets up dependencies explicitly without using GetIt.
 ///
-/// Requires the mock server URL and the job box.
-/// Optionally registers a mock for [JobRemoteDataSource] instead of the real one.
-Future<void> setupDI({
+/// Returns an [E2EDependencyContainer] with all instantiated mocks and services.
+/// Requires the mock server port and the job box.
+/// Optionally uses a mock for [JobRemoteDataSource] instead of the real one.
+E2EDependencyContainer setupDependencies({
   required int mockServerPort,
   required Box<JobHiveModel> jobBox,
   bool registerMockDataSource = false, // Default to real implementation
-}) async {
+}) {
   logger.i(
-    '$tag Setting up Dependency Injection (Mock DS: $registerMockDataSource)...',
+    '$tag Setting up Explicit Dependencies (Mock DS: $registerMockDataSource)...',
   );
-  await sl.reset();
 
   // --- Construct server domain ---
   final mockServerDomain = 'localhost:$mockServerPort';
   final baseUrl = ApiConfig.baseUrlFromDomain(mockServerDomain);
   logger.i('$tag Using mock server at $baseUrl');
 
-  // --- External Dependencies ---
-  sl.registerLazySingleton<Dio>(() {
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: baseUrl,
-        headers: {
-          'X-API-Key': mockApiKey,
-          'Authorization': 'Bearer fake-test-token', // Mock server accepts any
-        },
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-      ),
-    );
-    // dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
-    return dio;
-  });
+  // --- Instantiate Mocks ---
+  final mockNetworkInfo = MockNetworkInfo();
+  when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
 
-  // Use generated mocks
-  sl.registerLazySingleton<NetworkInfo>(() => MockNetworkInfo());
-  when(sl<NetworkInfo>().isConnected).thenAnswer((_) async => true);
-  sl.registerLazySingleton<AuthCredentialsProvider>(
-    () => MockAuthCredentialsProvider(),
-  );
+  final mockAuthCredentialsProvider = MockAuthCredentialsProvider();
   when(
-    sl<AuthCredentialsProvider>().getApiKey(),
+    mockAuthCredentialsProvider.getApiKey(),
   ).thenAnswer((_) async => mockApiKey);
   when(
-    sl<AuthCredentialsProvider>().getAccessToken(),
+    mockAuthCredentialsProvider.getAccessToken(),
   ).thenAnswer((_) async => 'fake-test-token');
 
-  // Register AuthEventBus
-  sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
-
-  // Register AuthSessionProvider mock with consistently stubbed methods
-  sl.registerLazySingleton<AuthSessionProvider>(
-    () => MockAuthSessionProvider(),
-  );
-  // Configure the mock AuthSessionProvider with default test behaviors
+  final mockAuthSessionProvider = MockAuthSessionProvider();
   when(
-    sl<AuthSessionProvider>().getCurrentUserId(),
+    mockAuthSessionProvider.getCurrentUserId(),
+  ).thenAnswer((_) async => 'test-user-id');
+  when(mockAuthSessionProvider.isAuthenticated()).thenAnswer((_) async => true);
+
+  final mockFileSystem = MockFileSystem();
+  final mockApiJobRemoteDataSource = MockApiJobRemoteDataSourceImpl();
+  final mockAuthEventBus = MockAuthEventBus(); // Instantiate the mock event bus
+
+  // --- Instantiate Real External Dependencies ---
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: baseUrl,
+      headers: {
+        'X-API-Key': mockApiKey,
+        'Authorization': 'Bearer fake-test-token', // Mock server accepts any
+      },
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 5),
+    ),
+  );
+  // dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+  final uuid = const Uuid();
+  final hive = Hive; // Use the static Hive class instance
+  final authEventBus = AuthEventBus(); // Instantiate real event bus
+
+  // --- Instantiate Data Sources ---
+  final jobLocalDataSource = HiveJobLocalDataSourceImpl(hive: hive);
+
+  final JobRemoteDataSource jobRemoteDataSource;
+  if (registerMockDataSource) {
+    logger.i('$tag Using MOCK JobRemoteDataSource');
+    jobRemoteDataSource = mockApiJobRemoteDataSource; // Use the mock instance
+  } else {
+    logger.i('$tag Using REAL JobRemoteDataSource');
+    jobRemoteDataSource = ApiJobRemoteDataSourceImpl(
+      // Instantiate real one
+      dio: dio,
+      authCredentialsProvider: mockAuthCredentialsProvider, // Use mock provider
+      authSessionProvider: mockAuthSessionProvider, // Use mock provider
+    );
+  }
+
+  // --- Instantiate Services (using previously created instances) ---
+  // Need JobDeleterService first for JobReaderService
+  final jobDeleterService = JobDeleterService(
+    localDataSource: jobLocalDataSource,
+    fileSystem: mockFileSystem, // Use mock FS
+  );
+
+  final jobReaderService = JobReaderService(
+    localDataSource: jobLocalDataSource,
+    remoteDataSource: jobRemoteDataSource, // Use real or mock instance
+    deleterService: jobDeleterService, // Use created service
+    networkInfo: mockNetworkInfo, // Use mock network info
+  );
+
+  final jobWriterService = JobWriterService(
+    localDataSource: jobLocalDataSource,
+    uuid: uuid, // Use real Uuid
+    authSessionProvider: mockAuthSessionProvider, // Use mock provider
+  );
+
+  final jobSyncProcessorService = JobSyncProcessorService(
+    localDataSource: jobLocalDataSource,
+    remoteDataSource: jobRemoteDataSource, // Use real or mock instance
+    fileSystem: mockFileSystem, // Use mock FS
+  );
+
+  final jobSyncOrchestratorService = JobSyncOrchestratorService(
+    localDataSource: jobLocalDataSource,
+    networkInfo: mockNetworkInfo, // Use mock network info
+    processorService: jobSyncProcessorService, // Use created service
+  );
+
+  // --- Instantiate Repository ---
+  final jobRepository = JobRepositoryImpl(
+    readerService: jobReaderService,
+    writerService: jobWriterService,
+    deleterService: jobDeleterService,
+    orchestratorService: jobSyncOrchestratorService,
+    authSessionProvider: mockAuthSessionProvider, // Use mock provider
+    localDataSource: jobLocalDataSource,
+    authEventBus: authEventBus, // Use real event bus instance
+  );
+
+  logger.i('$tag Explicit Dependency setup complete.');
+
+  // --- Return Container ---
+  return E2EDependencyContainer(
+    // Mocks
+    mockNetworkInfo: mockNetworkInfo,
+    mockAuthCredentialsProvider: mockAuthCredentialsProvider,
+    mockAuthSessionProvider: mockAuthSessionProvider,
+    mockFileSystem: mockFileSystem,
+    mockApiJobRemoteDataSource: mockApiJobRemoteDataSource,
+    mockAuthEventBus: mockAuthEventBus, // Pass mock event bus
+    // Real Instances
+    dio: dio,
+    uuid: uuid,
+    hive: hive,
+    jobBox: jobBox,
+    jobLocalDataSource: jobLocalDataSource,
+    jobRemoteDataSource:
+        jobRemoteDataSource, // Pass the chosen (real/mock) instance
+    jobRepository: jobRepository,
+    authEventBus: authEventBus, // Pass real event bus instance
+  );
+}
+
+/// Resets mocks for a new test using the provided container.
+void resetTestMocks(E2EDependencyContainer dependencies) {
+  reset(dependencies.mockNetworkInfo);
+  when(dependencies.mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+  reset(dependencies.mockAuthCredentialsProvider);
+  when(
+    dependencies.mockAuthCredentialsProvider.getApiKey(),
+  ).thenAnswer((_) async => mockApiKey);
+  when(
+    dependencies.mockAuthCredentialsProvider.getAccessToken(),
+  ).thenAnswer((_) async => 'fake-test-token');
+
+  reset(dependencies.mockAuthSessionProvider);
+  when(
+    dependencies.mockAuthSessionProvider.getCurrentUserId(),
   ).thenAnswer((_) async => 'test-user-id');
   when(
-    sl<AuthSessionProvider>().isAuthenticated(),
+    dependencies.mockAuthSessionProvider.isAuthenticated(),
   ).thenAnswer((_) async => true);
 
-  sl.registerLazySingleton<Uuid>(() => const Uuid());
-  sl.registerLazySingleton<FileSystem>(() => MockFileSystem());
-  sl.registerLazySingleton<HiveInterface>(() => Hive);
+  reset(dependencies.mockFileSystem);
 
-  // Register the mock implementation with a specific name
-  sl.registerLazySingleton<MockApiJobRemoteDataSourceImpl>(
-    () => MockApiJobRemoteDataSourceImpl(),
-    instanceName: 'mockDataSource',
-  );
-  // Register the real implementation with a specific name (optional, but good practice)
-  sl.registerLazySingleton<ApiJobRemoteDataSourceImpl>(
-    () => ApiJobRemoteDataSourceImpl(
-      dio: sl(),
-      authCredentialsProvider: sl(),
-      authSessionProvider: sl(),
-    ),
-    instanceName: 'realDataSource',
-  );
+  // Reset the API data source mock if it was used
+  // Note: We reset the specific mock instance held in the container
+  reset(dependencies.mockApiJobRemoteDataSource);
 
-  // --- Data Sources ---
-  sl.registerLazySingleton<JobLocalDataSource>(
-    () => HiveJobLocalDataSourceImpl(hive: sl()),
-  );
-
-  // Conditionally register the default JobRemoteDataSource
-  if (registerMockDataSource) {
-    logger.i('$tag Registering MOCK JobRemoteDataSource');
-    // Register the named mock as the default implementation for the interface
-    sl.registerLazySingleton<JobRemoteDataSource>(
-      () => sl<MockApiJobRemoteDataSourceImpl>(instanceName: 'mockDataSource'),
-    );
-  } else {
-    logger.i('$tag Registering REAL JobRemoteDataSource');
-    // Register the named real implementation as the default
-    sl.registerLazySingleton<JobRemoteDataSource>(
-      () => sl<ApiJobRemoteDataSourceImpl>(instanceName: 'realDataSource'),
-    );
-  }
-
-  // --- Services ---
-  sl.registerLazySingleton<JobReaderService>(
-    () => JobReaderService(
-      localDataSource: sl(),
-      remoteDataSource: sl(),
-      deleterService: sl(),
-      networkInfo: sl(),
-    ),
-  );
-  sl.registerLazySingleton<JobWriterService>(
-    () => JobWriterService(
-      localDataSource: sl(),
-      uuid: sl(),
-      authSessionProvider: sl(),
-    ),
-  );
-  sl.registerLazySingleton<JobDeleterService>(
-    () => JobDeleterService(localDataSource: sl(), fileSystem: sl()),
-  );
-  sl.registerLazySingleton<JobSyncProcessorService>(
-    () => JobSyncProcessorService(
-      localDataSource: sl(),
-      remoteDataSource: sl(),
-      fileSystem: sl(),
-    ),
-  );
-  sl.registerLazySingleton<JobSyncOrchestratorService>(
-    () => JobSyncOrchestratorService(
-      localDataSource: sl(),
-      networkInfo: sl(),
-      processorService: sl(),
-    ),
-  );
-
-  // --- Repository ---
-  sl.registerLazySingleton<JobRepository>(
-    () => JobRepositoryImpl(
-      readerService: sl(),
-      writerService: sl(),
-      deleterService: sl(),
-      orchestratorService: sl<JobSyncOrchestratorService>(),
-      authSessionProvider: sl<AuthSessionProvider>(),
-      localDataSource: sl(),
-      authEventBus: sl<AuthEventBus>(),
-    ),
-  );
-
-  // Register the Hive Box instance
-  sl.registerLazySingleton<Box<JobHiveModel>>(() => jobBox);
-
-  logger.i('$tag Dependency Injection setup complete.');
-}
-
-/// Resets the Dependency Injection container.
-Future<void> teardownDI() async {
-  logger.i('$tag Resetting Dependency Injection container...');
-  await sl.reset();
-  logger.i('$tag DI container reset.');
-}
-
-/// Resets mocks for a new test.
-void resetTestMocks() {
-  if (sl.isRegistered<NetworkInfo>()) {
-    reset(sl<NetworkInfo>());
-    when(sl<NetworkInfo>().isConnected).thenAnswer((_) async => true);
-  }
-  if (sl.isRegistered<AuthCredentialsProvider>()) {
-    reset(sl<AuthCredentialsProvider>());
-    when(
-      sl<AuthCredentialsProvider>().getApiKey(),
-    ).thenAnswer((_) async => mockApiKey);
-    when(
-      sl<AuthCredentialsProvider>().getAccessToken(),
-    ).thenAnswer((_) async => 'fake-test-token');
-  }
-  if (sl.isRegistered<AuthSessionProvider>()) {
-    reset(sl<AuthSessionProvider>());
-    when(
-      sl<AuthSessionProvider>().getCurrentUserId(),
-    ).thenAnswer((_) async => 'test-user-id');
-    when(
-      sl<AuthSessionProvider>().isAuthenticated(),
-    ).thenAnswer((_) async => true);
-  }
-  if (sl.isRegistered<FileSystem>()) {
-    reset(sl<FileSystem>());
-  }
+  // Reset the AuthEventBus mock
+  reset(dependencies.mockAuthEventBus);
 }
 
 // --- New Shared Setup/Teardown Functions ---
 
 /// Combined setup for an E2E test suite.
 ///
-/// Starts the mock server, initializes Hive, and sets up DI.
-/// Returns a record containing the necessary handles for teardown.
-Future<(Process?, Directory, Box<JobHiveModel>)> setupE2ETestSuite({
-  bool registerMockDataSource = false,
-}) async {
+/// Starts the mock server, initializes Hive, and sets up explicit dependencies.
+/// Returns a record containing the server process, Hive temp dir, job box,
+/// and the dependency container.
+Future<(Process?, Directory, Box<JobHiveModel>, E2EDependencyContainer)>
+setupE2ETestSuite({bool registerMockDataSource = false}) async {
   // --- Logging Setup ---
   LoggerFactory.setLogLevel(testSuiteName, Level.debug);
   logger.i('$tag --- Starting Shared E2E Test Suite Setup --- GOGO');
@@ -424,29 +404,29 @@ Future<(Process?, Directory, Box<JobHiveModel>)> setupE2ETestSuite({
   final tempDir = hiveResult.$1;
   final jobBox = hiveResult.$2;
 
-  // --- DI Setup ---
-  await setupDI(
+  // --- Explicit Dependency Setup ---
+  final dependencies = setupDependencies(
+    // Call new function
     mockServerPort: mockServerPort,
     jobBox: jobBox,
     registerMockDataSource: registerMockDataSource,
   );
 
   logger.i('$tag --- Shared E2E Test Suite Setup Complete ---');
-  return (mockServerProcess, tempDir, jobBox);
+  // Return the container along with other handles
+  return (mockServerProcess, tempDir, jobBox, dependencies);
 }
 
 /// Combined teardown for an E2E test suite.
 ///
-/// Tears down DI, cleans up Hive, and stops the mock server.
+/// Cleans up Hive and stops the mock server. DI teardown is no longer needed.
 Future<void> teardownE2ETestSuite(
   Process? mockServerProcess,
   Directory tempDir,
   Box<JobHiveModel> jobBox,
+  // E2EDependencyContainer dependencies, // Container might not be needed here
 ) async {
   logger.i('$tag --- Tearing Down Shared E2E Test Suite ---');
-  // --- DI Teardown ---
-  await teardownDI();
-
   // --- Hive Teardown ---
   await teardownHive(tempDir, jobBox);
 

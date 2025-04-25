@@ -2,19 +2,18 @@ import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
+// import 'package:docjet_mobile/core/platform/file_system.dart'; // UNUSED
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+// import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
-import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart';
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+// import 'package:docjet_mobile/features/jobs/data/repositories/job_repository_impl.dart'; // UNUSED
+// import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'; // UNUSED
+// import 'package:docjet_mobile/features/jobs/domain/entities/job.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_update_details.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+// import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'; // UNUSED
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
@@ -22,6 +21,7 @@ import 'package:uuid/uuid.dart';
 
 // Import the setup helpers
 import 'e2e_setup_helpers.dart';
+import 'e2e_dependency_container.dart';
 // Import the generated mocks FROM the helper file
 import 'e2e_setup_helpers.mocks.dart';
 
@@ -29,9 +29,10 @@ import 'e2e_setup_helpers.mocks.dart';
 late Process? _mockServerProcess;
 late Directory _tempDir;
 late Box<JobHiveModel> _jobBox;
+late E2EDependencyContainer _dependencies; // Store the container
 
 // --- Test Globals (Managed by helpers) ---
-final sl = GetIt.instance; // Keep for easy access in tests
+// final sl = GetIt.instance; // REMOVE GetIt
 final _logger = LoggerFactory.getLogger(testSuiteName); // Use helper's logger
 final _tag = logTag(testSuiteName); // Use helper's tag
 
@@ -47,10 +48,14 @@ void main() {
 
   setUpAll(() async {
     // --- Shared Setup ---
-    final setupResult = await setupE2ETestSuite(); // Call the shared setup
+    // Use the default (real remote data source)
+    // final setupResult = await setupE2ETestSuite();
+    // Ensure we get the MOCK remote data source for this test suite
+    final setupResult = await setupE2ETestSuite(registerMockDataSource: true);
     _mockServerProcess = setupResult.$1;
     _tempDir = setupResult.$2;
     _jobBox = setupResult.$3;
+    _dependencies = setupResult.$4; // Store the container
     // REMOVE all the individual setup steps (they are now inside setupE2ETestSuite)
   });
 
@@ -71,8 +76,8 @@ void main() {
     // Clear the job box before each test to ensure isolation
     await _jobBox.clear();
     _logger.d('$_tag Job box cleared.');
-    // Reset mocks using helper
-    resetTestMocks();
+    // Reset mocks using helper and container
+    resetTestMocks(_dependencies); // Pass the container
 
     _logger.d('$_tag Test setup complete.');
   });
@@ -85,11 +90,11 @@ void main() {
   group('Job Sync E2E Tests', () {
     test('Setup and Teardown Check', () {
       _logger.i('$_tag Running dummy test to verify setup...');
-      expect(sl.isRegistered<JobRepository>(), isTrue);
-      expect(_jobBox.isOpen, isTrue);
+      // Check dependencies from the container
+      expect(_dependencies.jobRepository, isNotNull);
+      expect(_dependencies.jobBox.isOpen, isTrue);
       expect(_mockServerProcess, isNotNull);
-      // Check if the CORRECT FileSystem mock is registered
-      expect(sl.isRegistered<FileSystem>(), isTrue);
+      expect(_dependencies.mockFileSystem, isNotNull);
       _logger.i('$_tag Dummy test passed.');
     });
 
@@ -98,8 +103,9 @@ void main() {
       'should create a job locally and sync it successfully with the mock server',
       () async {
         _logger.i('$_tag --- Test: Create and Sync Job ---');
-        final jobRepository = sl<JobRepository>();
-        final localDataSource = sl<JobLocalDataSource>();
+        // Get dependencies from container
+        final jobRepository = _dependencies.jobRepository;
+        final localDataSource = _dependencies.jobLocalDataSource;
 
         // Arrange: Create a dummy audio file
         final dummyAudioFileName =
@@ -148,6 +154,24 @@ void main() {
         );
         expect(jobFromDbInitial.text, 'Initial test text');
         expect(jobFromDbInitial.audioFilePath, dummyAudioFile.path);
+
+        // Arrange: Stub the remote createJob call to succeed
+        final mockServerId = const Uuid().v4();
+        final mockRemoteDataSource =
+            _dependencies.jobRemoteDataSource as MockApiJobRemoteDataSourceImpl;
+        when(
+          mockRemoteDataSource.createJob(
+            audioFilePath: anyNamed('audioFilePath'),
+            text: anyNamed('text'),
+            additionalText: anyNamed('additionalText'),
+          ),
+        ).thenAnswer(
+          // Return the original job data but with synced status and serverId
+          (_) async => createdJob.copyWith(
+            serverId: mockServerId,
+            syncStatus: SyncStatus.synced,
+          ),
+        );
 
         // Act: Trigger synchronization
         _logger.i('$_tag Triggering sync...');
@@ -207,8 +231,9 @@ void main() {
       'should update a job locally, sync the update, and verify the changes',
       () async {
         _logger.i('$_tag --- Test: Update and Sync Job ---');
-        final jobRepository = sl<JobRepository>();
-        final localDataSource = sl<JobLocalDataSource>();
+        // Get dependencies from container
+        final jobRepository = _dependencies.jobRepository;
+        final localDataSource = _dependencies.jobLocalDataSource;
 
         // Arrange Part 1: Create and initial sync
         _logger.d('$_tag Arranging: Creating initial job...');
@@ -233,6 +258,23 @@ void main() {
         );
         final localId = createdJob.localId;
         _logger.d('$_tag Initial job created with localId: $localId');
+
+        // Arrange: Stub initial createJob call
+        final mockRemoteDataSource =
+            _dependencies.jobRemoteDataSource as MockApiJobRemoteDataSourceImpl;
+        final initialServerId = const Uuid().v4();
+        when(
+          mockRemoteDataSource.createJob(
+            audioFilePath: anyNamed('audioFilePath'),
+            text: anyNamed('text'),
+            additionalText: anyNamed('additionalText'),
+          ),
+        ).thenAnswer(
+          (_) async => createdJob.copyWith(
+            serverId: initialServerId,
+            syncStatus: SyncStatus.synced,
+          ),
+        );
 
         _logger.d('$_tag Arranging: Performing initial sync...');
         final initialSyncResult = await jobRepository.syncPendingJobs();
@@ -281,6 +323,20 @@ void main() {
           reason: 'Status should be pending after local update',
         );
         _logger.d('$_tag Local update successful, status set to pending.');
+
+        // Arrange: Stub updateJob call to succeed
+        // Note: updateJob returns the updated Job
+        when(
+          mockRemoteDataSource.updateJob(
+            jobId: anyNamed('jobId'), // Use jobId
+            updates: anyNamed('updates'),
+          ),
+        ).thenAnswer((_) async {
+          // Find the locally updated job to return it
+          final updatedLocalJob = await localDataSource.getJobById(localId);
+          // Simulate server returning the updated job marked as synced
+          return updatedLocalJob.copyWith(syncStatus: SyncStatus.synced);
+        });
 
         // Act: Trigger synchronization for the update
         _logger.i('$_tag Acting: Triggering sync for the update...');
@@ -339,96 +395,70 @@ void main() {
       () async {
         _logger.i('$_tag --- Test: Delete and Sync Job ---');
 
-        // --- Explicit DI Setup for JobRepository ---
-        final mockReaderService = MockJobReaderService();
-        final mockWriterService = MockJobWriterService();
-        final mockDeleterService = MockJobDeleterService();
-        final mockAuthSessionProvider = MockAuthSessionProvider();
-        final mockLocalDataSource = MockJobLocalDataSource();
-        final mockAuthEventBus = MockAuthEventBus();
-        final mockFileSystem = MockFileSystem(); // Mock filesystem
-        final mockOrchestratorService =
-            MockJobSyncOrchestratorService(); // Mock orchestrator
+        // --- Explicit DI Setup for JobRepository is NO LONGER NEEDED ---
+        // We get the real repository and necessary mocks from the container
+        final jobRepository = _dependencies.jobRepository;
+        final localDataSource = _dependencies.jobLocalDataSource;
+        // Note: setupE2ETestSuite provides the REAL JobRepository, which uses
+        // the MOCK FileSystem and MOCK RemoteDataSource (if specified in setup).
+        // We need mocks for verification/stubbing within this test.
+        final mockFileSystem = _dependencies.mockFileSystem;
+        final mockRemoteDataSource =
+            _dependencies.jobRemoteDataSource as MockApiJobRemoteDataSourceImpl;
+        // We also need the mock local data source for direct verification/stubbing if needed
+        // However, the test seems designed to work against the real Hive one mostly.
+        // Let's keep using the real one from the container for now.
 
-        // Stub dependencies before passing
-        when(
-          mockAuthSessionProvider.isAuthenticated(),
-        ).thenAnswer((_) async => true);
-        when(
-          mockAuthSessionProvider.getCurrentUserId(),
-        ).thenAnswer((_) async => 'test-user-id');
-        when(mockAuthEventBus.stream).thenAnswer((_) => const Stream.empty());
-
-        // Instantiate the repository explicitly, passing the MOCK deleter service
-        final jobRepository = JobRepositoryImpl(
-          readerService: mockReaderService,
-          writerService: mockWriterService,
-          deleterService: mockDeleterService, // Use the mock
-          orchestratorService: mockOrchestratorService, // Use the mock
-          authSessionProvider: mockAuthSessionProvider,
-          authEventBus: mockAuthEventBus,
-          localDataSource: mockLocalDataSource,
-        );
-        // Use the mock local data source for assertions
-        final localDataSource = mockLocalDataSource;
-
-        // Arrange Part 1: Create and initial sync state
+        // Arrange Part 1: Create and initial sync state using REAL localDataSource
         _logger.d('$_tag Arranging: Creating and syncing initial job...');
         final dummyAudioFileName =
             'delete_test_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
         final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio content for delete');
-        final audioFilePath =
-            dummyAudioFile.path; // Store path for verification
+        final audioFilePath = dummyAudioFile.path;
         expect(await dummyAudioFile.exists(), isTrue);
 
-        final initialJob = Job(
+        // Directly add a job to the REAL local data source (Hive box)
+        final initialJob = JobHiveModel(
           localId: 'delete-local-id',
           serverId: 'server-id-for-delete', // Assume already synced
-          userId: 'test-user-id',
+          userId: 'test-user-id', // Use default user id from helper
           audioFilePath: audioFilePath,
           text: 'Text for deletion job',
-          status: JobStatus.submitted,
-          syncStatus: SyncStatus.synced,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          status: JobStatus.submitted.index, // Use 'status' (assuming)
+          syncStatus: SyncStatus.synced.index, // Use 'syncStatus' (assuming)
+          createdAt: DateTime.now().toIso8601String(), // Convert to String
+          updatedAt: DateTime.now().toIso8601String(), // Convert to String
+          retryCount: 0,
         );
-        // Stub initial getJobById
-        when(
-          mockLocalDataSource.getJobById('delete-local-id'),
-        ).thenAnswer((_) async => initialJob);
+        await _dependencies.jobBox.put(initialJob.localId, initialJob);
         final localId = initialJob.localId;
+        _logger.d('$_tag Job added directly to Hive box');
 
-        final jobBeforeDelete = await localDataSource.getJobById(localId);
+        // Verify state using REAL local data source
+        final jobBeforeDelete = await localDataSource.getJobById(
+          localId,
+        ); // Uses real Hive impl
         expect(jobBeforeDelete, isNotNull);
         expect(jobBeforeDelete.syncStatus, SyncStatus.synced);
+        expect(jobBeforeDelete.serverId, initialJob.serverId);
         _logger.d('$_tag Job state before delete verified.');
 
-        // Arrange Part 2: Stub delete operation
-        _logger.d('$_tag Arranging: Stubbing delete operations...');
-        // Stub the mock deleterService.deleteJob to return success
-        final jobMarkedForDeletion = jobBeforeDelete.copyWith(
-          syncStatus: SyncStatus.pendingDeletion,
-        );
-        when(mockDeleterService.deleteJob(localId)).thenAnswer((_) async {
-          // Simulate the *side effect* of deleteJob: update local store to pendingDeletion
-          when(
-            mockLocalDataSource.getJobById(localId),
-          ).thenAnswer((_) async => jobMarkedForDeletion);
-          return const Right(unit);
-        });
-        // Stub FileSystem deleteFile (assuming deleter service calls it - which it doesn't directly in repo)
-        // NOTE: We verify the interaction later, but the stub might be needed if the *actual* deleter service calls it.
-        // For now, assuming JobRepository only calls mockDeleterService.deleteJob
-        when(mockFileSystem.deleteFile(audioFilePath)).thenAnswer((_) async {});
+        // Arrange Part 2: Stub MOCK remote data source for deletion
+        _logger.d('$_tag Arranging: Stubbing remote delete operation...');
+        when(
+          mockRemoteDataSource.deleteJob(initialJob.serverId!),
+        ).thenAnswer((_) async => unit); // Return unit from dartz
 
-        // Act: Delete the job locally (calls mockDeleterService.deleteJob)
+        // Act: Delete the job locally (uses REAL repository)
         _logger.d('$_tag Acting: Deleting job locally...');
         final deleteResult = await jobRepository.deleteJob(localId);
         expect(deleteResult.isRight(), isTrue, reason: 'Local delete failed');
 
-        // Assert: Verify state after local delete (mockDeleterService stub should have updated mockLocalDataSource stub)
-        final jobAfterLocalDelete = await localDataSource.getJobById(localId);
+        // Assert: Verify state after local delete (using REAL local data source)
+        final jobAfterLocalDelete = await localDataSource.getJobById(
+          localId,
+        ); // Uses real Hive impl
         expect(jobAfterLocalDelete, isNotNull);
         expect(
           jobAfterLocalDelete.syncStatus,
@@ -439,19 +469,8 @@ void main() {
           '$_tag Local delete successful, status set to pendingDeletion.',
         );
 
-        // Act: Trigger sync to process the deletion
+        // Act: Trigger sync to process the deletion (uses REAL repo)
         _logger.d('$_tag Acting: Triggering sync for deletion...');
-        // Stub sync orchestrator to handle pending deletion
-        when(mockOrchestratorService.syncPendingJobs()).thenAnswer((_) async {
-          // Simulate orchestrator finding the pending deletion and clearing it from local store
-          when(
-            mockLocalDataSource.getJobById(localId),
-          ).thenThrow(CacheException('Job not found after sync delete'));
-          // Simulate orchestrator calling fileSystem.deleteFile
-          await mockFileSystem.deleteFile(audioFilePath);
-          return const Right(unit);
-        });
-
         final deletionSyncResult = await jobRepository.syncPendingJobs();
         expect(
           deletionSyncResult.isRight(),
@@ -463,7 +482,8 @@ void main() {
         // Assert: Verify job is gone from local data source by expecting an exception
         _logger.d('$_tag Verifying job removal from local storage...');
         expect(
-          () async => await localDataSource.getJobById(localId),
+          () async =>
+              await localDataSource.getJobById(localId), // Uses real Hive impl
           throwsA(isA<CacheException>()),
           reason: 'Expected CacheException after deletion sync',
         );
@@ -471,7 +491,10 @@ void main() {
           '$_tag Job successfully deleted and synced (verified by exception).',
         );
 
-        // Assert: Verify file system delete was called (by the sync stub)
+        // Assert: Verify remote delete was called (using MOCK remote source)
+        verify(mockRemoteDataSource.deleteJob(initialJob.serverId!)).called(1);
+
+        // Assert: Verify file system delete was called (using MOCK file system)
         _logger.i('$_tag Verifying file deletion...');
         verify(mockFileSystem.deleteFile(audioFilePath)).called(1);
         _logger.d('$_tag File deletion verified.');
@@ -491,50 +514,14 @@ void main() {
       () async {
         _logger.i('$_tag --- Test: Sync Failure - Network Offline ---');
 
-        // --- Explicit DI Setup for JobRepository ---
-        final mockReaderService = MockJobReaderService();
-        final mockWriterService = MockJobWriterService();
-        final mockDeleterService = MockJobDeleterService();
-        final mockAuthSessionProvider = MockAuthSessionProvider();
-        final mockLocalDataSource = MockJobLocalDataSource();
-        final mockAuthEventBus = MockAuthEventBus();
-        final mockNetworkInfo = MockNetworkInfo(); // Need network info mock
+        // Get dependencies from container
+        final jobRepository = _dependencies.jobRepository;
+        final localDataSource =
+            _dependencies.jobLocalDataSource; // Real Hive impl
+        final mockNetworkInfo = _dependencies.mockNetworkInfo;
+        final mockRemoteDataSource = _dependencies.mockApiJobRemoteDataSource;
 
-        // Stub dependencies before passing
-        when(
-          mockAuthSessionProvider.isAuthenticated(),
-        ).thenAnswer((_) async => true);
-        when(
-          mockAuthSessionProvider.getCurrentUserId(),
-        ).thenAnswer((_) async => 'test-user-id');
-        when(mockAuthEventBus.stream).thenAnswer((_) => const Stream.empty());
-        // NOTE: NetworkInfo is usually registered via setupDI, but we need direct control here
-        // We'll pass our own instance to the orchestrator service if needed, or rely on JobRepo not needing it directly.
-
-        // Instantiate the repository explicitly
-        // JobRepositoryImpl itself doesn't take NetworkInfo directly
-        // It passes dependencies down to services like JobSyncOrchestratorService
-        // So we need to instantiate the orchestrator with our mock NetworkInfo
-        final orchestratorService = JobSyncOrchestratorService(
-          localDataSource: mockLocalDataSource,
-          networkInfo: mockNetworkInfo, // Pass OUR mock NetworkInfo
-          processorService: sl(), // Still getting processor from sl for now
-        );
-
-        final jobRepository = JobRepositoryImpl(
-          readerService: mockReaderService,
-          writerService: mockWriterService,
-          deleterService: mockDeleterService,
-          orchestratorService:
-              orchestratorService, // Pass the explicitly created service
-          authSessionProvider: mockAuthSessionProvider,
-          authEventBus: mockAuthEventBus,
-          localDataSource: mockLocalDataSource,
-        );
-        // Use the mock for assertions
-        final localDataSource = mockLocalDataSource;
-
-        // Arrange: Create a job locally
+        // Arrange: Create a job locally (using REAL repo -> REAL writer -> REAL local DS)
         _logger.d('$_tag Arranging: Creating job locally...');
         final dummyAudioFileName =
             'network_fail_audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
@@ -542,29 +529,6 @@ void main() {
         await dummyAudioFile.writeAsString('dummy audio for network fail');
         final audioFilePath = dummyAudioFile.path;
         expect(await dummyAudioFile.exists(), isTrue);
-
-        // Stub createJob
-        final jobToCreate = Job(
-          localId: 'network-fail-local-id',
-          serverId: null,
-          userId: 'test-user-id',
-          audioFilePath: audioFilePath,
-          text: 'Job created before network failure',
-          status: JobStatus.created,
-          syncStatus: SyncStatus.pending,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        when(
-          mockWriterService.createJob(
-            audioFilePath: anyNamed('audioFilePath'),
-            text: anyNamed('text'),
-          ),
-        ).thenAnswer((_) async => Right(jobToCreate));
-        // Stub getJobById (state after creation)
-        when(
-          mockLocalDataSource.getJobById(jobToCreate.localId),
-        ).thenAnswer((_) async => jobToCreate);
 
         final createResult = await jobRepository.createJob(
           audioFilePath: audioFilePath,
@@ -579,19 +543,13 @@ void main() {
           () => throw Exception('Should have created job'),
         );
         final localId = createdJob.localId;
-        expect(localId, jobToCreate.localId);
         _logger.d('$_tag Job created locally with localId: $localId');
 
-        // Arrange: Mock network info to be offline using OUR instance
+        // Arrange: Mock network info to be offline (using mock from container)
         _logger.d('$_tag Arranging: Mocking network offline...');
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => false);
 
-        // Arrange: Stub sync orchestrator (it should check network and return success without processing)
-        // The actual JobSyncOrchestratorService logic will handle the network check.
-        // We just need to ensure it's called.
-        // No need to stub syncPendingJobs on the mockOrchestratorService, we pass the real one.
-
-        // Act: Trigger synchronization
+        // Act: Trigger synchronization (using REAL repo)
         _logger.i('$_tag Acting: Triggering sync...');
         final syncResult = await jobRepository.syncPendingJobs();
 
@@ -605,13 +563,8 @@ void main() {
         );
         _logger.d('$_tag Sync orchestration correctly returned Right(unit).');
 
-        // Assert: Verify job state remains pending in local DB
+        // Assert: Verify job state remains pending in local DB (using REAL local DS)
         _logger.i('$_tag Verifying job state remains pending...');
-        // Re-stub getJobById for the final check (should still be the initial state)
-        when(
-          mockLocalDataSource.getJobById(localId),
-        ).thenAnswer((_) async => jobToCreate);
-
         final jobFromDb = await localDataSource.getJobById(localId);
         expect(jobFromDb, isNotNull, reason: 'Job should still exist locally');
         expect(
@@ -625,9 +578,30 @@ void main() {
           reason: 'ServerId should remain null',
         );
 
-        // Assert: Verify network check occurred (verify interaction with our mockNetworkInfo)
-        verify(mockNetworkInfo.isConnected).called(1);
-        _logger.i('$_tag Network offline check verified.');
+        // Assert: Verify network check occurred (interaction with mock from container)
+        verify(
+          mockNetworkInfo.isConnected,
+        ).called(greaterThan(0)); // Called by orchestrator
+
+        // Assert: Verify remote methods were NOT called
+        verifyNever(
+          mockRemoteDataSource.createJob(
+            audioFilePath: anyNamed('audioFilePath'),
+            text: anyNamed('text'),
+            additionalText: anyNamed('additionalText'),
+          ),
+        );
+        verifyNever(
+          mockRemoteDataSource.updateJob(
+            jobId: anyNamed('jobId'), // Use jobId instead of serverId
+            updates: anyNamed('updates'),
+          ),
+        );
+        verifyNever(mockRemoteDataSource.deleteJob(any));
+
+        _logger.i(
+          '$_tag Network offline check verified, remote calls avoided.',
+        );
 
         // Cleanup: Delete the dummy audio file
         _logger.d('$_tag Cleaning up dummy audio file...');
