@@ -436,7 +436,8 @@ Critical TODOs to ensure proper authentication works with both real API and mock
        - FINDINGS: Successfully implemented a comprehensive end-to-end testing approach for authentication flows:
          - Created a test-specific approach using mock UI components to avoid real dependencies
          - Designed a custom TestApp widget that simulates the navigation and state management of the real app
-         - Implemented realistic login, token refresh, and logout functionality in the test environment
+         - Implemented realistic login and logout functionality in the test environment.
+         - **Limitation:** The E2E token refresh test primarily validates the *UI reaction* to simulated states rather than the interceptor's actual network-level behavior (catching 401, calling refresh endpoint, retrying original request). A dedicated integration test is needed for the interceptor logic itself (See Section 15).
          - Added proper state tracking to verify navigation and state changes during auth flows
          - All three key test cases now pass: login, token refresh, and logout flows
          - The tests validate the core authentication flows without depending on real UI components
@@ -480,3 +481,33 @@ Critical TODOs to ensure proper authentication works with both real API and mock
        - Added explicit test case to verify type-based lookup ignores misleading message content.
        - Fixed tests to pass with the new implementation.
        - All tests now pass with the more robust implementation. 
+
+## 15. [x] Integration Testing - Auth Interceptor Token Refresh
+    - FINDINGS: Successfully implemented comprehensive integration tests for the AuthInterceptor's token refresh behavior. The tests verify that the interceptor correctly handles 401 responses by refreshing tokens and retrying requests, implements exponential backoff for network errors, and triggers logout events for irrecoverable failures. We initially attempted to use http_mock_adapter but found that directly testing the interceptor's methods with Mockito provided a cleaner, more focused testing approach. The implementation was refactored to improve maintainability by extracting helper methods and applying SOLID principles. All tests pass, providing confidence in the token refresh mechanism's robustness.
+
+15.1. [x] **Add Integration Tests for Interceptor Refresh Logic (TDD)**
+    - FINDINGS: The E2E test (13.7) verifies UI flow but not the interceptor's network handling during token refresh. We need dedicated integration tests for `AuthInterceptor`.
+    
+    15.1.1. [x] **RED**: Write failing integration tests for `AuthInterceptor` refresh behavior
+       - FINDINGS: Created `test/integration/auth_interceptor_refresh_test.dart` using the http_mock_adapter library to simulate API responses. The tests verify several critical aspects of the interceptor: (1) successful token refresh when a 401 is received, (2) forced logout when refresh token is invalid, (3) exponential backoff retry logic for network errors, and (4) logout after max retries. All tests are failing as expected in this RED phase because we need to complete the mock setup and fix implementation issues. Particularly, the tests for logout behavior are failing due to missing event bus interactions, while the refresh tests fail when they should. The DioAdapter is properly configured but needs better integration with the interceptor.
+       
+    15.1.2. [x] **GREEN**: Implement integration test logic and mock setup
+       - FINDINGS: Switched from using `http_mock_adapter` to a direct mock approach with Mockito. This resolved several issues: (1) http_mock_adapter was struggling with proper header matching and URL construction, (2) the tests were becoming too complex with multiple interceptors trying to simulate a real HTTP flow. The new approach directly tests the AuthInterceptor's `onError` method with mocked dependencies (Dio, handlers, credentials provider), which allowed for cleaner tests that focus specifically on the token refresh logic with proper timing verification. This shift to finer-grained unit testing with integration aspects allowed us to verify the critical behaviors: token refresh success, error propagation, forced logout, retry with exponential backoff, and max retries with logout. All tests now pass reliably.
+    
+    15.1.3. [x] **REFACTOR**: Clean up tests and potentially the interceptor
+       - FINDINGS: Significantly improved both the tests and the implementation. For the tests, we extracted helper methods (`createUnauthorizedError`, `createSuccessResponse`, `setupCommonMocks`, `setupTokenRefreshSuccess`) to reduce duplicate code and make the tests more readable. We also organized the tests into logical groups for better structure. For the AuthInterceptor implementation, we extracted key functionality into dedicated helper methods (`_retryRequestWithNewToken`, `_shouldRetryError`, `_applyBackoff`, `_triggerLogout`), improved error handling, and made the code more maintainable by using clear constants instead of magic numbers. The refactored code better follows SOLID principles, with each method having a single responsibility. All tests continue to pass, confirming the refactoring maintains correct behavior.
+
+15.2. [x] **Further Enhance AuthInterceptor Robustness**
+    - FINDINGS: Added two critical enhancements to the AuthInterceptor for production reliability:
+    
+    15.2.1. [x] **Concurrency Control with Mutex**
+       - Added `package:mutex` dependency to protect against race conditions
+       - Implemented mutex lock in the onError handler to prevent concurrent token refresh attempts
+       - Created test to verify mutex releases even during exceptions
+       - Wrapped critical refresh logic in try-finally block to guarantee lock release
+    
+    15.2.2. [x] **Improved Error Propagation**
+       - Enhanced the generic catch block to create a new DioException with the actual error
+       - Added better contextual information in error messages
+       - Created test to verify proper error propagation for unexpected errors
+       - Ensured logout is triggered for all irrecoverable errors, including unexpected ones
