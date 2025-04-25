@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
@@ -12,14 +13,17 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 // Generate mocks for dependencies
-@GenerateMocks([AuthApiClient, AuthCredentialsProvider, AuthEventBus])
+@GenerateMocks([AuthApiClient, AuthCredentialsProvider, AuthEventBus, Dio])
 import 'auth_service_impl_test.mocks.dart';
 
 void main() {
   late MockAuthApiClient mockApiClient;
   late MockAuthCredentialsProvider mockCredentialsProvider;
   late MockAuthEventBus mockAuthEventBus;
+  late MockDio mockDio;
   late AuthService authService;
+  late AuthService authServiceWithRealApiClient;
+  late AuthApiClient realAuthApiClient;
 
   const testEmail = 'test@example.com';
   const testPassword = 'password123';
@@ -42,8 +46,20 @@ void main() {
     mockApiClient = MockAuthApiClient();
     mockCredentialsProvider = MockAuthCredentialsProvider();
     mockAuthEventBus = MockAuthEventBus();
+    mockDio = MockDio();
+
     authService = AuthServiceImpl(
       apiClient: mockApiClient,
+      credentialsProvider: mockCredentialsProvider,
+      eventBus: mockAuthEventBus,
+    );
+
+    realAuthApiClient = AuthApiClient(
+      httpClient: mockDio,
+      credentialsProvider: mockCredentialsProvider,
+    );
+    authServiceWithRealApiClient = AuthServiceImpl(
+      apiClient: realAuthApiClient,
       credentialsProvider: mockCredentialsProvider,
       eventBus: mockAuthEventBus,
     );
@@ -118,6 +134,50 @@ void main() {
       );
       verifyNever(mockAuthEventBus.add(any));
     });
+
+    test(
+      'should rely on Dio interceptor for API key and NOT call credentialsProvider.getApiKey during login',
+      () async {
+        // Arrange
+        when(mockDio.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => Response(
+            data: authResponse.toJson(),
+            statusCode: 200,
+            requestOptions: RequestOptions(path: '/login'),
+          ),
+        );
+
+        when(
+          mockCredentialsProvider.setAccessToken(any),
+        ).thenAnswer((_) async => Future<void>.value());
+        when(
+          mockCredentialsProvider.setRefreshToken(any),
+        ).thenAnswer((_) async => Future<void>.value());
+        when(
+          mockCredentialsProvider.setUserId(any),
+        ).thenAnswer((_) async => Future<void>.value());
+
+        // Act
+        final result = await authServiceWithRealApiClient.login(
+          testEmail,
+          testPassword,
+        );
+
+        // Assert
+        verify(mockDio.post(any, data: anyNamed('data'))).called(1);
+        verifyNever(mockCredentialsProvider.getApiKey());
+        verify(
+          mockCredentialsProvider.setAccessToken(testAccessToken),
+        ).called(1);
+        verify(
+          mockCredentialsProvider.setRefreshToken(testRefreshToken),
+        ).called(1);
+        verify(mockCredentialsProvider.setUserId(testUserId)).called(1);
+        verify(mockAuthEventBus.add(AuthEvent.loggedIn)).called(1);
+        expect(result, isA<User>());
+        expect(result.id, equals(testUserId));
+      },
+    );
   });
 
   group('refreshSession', () {

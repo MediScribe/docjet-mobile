@@ -25,6 +25,10 @@ void main() {
     // Add other overrides here if needed for development
   ];
 
+  logger.i(
+    '$tag *** OVERRIDES SET in main_dev.dart. Count: ${di.overrides.length} ***',
+  );
+
   if (kDebugMode) {
     logger.i(
       '$tag Running in DEVELOPMENT mode with mock server configuration via main_dev.dart',

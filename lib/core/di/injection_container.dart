@@ -83,7 +83,12 @@ Future<void> init() async {
   logger.d('$tag Hive initialization complete');
 
   // --- Register AppConfig ---
-  if (!sl.isRegistered<AppConfig>()) {
+  final isRegisteredBeforeCheck = sl.isRegistered<AppConfig>();
+  logger.d(
+    '$tag *** Checking AppConfig registration. Is registered BEFORE check? $isRegisteredBeforeCheck ***',
+  );
+
+  if (!isRegisteredBeforeCheck) {
     logger.d(
       '$tag AppConfig NOT registered, registering default from environment...',
     );
@@ -96,7 +101,9 @@ Future<void> init() async {
     );
   }
   final currentConfig = sl<AppConfig>();
-  logger.i('$tag Using AppConfig: ${currentConfig.toString()}');
+  logger.i(
+    '$tag *** Using AppConfig AFTER check: ${currentConfig.toString()} ***',
+  );
 
   // --- Register Core Module THIRD ---
   logger.d('$tag Registering Core Module...');

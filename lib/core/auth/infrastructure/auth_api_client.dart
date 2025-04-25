@@ -27,12 +27,9 @@ class AuthApiClient {
   /// Throws [AuthException] if authentication fails.
   Future<AuthResponseDto> login(String email, String password) async {
     try {
-      final apiKey = await credentialsProvider.getApiKey();
-
       final response = await httpClient.post(
         ApiConfig.loginEndpoint,
         data: {'email': email, 'password': password},
-        options: Options(headers: {'x-api-key': apiKey}),
       );
 
       return AuthResponseDto.fromJson(response.data);
@@ -47,12 +44,9 @@ class AuthApiClient {
   /// Throws [AuthException] if refresh fails.
   Future<AuthResponseDto> refreshToken(String refreshToken) async {
     try {
-      final apiKey = await credentialsProvider.getApiKey();
-
       final response = await httpClient.post(
         ApiConfig.refreshEndpoint,
         data: {'refreshToken': refreshToken},
-        options: Options(headers: {'x-api-key': apiKey}),
       );
 
       return AuthResponseDto.fromJson(response.data);
@@ -68,13 +62,11 @@ class AuthApiClient {
   Future<void> getUserProfile() async {
     // TODO: Return UserProfileDto when implemented
     try {
-      final apiKey = await credentialsProvider.getApiKey();
       // Assuming access token is handled by an interceptor adding Authorization header
 
       /* final response = */
       await httpClient.get(
         ApiConfig.userProfileEndpoint, // Use the constant
-        options: Options(headers: {'x-api-key': apiKey}),
       );
 
       // TODO: return UserProfileDto.fromJson(response.data);
