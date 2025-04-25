@@ -70,21 +70,20 @@ Our codebase currently suffers from:
 
 ### Phase 1: Preparation and Testing Strategy
 
-1.  **[✅] Create Explicit Interfaces**
+1.  **[⚠️] Create Explicit Interfaces**
     *   [✓] 1.1 Identify key services for interface extraction (e.g., `AppConfig`)
-    *   [✓] 1.2 Extract interfaces capturing public methods/properties 
-        * Created `AppConfigInterface` to define contract for AppConfig.
-        * Created `DioFactoryInterface` defining the contract for the **target, class-based** factory (receives `AppConfigInterface` via constructor, provides instance methods).
-        * How: Created interface files in `lib/core/interfaces` with abstract class definitions for the **target state**.
-        * Findings: Aligning interfaces with the target architecture early clarifies the refactoring goal.
-    *   [✓] 1.3 Write tests using interfaces
-        * Updated AppConfig tests to use AppConfigInterface in type declarations.
-        * How: Modified test assertions to work against the interface rather than concrete class.
-        * Findings: Using interfaces in tests makes them more robust against implementation changes.
+    *   [⚠️] 1.2 Extract interfaces capturing public methods/properties - NOT DONE, using concrete classes directly
+    *   [⚠️] 1.3 Write tests using interfaces - NOT DONE, using concrete classes directly
 2.  **[✓] Create Test Doubles**
-    *   [✓] 2.1 Generate or manually create test doubles for each interface - Using mock concrete classes
+    *   [✓] 2.1 Generate or manually create test doubles for each interface
+        * How: Not using separate mock classes as initially implied. Instead, using factory methods (`AppConfig.test`, `AppConfig.development`) on real classes and dedicated `...Mocked` static methods (`DioFactory.createBasicDioMocked`, `DioFactory.createAuthenticatedDioMocked`) that accept dependencies like a mock `AppConfig`. A mocking library (likely Mockito) is used for other dependencies (e.g., `AuthApiClient`).
+        * Findings: Test doubles are achieved through controlled instances and dedicated test helpers, not separate mock classes. Interfaces like `AppConfigInterface` exist.
     *   [✓] 2.2 Ensure doubles implement the full interface
+        * How: `AppConfig.test()` returns a real `AppConfig` implementing `AppConfigInterface`. Mockito mocks implement their target interfaces.
+        * Findings: Interfaces are correctly implemented by the test instances/mocks.
     *   [✓] 2.3 Write setup methods for common test scenarios
+        * How: The factory methods (`AppConfig.test`, `.development`) and the static `...Mocked` methods in `DioFactory` act as setup helpers.
+        * Findings: Dedicated methods exist to simplify creating test-specific dependency instances.
 3.  **[✓] Prepare Hybrid Testing Approach**
     *   [✓] 3.1 Create helper methods for direct injection vs. GetIt registration - Mocked variants exist
     *   [✓] 3.2 Develop shared test utilities for consistent setup
