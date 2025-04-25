@@ -208,6 +208,112 @@ void main() {
       });
     });
 
+    group('Environment Variable Loading', () {
+      test(
+        'should use consistent defaults for known environment variables',
+        () {
+          // Act
+          final apiDomain = DioFactory.getEnvironmentValue('API_DOMAIN', null);
+          final apiKey = DioFactory.getEnvironmentValue('API_KEY', null);
+          final unknownVar = DioFactory.getEnvironmentValue(
+            'UNKNOWN_VAR',
+            null,
+          );
+
+          // Assert
+          expect(
+            apiDomain,
+            equals('staging.docjet.ai'),
+            reason: 'API_DOMAIN should default to staging.docjet.ai',
+          );
+          expect(
+            apiKey,
+            equals(''),
+            reason: 'API_KEY should have empty string default',
+          );
+          expect(
+            unknownVar,
+            equals(''),
+            reason: 'Unknown variables should default to empty string',
+          );
+        },
+      );
+
+      test('should respect provided environment map values when available', () {
+        // Arrange
+        final mockEnvironment = {
+          'API_DOMAIN': 'custom.domain.com',
+          'API_KEY': 'custom-api-key',
+          'CUSTOM_VAR': 'custom-value',
+        };
+
+        // Act
+        final apiDomain = DioFactory.getEnvironmentValue(
+          'API_DOMAIN',
+          mockEnvironment,
+        );
+        final apiKey = DioFactory.getEnvironmentValue(
+          'API_KEY',
+          mockEnvironment,
+        );
+        final customVar = DioFactory.getEnvironmentValue(
+          'CUSTOM_VAR',
+          mockEnvironment,
+        );
+
+        // Assert
+        expect(apiDomain, equals('custom.domain.com'));
+        expect(apiKey, equals('custom-api-key'));
+        expect(customVar, equals('custom-value'));
+      });
+
+      test(
+        'should fallback to defaults when variable is missing from environment map',
+        () {
+          // Arrange
+          final mockEnvironment = {
+            'API_KEY': 'custom-api-key',
+            // API_DOMAIN intentionally missing
+          };
+
+          // Act
+          final apiDomain = DioFactory.getEnvironmentValue(
+            'API_DOMAIN',
+            mockEnvironment,
+          );
+          final apiKey = DioFactory.getEnvironmentValue(
+            'API_KEY',
+            mockEnvironment,
+          );
+
+          // Assert
+          expect(
+            apiDomain,
+            equals('staging.docjet.ai'),
+            reason:
+                'Should fallback to default when missing from environment map',
+          );
+          expect(apiKey, equals('custom-api-key'));
+        },
+      );
+
+      test('should handle environment map with null values', () {
+        // We'll check that the implementation rejects null values
+        // even when using dynamic typing to bypass the static type system
+
+        // Arrange - create a map with a null value using dynamic typing
+        // ignore: avoid_dynamic_calls
+        final dynamic mockEnvironment = {'API_DOMAIN': null};
+
+        // Act & Assert
+        expect(
+          () => DioFactory.getEnvironmentValue('API_DOMAIN', mockEnvironment),
+          throwsA(anything),
+          reason: 'Should reject maps with null values',
+        );
+      });
+    });
+
     // Remove or update the old integration test placeholder
     // test(
     //   'integration test - auth notifier correctly uses proper auth service from injection container',

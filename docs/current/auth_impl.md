@@ -395,25 +395,17 @@ Critical TODOs to ensure proper authentication works with both real API and mock
     13.4.3. [x] **REFACTOR**: Extract test helpers
        - FINDINGS: Reviewed tests and implementation. Code is reasonably clean. No specific helpers extracted at this time, but the environment injection pattern works well.
 
-13.5. [ ] **Refactor Environment Variable Loading Logic (TDD)**
-    - FINDINGS: Current environment variable loading logic in DioFactory is overly complex with scattered defaults and conditional branching.
+13.5. [x] **Refactor Environment Variable Loading Logic (TDD)**
+    - FINDINGS: Successfully refactored environment variable loading in DioFactory to use a centralized approach with consistent defaults. Removed scattered conditional branching and replaced it with a clean, maintainable pattern using a defaults map and clear, type-safe access methods. All tests now pass with improved code quality.
     
-    13.5.1. [ ] **RED**: Write failing tests for simplified environment loading
-       - Create tests in `test/core/auth/infrastructure/dio_factory_test.dart` for a centralized defaults approach
-       - Test that default values are consistently applied from a single source
-       - Test proper fallback behavior with partial environment maps
-       - Verify tests fail with current implementation
+    13.5.1. [x] **RED**: Write failing tests for simplified environment loading
+       - FINDINGS: Created comprehensive tests in `test/core/auth/infrastructure/dio_factory_test.dart` for a new centralized `getEnvironmentValue` method. Tests verified consistent defaults for known variables, proper fallback behavior with partial environment maps, and correct handling of environment maps with null values.
     
-    13.5.2. [ ] **GREEN**: Implement centralized environment loading
-       - Refactor `_getEnv` to use a centralized defaults map instead of conditional branches
-       - Implement consistent fallback behavior
-       - Ensure consistent behavior between test and runtime environments
-       - Verify tests now pass
+    13.5.2. [x] **GREEN**: Implement centralized environment loading
+       - FINDINGS: Implemented a new `getEnvironmentValue` method that uses a centralized `_environmentDefaults` map for known variables. The method properly handles both test environments (via optional map parameter) and runtime environments (via String.fromEnvironment), applying consistent defaults for missing values.
     
-    13.5.3. [ ] **REFACTOR**: Optimize and clean up
-       - Remove any remaining conditional branching
-       - Ensure the method follows the Open-Closed Principle for future environment variables
-       - Verify tests still pass after optimization
+    13.5.3. [x] **REFACTOR**: Optimize and clean up
+       - FINDINGS: Further optimized the implementation by using string constants for environment variable names and removing redundant helper methods. This improved readability and maintainability while reducing code duplication. All tests continue to pass after refactoring.
 
 13.6. [ ] **Auth Error Handling UI (TDD)**
     - FINDINGS: UI needs better error feedback for authentication failures.

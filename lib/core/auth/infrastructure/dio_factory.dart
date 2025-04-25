@@ -16,33 +16,57 @@ import 'package:flutter/foundation.dart';
 class DioFactory {
   static final _logger = LoggerFactory.getLogger('DioFactory');
 
-  // Allow overriding environment variables for testing
-  static String _getEnv(String name, Map<String, String>? environment) {
-    if (environment != null) {
-      return environment[name] ?? '';
-    }
-    // In release mode or when environment is not provided, use String.fromEnvironment
-    // Add default values for common cases like API_DOMAIN
-    const defaultValue = '';
-    if (name == 'API_DOMAIN') {
-      return String.fromEnvironment(name, defaultValue: 'staging.docjet.ai');
-    }
-    if (name == 'API_KEY') {
-      // No default API key, should be provided
-      return String.fromEnvironment(name, defaultValue: defaultValue);
-    }
-    return String.fromEnvironment(name, defaultValue: defaultValue);
-  }
+  /// Environment variable keys
+  static const String _apiDomainKey = 'API_DOMAIN';
+  static const String _apiKeyKey = 'API_KEY';
 
-  static String _getApiDomain(Map<String, String>? environment) =>
-      _getEnv('API_DOMAIN', environment);
-  static String _getApiKey(Map<String, String>? environment) =>
-      _getEnv('API_KEY', environment);
+  /// Centralized environment variable defaults
+  static final Map<String, String> _environmentDefaults = {
+    _apiDomainKey: 'staging.docjet.ai',
+    _apiKeyKey: '',
+  };
+
+  /// Gets environment variable value with consistent fallback to defaults
+  ///
+  /// This method provides centralized access to environment variables with
+  /// well-defined defaults for known variables.
+  ///
+  /// Parameters:
+  /// - [name]: The name of the environment variable to retrieve
+  /// - [environment]: Optional map of environment values (for testing)
+  ///
+  /// Returns the environment value, falling back to defaults for known variables
+  /// or empty string for unknown variables.
+  static String getEnvironmentValue(
+    String name,
+    Map<String, String>? environment,
+  ) {
+    // If environment map is provided (primarily for testing)
+    if (environment != null) {
+      // Validate that all values in the map are non-null
+      if (environment.containsKey(name) && environment[name] == null) {
+        throw AssertionError(
+          'Environment map contains null value for key: $name',
+        );
+      }
+
+      // Return the value from the map if present, otherwise fall back to defaults
+      return environment.containsKey(name)
+          ? environment[name]!
+          : _environmentDefaults[name] ?? '';
+    }
+
+    // Otherwise use String.fromEnvironment with appropriate default
+    return String.fromEnvironment(
+      name,
+      defaultValue: _environmentDefaults[name] ?? '',
+    );
+  }
 
   /// Creates a basic Dio instance without authentication interceptors.
   /// Suitable for non-authenticated API calls or initial setup.
   static Dio createBasicDio({Map<String, String>? environment}) {
-    final apiDomain = _getApiDomain(environment);
+    final apiDomain = getEnvironmentValue(_apiDomainKey, environment);
     final baseUrl = ApiConfig.baseUrlFromDomain(apiDomain);
     _logger.i('Creating basic Dio instance for domain: $apiDomain -> $baseUrl');
 
@@ -78,10 +102,10 @@ class DioFactory {
     Map<String, String>? environment,
   }) {
     final dio = createBasicDio(environment: environment);
-    final apiKey = _getApiKey(environment);
+    final apiKey = getEnvironmentValue(_apiKeyKey, environment);
 
     if (apiKey.isEmpty) {
-      _logger.w('API_KEY environment variable is not set!');
+      _logger.w('$_apiKeyKey environment variable is not set!');
       // Depending on requirements, could throw an error here or allow proceeding
       // For now, we log a warning.
     }

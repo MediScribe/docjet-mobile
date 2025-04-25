@@ -72,6 +72,20 @@ For example:
 
 ## Technical Implementation
 
-- The `DioFactory` reads `API_DOMAIN` from environment variables using `String.fromEnvironment`
+- The `DioFactory` reads environment variables using a centralized approach:
+  - A `_environmentDefaults` map contains all default values in one place
+  - The `getEnvironmentValue` method provides consistent access with proper fallbacks
+  - Environment values can be overridden for testing via an optional map parameter
 - `ApiConfig.baseUrlFromDomain()` determines the appropriate protocol based on the domain
-- Authentication endpoints use the configured domain for all requests 
+- Authentication endpoints use the configured domain for all requests
+
+## Adding New Environment Variables
+
+When adding new environment variables to the app:
+
+1. Add the variable name as a constant in the appropriate class (e.g., `DioFactory._newVarKey`)
+2. Add a default value to the `_environmentDefaults` map in that class
+3. Use `getEnvironmentValue` to retrieve the value
+4. Update this documentation with the new variable name and purpose
+
+This approach ensures consistency and makes maintenance easier when new environment variables are added. 
