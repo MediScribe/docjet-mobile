@@ -1,7 +1,9 @@
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,4 +71,89 @@ void main() {
       expect(find.text('Offline Mode'), findsOneWidget);
     },
   );
+
+  testWidgets('LoginScreen displays invalid credentials error message', (
+    WidgetTester tester,
+  ) async {
+    // Arrange: Define the invalid credentials error state
+    final invalidCredentialsException = AuthException.invalidCredentials();
+    final errorState = AuthState.error(
+      invalidCredentialsException.message,
+      errorType: AuthErrorType.invalidCredentials,
+    );
+
+    // Arrange: Build the widget tree with ProviderScope and override
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(() => MockAuthNotifier(errorState)),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+
+    // Act: Let the UI rebuild
+    await tester.pump();
+
+    // Assert: Check for the error message
+    expect(
+      find.text('Invalid email or password. Please try again.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('LoginScreen displays network error message', (
+    WidgetTester tester,
+  ) async {
+    // Arrange: Define the network error state
+    final networkException = AuthException.networkError();
+    final errorState = AuthState.error(
+      networkException.message,
+      errorType: AuthErrorType.network,
+    );
+
+    // Arrange: Build the widget tree with ProviderScope and override
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(() => MockAuthNotifier(errorState)),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+
+    // Act: Let the UI rebuild
+    await tester.pump();
+
+    // Assert: Check for the error message
+    expect(
+      find.text('Network error. Please check your connection and try again.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('LoginScreen displays loading indicator during authentication', (
+    WidgetTester tester,
+  ) async {
+    // Arrange: Define the loading state
+    final loadingState = AuthState.loading();
+
+    // Arrange: Build the widget tree with ProviderScope and override
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(
+            () => MockAuthNotifier(loadingState),
+          ),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+
+    // Act: Let the UI rebuild
+    await tester.pump();
+
+    // Assert: Check for the loading indicator
+    expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
+  });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:docjet_mobile/core/auth/auth_error_mapper.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 // import 'package:docjet_mobile/core/auth/entities/user.dart'; // Removed unused import
@@ -89,12 +90,17 @@ class AuthNotifier extends _$AuthNotifier {
       );
     } on AuthException catch (e, s) {
       final isOffline = e == AuthException.offlineOperationFailed();
+      final errorType = AuthErrorMapper.getErrorTypeFromException(e);
       _logger.e(
-        '$_tag Login failed - AuthException, offline: $isOffline',
+        '$_tag Login failed - AuthException, offline: $isOffline, type: $errorType',
         error: e,
         stackTrace: s,
       );
-      state = AuthState.error(e.message, isOffline: isOffline);
+      state = AuthState.error(
+        e.message,
+        isOffline: isOffline,
+        errorType: errorType,
+      );
     } catch (e, s) {
       _logger.e(
         '$_tag Login failed - Unexpected error',
@@ -116,8 +122,9 @@ class AuthNotifier extends _$AuthNotifier {
     } on AuthException catch (e, s) {
       // Handle potential logout errors (e.g., network issues if it calls API)
       final isOffline = e == AuthException.offlineOperationFailed();
+      final errorType = AuthErrorMapper.getErrorTypeFromException(e);
       _logger.e(
-        '$_tag Logout failed - AuthException, offline: $isOffline',
+        '$_tag Logout failed - AuthException, offline: $isOffline, type: $errorType',
         error: e,
         stackTrace: s,
       );
@@ -161,15 +168,20 @@ class AuthNotifier extends _$AuthNotifier {
       }
     } on AuthException catch (e, s) {
       final isOffline = e == AuthException.offlineOperationFailed();
+      final errorType = AuthErrorMapper.getErrorTypeFromException(e);
       _logger.w(
-        '$_tag Auth check failed - AuthException, offline: $isOffline',
+        '$_tag Auth check failed - AuthException, offline: $isOffline, type: $errorType',
         error: e,
         stackTrace: s,
       );
       // If check fails (e.g., token invalid, profile fetch fail), treat as unauthenticated
       // but potentially flag offline status.
       // If offline, we might want a different state, but for now, error seems appropriate.
-      state = AuthState.error(e.message, isOffline: isOffline);
+      state = AuthState.error(
+        e.message,
+        isOffline: isOffline,
+        errorType: errorType,
+      );
       // Consider calling logout to ensure tokens are cleared if refresh/profile fetch fails
       // await _authService.logout(); // Potentially trigger this? But event bus might handle it.
     } catch (e, s) {

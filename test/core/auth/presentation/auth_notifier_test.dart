@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
@@ -10,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'dart:async';
 
 @GenerateMocks([AuthService, AuthEventBus])
 import 'auth_notifier_test.mocks.dart';
@@ -130,7 +132,12 @@ void main() {
       verify(mockAuthService.getUserProfile()).called(1);
       expect(
         readState(),
-        equals(AuthState.error(profileFetchException.message)),
+        equals(
+          AuthState.error(
+            profileFetchException.message,
+            errorType: AuthErrorType.userProfileFetchFailed,
+          ),
+        ),
       );
     });
 

@@ -407,26 +407,17 @@ Critical TODOs to ensure proper authentication works with both real API and mock
     13.5.3. [x] **REFACTOR**: Optimize and clean up
        - FINDINGS: Further optimized the implementation by using string constants for environment variable names and removing redundant helper methods. This improved readability and maintainability while reducing code duplication. All tests continue to pass after refactoring.
 
-13.6. [ ] **Auth Error Handling UI (TDD)**
+13.6. [x] **Auth Error Handling UI (TDD)**
     - FINDINGS: UI needs better error feedback for authentication failures.
     
-    13.6.1. [ ] **RED**: Write failing widget tests for error UI
-       - Create/extend `test/features/auth/presentation/screens/login_screen_test.dart`
-       - Write test for invalid credentials error message display
-       - Write test for network error message display
-       - Write test for offline mode indicator
-       - Run tests to confirm they fail
+    13.6.1. [x] **RED**: Write failing widget tests for error UI
+       - FINDINGS: Extended the existing `test/features/auth/presentation/screens/login_screen_test.dart` file with three new test cases: one for invalid credentials error message display, one for network error message display, and one for loading indicator during authentication. Currently, the `LoginScreen` only implements the offline indicator, so all three new tests are failing as expected, confirming we need to enhance the UI.
     
-    13.6.2. [ ] **GREEN**: Implement error handling UI
-       - Update LoginScreen to display appropriate error messages
-       - Add offline indicator when network is unavailable
-       - Add loading indicators during authentication
-       - Run tests to verify they now pass
+    13.6.2. [x] **GREEN**: Implement error handling UI
+       - FINDINGS: Successfully implemented the error handling UI in `LoginScreen`. Replaced the basic placeholder with a `CupertinoPageScaffold` for better iOS styling. Added error message display logic based on the error message content, with specific handling for invalid credentials and network errors. Added a loading indicator during authentication. Fixed initial linter errors regarding the `AuthState` properties by using `authState.status == AuthStatus.loading` and `authState.status == AuthStatus.error` instead of non-existent properties. All tests now pass.
     
-    13.6.3. [ ] **REFACTOR**: Improve UI components
-       - Extract error message widgets for reuse
-       - Standardize loading indicators
-       - Verify tests still pass after extraction
+    13.6.3. [x] **REFACTOR**: Improve UI components
+       - FINDINGS: Successfully extracted reusable components to improve maintainability. Created `AuthErrorMessage` with factory methods for specific error types (invalid credentials, network error, offline mode). Created `AuthLoadingIndicator` using `CupertinoActivityIndicator` for a more iOS-native look. Refactored `LoginScreen` to use these components. Updated tests to look for `CupertinoActivityIndicator` instead of `CircularProgressIndicator`. Fixed various linter errors related to imports and const constructors. All tests pass after refactoring.
 
 13.7. [ ] **End-to-End Authentication Flow (TDD)**
     - FINDINGS: Need to verify the complete auth flow across environments.
@@ -448,3 +439,31 @@ Critical TODOs to ensure proper authentication works with both real API and mock
        - Create comprehensive auth flow documentation
        - Add detailed testing guide
        - Verify tests still pass after documentation 
+
+## 14. Additional Refinements
+
+14.1. [x] **Improve Error Type Handling (TDD)**
+    - FINDINGS: String matching for error types was functional but brittle. Implemented a type-based approach instead.
+    
+    14.1.1. [x] **RED**: Identify string-based error handling weaknesses
+       - FINDINGS: In `LoginScreen`, error message matching was using string contains checks which would break if error message text changed. This approach was brittle, not scalable, and didn't leverage existing type information.
+    
+    14.1.2. [x] **GREEN**: Implement robust error type system
+       - FINDINGS: Created `AuthErrorType` enum to properly classify different authentication errors.
+       - Extended `AuthState` to include an `errorType` field.
+       - Created `AuthErrorMapper` utility to map between `AuthException` and `AuthErrorType`.
+       - Added comprehensive test coverage for the mapper in `test/core/auth/auth_error_mapper_test.dart`.
+       - Updated `AuthNotifier` to set the appropriate error type when creating error states.
+       - Enhanced `AuthErrorMessage` widget to use type-based rendering with a factory method for each error type.
+       - Added a comprehensive `fromErrorType` factory to create appropriate error messages based on type.
+    
+    14.1.3. [x] **REFACTOR**: Update tests and exception model
+       - FINDINGS: Updated test AuthStates to include error types.
+       - Added fallback string matching for backward compatibility.
+       - Modified `AuthException` to directly include an `AuthErrorType` field, eliminating brittle string matching.
+       - Updated `AuthErrorMapper.getErrorTypeFromException()` to simply return the exception's type property, making it type-safe and robust.
+       - Added proper documentation explaining the dual approach (direct type access preferred, string matching as fallback).
+       - Enhanced documentation to clearly mark string-based matching as a legacy approach that should be minimized.
+       - Added explicit test case to verify type-based lookup ignores misleading message content.
+       - Fixed tests to pass with the new implementation.
+       - All tests now pass with the more robust implementation. 

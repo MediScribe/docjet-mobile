@@ -1,3 +1,4 @@
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
 import 'package:equatable/equatable.dart';
@@ -19,6 +20,9 @@ class AuthState extends Equatable {
   /// Error message if authentication failed
   final String? errorMessage;
 
+  /// Type of authentication error (if any)
+  final AuthErrorType? errorType;
+
   /// Indicates if the current state was determined while offline
   final bool isOffline;
 
@@ -27,6 +31,7 @@ class AuthState extends Equatable {
     this.user,
     required this.status,
     this.errorMessage,
+    this.errorType,
     this.isOffline = false, // Default to false
   });
 
@@ -50,10 +55,15 @@ class AuthState extends Equatable {
   }
 
   /// Error state with error message
-  factory AuthState.error(String message, {bool isOffline = false}) {
+  factory AuthState.error(
+    String message, {
+    bool isOffline = false,
+    AuthErrorType errorType = AuthErrorType.unknown,
+  }) {
     return AuthState(
       status: AuthStatus.error,
       errorMessage: message,
+      errorType: errorType,
       isOffline: isOffline, // Pass along offline status
     );
   }
@@ -64,16 +74,18 @@ class AuthState extends Equatable {
     ValueGetter<User?>? user,
     AuthStatus? status,
     ValueGetter<String?>? errorMessage,
+    ValueGetter<AuthErrorType?>? errorType,
     bool? isOffline,
   }) {
     return AuthState(
       user: user != null ? user() : this.user,
       status: status ?? this.status,
       errorMessage: errorMessage != null ? errorMessage() : this.errorMessage,
+      errorType: errorType != null ? errorType() : this.errorType,
       isOffline: isOffline ?? this.isOffline,
     );
   }
 
   @override
-  List<Object?> get props => [user, status, errorMessage, isOffline];
+  List<Object?> get props => [user, status, errorMessage, errorType, isOffline];
 }
