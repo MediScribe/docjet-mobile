@@ -40,27 +40,36 @@ import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import Jwt
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart'; // Import DioFactory
+import 'package:docjet_mobile/core/config/app_config.dart'; // Import AppConfig
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger helpers
 
 final sl = GetIt.instance;
 
-// --- Riverpod Providers --- Accessing GetIt Singletons ---
-
-/// Riverpod provider for accessing the singleton AuthEventBus instance from GetIt.
+// Create providers that use GetIt for clean Riverpod integration
+// -------------------------------------------------------
 final authEventBusProvider = Provider<AuthEventBus>(
   (ref) => sl<AuthEventBus>(),
 );
-
-// Add other bridge providers here if needed...
-
 // -------------------------------------------------------
 
 Future<void> init() async {
+  final logger = LoggerFactory.getLogger('DI');
+  final tag = logTag('DI');
+
   // --- Initialize Hive FIRST ---
+  logger.d('$tag Before Hive initialization');
+
   // No directory needed for Flutter, it finds the right path automatically
   await Hive.initFlutter();
-  // Register Hive Adapters (CRITICAL!)
-  Hive.registerAdapter(JobHiveModelAdapter());
-  // TODO: Register any other Hive adapters needed for your models here
+
+  // Register Hive Adapters (CRITICAL!) - Check if already registered
+  if (!Hive.isAdapterRegistered(JobHiveModelAdapter().typeId)) {
+    Hive.registerAdapter(JobHiveModelAdapter());
+    logger.d('$tag Registered JobHiveModelAdapter');
+  } else {
+    logger.d('$tag JobHiveModelAdapter already registered');
+  }
+  // TODO: Register any other Hive adapters needed for your models here (with checks)
 
   // --- Open Hive Boxes ---
   // Open boxes needed by the application BEFORE registering dependencies that use them.
@@ -69,7 +78,32 @@ Future<void> init() async {
   await Hive.openBox<dynamic>(HiveJobLocalDataSourceImpl.metadataBoxName);
   // ---------------------------
 
+  logger.d('$tag Hive initialization complete');
+
+  // --- Register AppConfig AFTER Hive to avoid it being cleared ---
+  logger.d('$tag Before AppConfig registration - sl hash: ${sl.hashCode}');
+
+  const isDevMode = bool.fromEnvironment('DEV_MODE');
+  final appConfig =
+      isDevMode ? AppConfig.development() : AppConfig.fromEnvironment();
+  logger.d('$tag Initialized AppConfig: ${appConfig.toString()}');
+
+  sl.registerSingleton<AppConfig>(appConfig);
+
+  logger.d(
+    '$tag After AppConfig registration - is registered: ${sl.isRegistered<AppConfig>()}',
+  );
+  // Log retrieval attempt without try-catch
+  final retrievedConfig =
+      sl.get<AppConfig>(); // Use get to ensure it's registered
+  logger.d(
+    '$tag Successfully retrieved AppConfig: ${retrievedConfig.toString()}',
+  );
+
   // --- Features - Jobs ---
+  logger.d(
+    '$tag Before registering other dependencies - AppConfig still registered? ${sl.isRegistered<AppConfig>()}',
+  );
 
   // Repository (depends on services)
   sl.registerLazySingleton<JobRepository>(
@@ -232,4 +266,8 @@ Future<void> init() async {
   sl.registerLazySingleton<NetworkInfo>(
     () => NetworkInfoImpl(sl()),
   ); // Depends on Connectivity
+
+  logger.d(
+    '$tag End of init - AppConfig still registered? ${sl.isRegistered<AppConfig>()}',
+  );
 }

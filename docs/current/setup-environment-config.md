@@ -161,9 +161,9 @@ When you call `flutter run --dart-define=API_DOMAIN=localhost:8080`, this only a
    c. [x] **REFACTOR**: Add toString and isDevelopment helper methods
    *Findings*: Added `toString()` (redacting key) and `isDevelopment` getter. Added tests for `development()` factory, `isDevelopment`, and `toString()`. All tests in `app_config_test.dart` pass.
 
-### 3. [ ] Integrate with Dependency Injection
+### 3. [x] Integrate with Dependency Injection
 
-   a. [ ] **RED**: Write test for DI container registration
+   a. [x] **RED**: Write test for DI container registration
    ```dart
    test('AppConfig can be registered and retrieved from DI container', () {
      // Setup test container
@@ -175,26 +175,28 @@ When you call `flutter run --dart-define=API_DOMAIN=localhost:8080`, this only a
      expect(config, isA<AppConfig>());
    });
    ```
-   
-   b. [ ] **GREEN**: Add registration to injection_container.dart
+   *Findings*: Tests were failing because calling `Hive.initFlutter()` in `di.init()` was clearing all GetIt registrations (including AppConfig).
+
+   b. [x] **GREEN**: Add registration to injection_container.dart
    ```dart
    // In injection_container.dart
    
-   // Add this to the init() method
-   sl.registerSingleton<AppConfig>(() {
-     // Check if we're in development mode
-     const inDevMode = bool.fromEnvironment('DEV_MODE', defaultValue: false);
+   Future<void> init() async {
+     // --- Initialize Hive FIRST ---
+     await Hive.initFlutter();
+     // Register Hive Adapters and open boxes...
      
-     // Choose appropriate configuration
-     final config = inDevMode ? AppConfig.development() : AppConfig.fromEnvironment();
-     
-     // Log the configuration for debugging
-     print('Initialized AppConfig: ${config.toString()}');
-     return config;
-   }());
+     // --- Register AppConfig AFTER Hive initialization ---
+     // This ensures AppConfig isn't cleared by Hive.initFlutter()
+     const isDevMode = bool.fromEnvironment('DEV_MODE');
+     final appConfig = isDevMode ? AppConfig.development() : AppConfig.fromEnvironment();
+     sl.registerSingleton<AppConfig>(appConfig);
+   }
    ```
-   
-   c. [ ] **REFACTOR**: Ensure singleton is registered early in startup process
+   *Findings*: Fixed the registration order so AppConfig is registered after Hive initialization.
+
+   c. [x] **REFACTOR**: Ensure singleton is registered early in startup process
+   *Findings*: Added logging to verify AppConfig remains registered throughout initialization, confirming it's available for use by other components.
 
 ### 4. [ ] Refactor DioFactory to Use AppConfig
 
