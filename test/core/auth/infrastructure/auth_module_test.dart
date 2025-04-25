@@ -7,6 +7,7 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,13 +19,19 @@ class MockAuthEventBus extends Mock implements AuthEventBus {}
 
 void main() {
   late GetIt getIt;
+  late AppConfig mockAppConfig;
 
   setUp(() {
     // Create a new GetIt instance for each test
     getIt = GetIt.asNewInstance();
 
+    // Create mock AppConfig for testing
+    mockAppConfig = AppConfig.test(
+      apiDomain: 'test.example.com',
+      apiKey: 'test-key',
+    );
+
     // Register AuthEventBus before running AuthModule.register
-    // This is the only dependency that needs to be pre-registered
     getIt.registerLazySingleton<AuthEventBus>(() => MockAuthEventBus());
   });
 
@@ -36,7 +43,7 @@ void main() {
   group('AuthModule', () {
     test('should register all dependencies correctly', () {
       // Act
-      AuthModule.register(getIt);
+      AuthModule.register(getIt, mockAppConfig: mockAppConfig);
 
       // Assert
       expect(getIt.isRegistered<FlutterSecureStorage>(), isTrue);
@@ -51,7 +58,7 @@ void main() {
 
     test('should resolve dependencies with correct types', () {
       // Arrange
-      AuthModule.register(getIt);
+      AuthModule.register(getIt, mockAppConfig: mockAppConfig);
 
       // Act & Assert
       expect(
@@ -67,7 +74,7 @@ void main() {
 
     test('should create provider overrides', () {
       // Arrange
-      AuthModule.register(getIt);
+      AuthModule.register(getIt, mockAppConfig: mockAppConfig);
 
       // Act
       final overrides = AuthModule.providerOverrides(getIt);

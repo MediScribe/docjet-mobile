@@ -7,6 +7,7 @@ import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
@@ -17,7 +18,15 @@ import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 /// Encapsulates the configuration of authentication-related services.
 class AuthModule {
   /// Registers authentication services with GetIt
-  static void register(GetIt getIt) {
+  ///
+  /// If mockAppConfig is provided, it will be used instead of attempting to get
+  /// the AppConfig from GetIt. This is useful for testing.
+  static void register(GetIt getIt, {AppConfig? mockAppConfig}) {
+    // Register mockAppConfig if provided (for testability)
+    if (mockAppConfig != null && !getIt.isRegistered<AppConfig>()) {
+      getIt.registerSingleton<AppConfig>(mockAppConfig);
+    }
+
     // Register the secure storage
     getIt.registerLazySingleton<FlutterSecureStorage>(
       () => const FlutterSecureStorage(),
@@ -34,9 +43,11 @@ class AuthModule {
       ),
     );
 
-    // Register the basic Dio client (for auth only)
+    // Use createBasicDioMocked when mockAppConfig is provided
     getIt.registerLazySingleton<Dio>(
-      () => DioFactory.createBasicDio(),
+      mockAppConfig != null
+          ? () => DioFactory.createBasicDioMocked(mockAppConfig)
+          : () => DioFactory.createBasicDio(),
       instanceName: 'basicDio',
     );
 
@@ -50,11 +61,19 @@ class AuthModule {
 
     // Register the authenticated Dio client (with auth interceptor)
     getIt.registerLazySingleton<Dio>(
-      () => DioFactory.createAuthenticatedDio(
-        authApiClient: getIt<AuthApiClient>(),
-        credentialsProvider: getIt<AuthCredentialsProvider>(),
-        authEventBus: getIt<AuthEventBus>(),
-      ),
+      () =>
+          mockAppConfig != null
+              ? DioFactory.createAuthenticatedDioMocked(
+                authApiClient: getIt<AuthApiClient>(),
+                credentialsProvider: getIt<AuthCredentialsProvider>(),
+                authEventBus: getIt<AuthEventBus>(),
+                mockConfig: mockAppConfig,
+              )
+              : DioFactory.createAuthenticatedDio(
+                authApiClient: getIt<AuthApiClient>(),
+                credentialsProvider: getIt<AuthCredentialsProvider>(),
+                authEventBus: getIt<AuthEventBus>(),
+              ),
       instanceName: 'authenticatedDio',
     );
 

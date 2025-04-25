@@ -98,8 +98,9 @@ void main() {
           // Arrange
           const testDomain = 'api.test.com';
           // Unregister default if exists, then register test-specific
-          if (container.isRegistered<AppConfig>())
+          if (container.isRegistered<AppConfig>()) {
             container.unregister<AppConfig>();
+          }
           container.registerSingleton<AppConfig>(
             AppConfig.test(apiDomain: testDomain, apiKey: ''),
           );
@@ -176,8 +177,9 @@ void main() {
         () {
           // Arrange
           // Unregister default if exists, then register test-specific
-          if (container.isRegistered<AppConfig>())
+          if (container.isRegistered<AppConfig>()) {
             container.unregister<AppConfig>();
+          }
           container.registerSingleton<AppConfig>(
             AppConfig.test(
               apiDomain: 'staging.docjet.ai',

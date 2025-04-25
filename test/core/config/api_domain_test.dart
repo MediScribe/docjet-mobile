@@ -1,18 +1,37 @@
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
+import 'package:docjet_mobile/core/di/injection_container.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 
 void main() {
   group('API Domain Configuration', () {
+    setUp(() {
+      // Register AppConfig in GetIt
+      if (!GetIt.instance.isRegistered<AppConfig>()) {
+        GetIt.instance.registerSingleton<AppConfig>(
+          AppConfig.test(apiDomain: 'staging.docjet.ai', apiKey: 'test-key'),
+        );
+      }
+    });
+
+    tearDown(() async {
+      // Clean up - unregister AppConfig
+      if (GetIt.instance.isRegistered<AppConfig>()) {
+        await GetIt.instance.unregister<AppConfig>();
+      }
+    });
+
     test('DioFactory uses API_DOMAIN from environment', () {
       // We can't directly set environment variables in tests,
-      // but we can check that DioFactory is properly using String.fromEnvironment
+      // but we can check that DioFactory is properly using AppConfig
       // for API_DOMAIN, with appropriate defaults
 
       // Get the Dio instance from the factory
       final dio = DioFactory.createBasicDio();
 
-      // Without explicitly setting API_DOMAIN, it should use the default
+      // Without explicitly setting API_DOMAIN, it should use the value from AppConfig
       expect(
         dio.options.baseUrl,
         ApiConfig.baseUrlFromDomain('staging.docjet.ai'),

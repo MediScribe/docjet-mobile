@@ -11,15 +11,21 @@
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
+import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import log helpers
+import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
+import 'package:docjet_mobile/main.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 
 // Import the generated mocks
 import 'app_test.mocks.dart';
@@ -100,5 +106,68 @@ void main() {
 
     // Verify our test text is displayed (confirming it's our test app that loaded)
     expect(find.text('Test App Running'), findsOneWidget);
+  });
+
+  setUp(() {
+    // Reset GetIt before each test
+    GetIt.I.reset();
+    // Clear overrides before each test
+    di.overrides = [];
+  });
+
+  testWidgets('App initializes and shows LoginScreen', (
+    WidgetTester tester,
+  ) async {
+    // Arrange: Initialize dependencies
+    await di.init();
+    final authService = di.sl<AuthService>();
+
+    // Act: Build our app and trigger a frame.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authServiceProvider.overrideWithValue(authService)],
+        child: const app.MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle(); // Wait for animations/transitions
+
+    // Assert: Verify that the LoginScreen is displayed
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Login'), findsWidgets); // Check for Login text/button
+  });
+
+  testWidgets('App correctly loads AppConfig for development mode', (
+    WidgetTester tester,
+  ) async {
+    // Arrange: Get logger for the test
+    final logger = LoggerFactory.getLogger('AppConfigOverrideTest');
+    final tag = logTag('AppConfigOverrideTest');
+
+    // Arrange: Define the override for AppConfig
+    di.overrides = [
+      () {
+        // Unregister default if already registered (e.g., during hot restart in test)
+        if (di.sl.isRegistered<AppConfig>()) {
+          di.sl.unregister<AppConfig>();
+        }
+        final devConfig = AppConfig.development();
+        di.sl.registerSingleton<AppConfig>(devConfig);
+        logger.d('$tag Registered AppConfig override: $devConfig');
+      },
+    ];
+
+    // NO LONGER MANUALLY EXECUTE OVERRIDES
+    // Let di.init() handle applying overrides internally
+    // The overrides will be executed at the beginning of di.init()
+    logger.d('$tag Calling di.init(), expecting it to apply overrides...');
+    await di.init();
+
+    // Assert: Verify AppConfig IS the development instance
+    logger.d('$tag Verifying AppConfig instance...');
+    final config = di.sl<AppConfig>();
+    expect(config.isDevelopment, isTrue);
+    expect(config.apiDomain, 'localhost:8080');
+    expect(config.apiKey, 'test-api-key');
+    logger.i('$tag AppConfig verification successful!');
   });
 }

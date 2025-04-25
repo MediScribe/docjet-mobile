@@ -163,6 +163,38 @@ void main() {
       ]);
     });
 
+    test('should support multiple test targets', () async {
+      // Given
+      final fakeRunner = FakeProcessRunner(ProcessResult(0, 0, '[]', ''));
+      final mockProcessor = TestEventProcessorMock({});
+
+      final runner = FailedTestRunner(
+        processRunner: fakeRunner,
+        eventProcessor: mockProcessor,
+        formatter: ResultFormatter(),
+      );
+
+      // When
+      await runner.run(
+        [
+          'test/first_test.dart',
+          'test/second_test.dart',
+          'test/third_test.dart',
+        ],
+        debugMode: false,
+        exceptMode: false,
+      );
+
+      // Then
+      expect(fakeRunner.capturedArguments, [
+        'test',
+        '--machine',
+        'test/first_test.dart',
+        'test/second_test.dart',
+        'test/third_test.dart',
+      ]);
+    });
+
     test('should parse test events from stdout', () async {
       // Given
       final testEvents = [
@@ -389,8 +421,7 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allTestEvents,
           exitCode: 1,
-          testTarget:
-              'test/some_test.dart', // Add test target to prevent path tip
+          testTargets: [], // Empty list for no targets
         );
 
         // When
@@ -469,7 +500,7 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allEventsWithLoadingErrors,
           exitCode: 1,
-          testTarget: null, // Simulate running all tests
+          testTargets: [], // Empty list for no targets
         );
 
         // When - Check default output
@@ -559,8 +590,7 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allTestEvents,
           exitCode: 1,
-          testTarget:
-              'test/some_test.dart', // Add test target to prevent path tip
+          testTargets: [], // Empty list for no targets
         );
 
         // When
@@ -615,8 +645,7 @@ void main() {
           failedTestsByFile: failedTests,
           allEvents: allTestEvents,
           exitCode: 1,
-          testTarget:
-              'test/some_test.dart', // Add test target to prevent path tip
+          testTargets: [], // Empty list for no targets
         );
 
         // When
@@ -764,8 +793,7 @@ void main() {
           failedTestsByFile: failedTestsDefault,
           allEvents: combinedEvents,
           exitCode: 1,
-          testTarget:
-              'test/some_test.dart', // Add test target to prevent path tip
+          testTargets: [], // Empty list for no targets
         );
 
         final outputDefault = await capturePrint(
@@ -782,8 +810,7 @@ void main() {
           failedTestsByFile: failedTestsTargeted,
           allEvents: combinedEvents,
           exitCode: 1,
-          testTarget:
-              'test/scripts/debug_test.dart', // Add specific test target
+          testTargets: ['test/scripts/debug_test.dart'], // Single target
         );
 
         final outputTargeted = await capturePrint(
@@ -812,7 +839,7 @@ void main() {
         failedTestsByFile: failedTests,
         allEvents: allTestEvents,
         exitCode: 1,
-        testTarget: null, // No test target
+        testTargets: [], // No test target
       );
 
       // When
@@ -824,7 +851,7 @@ void main() {
       expect(
         output,
         contains(
-          'Tip: You can run with a specific path or directory to test only a subset of tests:',
+          'Tip: You can run with specific paths or directories to test only a subset of tests:',
         ),
       );
       expect(
@@ -844,7 +871,7 @@ void main() {
         failedTestsByFile: failedTests,
         allEvents: allTestEvents,
         exitCode: 1,
-        testTarget: 'test/some_directory', // Test target provided
+        testTargets: ['test/some_directory'], // Test target provided
       );
 
       // When
@@ -871,7 +898,7 @@ void main() {
           failedTestsByFile: {}, // No failed tests
           allEvents: [],
           exitCode: 0,
-          testTarget: null, // No test target
+          testTargets: [], // No test targets
         );
 
         // When
@@ -884,7 +911,7 @@ void main() {
         expect(
           output,
           contains(
-            'Tip: You can run with a specific path or directory to test only a subset of tests:',
+            'Tip: You can run with specific paths or directories to test only a subset of tests:',
           ),
         );
       },
@@ -898,7 +925,7 @@ void main() {
           failedTestsByFile: {}, // No failed tests
           allEvents: [],
           exitCode: 0,
-          testTarget: 'test/some_test.dart', // Target provided
+          testTargets: ['test/some_test.dart'], // Target provided
         );
 
         // When
@@ -912,7 +939,7 @@ void main() {
           output,
           isNot(
             contains(
-              'Tip: You can run with a specific path or directory to test only a subset of tests:',
+              'Tip: You can run with specific paths or directories to test only a subset of tests:',
             ),
           ),
         );

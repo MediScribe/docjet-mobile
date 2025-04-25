@@ -45,6 +45,10 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger hel
 
 final sl = GetIt.instance;
 
+/// Optional list of functions to run for overriding registrations during testing or specific entry points.
+typedef OverrideCallback = void Function();
+List<OverrideCallback> overrides = [];
+
 // Create providers that use GetIt for clean Riverpod integration
 // -------------------------------------------------------
 final authEventBusProvider = Provider<AuthEventBus>(
@@ -56,7 +60,18 @@ Future<void> init() async {
   final logger = LoggerFactory.getLogger('DI');
   final tag = logTag('DI');
 
-  // --- Initialize Hive FIRST ---
+  // --- Apply registered overrides FIRST ---
+  if (overrides.isNotEmpty) {
+    logger.i('$tag Applying ${overrides.length} registered override(s)...');
+
+    for (final override in overrides) {
+      override();
+    }
+
+    logger.i('$tag All overrides applied successfully');
+  }
+
+  // --- Initialize Hive SECOND ---
   logger.d('$tag Before Hive initialization');
 
   // No directory needed for Flutter, it finds the right path automatically
@@ -80,25 +95,26 @@ Future<void> init() async {
 
   logger.d('$tag Hive initialization complete');
 
-  // --- Register AppConfig AFTER Hive to avoid it being cleared ---
-  logger.d('$tag Before AppConfig registration - sl hash: ${sl.hashCode}');
+  // --- Register AppConfig ---
+  // Check if AppConfig is *already* registered (e.g., by an override from main_dev.dart)
+  if (!sl.isRegistered<AppConfig>()) {
+    logger.d(
+      '$tag AppConfig NOT registered, registering default from environment...',
+    );
+    // Use fromEnvironment directly as the default non-overridden case.
+    // We remove the isDevMode check here, as dev mode is handled by the override in main_dev.dart
+    final appConfig = AppConfig.fromEnvironment();
+    sl.registerSingleton<AppConfig>(appConfig);
+    logger.d('$tag Registered DEFAULT AppConfig: ${appConfig.toString()}');
+  } else {
+    logger.i(
+      '$tag AppConfig already registered (likely by override). Skipping default registration.',
+    );
+  }
 
-  const isDevMode = bool.fromEnvironment('DEV_MODE');
-  final appConfig =
-      isDevMode ? AppConfig.development() : AppConfig.fromEnvironment();
-  logger.d('$tag Initialized AppConfig: ${appConfig.toString()}');
-
-  sl.registerSingleton<AppConfig>(appConfig);
-
-  logger.d(
-    '$tag After AppConfig registration - is registered: ${sl.isRegistered<AppConfig>()}',
-  );
-  // Log retrieval attempt without try-catch
-  final retrievedConfig =
-      sl.get<AppConfig>(); // Use get to ensure it's registered
-  logger.d(
-    '$tag Successfully retrieved AppConfig: ${retrievedConfig.toString()}',
-  );
+  // Log the currently registered AppConfig instance to confirm
+  final currentConfig = sl<AppConfig>();
+  logger.i('$tag Using AppConfig: ${currentConfig.toString()}');
 
   // --- Features - Jobs ---
   logger.d(

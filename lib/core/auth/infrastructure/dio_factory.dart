@@ -99,4 +99,67 @@ class DioFactory {
     );
     return dio;
   }
+
+  /// Creates a basic Dio client with a mock AppConfig for testing
+  ///
+  /// This allows tests to specify a custom AppConfig without needing to
+  /// register it in GetIt first
+  static Dio createBasicDioMocked(AppConfig mockConfig) {
+    final baseUrl = ApiConfig.baseUrlFromDomain(mockConfig.apiDomain);
+    _logger.d('Creating basic Dio with mock config: baseUrl=$baseUrl');
+
+    final options = BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: Duration(milliseconds: 5000),
+      receiveTimeout: Duration(milliseconds: 3000),
+      // Add any other Dio configs needed
+    );
+
+    return Dio(options);
+  }
+
+  /// Creates a Dio instance configured with authentication interceptors.
+  /// Suitable for tests where a mock AppConfig is provided
+  static Dio createAuthenticatedDioMocked({
+    required AuthApiClient authApiClient,
+    required AuthCredentialsProvider credentialsProvider,
+    required AuthEventBus authEventBus,
+    required AppConfig mockConfig,
+  }) {
+    final dio = createBasicDioMocked(mockConfig);
+
+    if (mockConfig.apiKey.isEmpty) {
+      _logger.w('API_KEY from mock AppConfig is empty!');
+    }
+
+    // Add interceptor to inject API key header BEFORE the AuthInterceptor
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          if (mockConfig.apiKey.isNotEmpty) {
+            options.headers['x-api-key'] = mockConfig.apiKey;
+            _logger.t('Injected x-api-key header.');
+          } else {
+            _logger.w('Skipping x-api-key header injection: Key not found.');
+          }
+          return handler.next(options); // continue
+        },
+      ),
+    );
+
+    // Add the authentication interceptor for handling 401s and token refresh
+    dio.interceptors.add(
+      AuthInterceptor(
+        dio: dio, // Pass the Dio instance itself
+        apiClient: authApiClient,
+        credentialsProvider: credentialsProvider,
+        authEventBus: authEventBus,
+      ),
+    );
+
+    _logger.d(
+      'Created authenticated Dio instance with mock API Key and Auth interceptors.',
+    );
+    return dio;
+  }
 }

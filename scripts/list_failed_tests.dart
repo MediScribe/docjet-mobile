@@ -26,15 +26,23 @@ void main(List<String> arguments) async {
 
     final bool debugMode = argResults[_debugFlag];
     final bool exceptMode = argResults[_exceptFlag];
-    final String? testTarget =
-        argResults.rest.isNotEmpty ? argResults.rest.first : null;
+    final List<String> testTargets = argResults.rest;
 
     // Check if we're specifically targeting debug_test.dart
     final bool suppressDebugTests =
-        testTarget == null || !testTarget.contains('debug_test.dart');
+        !testTargets.any((target) => target.contains('debug_test.dart'));
+
+    String targetMessage = '';
+    if (testTargets.isEmpty) {
+      targetMessage = '';
+    } else if (testTargets.length == 1) {
+      targetMessage = ' for target: ${testTargets.first}';
+    } else {
+      targetMessage = ' for targets: ${testTargets.join(', ')}';
+    }
 
     print(
-      'Running tests${testTarget != null ? ' for target: $testTarget' : ''}${debugMode ? ' in debug mode' : ''}${exceptMode ? ' showing exceptions only' : ''}...',
+      'Running tests$targetMessage${debugMode ? ' in debug mode' : ''}${exceptMode ? ' showing exceptions only' : ''}...',
     );
 
     final processRunner = ProcessRunnerImpl();
@@ -92,7 +100,7 @@ ArgParser _buildArgParser() {
 /// Prints usage information
 void _printUsage(ArgParser parser) {
   print(
-    'Usage: ./scripts/list_failed_tests_ng.dart [--debug] [--except] [test_target]',
+    'Usage: ./scripts/list_failed_tests_ng.dart [--debug] [--except] [test_target1 test_target2 ...]',
   );
   print('');
   print(
@@ -101,8 +109,9 @@ void _printUsage(ArgParser parser) {
   print('');
   print('Arguments:');
   print(
-    '  [test_target]  Optional. Path to a specific test file or directory.',
+    '  [test_targets]  Optional. Paths to specific test files or directories.',
   );
+  print('                 Multiple targets can be specified to run them all.');
   print('                 If omitted, all tests in the project are run.');
   print('');
   print('Options:');
@@ -326,16 +335,19 @@ class ResultFormatter {
       print('No failed tests found.');
 
       // Add tip about specifying test target if no target was provided
-      if (result.testTarget == null) {
+      if (result.testTargets == null || result.testTargets!.isEmpty) {
         print('');
         print(
-          '\x1B[33mTip: You can run with a specific path or directory to test only a subset of tests:\x1B[0m',
+          '\x1B[33mTip: You can run with specific paths or directories to test only a subset of tests:\x1B[0m',
         );
         print(
           '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file.dart\x1B[0m',
         );
         print(
           '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_directory\x1B[0m',
+        );
+        print(
+          '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file1.dart path/to/test_file2.dart\x1B[0m',
         );
       }
       return;
@@ -370,16 +382,19 @@ class ResultFormatter {
     }
 
     // Add tip about specifying test target if no target was provided
-    if (result.testTarget == null) {
+    if (result.testTargets == null || result.testTargets!.isEmpty) {
       print('');
       print(
-        '\x1B[33mTip: You can run with a specific path or directory to test only a subset of tests:\x1B[0m',
+        '\x1B[33mTip: You can run with specific paths or directories to test only a subset of tests:\x1B[0m',
       );
       print(
         '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file.dart\x1B[0m',
       );
       print(
         '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_directory\x1B[0m',
+      );
+      print(
+        '\x1B[33m     ./scripts/list_failed_tests.dart path/to/test_file1.dart path/to/test_file2.dart\x1B[0m',
       );
     }
   }
@@ -557,19 +572,20 @@ class FailedTestRunner {
     required bool exceptMode,
     bool suppressDebugTests = true,
   }) async {
-    final testTarget = args.isNotEmpty ? args.first : null;
+    final List<String> testTargets = args.isNotEmpty ? args : [];
     final arguments = ['test', '--machine'];
-    if (testTarget != null) {
-      arguments.add(testTarget);
+    // Add all test targets to the arguments
+    if (testTargets.isNotEmpty) {
+      arguments.addAll(testTargets);
     }
 
     // Prepare environment variables specifically for the debug test
     Map<String, String>? environment;
-    if (testTarget != null && testTarget.contains('debug_test.dart')) {
+    if (testTargets.any((target) => target.contains('debug_test.dart'))) {
       environment = {'DEBUG_TEST_SHOULD_FAIL': 'true'};
       if (_debugScript) {
         print(
-          '[SCRIPT_DEBUG] Activating DEBUG_TEST_SHOULD_FAIL for $testTarget',
+          '[SCRIPT_DEBUG] Activating DEBUG_TEST_SHOULD_FAIL for debug_test.dart',
         );
       }
     }
@@ -610,7 +626,7 @@ class FailedTestRunner {
       failedTestsByFile: failedTestsByFile,
       allEvents: allEvents,
       exitCode: processResult.exitCode,
-      testTarget: testTarget,
+      testTargets: testTargets,
     );
   }
 
@@ -649,12 +665,12 @@ class TestRunResult {
   final Map<String, List<FailedTest>> failedTestsByFile;
   final List<Map<String, dynamic>> allEvents;
   final int exitCode;
-  final String? testTarget;
+  final List<String>? testTargets;
 
   TestRunResult({
     required this.failedTestsByFile,
     required this.allEvents,
     required this.exitCode,
-    this.testTarget,
+    this.testTargets,
   });
 }
