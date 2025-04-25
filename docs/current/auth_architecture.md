@@ -122,6 +122,7 @@ sequenceDiagram
     ApiClient->>API: Request with expired JWT
     API-->>ApiClient: 401 Unauthorized
     ApiClient->>Interceptor: Receives 401 error
+    Interceptor->>Interceptor: Acquire mutex lock
     Interceptor->>CredProvider: getRefreshToken()
     CredProvider-->>Interceptor: Refresh token
     Interceptor->>ApiClient: refreshToken(refreshToken)
@@ -136,6 +137,7 @@ sequenceDiagram
     API-->>ApiClient: Successful Response
     ApiClient-->>AuthSvc: Processed response
     AuthSvc-->>UI: Result
+    Interceptor->>Interceptor: Release mutex lock
     
     %% Token Refresh Failure with Exponential Backoff
     Note over UI,API: Token Refresh Failure (with retry)
@@ -145,6 +147,15 @@ sequenceDiagram
     Note over Interceptor: Wait 500ms, then 1s, then 2s...
     Interceptor->>API: POST /api/v1/auth/refresh-session
     API-->>Interceptor: {new_access_token, new_refresh_token}
+    
+    %% Unexpected Error Handling
+    Note over UI,API: Unexpected Error During Token Refresh
+    Interceptor->>API: POST /api/v1/auth/refresh-session
+    API-->>Interceptor: Unexpected Error (not auth related)
+    Interceptor->>Interceptor: Create new DioException with error context
+    Interceptor->>Interceptor: Trigger logout
+    Interceptor->>Interceptor: Release mutex lock
+    Interceptor-->>AuthSvc: Propagate enhanced error
     
     %% Logout Flow with Event System
     Note over UI,AppComponents: Logout Flow with Event System
@@ -211,6 +222,8 @@ A Dio interceptor that:
 3. Implements exponential backoff retry logic for transient errors
 4. Triggers app-wide logout via `AuthEventBus` when refresh fails
 5. Retries the original request with the new token
+6. Uses mutex locking to prevent concurrent refresh attempts 
+7. Provides robust error propagation for unexpected failures
 
 This approach provides seamless token refresh without UI layer awareness of expired tokens. The authentication flow is handled at the data layer where it belongs, maintaining clean separation of concerns.
 

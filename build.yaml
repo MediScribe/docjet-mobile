@@ -5,12 +5,13 @@ targets:
       mockito|mockBuilder:
         generate_for:
           - test/**
+          - integration_test/**
         options:
           # Use custom_mocks to configure specific classes
           custom_mocks:
-            - class: PathProviderPlatform
-              # Specify that this mock should use 'extends'
-              extends: true
+            - name: "PathProviderPlatform"
+              parent_class: "PathProviderPlatform"
+              concrete: true
 
 # Remove the incorrect custom builder definition
 # builders:

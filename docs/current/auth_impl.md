@@ -511,3 +511,32 @@ Critical TODOs to ensure proper authentication works with both real API and mock
        - Added better contextual information in error messages
        - Created test to verify proper error propagation for unexpected errors
        - Ensured logout is triggered for all irrecoverable errors, including unexpected ones
+
+## 16. [ ] **Fix Mock Server Auth Provider Integration**
+
+    Problem: The app fails when running with the mock server showing "authServiceProvider has not been overridden". The mock API server works correctly, but the app fails to properly initialize the authServiceProvider.
+    
+    16.1. [ ] **RESEARCH FIRST**: Properly identify the provider generation pattern
+       - Read the fucking code and documentation on Riverpod's code generation
+       - Check `lib/core/auth/presentation/auth_notifier.dart` to identify exactly how the provider is generated and expected to be used
+       - Use `grep` to find all references to authServiceProvider and examine their imports
+       - Verify the actual import path being used by the AuthNotifier for authServiceProvider
+       - Review build output to confirm the generated provider name and file location
+    
+    16.2. [ ] **RED**: Write failing tests for provider overrides
+       - Create test to verify we're overriding the CORRECT provider (not a duplicate)
+       - Test that Riverpod's dependency injection works correctly with the mock server
+       - Verify that the test fails because we're currently overriding the wrong provider
+    
+    16.3. [ ] **GREEN**: Fix provider overrides correctly
+       - Remove any duplicate provider definitions that shadow the generated one
+       - Import the correct, generated provider from auth_notifier.g.dart
+       - Properly override ONLY that provider in the ProviderScope
+       - Use the instance from GetIt (getIt<AuthService>())
+       - Verify the fix works by running with the mock server
+    
+    16.4. [ ] **REFACTOR**: Clean up and document
+       - Add clear comments about the provider override pattern
+       - Document the Riverpod code generation approach in our project
+       - Create dedicated mock server integration guide
+       - Add troubleshooting section specifically for provider override issues

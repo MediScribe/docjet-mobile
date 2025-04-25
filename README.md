@@ -9,6 +9,9 @@ A mobile app for the DocJet platform.
 - [Development](#development)
   - [Getting Started](#getting-started)
   - [Integration Tests](#integration-tests)
+    - [Running Integration Tests with Mock Server](#running-integration-tests-with-mock-server)
+    - [Mock Server Details](#mock-server-details)
+    - [Mock Server Capabilities & Limitations](#mock-server-capabilities--limitations)
   - [End-to-End (E2E) Tests (integration_test)](#end-to-end-e2e-tests-integration_test)
   - [Configuring the App (API Key & Domain)](#configuring-the-app-api-key--domain)
 
@@ -179,6 +182,42 @@ The project includes integration tests that use a mock API server to simulate th
 - **Supported endpoints:** auth/login, jobs (GET/POST/PATCH), jobs/:id, jobs/:id/documents
 
 For more details on the available API endpoints, check the mock server implementation in `mock_api_server/bin/server.dart`.
+
+#### Mock Server Capabilities & Limitations
+
+Our mock server provides a comprehensive simulation of the backend API for testing and development:
+
+**What it can do:**
+- ✅ Full authentication flow (login, refresh token, user profile)
+- ✅ Complete job CRUD operations (Create, Read, Update, Delete)
+- ✅ Multipart form handling for file uploads
+- ✅ In-memory job storage with proper relationships
+- ✅ API key and token validation
+- ✅ Error simulation with proper status codes
+- ✅ Job document associations
+
+**What it cannot do:**
+- ❌ Persist data between server restarts (uses in-memory storage)
+- ❌ Process audio files (just stores a reference, no actual processing)
+- ❌ Simulate network latency or throttling (responses are immediate)
+- ❌ Validate actual JWT token contents (any non-empty token is accepted)
+
+**Running the App with Mock Server:**
+
+For the best development experience using the mock server, use our convenience script:
+```bash
+./scripts/run_with_mock.sh
+```
+
+This script:
+1. Starts the mock API server on port 8080
+2. Configures proper environment variables via `secrets.test.json`
+3. Runs the Flutter app with the correct configuration
+4. Handles automatic cleanup on exit
+
+> **Note:** When running the app with the mock server, you can use any email/password combination for login, as the mock server accepts all credentials. The app will display a simulated user profile from the mock server.
+
+For more details about the mock server, see `mock_api_server/README.md`.
 
 ### End-to-End (E2E) Tests (integration_test)
 
