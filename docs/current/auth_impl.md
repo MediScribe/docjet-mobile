@@ -395,44 +395,64 @@ Critical TODOs to ensure proper authentication works with both real API and mock
     13.4.3. [x] **REFACTOR**: Extract test helpers
        - FINDINGS: Reviewed tests and implementation. Code is reasonably clean. No specific helpers extracted at this time, but the environment injection pattern works well.
 
-13.5. [ ] **Auth Error Handling UI (TDD)**
+13.5. [ ] **Refactor Environment Variable Loading Logic (TDD)**
+    - FINDINGS: Current environment variable loading logic in DioFactory is overly complex with scattered defaults and conditional branching.
+    
+    13.5.1. [ ] **RED**: Write failing tests for simplified environment loading
+       - Create tests in `test/core/auth/infrastructure/dio_factory_test.dart` for a centralized defaults approach
+       - Test that default values are consistently applied from a single source
+       - Test proper fallback behavior with partial environment maps
+       - Verify tests fail with current implementation
+    
+    13.5.2. [ ] **GREEN**: Implement centralized environment loading
+       - Refactor `_getEnv` to use a centralized defaults map instead of conditional branches
+       - Implement consistent fallback behavior
+       - Ensure consistent behavior between test and runtime environments
+       - Verify tests now pass
+    
+    13.5.3. [ ] **REFACTOR**: Optimize and clean up
+       - Remove any remaining conditional branching
+       - Ensure the method follows the Open-Closed Principle for future environment variables
+       - Verify tests still pass after optimization
+
+13.6. [ ] **Auth Error Handling UI (TDD)**
     - FINDINGS: UI needs better error feedback for authentication failures.
     
-    13.5.1. [ ] **RED**: Write failing widget tests for error UI
+    13.6.1. [ ] **RED**: Write failing widget tests for error UI
        - Create/extend `test/features/auth/presentation/screens/login_screen_test.dart`
        - Write test for invalid credentials error message display
        - Write test for network error message display
        - Write test for offline mode indicator
        - Run tests to confirm they fail
     
-    13.5.2. [ ] **GREEN**: Implement error handling UI
+    13.6.2. [ ] **GREEN**: Implement error handling UI
        - Update LoginScreen to display appropriate error messages
        - Add offline indicator when network is unavailable
        - Add loading indicators during authentication
        - Run tests to verify they now pass
     
-    13.5.3. [ ] **REFACTOR**: Improve UI components
+    13.6.3. [ ] **REFACTOR**: Improve UI components
        - Extract error message widgets for reuse
        - Standardize loading indicators
        - Verify tests still pass after extraction
 
-13.6. [ ] **End-to-End Authentication Flow (TDD)**
+13.7. [ ] **End-to-End Authentication Flow (TDD)**
     - FINDINGS: Need to verify the complete auth flow across environments.
     
-    13.6.1. [ ] **RED**: Write failing end-to-end tests
+    13.7.1. [ ] **RED**: Write failing end-to-end tests
        - Create `test/e2e/auth_flow_test.dart`
        - Write test for full login-to-authenticated-screen flow
        - Write test for token refresh mechanism
        - Write test for logout flow
        - Run tests to confirm they fail or are incomplete
     
-    13.6.2. [ ] **GREEN**: Implement complete auth flow
+    13.7.2. [ ] **GREEN**: Implement complete auth flow
        - Ensure AuthService, interceptors, and UI work together
        - Verify persistence of authentication state
        - Handle edge cases (expired tokens, network loss)
        - Run tests to verify they now pass
     
-    13.6.3. [ ] **REFACTOR**: Optimize and document
+    13.7.3. [ ] **REFACTOR**: Optimize and document
        - Create comprehensive auth flow documentation
        - Add detailed testing guide
        - Verify tests still pass after documentation 
