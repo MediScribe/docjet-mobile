@@ -1,7 +1,6 @@
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
-import 'package:docjet_mobile/core/di/injection_container.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 

@@ -14,8 +14,8 @@ Follow these steps religiously, or face the fucking consequences.
 6.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
 7.  **Check Test Failures**: Always start by running `./scripts/list_failed_tests.dart` (@list_failed_tests.dart) to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. If tests fail, you can run again with:
     *   None, one or multiple targets (both file and dir)
-    *   `--debug` to see the console output *from those tests*.
     *   `--except` to see the exception details (error message and stack trace) *for those tests*, grouped by file. This a *good start* as you will only have once exception per file.
+    *   `--debug` to see the console output *from those tests*.
     **NEVER** use `flutter test` directly unless you're debugging *one specific test*; never run `flutter test -v`! Don't commit broken shit.
 8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
 9.  **Formatting**: Before committing, run ./scripts/format.sh to fix all the usual formatting shit.
@@ -70,10 +70,17 @@ Our codebase currently suffers from:
 
 ### Phase 1: Preparation and Testing Strategy
 
-1.  **[⚠️] Create Explicit Interfaces**
+1.  **[✅] Create Explicit Interfaces**
     *   [✓] 1.1 Identify key services for interface extraction (e.g., `AppConfig`)
-    *   [⚠️] 1.2 Extract interfaces capturing public methods/properties - NOT DONE, using concrete classes directly
-    *   [⚠️] 1.3 Write tests using interfaces - NOT DONE, using concrete classes directly
+    *   [✓] 1.2 Extract interfaces capturing public methods/properties 
+        * Created `AppConfigInterface` to define contract for AppConfig.
+        * Created `DioFactoryInterface` defining the contract for the **target, class-based** factory (receives `AppConfigInterface` via constructor, provides instance methods).
+        * How: Created interface files in `lib/core/interfaces` with abstract class definitions for the **target state**.
+        * Findings: Aligning interfaces with the target architecture early clarifies the refactoring goal.
+    *   [✓] 1.3 Write tests using interfaces
+        * Updated AppConfig tests to use AppConfigInterface in type declarations.
+        * How: Modified test assertions to work against the interface rather than concrete class.
+        * Findings: Using interfaces in tests makes them more robust against implementation changes.
 2.  **[✓] Create Test Doubles**
     *   [✓] 2.1 Generate or manually create test doubles for each interface - Using mock concrete classes
     *   [✓] 2.2 Ensure doubles implement the full interface

@@ -1,10 +1,14 @@
+import '../interfaces/app_config_interface.dart';
+
 /// Holds application configuration values, primarily derived from
 /// compile-time environment variables.
-class AppConfig {
+class AppConfig implements AppConfigInterface {
   /// The domain name (e.g., 'api.docjet.com' or 'localhost:8080') for the API.
+  @override
   final String apiDomain;
 
   /// The API key used for authentication.
+  @override
   final String apiKey;
 
   /// Private constructor.
@@ -46,6 +50,7 @@ class AppConfig {
   }
 
   /// Returns true if the configuration is for local development (mock server).
+  @override
   bool get isDevelopment => apiDomain == 'localhost:8080';
 
   @override

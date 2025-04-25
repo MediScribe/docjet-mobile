@@ -1,4 +1,5 @@
 import 'package:docjet_mobile/core/config/app_config.dart';
+import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -6,13 +7,13 @@ void main() {
     test('AppConfig correctly loads environment values by default', () {
       // Because we can't easily set dart-defines in unit tests,
       // we expect the default values here.
-      final config = AppConfig.fromEnvironment();
+      final AppConfigInterface config = AppConfig.fromEnvironment();
       expect(config.apiDomain, 'staging.docjet.ai'); // Default value
       expect(config.apiKey, ''); // Default value
     });
 
     test('AppConfig.development creates development config', () {
-      final config = AppConfig.development();
+      final AppConfigInterface config = AppConfig.development();
       expect(config.apiDomain, 'localhost:8080');
       expect(config.apiKey, 'test-api-key');
       expect(config.isDevelopment, isTrue);
@@ -21,19 +22,19 @@ void main() {
     test(
       'AppConfig.fromEnvironment creates non-development config by default',
       () {
-        final config = AppConfig.fromEnvironment();
+        final AppConfigInterface config = AppConfig.fromEnvironment();
         expect(config.isDevelopment, isFalse);
       },
     );
 
     test('toString method provides useful representation', () {
-      final config = AppConfig.development();
+      final AppConfigInterface config = AppConfig.development();
       expect(
         config.toString(),
         'AppConfig(apiDomain: localhost:8080, apiKey: [REDACTED])',
       );
 
-      final prodConfig = AppConfig.fromEnvironment();
+      final AppConfigInterface prodConfig = AppConfig.fromEnvironment();
       expect(
         prodConfig.toString(),
         'AppConfig(apiDomain: staging.docjet.ai, apiKey: [REDACTED])',

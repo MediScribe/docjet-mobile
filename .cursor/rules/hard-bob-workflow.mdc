@@ -18,8 +18,9 @@ Follow these steps religiously, or face the fucking consequences.
     *   **DO NOT** run `flutter test`. You will drown in debug output. Use ./scripts/list_failed_tests.dart.
 6.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
 7.  **Check Test Failures**: Always start by running `./scripts/list_failed_tests.dart` ([list_failed_tests.dart](mdc:scripts/list_failed_tests.dart)) to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. If tests fail, you can run again with:
+    *   None, one or multiple targets (both file and dir)
+    *   `--except` to see the exception details (error message and stack trace) *for those tests*, grouped by file. This a *good start* as you will only have once exception per file.
     *   `--debug` to see the console output *from those tests*.
-    *   `--except` to see the exception details (error message and stack trace) *for those tests*, grouped by file.
     **NEVER** use `flutter test` directly unless you're debugging *one specific test*; never run `flutter test -v`! Don't commit broken shit.
 8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
 9.  **Formatting**: Before committing, run ./scripts/format.sh to fix all the usual formatting shit.
