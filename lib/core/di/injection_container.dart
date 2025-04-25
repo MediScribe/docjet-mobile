@@ -1,15 +1,12 @@
 // Features - Jobs - Data
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart'; // Actual implementation (IoFileSystem) & Interface
-import 'package:docjet_mobile/core/platform/network_info_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // Add Hive Flutter import
 
 // Features - Jobs - Domain
 import 'package:get_it/get_it.dart';
-import 'package:path_provider/path_provider.dart'; // Needed for getApplicationDocumentsDirectory
 import 'package:uuid/uuid.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Add interface import
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'; // Add concrete class import
@@ -28,7 +25,9 @@ import 'package:docjet_mobile/core/config/app_config.dart'; // Import AppConfig
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import Logger helpers
 import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart'; // Import AuthModule
 import 'package:docjet_mobile/features/jobs/di/jobs_module.dart'; // Import JobsModule
+import 'package:docjet_mobile/core/di/core_module.dart'; // Import CoreModule
 // Import HiveInterface
+import 'package:hive/hive.dart'; // Keep HiveInterface
 import 'package:dio/dio.dart'; // Import Dio
 
 final sl = GetIt.instance;
@@ -99,77 +98,18 @@ Future<void> init() async {
   final currentConfig = sl<AppConfig>();
   logger.i('$tag Using AppConfig: ${currentConfig.toString()}');
 
-  // --- Register External Dependencies EARLY ---
-  if (!sl.isRegistered<Uuid>()) {
-    sl.registerLazySingleton<Uuid>(() => const Uuid());
-    logger.d('$tag Registered Uuid');
-  }
-  if (!sl.isRegistered<Connectivity>()) {
-    sl.registerLazySingleton<Connectivity>(() => Connectivity());
-    logger.d('$tag Registered Connectivity');
-  }
-  if (!sl.isRegistered<HiveInterface>()) {
-    sl.registerLazySingleton<HiveInterface>(() => Hive);
-    logger.d('$tag Registered HiveInterface');
-  }
-  if (!sl.isRegistered<FlutterSecureStorage>()) {
-    sl.registerLazySingleton<FlutterSecureStorage>(
-      () => const FlutterSecureStorage(),
-    );
-    logger.d('$tag Registered FlutterSecureStorage');
-  }
-  if (!sl.isRegistered<JwtValidator>()) {
-    sl.registerLazySingleton<JwtValidator>(() => JwtValidator());
-    logger.d('$tag Registered JwtValidator');
-  }
+  // --- Register Core Module THIRD ---
+  logger.d('$tag Registering Core Module...');
+  final coreModule = CoreModule();
+  await coreModule.register(sl); // Await because FileSystem needs path_provider
+  logger.i('$tag Core Module registration completed.');
 
-  // --- Register Platform Dependencies ---
-  if (!sl.isRegistered<FileSystem>()) {
-    // Need path_provider to get the path
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final documentsPath = appDocDir.path;
-    sl.registerLazySingleton<FileSystem>(
-      () => IoFileSystem(documentsPath),
-    ); // <<< ADDED ARGUMENT
-    logger.d('$tag Registered FileSystem');
-  }
-  if (!sl.isRegistered<NetworkInfo>()) {
-    sl.registerLazySingleton<NetworkInfo>(
-      () => NetworkInfoImpl(sl<Connectivity>()),
-    );
-    logger.d('$tag Registered NetworkInfo');
-  }
-
-  // --- Core Infrastructure (Dio, EventBus) ---
-  if (!sl.isRegistered<DioFactory>()) {
-    sl.registerLazySingleton<DioFactory>(
-      () => DioFactory(appConfig: sl<AppConfig>()),
-    );
-    logger.d('$tag Registered DioFactory');
-  }
-  if (!sl.isRegistered<AuthEventBus>()) {
-    sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
-    logger.d('$tag Registered AuthEventBus');
-  }
-  // Register concrete providers needed by modules BEFORE the modules run
-  if (!sl.isRegistered<AuthCredentialsProvider>()) {
-    sl.registerLazySingleton<AuthCredentialsProvider>(
-      () => SecureStorageAuthCredentialsProvider(
-        secureStorage: sl<FlutterSecureStorage>(),
-        jwtValidator: sl<JwtValidator>(),
-      ),
-    );
-    logger.d('$tag Registered AuthCredentialsProvider');
-  }
-
-  // --- Register Auth Module SECOND ---
-  // This registers Auth-specific services AND core providers like AuthSessionProvider
+  // --- Register Auth Module FOURTH ---
+  logger.d('$tag Registering Auth Module...');
   final authModule = AuthModule();
+  // Resolve dependencies needed by AuthModule AFTER CoreModule has run
   final dioFactory = sl<DioFactory>();
-  final credentialsProvider =
-      sl<
-        AuthCredentialsProvider
-      >(); // Ensure this is registered before AuthModule too
+  final credentialsProvider = sl<AuthCredentialsProvider>();
   final authEventBus = sl<AuthEventBus>();
   authModule.register(
     sl, // Pass the GetIt instance
@@ -179,16 +119,17 @@ Future<void> init() async {
   );
   logger.i('$tag AuthModule registration completed via instance method.');
 
-  // --- Features - Jobs THIRD ---
+  // --- Features - Jobs FIFTH ---
+  logger.d('$tag Registering Jobs Module...');
   // Now that AuthModule has run (and registered AuthSessionProvider), resolve Job deps
-  final authSessionProvider =
-      sl<AuthSessionProvider>(); // Should be registered now
+  // Resolve dependencies needed by JobsModule AFTER CoreModule & AuthModule have run
+  final authSessionProvider = sl<AuthSessionProvider>();
   final networkInfo = sl<NetworkInfo>();
   final uuid = sl<Uuid>();
   final fileSystem = sl<FileSystem>();
   final hive = sl<HiveInterface>();
   final authenticatedDio = sl<Dio>(instanceName: 'authenticatedDio');
-  // final authCredentialsProvider = sl<AuthCredentialsProvider>(); // Already resolved for AuthModule
+  // final authCredentialsProvider = sl<AuthCredentialsProvider>(); // Already resolved
 
   final jobsModule = JobsModule(
     authSessionProvider: authSessionProvider,
