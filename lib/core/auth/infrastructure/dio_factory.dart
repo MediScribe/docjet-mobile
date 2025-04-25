@@ -6,6 +6,8 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
+import 'package:docjet_mobile/core/di/injection_container.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter/foundation.dart';
 
@@ -16,59 +18,15 @@ import 'package:flutter/foundation.dart';
 class DioFactory {
   static final _logger = LoggerFactory.getLogger('DioFactory');
 
-  /// Environment variable keys
-  static const String _apiDomainKey = 'API_DOMAIN';
-  static const String _apiKeyKey = 'API_KEY';
-
-  /// Centralized environment variable defaults
-  static final Map<String, String> _environmentDefaults = {
-    _apiDomainKey: 'staging.docjet.ai',
-    _apiKeyKey: '',
-  };
-
-  /// Gets environment variable value with consistent fallback to defaults
-  ///
-  /// This method provides centralized access to environment variables with
-  /// well-defined defaults for known variables.
-  ///
-  /// Parameters:
-  /// - [name]: The name of the environment variable to retrieve
-  /// - [environment]: Optional map of environment values (for testing)
-  ///
-  /// Returns the environment value, falling back to defaults for known variables
-  /// or empty string for unknown variables.
-  static String getEnvironmentValue(
-    String name,
-    Map<String, String>? environment,
-  ) {
-    // If environment map is provided (primarily for testing)
-    if (environment != null) {
-      // Validate that all values in the map are non-null
-      if (environment.containsKey(name) && environment[name] == null) {
-        throw AssertionError(
-          'Environment map contains null value for key: $name',
-        );
-      }
-
-      // Return the value from the map if present, otherwise fall back to defaults
-      return environment.containsKey(name)
-          ? environment[name]!
-          : _environmentDefaults[name] ?? '';
-    }
-
-    // Otherwise use String.fromEnvironment with appropriate default
-    return String.fromEnvironment(
-      name,
-      defaultValue: _environmentDefaults[name] ?? '',
-    );
-  }
-
   /// Creates a basic Dio instance without authentication interceptors.
   /// Suitable for non-authenticated API calls or initial setup.
-  static Dio createBasicDio({Map<String, String>? environment}) {
-    final apiDomain = getEnvironmentValue(_apiDomainKey, environment);
-    final baseUrl = ApiConfig.baseUrlFromDomain(apiDomain);
-    _logger.i('Creating basic Dio instance for domain: $apiDomain -> $baseUrl');
+  static Dio createBasicDio() {
+    // Get AppConfig from the service locator
+    final appConfig = sl<AppConfig>();
+    final baseUrl = ApiConfig.baseUrlFromDomain(appConfig.apiDomain);
+    _logger.i(
+      'Creating basic Dio instance for domain: ${appConfig.apiDomain} -> $baseUrl',
+    );
 
     final options = BaseOptions(
       baseUrl: baseUrl,
@@ -99,13 +57,14 @@ class DioFactory {
     required AuthApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
-    Map<String, String>? environment,
   }) {
-    final dio = createBasicDio(environment: environment);
-    final apiKey = getEnvironmentValue(_apiKeyKey, environment);
+    // Get AppConfig from the service locator
+    final appConfig = sl<AppConfig>();
+    // Create basic Dio using the AppConfig retrieved above (no need to pass env)
+    final dio = createBasicDio();
 
-    if (apiKey.isEmpty) {
-      _logger.w('$_apiKeyKey environment variable is not set!');
+    if (appConfig.apiKey.isEmpty) {
+      _logger.w('API_KEY from AppConfig is empty!');
       // Depending on requirements, could throw an error here or allow proceeding
       // For now, we log a warning.
     }
@@ -114,8 +73,8 @@ class DioFactory {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          if (apiKey.isNotEmpty) {
-            options.headers['x-api-key'] = apiKey;
+          if (appConfig.apiKey.isNotEmpty) {
+            options.headers['x-api-key'] = appConfig.apiKey;
             _logger.t('Injected x-api-key header.');
           } else {
             _logger.w('Skipping x-api-key header injection: Key not found.');

@@ -32,6 +32,11 @@ class AppConfig {
     );
   }
 
+  /// Creates a configuration for testing purposes.
+  factory AppConfig.test({required String apiDomain, required String apiKey}) {
+    return AppConfig._(apiDomain: apiDomain, apiKey: apiKey);
+  }
+
   /// Creates a standard development configuration pointing to the mock server.
   factory AppConfig.development() {
     return const AppConfig._(

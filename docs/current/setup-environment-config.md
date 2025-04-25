@@ -200,12 +200,16 @@ When you call `flutter run --dart-define=API_DOMAIN=localhost:8080`, this only a
 
 ### 4. [ ] Refactor DioFactory to Use AppConfig
 
-   a. [ ] **RED**: Write test for DioFactory using AppConfig
+   a. [x] **RED**: Write test for DioFactory using AppConfig
    ```dart
    test('DioFactory uses AppConfig for domain configuration', () {
      // Setup
-     final mockConfig = AppConfig._(apiDomain: 'test.example.com', apiKey: 'test-key');
      final container = GetIt.instance;
+     container.reset();
+     final mockConfig = AppConfig.test(
+       apiDomain: 'test.example.com',
+       apiKey: 'test-key',
+     );
      container.registerSingleton<AppConfig>(mockConfig);
      
      // Test
@@ -213,23 +217,36 @@ When you call `flutter run --dart-define=API_DOMAIN=localhost:8080`, this only a
      expect(dio.options.baseUrl, contains('test.example.com'));
    });
    ```
-   
-   b. [ ] **GREEN**: Update DioFactory implementation
+   *Findings*: Added test using `AppConfig.test()` factory after struggling with `@visibleForTesting` on `AppConfig._`. Registered mock `AppConfig` in `GetIt`. Test fails as expected because `DioFactory` still uses `String.fromEnvironment`.
+
+   b. [x] **GREEN**: Update DioFactory implementation
    ```dart
-   static Dio createBasicDio({Map<String, String>? environment}) {
-     // Use AppConfig from DI container instead of direct environment access
-     final appConfig = sl<AppConfig>();
-     final baseUrl = ApiConfig.baseUrlFromDomain(appConfig.apiDomain);
-     _logger.i('Creating Dio with domain: ${appConfig.apiDomain} -> $baseUrl');
-     
-     // Rest of implementation remains the same
-     // ...
+   // lib/core/auth/infrastructure/dio_factory.dart
+   import 'package:docjet_mobile/core/config/app_config.dart';
+   import 'package:docjet_mobile/core/di/injection_container.dart';
+
+   class DioFactory {
+     static final _logger = LoggerFactory.getLogger('DioFactory');
+
+     static Dio createBasicDio() {
+       final appConfig = sl<AppConfig>();
+       final baseUrl = ApiConfig.baseUrlFromDomain(appConfig.apiDomain);
+       // ... setup BaseOptions ...
+       return Dio(options);
+     }
+
+     static Dio createAuthenticatedDio(...) {
+       final appConfig = sl<AppConfig>();
+       final dio = createBasicDio();
+       // ... add interceptors using appConfig.apiKey ...
+       return dio;
+     }
    }
-   
-   // Similar update for createAuthenticatedDio to use appConfig.apiKey
    ```
-   
-   c. [ ] **REFACTOR**: Remove all direct String.fromEnvironment calls in DioFactory
+   *Findings*: Removed `getEnvironmentValue` and the `environment` map parameter. Updated `createBasicDio` and `createAuthenticatedDio` to fetch `AppConfig` using `sl<AppConfig>()`. Refactored tests to use `GetIt` registration/unregistration for setting up specific `AppConfig` instances, resolving initial test failures due to GetIt registration issues. All tests in `dio_factory_test.dart` now pass.
+
+   c. [x] **REFACTOR**: Remove all direct String.fromEnvironment calls in DioFactory
+   *Findings*: Confirmed that the previous step (4b) already removed all direct `String.fromEnvironment` calls by deleting the `getEnvironmentValue` method and refactoring the factory methods to use `sl<AppConfig>()`. No further changes needed.
 
 ### 5. [ ] Create Development Entry Point
 
