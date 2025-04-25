@@ -632,7 +632,7 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
     -   [x] **Register** `JobRemoteDataSourceImpl` (`ApiJobRemoteDataSourceImpl` exists)
     -   [x] Verify `dart analyze` is clean (no errors after registration) --> **Done, ignoring one spurious unused import warning.**
 
--   [x] **9. Job Data Flow Improvements:** (From job_dataflow.md)
+-   [x] **9. Job Data Flow Improvements:** (From feature-job-dataflow.md)
     -   [x] Add `JobUpdateData` validation (avoid empty updates)
     -   [x] Add Concurrent Sync Protection (mutex/lock for `syncPendingJobs`)
 
@@ -698,13 +698,3 @@ sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(
           - Starts sync when app comes to foreground
           - Stops sync when app goes to background
         -   [ ] Register observer with `WidgetsBinding.instance.addObserver`
-
-    -   [ ] **10.11 Update UI for Failed Jobs:** (once UI is in place)
-        -   [ ] Add visual indicator for jobs with `SyncStatus.failed` 
-        -   [ ] Add "Retry" action for failed jobs that calls `jobRepository.resetFailedJob()`
-
-## Testing Approach
-
-### Unit Testing Service Classes
-
-```

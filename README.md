@@ -253,7 +253,7 @@ The app expects two main variables:
 - `API_DOMAIN`: The domain for the API (e.g., `api.docjet.com` or `localhost:8080`).
 
 **API Versioning**:
-We use a centralized approach to API versioning with `ApiConfig`. The version is specified in a single location and used consistently across the app. See [API Versioning](docs/current/api_versioning.md) for details.
+We use a centralized approach to API versioning with `ApiConfig`. The version is specified in a single location and used consistently across the app. See [API Versioning](docs/current/architecture-api-versioning.md) for details.
 
 **How to Use:**
 

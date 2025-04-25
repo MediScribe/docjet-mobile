@@ -9,7 +9,7 @@ This document details the data flow architecture for the Job feature in DocJet M
 - [Key Architecture Decisions](#key-architecture-decisions)
 - [Directory Structure](#directory-structure)
 - [Job Feature Architecture Overview](#job-feature-architecture-overview)
-- [Job Presentation Layer Architecture](./job_presentation_layer.md) - *(See separate document)*
+- [Job Presentation Layer Architecture](./feature-job-presentation.md) - *(See separate document)*
 - [Job Data Layer Flow](#job-data-layer-flow)
 - [Job Creation, Update, and Sync Flow](#job-creation-update-and-sync-flow)
 - [Job Data Layer Components](#job-data-layer-components)
@@ -151,7 +151,7 @@ Test files are located at: `test/features/jobs/data/services/`
 
 The following diagrams illustrate the components and their relationships for the job feature.
 
-> **Note:** For details on the Presentation Layer (Cubits, States, UI interaction), see the dedicated [Job Presentation Layer Architecture](./job_presentation_layer.md) document.
+> **Note:** For details on the Presentation Layer (Cubits, States, UI interaction), see the dedicated [Job Presentation Layer Architecture](./feature-job-presentation.md) document.
 
 ### High-Level Architecture
 
@@ -590,7 +590,7 @@ Job operations fail cleanly when authentication is invalid:
 - `ApiJobRemoteDataSource` verifies authentication before making API calls
 
 ### Future Authentication Integrations
-The following planned authentication enhancements (see [Architecture: Authentication](./architecture.md#future-authentication-enhancements)) will further improve the Job feature:
+The following planned authentication enhancements (see [Architecture: Authentication](./architecture-overview.md#future-authentication-enhancements)) will further improve the Job feature:
 
 1. **Offline Authentication**: Will allow job operations to work offline with cached authentication
 2. **Robust Error Recovery**: Will enable better handling of transient authentication failures during job sync

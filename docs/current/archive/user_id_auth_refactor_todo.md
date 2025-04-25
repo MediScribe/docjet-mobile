@@ -194,7 +194,7 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
         *   **Task 8 Refactoring Follow-up:** Corrected `JobRepositoryImpl.createJob` to only check `isAuthenticated` and delegate to `JobWriterService` without `userId`. Removed `getCurrentUserId` call and related error handling from the repository. Updated repository tests (`job_repository_impl_test.dart`) to reflect this: verified `isAuthenticated` is checked, `getCurrentUserId` is NOT called by the repo, and the writer service is called without `userId`. Removed outdated tests related to repo handling `getCurrentUserId` errors. Verified `JobWriterService` implementation and tests were already correct in handling `getCurrentUserId` internally. Ran build runner, tests, and analyze - all clear.
 
 9. [x] **TDD Fix for `SecureStorageAuthSessionProvider` Implementation**
-    9.1. [x] **Update Dependencies:** Modify `SecureStorageAuthSessionProvider` to depend on `AuthCredentialsProvider`, not `AuthService` (aligns with [auth_architecture.md](/docs/current/auth_architecture.md)
+    9.1. [x] **Update Dependencies:** Modify `SecureStorageAuthSessionProvider` to depend on `AuthCredentialsProvider`, not `AuthService` (aligns with [feature-auth-architecture.md](/docs/current/feature-auth-architecture.md)
         *   **Finding:** Successfully updated `SecureStorageAuthSessionProvider` to depend on `AuthCredentialsProvider`. Updated the corresponding test file `secure_storage_auth_session_provider_test.dart` with new mocks and setup. Generated mocks using `build_runner`.
     9.2. [x] **TDD for `isAuthenticated` Method:**
         * [x] Write a test: `isAuthenticated returns true when credentials provider has userId` -> Changed to check access token
@@ -282,7 +282,7 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
 13. [x] **Documentation and Architecture Updates** (was 12)
     13.1. [x] Update `docs/current/architecture.md` under "Authentication" to describe domain‑level `AuthSessionProvider`
         *   **Finding:** Added new "Authentication" section to `architecture.md` that details the components (`AuthCredentialsProvider`, `AuthSessionProvider`, `SecureStorageAuthSessionProvider`, `AuthService`) and explains how the architecture avoids passing user IDs through UI and domain layers.
-    13.2. [x] Update `docs/current/job_dataflow.md` to note that `ApiJobRemoteDataSource` now uses `AuthSessionProvider` for user context
+    13.2. [x] Update `docs/current/feature-job-dataflow.md` to note that `ApiJobRemoteDataSource` now uses `AuthSessionProvider` for user context
         *   **Finding:** Enhanced the `JobRemoteDataSource` section to document that it uses `AuthSessionProvider` for authentication context instead of requiring a `userId` parameter. Added details about error handling and API communication.
     13.3. [x] Update `docs/current/job_presentation_layer.md` to show Cubits and UseCases no longer require a userId parameter 
         *   **Finding:** Added a new point under "Interaction with Use Cases" explaining the authentication context approach. Also added a new "Job Creation Flow" section that outlines the step-by-step process showing how authentication context replaces explicit user ID parameters.
@@ -290,8 +290,8 @@ We've implemented the provider classes, but we did it ass-backwards without TDD 
         *   **Finding:** Ran `./scripts/list_failed_tests.dart` and verified "No failed tests found." Documentation changes didn't impact actual code functionality.
     13.5. [x] Run Analyze; determine with fixes should be done and which not due to ripple effects they would have. Add your findings here.
         *   **Finding:** Ran `dart analyze` on the updated documentation files. Result: "No issues found!" The documentation updates are clean with no analyzer issues.
-    13.6. [x] Address authentication TODOs from auth_architecture.md in the context of our AuthSessionProvider implementation
-        *   **Finding:** Added "Future Authentication Enhancements" section to `architecture.md` describing the planned auth enhancements from `auth_architecture.md` and how `AuthSessionProvider` lays groundwork for several of them. Also added an "Authentication and Job Operations" section to `job_dataflow.md` to explain how job components interact with authentication and how future enhancements will improve this integration.
+    13.6. [x] Address authentication TODOs from feature-auth-architecture.md in the context of our AuthSessionProvider implementation
+        *   **Finding:** Added "Future Authentication Enhancements" section to `architecture.md` describing the planned auth enhancements from `feature-auth-architecture.md` and how `AuthSessionProvider` lays groundwork for several of them. Also added an "Authentication and Job Operations" section to `feature-job-dataflow.md` to explain how job components interact with authentication status.
 
 ## Refactoring Complete!
 

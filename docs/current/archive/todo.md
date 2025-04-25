@@ -2,8 +2,9 @@
 
 **Reference Documents:**
 - [Overall Architecture](docs/current/architecture.md)
-- [Job Data Flow](docs/current/job_dataflow.md)
-- [Authentication Architecture](docs/current/auth_architecture.md)
+- [Job Data Flow](docs/current/feature-job-dataflow.md)
+- [Authentication Architecture](docs/current/feature-auth-architecture.md)
+- [Authentication Implementation Details](docs/current/feature-auth-implementation.md)
 
 ## 1. Mutex Implementation Verification
 Make sure our mutex implementation is robust across concurrent sync attempts from different sources.
@@ -11,13 +12,13 @@ Make sure our mutex implementation is robust across concurrent sync attempts fro
 - [X] Verify mutex implementation in `JobSyncOrchestratorService` is using `package:mutex` Lock (Default is re-entrant)
 - [X] Explicitly document that we're using re-entrant lock mechanism (Added comment in code)
 - [X] Test mutex lock behaviour in `JobSyncOrchestratorService` to ensure only one sync runs at a time
-- [X] Update `job_dataflow.md` to explicitly mention re-entrancy of mutex implementation
+- [X] Update `feature-job-dataflow.md` to explicitly mention re-entrancy of mutex implementation
 - [X] Verify lock is properly released on all function exit paths (including exceptions)
 
 ## 2. Exponential Backoff Parameters
 Document and review our retry strategy configuration parameters.
 
-- [X] Document the `baseBackoff` value in `job_dataflow.md` (currently missing)
+- [X] Document the `baseBackoff` value in `feature-job-dataflow.md` (currently missing)
 - [X] Extract retry constants to a configuration class instead of hardcoded values:
   - [X] Create `JobSyncConfig` class with constants
   - [X] Move `MAX_RETRY_ATTEMPTS` (currently 5) into config
@@ -66,7 +67,7 @@ Implement a mechanism to inform users when file cleanup operations fail. Do not 
   - [X] Write unit tests for `JobDetailCubit`
   - [X] Document presentation layer prep in `job_presentation_layer.md` (New doc)
 - [X] Add ability to manually reset counter when cleanup succeeds
-- [X] Document the file issue notification architecture in `job_dataflow.md`
+- [X] Document the file issue notification architecture in `feature-job-dataflow.md`
 
 ## 5. Data Flow Architecture Verification
 Verify our stream-based architecture is fully implemented for reactive UI updates.

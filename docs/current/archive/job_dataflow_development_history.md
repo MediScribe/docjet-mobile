@@ -1,6 +1,6 @@
 # Job Data Layer Development History
 
-This document captures the historical development process and implementation notes for the Job feature in DocJet Mobile. For the current architecture and data flow, see [job_dataflow.md](./job_dataflow.md).
+This document captures the historical development process and implementation notes for the Job feature in DocJet Mobile. For the current architecture and data flow, see [feature-job-dataflow.md](./feature-job-dataflow.md).
 
 ## Implementation Status & TODOs (Historical)
 

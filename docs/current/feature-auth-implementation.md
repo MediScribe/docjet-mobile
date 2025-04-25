@@ -349,7 +349,7 @@ Critical TODOs to ensure proper authentication works with both real API and mock
        - Confirmed all tests pass with the existing implementation
     
     13.2.3. [x] **REFACTOR**: Document and standardize
-       - Created comprehensive environment configuration guide at `docs/current/environment_config.md`
+       - Created comprehensive environment configuration guide at `docs/current/setup-environment-config.md`
        - Documented all environment variables needed for auth (API_KEY, API_DOMAIN)
        - Documented how to run the app with different configurations (secrets.json vs direct parameters)
        - Documented mock server integration with run_with_mock.sh
@@ -449,7 +449,7 @@ Critical TODOs to ensure proper authentication works with both real API and mock
          - Organized the code structure with clear section boundaries
          - Added descriptive test names for better test reporting
          - Improved UI mocks with better layout and visual hierarchy
-         - Created docs/current/auth_testing_guide.md with documentation for auth testing approaches
+         - Created docs/current/feature-auth-testing.md with documentation for auth testing approaches
          - The testing guide covers unit, integration, and e2e testing approaches
          - Added troubleshooting section for common test issues
          - All tests still pass after refactoring, ensuring we didn't break anything 
@@ -527,7 +527,7 @@ Critical TODOs to ensure proper authentication works with both real API and mock
     
     16.4. [x] **REFACTOR**: Clean up and document
        - FINDINGS: Created comprehensive documentation to prevent similar issues in the future:
-         1. Created `docs/current/riverpod_guide.md` with best practices for provider generation, overrides, testing, and common pitfalls to avoid
-         2. Created `docs/current/mock_server_integration.md` with detailed instructions for running and testing with the mock server
+         1. Created `docs/current/architecture-riverpod-guide.md` with best practices for provider generation, overrides, testing, and common pitfalls to avoid
+         2. Created `docs/current/setup-mock-server.md` with detailed instructions for running and testing with the mock server
          3. Added a dedicated troubleshooting section for provider override issues including specific error symptoms and solutions
          4. All tests now pass both in isolation and as part of the test suite, and the app successfully runs with the mock server

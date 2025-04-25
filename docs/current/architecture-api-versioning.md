@@ -88,5 +88,10 @@ To test a version change:
 
 ## References
 
-- [API Documentation](docs/current/spec.md)
-- [Architecture Documentation](docs/current/architecture.md) 
+- [API Documentation](docs/current/project-specification.md)
+- [Architecture Documentation](docs/current/architecture-overview.md)
+
+### Related Sections
+
+* [Overall Architecture](./architecture-overview.md)
+* [Environment Configuration](./setup-environment-config.md) 

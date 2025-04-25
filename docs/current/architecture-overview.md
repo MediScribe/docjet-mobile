@@ -207,8 +207,8 @@ graph TD
 
 Detailed architecture documentation for specific features:
 
-1. [Jobs Feature Architecture](./job_dataflow.md) - Components and data flow for jobs
-2. [Jobs Feature: Presentation Layer](./job_presentation_layer.md) - State management and UI interaction
+1. [Jobs Feature Architecture](./feature-job-dataflow.md) - Components and data flow for jobs
+2. [Jobs Feature: Presentation Layer](./feature-job-presentation.md) - State management and UI interaction
 3. [Authentication Architecture](./auth_architecture.md) - Authentication components and flows
 
 ## Authentication
