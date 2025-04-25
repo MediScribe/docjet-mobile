@@ -32,10 +32,11 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Add 
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart'; // Add concrete class import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Add FlutterSecureStorage import
 // Add AuthSessionProvider import
-import 'package:docjet_mobile/core/auth/auth_service.dart'; // Add AuthService import
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart'; // Add AuthApiClient import
-import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart'; // Add AuthServiceImpl import
-// Add SecureStorageAuthSessionProvider
+// Add AuthService import
+// Add AuthApiClient import
+// Add AuthServiceImpl import
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // <<< ADDED
+import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart'; // <<< ADDED
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart'; // Import JwtValidator
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
@@ -219,18 +220,23 @@ Future<void> init() async {
 
   // --- Core Dependencies ---
 
+  // Register DioFactory FIRST as AuthModule and others depend on it
+  if (!sl.isRegistered<DioFactory>()) {
+    sl.registerLazySingleton<DioFactory>(
+      () => DioFactory(appConfig: sl<AppConfig>()),
+    );
+    logger.d('$tag Registered DioFactory');
+  }
+
   if (!sl.isRegistered<AuthEventBus>()) {
     sl.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
+    logger.d('$tag Registered AuthEventBus');
   }
 
   // External
   if (!sl.isRegistered<Uuid>()) {
     sl.registerLazySingleton<Uuid>(() => const Uuid());
   }
-  // NOTE: Basic Dio instance without name removed - only named instances used now
-  // if (!sl.isRegistered<Dio>()) {
-  //   sl.registerLazySingleton<Dio>(() => Dio());
-  // }
   if (!sl.isRegistered<Connectivity>()) {
     sl.registerLazySingleton<Connectivity>(() => Connectivity());
   }
@@ -244,100 +250,116 @@ Future<void> init() async {
   }
   if (!sl.isRegistered<JwtValidator>()) {
     sl.registerLazySingleton<JwtValidator>(() => JwtValidator());
+    logger.d('$tag Registered JwtValidator');
   }
 
-  // Auth Concrete Provider
-  if (!sl.isRegistered<SecureStorageAuthCredentialsProvider>()) {
-    sl.registerLazySingleton<SecureStorageAuthCredentialsProvider>(
-      () => SecureStorageAuthCredentialsProvider(
-        secureStorage: sl(),
-        jwtValidator: sl(),
-      ),
-    );
-  }
-  // Auth Interface Provider
+  // Auth Concrete Provider (Register AuthCredentialsProvider before AuthModule)
+  // This ensures the correct implementation (or a mock from overrides) is available
   if (!sl.isRegistered<AuthCredentialsProvider>()) {
     sl.registerLazySingleton<AuthCredentialsProvider>(
-      () => sl<SecureStorageAuthCredentialsProvider>(),
+      () => SecureStorageAuthCredentialsProvider(
+        secureStorage: sl<FlutterSecureStorage>(),
+        jwtValidator: sl<JwtValidator>(),
+      ),
     );
+    logger.d('$tag Registered AuthCredentialsProvider');
   }
 
-  // --- DioFactory and Named Dio Instances ---
-  if (!sl.isRegistered<DioFactory>()) {
-    sl.registerLazySingleton<DioFactory>(
-      () => DioFactory(appConfig: sl<AppConfig>()),
+  // --- Register Auth Module using INSTANCE method ---
+  // Instantiate AuthModule (it has no constructor dependencies itself)
+  final authModule = AuthModule();
+  // Explicitly resolve dependencies needed by the register method
+  final dioFactory = sl<DioFactory>();
+  final credentialsProvider = sl<AuthCredentialsProvider>();
+  final authEventBus = sl<AuthEventBus>();
+  // Call the instance method, passing resolved dependencies
+  // It will handle registering internal auth components like AuthService, ApiClient, etc.
+  // and potentially default implementations for SecureStorage, JwtValidator, AuthSessionProvider
+  // if they weren't already registered (e.g., by overrides).
+  authModule.register(
+    sl, // Pass the GetIt instance
+    dioFactory: dioFactory,
+    credentialsProvider: credentialsProvider,
+    authEventBus: authEventBus,
+    // We don't provide optional deps here; let AuthModule handle defaults/check GetIt
+  );
+  logger.i('$tag AuthModule registration completed via instance method.');
+
+  // Ensure AuthSessionProvider is RESOLVABLE after AuthModule registration
+  // This is crucial for components depending on it, like JobRepository
+  // We register the default implementation here IF AuthModule didn't register it (e.g. via override)
+  // Note: AuthModule.register now handles the logic of registering the default SecureStorageAuthSessionProvider
+  // if no AuthSessionProvider (like a mock) was already registered or provided.
+  // This check is now more for confirming it IS resolvable.
+  if (!sl.isRegistered<AuthSessionProvider>()) {
+    // This block should theoretically not be hit if overrides aren't used,
+    // as AuthModule.register should have registered the default.
+    logger.w(
+      '$tag AuthSessionProvider was NOT registered by AuthModule. Registering default SecureStorageAuthSessionProvider now.',
     );
-  }
-  if (!sl.isRegistered<Dio>(instanceName: 'basicDio')) {
-    sl.registerLazySingleton<Dio>(
-      () => sl<DioFactory>().createBasicDio(),
-      instanceName: 'basicDio',
-    );
-  }
-  if (!sl.isRegistered<AuthApiClient>()) {
-    sl.registerLazySingleton<AuthApiClient>(
-      () => AuthApiClient(
-        httpClient: sl<Dio>(instanceName: 'basicDio'),
+    sl.registerLazySingleton<AuthSessionProvider>(
+      () => SecureStorageAuthSessionProvider(
         credentialsProvider: sl<AuthCredentialsProvider>(),
       ),
     );
-  }
-  if (!sl.isRegistered<Dio>(instanceName: 'authenticatedDio')) {
-    sl.registerLazySingleton<Dio>(
-      () => sl<DioFactory>().createAuthenticatedDio(
-        authApiClient: sl(),
-        credentialsProvider: sl(),
-        authEventBus: sl(),
-      ),
-      instanceName: 'authenticatedDio',
+  } else {
+    logger.i(
+      '$tag AuthSessionProvider confirmed registered (either by AuthModule or override).',
     );
   }
 
-  // --- Call Auth Module Registration ---
-  // This ensures AuthService and AuthSessionProvider are registered
-  // respecting any mocks provided in tests or overrides.
-  AuthModule.register(sl);
-  logger.d('$tag AuthModule registration complete.');
-
-  // --- Dependencies using Named Dio ---
+  // Register JobRemoteDataSource AFTER Dio instances are guaranteed to be registered by AuthModule
   if (!sl.isRegistered<JobRemoteDataSource>()) {
     sl.registerLazySingleton<JobRemoteDataSource>(
       () => ApiJobRemoteDataSourceImpl(
-        dio: sl(instanceName: 'authenticatedDio'),
-        authCredentialsProvider: sl(),
-        authSessionProvider: sl(),
+        dio: sl<Dio>(instanceName: 'authenticatedDio'),
+        authSessionProvider:
+            sl<AuthSessionProvider>(), // Now guaranteed to be resolvable
+        authCredentialsProvider:
+            sl<AuthCredentialsProvider>(), // <<< ADDED BACK
       ),
     );
+    logger.d('$tag Registered JobRemoteDataSource');
   }
 
-  // --- Remaining Auth Components ---
-  if (!sl.isRegistered<AuthService>()) {
-    sl.registerLazySingleton<AuthService>(
-      () => AuthServiceImpl(
-        apiClient: sl<AuthApiClient>(),
-        credentialsProvider: sl<AuthCredentialsProvider>(),
-        eventBus: sl<AuthEventBus>(),
-      ),
-    );
-  }
-  // NOTE: AuthSessionProvider registration is typically done in tests or specific entry points
-  // if (!sl.isRegistered<AuthSessionProvider>()) {
-  //   sl.registerLazySingleton<AuthSessionProvider>(
-  //     () => SecureStorageAuthSessionProvider(
-  //       credentialsProvider: sl(),
-  //     ),
-  //   );
-  // }
-
-  // --- Platform Interfaces ---
+  // Platform
   if (!sl.isRegistered<FileSystem>()) {
+    // Need path_provider to get the path
     final appDocDir = await getApplicationDocumentsDirectory();
     final documentsPath = appDocDir.path;
-    sl.registerLazySingleton<FileSystem>(() => IoFileSystem(documentsPath));
+    sl.registerLazySingleton<FileSystem>(
+      () => IoFileSystem(documentsPath),
+    ); // <<< ADDED ARGUMENT
+    logger.d('$tag Registered FileSystem');
   }
   if (!sl.isRegistered<NetworkInfo>()) {
-    sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
+    sl.registerLazySingleton<NetworkInfo>(
+      () => NetworkInfoImpl(sl<Connectivity>()),
+    );
+    logger.d('$tag Registered NetworkInfo');
   }
 
-  logger.i('$tag Dependency injection initialization complete.');
+  logger.i('$tag Dependency injection setup complete');
 }
+
+/// Resets GetIt for testing purposes
+Future<void> resetLocator({bool dispose = true}) async {
+  await sl.reset(dispose: dispose);
+}
+
+/// Adds an override function to be executed at the beginning of init()
+void addOverride(OverrideCallback callback) {
+  overrides.add(callback);
+}
+
+/// Clears all registered overrides
+void clearOverrides() {
+  overrides.clear();
+}
+
+// --- Riverpod Providers using GetIt ---
+// Note: We keep the static AuthModule.providerOverrides for now
+final riverpodOverridesProvider = Provider<List<Override>>((ref) {
+  // Combine overrides from different modules if necessary
+  return [...AuthModule.providerOverrides(sl)];
+});
