@@ -1,0 +1,19 @@
+name: docjet_custom_lints
+description: Custom lint rules for the DocJet Mobile project.
+publish_to: none # Prevent accidental publishing
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  # Pinned to ^6.11.0 to match the project's requirement
+  analyzer: ^6.11.0 
+  analyzer_plugin: any
+  # Pin builder to a version potentially more compatible with analyzer 6.x
+  custom_lint_builder: ^0.6.0
+  path: ^1.8.0 # For file path operations
+
+dev_dependencies:
+  flutter_bloc: any # For test file compilation
+  get_it: any # For test file compilation
+  test: any # For test infrastructure 

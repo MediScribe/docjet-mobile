@@ -99,6 +99,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: # Updated to latest available
 
+  # Custom Linters
+  custom_lint: ^0.6.0
+  docjet_custom_lints: # Our custom lint package
+    path: ./tools/custom_lints
+
   # New dev dependencies
   coverage:
   dart_code_metrics:
