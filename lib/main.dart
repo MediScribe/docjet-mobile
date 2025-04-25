@@ -12,13 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Access GetIt for convenience
 final getIt = di.sl;
 
-// Riverpod providers
-final authServiceProvider = Provider<AuthService>(
-  (ref) =>
-      throw UnimplementedError(
-        'authServiceProvider not initialized - must be overridden',
-      ),
-);
+// REMOVED: Duplicate authServiceProvider definition
+// Using the generated provider from auth_notifier.dart instead
 
 void main() async {
   // Ensure Flutter is initialized
@@ -32,6 +27,7 @@ void main() async {
     ProviderScope(
       overrides: [
         // Override the generated authServiceProvider with the implementation from GetIt
+        // Using the correct provider from auth_notifier.dart
         authServiceProvider.overrideWithValue(getIt<AuthService>()),
       ],
       child: const MyApp(),
