@@ -78,5 +78,12 @@ void main() {
         'https://api.docjet.com/api/v1/health',
       );
     });
+
+    test('ApiConfig constructs URLs without double slashes', () {
+      expect(
+        ApiConfig.fullLoginEndpoint('staging.docjet.ai'),
+        'https://staging.docjet.ai/api/v1/auth/login',
+      ); // Should not have double slash
+    });
   });
 }
