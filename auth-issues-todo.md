@@ -1,4 +1,4 @@
-# Auth Issues TDD Plan (Revised+)
+# Auth Issues TDD Plan (Revised++)
 
 ## Problem Summary:
 
@@ -20,197 +20,108 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
 
 ## Hard Bob TDD Plan:
 
-- [ ] 1. **Update Documentation:**
-  - [ ] 1.1. **Action:** Update `docs/current/feature-auth-architecture.md` (diagrams and text) to reflect that the API key (`x-api-key`) is injected by an interceptor within `DioFactory` based on `AppConfig`, *not* fetched from `AuthCredentialsProvider` by `AuthApiClient`.
-  - [ ] 1.2. **Verification:** The document accurately describes the current implementation.
+- [ ] 1. **Phase 0: Fast Integration Test FIRST**
+  - [ ] 1.1. **Goal:** Create a lightweight integration test to quickly verify auth problems without running the full app
+  - [ ] 1.2. **Action:** Create `test/integration/auth_url_formation_test.dart`:
+  ```dart
+  test('integration_test_url_formation', () async {
+    // 1. Setup minimal DI container
+    final getIt = GetIt.instance;
 
-- [ ] 2. **Phase 0: Baseline**
-  - [ ] 2.1. **Objective:** Understand the starting point after reverts.
-  - [ ] 2.2. **Action:**
-    - [ ] 2.2.1. Run `dart analyze`. Note any existing errors.
-    - [ ] 2.2.2. Run `./scripts/list_failed_tests.dart`. Note any failing tests.
-  - [ ] 2.3. **Verification:** We have a clear picture of the initial (presumably broken) state.
+    // 2. Create a local HTTP server that logs request details
+    final server = await createTestServer();
 
-- [ ] 3. **Phase 1: Fix URL Path Issue (`/` missing)**
-  - [ ] 3.1. **RED:**
-    - [ ] 3.1.1. **Goal:** Create a failing test showing `v1auth/login` instead of `v1/auth/login`.
-    - [ ] 3.1.2. **Hypothesis:** The combination of `ApiConfig.baseUrlFromDomain` (no trailing slash) and `ApiConfig.loginEndpoint` (no leading slash) causes Dio to concatenate incorrectly.
-    - [ ] 3.1.3. **Action:** Write/modify a unit test in `test/core/config/api_config_test.dart`. Simulate Dio's path joining (e.g., `baseUrl + endpointPath`). Assert the result *is* the malformed path and *is not* the correct path.
-    - [ ] 3.1.4. **Verification:** The test fails.
-  - [ ] 3.2. **GREEN:**
-    - [ ] 3.2.1. **Goal:** Make the failing URL test pass.
-    - [ ] 3.2.2. **Action:** Add leading slashes to *all* endpoint constants in `lib/core/config/api_config.dart`.
-    - [ ] 3.2.3. **Verification:** Re-run the specific failing test from step 3.1. It must pass. Run `dart analyze lib/core/config/api_config.dart`.
-  - [ ] 3.3. **REFACTOR:**
-    - [ ] 3.3.1. **Goal:** Clean up `ApiConfig.dart` or the test.
-    - [ ] 3.3.2. **Action:** Review changes for clarity. (Likely none needed).
-    - [ ] 3.3.3. **Verification:** Tests still pass. `dart analyze` clean on modified files.
+    try {
+      // 3. Register minimal components needed
+      getIt.registerSingleton<AppConfig>(
+        AppConfig.development(apiDomain: 'localhost:${server.port}')
+      );
+      // Register other necessary components
 
-- [ ] 4. **Phase 2: Break Circular Dependency & Fix DI**
-  - [ ] 4.1. **RED:**
-    - [ ] 4.1.1. **Goal:** Create a failing test showing the circular dependency issue.
-    - [ ] 4.1.2. **Action:** Create unit test in `test/core/auth/infrastructure/auth_interceptor_test.dart` that demonstrates:
-        *   Current: `AuthInterceptor` requires `AuthApiClient` directly
-        *   Expected: `AuthInterceptor` should only need a token refresh function, not the entire client
-    - [ ] 4.1.3. **Verification:** Test fails, showing tight coupling between interceptor and API client.
-  - [ ] 4.2. **GREEN:**
-    - [ ] 4.2.1. **Goal:** Refactor `AuthInterceptor` to use function-based DI to break circular dependency.
-    - [ ] 4.2.2. **Action:**
-        - [ ] 4.2.2.1. Refactor `AuthInterceptor` to accept a token refresh function instead of `AuthApiClient`:
-        ```dart
-        class AuthInterceptor extends Interceptor {
-          // Replace direct dependency:
-          // final AuthApiClient apiClient;
+      // 4. Attempt login using the registered AuthApiClient
+      final authClient = getIt<AuthApiClient>();
+      await authClient.login('test@example.com', 'password').catchError((_) {});
 
-          // With function reference:
-          final Future<AuthResponseDto> Function(String refreshToken) refreshTokenFunction;
-
-          AuthInterceptor({
-            required this.refreshTokenFunction, // NEW
-            required this.credentialsProvider,
-            required this.dio,
-            required this.authEventBus,
-          });
-
-          // Update onError method to use refreshTokenFunction instead of apiClient:
-          // final authResponse = await apiClient.refreshToken(refreshToken);
-          // Becomes:
-          // final authResponse = await refreshTokenFunction(refreshToken);
-        }
-        ```
-        - [ ] 4.2.2.2. Update `DioFactory.createAuthenticatedDio` to accept this function instead of the client:
-        ```dart
-        Dio createAuthenticatedDio({
-          required Future<AuthResponseDto> Function(String) refreshTokenFunction,
-          required AuthCredentialsProvider credentialsProvider,
-          required AuthEventBus authEventBus,
-        }) {
-          // ...
-          dio.interceptors.add(
-            AuthInterceptor(
-              refreshTokenFunction: refreshTokenFunction,
-              credentialsProvider: credentialsProvider,
-              dio: dio,
-              authEventBus: authEventBus,
-            ),
-          );
-          // ...
-        }
-        ```
-        - [ ] 4.2.2.3. Modify `AuthModule.register` to break the circular dependency:
-        ```dart
-        // First register AuthApiClient with basicDio
-        getIt.registerLazySingleton<AuthApiClient>(() => AuthApiClient(
-          httpClient: getIt<Dio>(instanceName: 'basicDio'),
-          credentialsProvider: finalCredentialsProvider,
-        ));
-
-        // Then register authenticatedDio using a function reference to the refresh method
-        getIt.registerLazySingleton<Dio>(() {
-          return _dioFactory.createAuthenticatedDio(
-            refreshTokenFunction: (refreshToken) =>
-              getIt<AuthApiClient>().refreshToken(refreshToken),
-            credentialsProvider: finalCredentialsProvider,
-            authEventBus: finalAuthEventBus,
-          );
-        }, instanceName: 'authenticatedDio');
-        ```
-    - [ ] 4.2.3. **Verification:** Re-run the failing test from step 4.1. It must pass. Run `dart analyze` on modified files.
-  - [ ] 4.3. **REFACTOR (Fix Test Fallout):**
-    - [ ] 4.3.1. **Goal:** Get *entire test suite* green & `dart analyze` clean after DI refactor.
-    - [ ] 4.3.2. **Action:** Run `dart run build_runner build --delete-conflicting-outputs`. Run `dart analyze`. Fix all analysis errors (mostly in tests). Run `./scripts/list_failed_tests.dart`. Fix all failing tests (update mocks/constructors).
-    - [ ] 4.3.3. **Verification:** `dart analyze` passes. `./scripts/list_failed_tests.dart` shows no failures.
-
-- [ ] 5. **Phase 2-Alt: Simpler API Key Injection Approach (Fallback)**
-  - [ ] 5.1. If the function-based approach in Phase 2 (Item 4) is too complex, consider this alternate solution:
-    - [ ] 5.1.1. Ensure `AuthApiClient` properly handles API key injection itself rather than relying on an interceptor.
-    - [ ] 5.1.2. Keep `AuthInterceptor` focused only on auth token handling, not API keys.
-    - [ ] 5.1.3. This removes the circular dependency as both components have clear, separate responsibilities.
-
-- [ ] 6. **Phase 3: Fast Integration Test Instead of Manual Verification**
-  - [ ] 6.1. **Create Fast Integration Test:**
-    - [ ] 6.1.1. **Goal:** Verify URL formation and header injection without running the full app.
-    - [ ] 6.1.2. **Action:** Create a focused test in `test/integration/auth_url_formation_test.dart`:
-    ```dart
-    test('integration_test_url_formation', () async {
-      // 1. Setup minimal DI container
-      final getIt = GetIt.instance;
-
-      // 2. Create a local HTTP server that logs request details
-      final server = await createTestServer();
-
-      try {
-        // 3. Register minimal components needed
-        getIt.registerSingleton<AppConfig>(
-          AppConfig.development(apiDomain: 'localhost:${server.port}')
-        );
-        // Register other necessary components like AuthCredentialsProvider, AuthEventBus, DioFactory, AuthApiClient etc. correctly
-
-        // 4. Attempt login using the registered AuthApiClient
-        final authClient = getIt<AuthApiClient>();
-        await authClient.login('test@example.com', 'password'); // Use actual methods
-
-        // 5. Assert on captured request from test server
-        final request = server.lastRequest; // Assuming server captures last request
-        expect(request.uri.path, contains('/api/v1/auth/login')); // Verify correct path
-        expect(request.headers['x-api-key'], isNotNull); // Verify API key presence
-        // Optionally check Bearer token if login implies immediate auth:
-        // expect(request.headers['Authorization'], startsWith('Bearer '));
-      } finally {
-        await server.close();
-        await getIt.reset(); // Clean up GetIt
-      }
-    });
-    ```
-    - [ ] 6.1.3. **Verification:** Test runs quickly (seconds, not minutes) and passes, with no need for slow manual app startup.
-  - [ ] 6.2. **Runtime Verification (If Needed):**
-    - [ ] 6.2.1. Run `./scripts/run_with_mock.sh` only as a final confirmation, not for debugging.
-
-- [ ] 7. **Phase 4: Improve Error Messages**
-  - [ ] 7.1. **RED:**
-    - [ ] 7.1.1. **Goal:** Test proper error messages from `AuthApiClient._handleDioException`.
-    - [ ] 7.1.2. **Action:** Create a test that verifies specific error scenarios get appropriate error messages:
-      * API key missing should return `AuthException.configurationError('Missing or invalid API key')` not `AuthException.invalidCredentials()`
-      * Malformed URL (e.g., 404) should return `AuthException.networkError()` or a specific endpoint error, not just a generic server error.
-    - [ ] 7.1.3. **Verification:** Test fails because current error mapping is too simplistic or incorrect.
-  - [ ] 7.2. **GREEN:**
-    - [ ] 7.2.1. **Goal:** Improve error messages for better debugging.
-    - [ ] 7.2.2. **Action:** Enhance `AuthApiClient._handleDioException` to handle more specific error cases:
-    ```dart
-    if (e.response != null) {
-      final statusCode = e.response!.statusCode;
-      if (statusCode == 401) {
-        // Check if this might be an API key issue (server might indicate, or context implies)
-        // This logic might need refinement based on actual API responses
-        if (e.requestOptions.headers['x-api-key'] == null || e.requestOptions.headers['x-api-key'] == '') {
-           return AuthException.configurationError('Missing or invalid API key (client-side check)');
-        }
-        // If server response explicitly mentions API key problem:
-        // if (e.response?.data?.toString().contains('apiKey') ?? false) {
-        //   return AuthException.configurationError('Missing or invalid API key (server response)');
-        // }
-
-        if (requestPath.contains(ApiConfig.refreshEndpoint)) {
-          return AuthException.refreshTokenInvalid();
-        }
-        // ... existing login/profile 401 handling ...
-        return AuthException.invalidCredentials(); // Default 401
-      } else if (statusCode == 404) {
-        // Handle 404 specifically as a potential configuration/URL issue
-        return AuthException.networkError('Endpoint not found: $requestPath');
-      }
-      // ... existing 403, 5xx handling ...
-    } else {
-      // Existing network/timeout/offline handling
-      if (e.error is SocketException) {
-         return AuthException.offlineOperationFailed();
-      }
-      // ... other DioException types
+      // 5. Assert on captured request from test server
+      final request = server.lastRequest;
+      expect(request.uri.path, contains('/api/v1/auth/login')); // Verify correct path
+      expect(request.headers['x-api-key'], isNotNull); // Verify API key presence
+    } finally {
+      await server.close();
+      await getIt.reset();
     }
-    // Fallback
-    return AuthException.unknownError(e.message ?? 'Unknown error');
+  });
+  ```
+  - [ ] 1.3. **Verification:** Test fails, showing URL formation and/or API key issues
+
+- [ ] 2. **Phase 1: Clear Assignment of API Key Responsibility**
+  - [ ] 2.1. **RED:** Test that verifies who's responsible for API key 
+  - [ ] 2.2. **GREEN:** Refactor code for clearer API key handling
+    - [ ] 2.2.1. Option A: Make `AuthApiClient` responsible for API key by adding it directly in request methods
+    - [ ] 2.2.2. Option B: Document explicitly that `AuthApiClient` does NOT handle API keys, and ensure DioFactory properly injects it
+  - [ ] 2.3. **REFACTOR:** Update auth architecture documentation to clearly state API key responsibility
+
+- [ ] 3. **Phase 2: Fix URL Path Issue (`/` missing)**
+  - [ ] 3.1. **RED:** Create a failing test that demonstrates URL path issue
+  - [ ] 3.2. **GREEN:** Implement robust URL path handling
+    - [ ] 3.2.1. Add a utility function to `ApiConfig` that normalizes paths:
+    ```dart
+    /// Safely joins path components with proper slash handling
+    static String joinPath(String base, String path) {
+      if (base.endsWith('/')) {
+        base = base.substring(0, base.length - 1);
+      }
+      if (!path.startsWith('/')) {
+        path = '/$path';
+      }
+      return '$base$path';
+    }
     ```
-    - [ ] 7.2.3. **Verification:** The specific error tests now pass.
-  - [ ] 7.3. **Final Cleanup:**
-    - [ ] 7.3.1. **Action:** Fix `TODO` for user ID clearing in `AuthInterceptor` (if applicable after refactor). Remove temporary debug logging.
-    - [ ] 7.3.2. **Verification:** App works. Code clean. `dart analyze` clean. All tests pass. 
+    - [ ] 3.2.2. Use this in all endpoint methods, OR add leading slashes to all endpoint constants
+  - [ ] 3.3. **REFACTOR:** Update existing tests
+
+- [ ] 4. **Phase 3: Break Circular Dependency**
+  - [ ] 4.1. **RED:** Create test showing circular dependency issue
+  - [ ] 4.2. **GREEN:** Implement function-based DI
+    ```dart
+    // In AuthInterceptor constructor
+    AuthInterceptor({
+      required Future<AuthResponseDto> Function(String) refreshTokenFunction,
+      required this.credentialsProvider,
+      required this.dio,
+      required this.authEventBus,
+    }) : _refreshTokenFunction = refreshTokenFunction;
+    
+    // Use in onError
+    final authResponse = await _refreshTokenFunction(refreshToken);
+    ```
+  - [ ] 4.3. **REFACTOR:** Fix DioFactory and AuthModule
+    ```dart
+    // In DioFactory
+    dio.interceptors.add(
+      AuthInterceptor(
+        refreshTokenFunction: (refreshToken) => 
+          authApiClient.refreshToken(refreshToken),
+        credentialsProvider: credentialsProvider,
+        dio: dio,
+        authEventBus: authEventBus,
+      ),
+    );
+    ```
+  - [ ] 4.4. Update all affected tests
+
+- [ ] 5. **Phase 4: Improve Error Messages**
+  - [ ] 5.1. **RED:** Create failing tests for specific error scenarios
+  - [ ] 5.2. **GREEN:** Enhance error handling in `AuthApiClient._handleDioException`
+    - [ ] 5.2.1. Check for missing API key before default 401 handling
+    - [ ] 5.2.2. Add specific message for URL path errors (404s)
+    - [ ] 5.2.3. Provide more context in network errors
+  - [ ] 5.3. **REFACTOR:** Ensure error messages are consistent
+
+- [ ] 6. **Phase 5: Final Integration Test**
+  - [ ] 6.1. Create a new integration test that verifies all issues are fixed
+  - [ ] 6.2. Only run `./scripts/run_with_mock.sh` as final confirmation
+
+- [ ] 7. **Documentation**
+  - [ ] 7.1. Update `docs/current/feature-auth-architecture.md` to reflect new design
+  - [ ] 7.2. Add a section on troubleshooting common auth issues 
