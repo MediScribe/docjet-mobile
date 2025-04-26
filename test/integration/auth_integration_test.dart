@@ -349,6 +349,99 @@ void main() {
       final request = server.lastRequest;
       expect(request, isNotNull);
     });
+
+    // NEW TEST: Verify that using basicDio without API key interceptor causes issues
+    test(
+      'should fail when basicDio does not have API key interceptor',
+      () async {
+        logger.i('$tag Testing API key interceptor issue with basicDio');
+
+        // Setup DI with basicDio that doesn't have API key interceptor
+        final testHost = 'localhost:${server.port}';
+
+        // Reset GetIt to start fresh
+        await getIt.reset();
+
+        getIt.registerSingleton<AppConfig>(
+          AppConfig.test(apiDomain: testHost, apiKey: 'test-api-key'),
+        );
+
+        // Create a basicDio without API key interceptor
+        final basicDio = Dio(BaseOptions(baseUrl: 'http://$testHost/api/v1/'));
+
+        // Create an authenticatedDio with API key interceptor
+        final authenticatedDio = Dio(
+          BaseOptions(baseUrl: 'http://$testHost/api/v1/'),
+        );
+        authenticatedDio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              options.headers['x-api-key'] = 'test-api-key';
+              return handler.next(options);
+            },
+          ),
+        );
+
+        getIt.registerSingleton<Dio>(basicDio, instanceName: 'basicDio');
+        getIt.registerSingleton<Dio>(
+          authenticatedDio,
+          instanceName: 'authenticatedDio',
+        );
+
+        final credentialsProvider = TestAuthCredentialsProvider();
+        getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
+
+        // Register auth client with basicDio (problematic)
+        getIt.registerSingleton<AuthApiClient>(
+          AuthApiClient(
+            httpClient: getIt<Dio>(instanceName: 'basicDio'),
+            credentialsProvider: credentialsProvider,
+          ),
+        );
+
+        authApiClient = getIt<AuthApiClient>();
+
+        // Execute login request - should fail due to missing API key
+        try {
+          await authApiClient.login('test@example.com', 'password');
+          fail('Login should have failed due to missing API key');
+        } catch (e) {
+          expect(
+            e,
+            isA<AuthException>().having(
+              (e) => e.type,
+              'error type',
+              equals(AuthErrorType.missingApiKey),
+            ),
+          );
+        }
+
+        // Now fix the issue by using authenticatedDio instead
+        getIt.unregister<AuthApiClient>();
+        getIt.registerSingleton<AuthApiClient>(
+          AuthApiClient(
+            httpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
+            credentialsProvider: credentialsProvider,
+          ),
+        );
+
+        authApiClient = getIt<AuthApiClient>();
+
+        // Try again - should work now
+        final result = await authApiClient.login(
+          'test@example.com',
+          'password',
+        );
+        expect(result, isA<AuthResponseDto>());
+        expect(result.accessToken, 'test-access-token');
+
+        final request = server.lastRequest;
+        expect(request, isNotNull);
+        if (request != null) {
+          expect(request.headers.value('x-api-key'), equals('test-api-key'));
+        }
+      },
+    );
   });
 }
 

@@ -293,7 +293,8 @@ To avoid circular dependencies between `AuthApiClient` and `AuthInterceptor`:
    - Finally register `authenticatedDio` (using function reference to `AuthApiClient.refreshToken`)
 
 3. **Clear API Responsibilities:** The API key injection is handled entirely by `DioFactory` via interceptors.
-   The `AuthApiClient` does not add the API key itself, which makes the correct DI setup critical. 
+   Both `basicDio` and `authenticatedDio` instances include the API key interceptor to ensure
+   all API requests have the correct authorization. The `AuthApiClient` does not add the API key itself.
 
 ## Troubleshooting Authentication Issues
 

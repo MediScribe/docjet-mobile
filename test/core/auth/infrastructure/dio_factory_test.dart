@@ -134,6 +134,48 @@ void main() {
           ); // Corrected assertion key
         },
       );
+
+      test(
+        'should add API key interceptor to basicDio when API key is present',
+        () {
+          // Arrange
+          const testDomain = 'api.test.com';
+          const testApiKey = 'test-basic-dio-key';
+          final testConfig = AppConfig.test(
+            apiDomain: testDomain,
+            apiKey: testApiKey,
+          );
+          final dioFactory = createFactory(testConfig);
+
+          // Act
+          final dio = dioFactory.createBasicDio();
+
+          // Assert
+          final apiKeyInterceptors =
+              dio.interceptors.whereType<InterceptorsWrapper>();
+          expect(apiKeyInterceptors.isNotEmpty, isTrue);
+
+          bool apiKeyHeaderCorrect = false;
+          for (final interceptor in apiKeyInterceptors) {
+            final options = RequestOptions(path: '/test');
+            final handler = RequestInterceptorHandler();
+            // ignore: invalid_use_of_internal_member
+            interceptor.onRequest.call(options, handler);
+
+            if (options.headers.containsKey('x-api-key') &&
+                options.headers['x-api-key'] == testApiKey) {
+              apiKeyHeaderCorrect = true;
+              break;
+            }
+          }
+
+          expect(
+            apiKeyHeaderCorrect,
+            isTrue,
+            reason: 'basicDio should now have the API key interceptor',
+          );
+        },
+      );
     });
 
     group('createAuthenticatedDio', () {

@@ -42,6 +42,23 @@ class DioFactory {
 
     final dio = Dio(options);
 
+    // Add API key header interceptor to basicDio too
+    if (_appConfig.apiKey.isEmpty) {
+      _logger.w('API_KEY from AppConfig is empty!');
+      // Depending on requirements, could throw an error here or allow proceeding
+    } else {
+      // Add interceptor to inject API key header
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) async {
+            options.headers['x-api-key'] = _appConfig.apiKey;
+            _logger.t('Injected x-api-key header in basicDio.');
+            return handler.next(options); // continue
+          },
+        ),
+      );
+    }
+
     // Add logging interceptor for debugging if not in release mode
     if (kDebugMode) {
       dio.interceptors.add(
@@ -69,25 +86,11 @@ class DioFactory {
     final dio = createBasicDio();
 
     if (_appConfig.apiKey.isEmpty) {
-      _logger.w('API_KEY from AppConfig is empty!');
-      // Depending on requirements, could throw an error here or allow proceeding
-      // For now, we log a warning.
+      _logger.w('API_KEY from AppConfig is empty in authenticatedDio!');
+      // Warning already logged in createBasicDio
     }
 
-    // Add interceptor to inject API key header BEFORE the AuthInterceptor
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          if (_appConfig.apiKey.isNotEmpty) {
-            options.headers['x-api-key'] = _appConfig.apiKey;
-            _logger.t('Injected x-api-key header.');
-          } else {
-            _logger.w('Skipping x-api-key header injection: Key not found.');
-          }
-          return handler.next(options); // continue
-        },
-      ),
-    );
+    // API key is already added in createBasicDio, no need to add it again
 
     // Add the authentication interceptor for handling 401s and token refresh
     dio.interceptors.add(
@@ -102,9 +105,7 @@ class DioFactory {
       ),
     );
 
-    _logger.i(
-      'Created authenticated Dio instance with API Key and Auth interceptors.',
-    );
+    _logger.i('Created authenticated Dio instance with Auth interceptor.');
     return dio;
   }
 }
