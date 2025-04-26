@@ -110,20 +110,66 @@ Each change will follow the RED-GREEN-REFACTOR cycle:
 ### Cycle 2: Create UserApiClient
 
 #### 2.1 RED: Create UserApiClient Test
-- [ ] Create `test/core/user/infrastructure/user_api_client_test.dart`
-- [ ] Write test for getUserProfile that explicitly expects AuthenticatedDio
-- [ ] Run the test to confirm it fails (RED)
+- [x] Create `test/core/user/infrastructure/user_api_client_test.dart`
+- [x] Write test for getUserProfile that explicitly expects AuthenticatedDio
+- [x] Run the test to confirm it fails (RED)
+
+**Insights:**
+- Created a test suite that explicitly verifies UserApiClient uses authenticatedDio for profile requests.
+- Implemented three test cases: successful profile retrieval, error handling, and 401 authentication failures.
+- Used the Mocktail framework for mocking Dio and AuthCredentialsProvider dependencies.
+- The test structure follows the Arrange-Act-Assert pattern for clarity.
+- The failing test helped identify the requirements for the actual implementation.
 
 #### 2.2 GREEN: Create UserApiClient
-- [ ] Create necessary directories and `lib/core/user/infrastructure/user_api_client.dart`
-- [ ] Implement getUserProfile method migrated from AuthApiClient
-- [ ] Make the implementation pass the test
-- [ ] Run test to verify it passes (GREEN)
+- [x] Create necessary directories and `lib/core/user/infrastructure/user_api_client.dart`
+- [x] Implement getUserProfile method migrated from AuthApiClient
+- [x] Make the implementation pass the test
+- [x] Run test to verify it passes (GREEN)
+
+**Insights:**
+- Created a clean UserProfileDto class to handle API response data (with JSON serialization).
+- Designed UserApiClient with clear constructor parameter names (`authenticatedHttpClient`) to prevent confusion.
+- Successfully implemented getUserProfile to use the authenticatedDio instance.
+- Maintained proper error handling that preserves context about failures.
+- The implementation passes all test cases, verifying the correct usage of authenticatedDio.
 
 #### 2.3 REFACTOR: Clean Up User Client
-- [ ] Add proper documentation
-- [ ] Enhance error handling
-- [ ] Verify tests still pass
+- [x] Add proper documentation
+- [x] Enhance error handling
+- [x] Verify tests still pass
+
+**Insights:**
+- Enhanced documentation to clearly explain the Split Client pattern and responsibilities.
+- Added explicit warnings about using authenticatedDio vs basicDio to prevent future errors.
+- Improved error handling with more specific context for different error types (network, auth, unexpected).
+- Added comprehensive JSDoc-style annotations for better IDE support and developer guidance.
+- Tests continue to pass after refactoring, confirming the implementation is solid.
+
+**Guidance for the next developer (Cycle 3):**
+1. When updating the AuthModule registration in Cycle 3, ensure UserApiClient explicitly receives authenticatedDio.
+2. The key pattern to follow is:
+   ```dart
+   // Register AuthenticationApiClient with basicDio
+   getIt.registerFactory<AuthenticationApiClient>(() => AuthenticationApiClient(
+     basicHttpClient: sl<Dio>('basicDio'),
+     credentialsProvider: credentialsProvider,
+   ));
+   
+   // Register UserApiClient with authenticatedDio
+   getIt.registerFactory<UserApiClient>(() => UserApiClient(
+     authenticatedHttpClient: sl<Dio>('authenticatedDio'),
+     credentialsProvider: credentialsProvider,
+   ));
+   ```
+
+3. When updating tests, be sure to verify that DI registration correctly passes the different Dio instances.
+
+4. Remember that the most important part of this refactoring is ensuring UserApiClient receives authenticatedDio to fix the "Missing API key" errors.
+
+5. For the AuthModule test, explicitly verify that:
+   - AuthenticationApiClient gets basicDio for unauthenticated operations
+   - UserApiClient gets authenticatedDio for authenticated operations
 
 ### Cycle 3: Update AuthModule Registration Test
 
