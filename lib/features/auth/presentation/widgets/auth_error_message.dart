@@ -91,6 +91,20 @@ class AuthErrorMessage extends StatelessWidget {
               customMessage ?? 'You are not authorized to perform this action.',
           errorType: type,
         );
+      case AuthErrorType.missingApiKey:
+        return AuthErrorMessage(
+          errorMessage:
+              customMessage ??
+              'API key is missing. Please check app configuration.',
+          errorType: type,
+        );
+      case AuthErrorType.malformedUrl:
+        return AuthErrorMessage(
+          errorMessage:
+              customMessage ??
+              'Invalid API URL path. Please report this issue.',
+          errorType: type,
+        );
       case AuthErrorType.unknown:
         return AuthErrorMessage(
           errorMessage:

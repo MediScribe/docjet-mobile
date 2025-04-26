@@ -85,44 +85,26 @@ class AuthApiClient {
   /// Maps DioException to domain-specific AuthException
   AuthException _handleDioException(DioException e) {
     final requestPath = e.requestOptions.path;
+    final hasApiKey = e.requestOptions.headers.containsKey('x-api-key');
+    final isRefreshEndpoint = requestPath.contains(ApiConfig.refreshEndpoint);
+    final isProfileEndpoint = requestPath.contains(
+      ApiConfig.userProfileEndpoint,
+    );
+    final stackTrace = e.stackTrace;
 
     // Handle response errors (status codes)
     if (e.response != null) {
-      final statusCode = e.response!.statusCode;
+      final statusCode = e.response!.statusCode ?? 0;
 
-      switch (statusCode) {
-        case 401:
-          if (requestPath.contains(ApiConfig.refreshEndpoint)) {
-            return AuthException.refreshTokenInvalid();
-          }
-          if (requestPath.contains(ApiConfig.userProfileEndpoint)) {
-            // If 401 occurs on profile endpoint, assume token invalid/expired
-            // (interceptor should have handled refresh)
-            return AuthException.userProfileFetchFailed();
-          }
-          // Default 401 assumed to be login failure
-          return AuthException.invalidCredentials();
-        case 403:
-          // 403 is generally an authorization issue, regardless of path
-          return AuthException.unauthorizedOperation();
-        // Handle common server errors specifically for profile fetch
-        case 500:
-        case 502:
-        case 503:
-        case 504:
-          if (requestPath.contains(ApiConfig.userProfileEndpoint)) {
-            return AuthException.userProfileFetchFailed();
-          }
-          // For other endpoints, map to generic server error
-          return AuthException.serverError(statusCode ?? 0);
-        default:
-          // Fallback for unexpected status codes
-          if (requestPath.contains(ApiConfig.userProfileEndpoint)) {
-            return AuthException.userProfileFetchFailed();
-          }
-          // Use 0 if statusCode is null, though it shouldn't be in a response error
-          return AuthException.serverError(statusCode ?? 0);
-      }
+      // Use the unified status code handler
+      return AuthException.fromStatusCode(
+        statusCode,
+        requestPath,
+        hasApiKey: hasApiKey,
+        isRefreshEndpoint: isRefreshEndpoint,
+        isProfileEndpoint: isProfileEndpoint,
+        stackTrace: stackTrace,
+      );
     }
 
     // Handle non-response errors (network, timeout, etc.)
@@ -130,27 +112,30 @@ class AuthApiClient {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return AuthException.networkError();
+        return AuthException.networkError(requestPath, stackTrace);
+
       case DioExceptionType.connectionError:
       case DioExceptionType.unknown:
         if (e.error is SocketException) {
-          return AuthException.offlineOperationFailed();
+          return AuthException.offlineOperationFailed(stackTrace);
         }
         // Treat other connection/unknown errors as generic network errors
-        return AuthException.networkError();
+        return AuthException.networkError(requestPath, stackTrace);
+
       case DioExceptionType.cancel:
         // Request was cancelled, typically not a server/network issue
-        // Might need a specific exception type if cancellation needs special handling
-        return AuthException.networkError(); // Treat as network error for now
+        return AuthException.networkError(requestPath, stackTrace);
+
       case DioExceptionType.badCertificate:
-        return AuthException.networkError(); // Treat as network error
+        return AuthException.networkError(requestPath, stackTrace);
+
       case DioExceptionType.badResponse:
         // This case should ideally be handled by the status code checks above,
         // but can act as a fallback.
-        if (requestPath.contains(ApiConfig.userProfileEndpoint)) {
-          return AuthException.userProfileFetchFailed();
+        if (isProfileEndpoint) {
+          return AuthException.userProfileFetchFailed(stackTrace);
         }
-        return AuthException.serverError(0); // Use 0 as status code is unknown
+        return AuthException.serverError(0, requestPath, stackTrace);
     }
   }
 

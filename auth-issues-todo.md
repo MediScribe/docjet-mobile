@@ -116,13 +116,35 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
   - The registration order in AuthModule is now clearly documented to avoid future issues
   - The test confirms we can now safely create an AuthApiClient that uses an authenticatedDio with AuthInterceptor
 
-- [ ] 5. **Phase 4: Improve Error Messages**
-  - [ ] 5.1. **RED:** Create failing tests for specific error scenarios
-  - [ ] 5.2. **GREEN:** Enhance error handling in `AuthApiClient._handleDioException`
-    - [ ] 5.2.1. Check for missing API key before default 401 handling
-    - [ ] 5.2.2. Add specific message for URL path errors (404s)
-    - [ ] 5.2.3. Provide more context in network errors
-  - [ ] 5.3. **REFACTOR:** Ensure error messages are consistent
+- [x] 5. **Phase 4: Improve Error Messages**
+  - [x] 5.1. **RED:** Created failing tests for specific error scenarios
+    - [x] 5.1.1. Test for missing API key detection in 401 errors
+    - [x] 5.1.2. Test for malformed URL paths causing 404 errors
+    - [x] 5.1.3. Test for improved context in network error messages
+  - [x] 5.2. **GREEN:** Enhanced error handling in `AuthApiClient._handleDioException`
+    - [x] 5.2.1. Check for missing API key before default 401 handling
+    - [x] 5.2.2. Add specific message for URL path errors (404s)
+    - [x] 5.2.3. Provide more context in network errors by including request path
+  - [x] 5.3. **REFACTOR:** Ensure error messages are consistent across all code paths
+    - [x] 5.3.1. Added new AuthErrorType entries for missingApiKey and malformedUrl
+    - [x] 5.3.2. Enhanced AuthException factory methods to accept path parameters
+    - [x] 5.3.3. Updated tests with precise assertions using factory methods
+  
+  ### Findings from Phase 4:
+  - Error messages now provide much more context, making debugging easier:
+    - Network errors include the requested path: "Network error occurred (path: auth/login)"
+    - Server errors include both status code and path: "Server error occurred (500) (path: auth/login)"
+    - Missing API key errors clearly indicate the issue: "API key is missing for endpoint auth/login - check your app configuration"
+    - Malformed URL errors point to the specific problem: "URL path error: /api/v1auth/login might be malformed - check path formatting"
+  - The enhanced error handling detects common API key and URL formation issues automatically
+  - The more specific error messages help distinguish between similar error types (e.g., network vs. server vs. auth errors)
+  - Tests were updated to use precise factory method assertions rather than generic string matching
+  - Additional improvements based on feedback:
+    - Original stack traces are now preserved in all exceptions for better debugging
+    - Added a new `exactlyEquals` method to allow more precise equality checks when needed
+    - Added a `diagnosticString` method that includes stack trace for detailed logging
+    - Created a centralized `fromStatusCode` factory method that provides consistent error type assignment
+    - Comprehensive test suite with 23+ tests for AuthException functionality
 
 - [ ] 6. **Phase 5: Final Integration Test**
   - [ ] 6.1. Create a new integration test that verifies all issues are fixed

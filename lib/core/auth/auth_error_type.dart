@@ -29,6 +29,12 @@ enum AuthErrorType {
   /// Offline operation failed
   offlineOperation,
 
+  /// API key missing
+  missingApiKey,
+
+  /// Malformed URL path
+  malformedUrl,
+
   /// Generic/unknown error
   unknown,
 }
