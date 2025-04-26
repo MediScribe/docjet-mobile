@@ -37,25 +37,75 @@ Each change will follow the RED-GREEN-REFACTOR cycle:
 ### Cycle 1: Verify Failing State and Create Test for AuthenticationApiClient
 
 #### 1.1 RED: Verify Current Tests Fail
-- [ ] Run `./scripts/list_failed_tests.dart test/core/auth/infrastructure/auth_module_test.dart --debug`
-- [ ] Confirm the exact failure mode in "getUserProfile needs JWT token" test
-- [ ] Document the failure for comparison after changes
+- [x] Run `./scripts/list_failed_tests.dart test/core/auth/infrastructure/auth_module_test.dart --debug`
+- [x] Confirm the exact failure mode in "getUserProfile needs JWT token" test
+- [x] Document the failure for comparison after changes
+
+**Insights:**
+- The tests confirmed our diagnosis: getUserProfile is failing with "Missing API key" instead of a 401 auth error.
+- The root issue is in the DI setup where AuthApiClient is constructed with basicDio instead of authenticatedDio.
+- We can see in the test logs that the tests explicitly expect (and verify) this to be fixed by properly injecting authenticatedDio.
 
 #### 1.2 RED: Create AuthenticationApiClient Test
-- [ ] Create `test/core/auth/infrastructure/authentication_api_client_test.dart`
-- [ ] Write tests for login and refreshToken that expect BasicDio
-- [ ] Run the tests to confirm they fail (RED)
+- [x] Create `test/core/auth/infrastructure/authentication_api_client_test.dart`
+- [x] Write tests for login and refreshToken that expect BasicDio
+- [x] Run the tests to confirm they fail (RED)
+
+**Insights:**
+- Created tests that explicitly verify the new AuthenticationApiClient uses basicDio for login/refresh operations.
+- Improved test structure with clear Arrange-Act-Assert pattern and better test isolation.
+- We've added specific error cases to ensure the new client handles errors properly.
 
 #### 1.3 GREEN: Create AuthenticationApiClient
-- [ ] Create `lib/core/auth/infrastructure/authentication_api_client.dart`
-- [ ] Implement login and refreshToken methods copied from AuthApiClient
-- [ ] Make minimal changes to pass the tests
-- [ ] Run tests to verify they pass (GREEN)
+- [x] Create `lib/core/auth/infrastructure/authentication_api_client.dart`
+- [x] Implement login and refreshToken methods copied from AuthApiClient
+- [x] Make minimal changes to pass the tests
+- [x] Run tests to verify they pass (GREEN)
+
+**Insights:**
+- Successfully implemented AuthenticationApiClient with clear responsibility for non-authenticated endpoints.
+- Used parameter name `basicHttpClient` to make it explicit that this client requires the non-authenticated Dio instance.
+- Improved documentation to clarify the purpose of this client in the architecture.
+- Tests are now passing, confirming our implementation works as expected.
 
 #### 1.4 REFACTOR: Clean Up New Client
-- [ ] Add proper documentation
-- [ ] Improve error handling if needed
-- [ ] Ensure tests still pass after refactoring
+- [x] Add proper documentation
+- [x] Improve error handling if needed
+- [x] Ensure tests still pass after refactoring
+
+**Insights:**
+- Enhanced documentation clarifies that this client handles pre-authentication operations.
+- Simplified error handling by removing profile-specific code since this client never handles profile requests.
+- Maintained clear parameter naming (`basicHttpClient`) to prevent future confusion.
+- Tests continue to pass after refactoring.
+
+**Guidance for the next developer (Cycle 2):**
+1. Create the full directory structure for `UserApiClient` first:
+   ```
+   lib/core/user/
+   lib/core/user/infrastructure/
+   test/core/user/infrastructure/
+   ```
+
+2. Create a proper user profile DTO to replace the current TODO in `AuthApiClient.getUserProfile()`:
+   ```dart
+   // Create this first:
+   lib/core/user/infrastructure/dtos/user_profile_dto.dart
+   ```
+
+3. When implementing `UserApiClient`, use explicit naming for the Dio parameter:
+   ```dart
+   UserApiClient({
+     required this.authenticatedHttpClient,  // Note the explicit name
+     required this.credentialsProvider,
+   });
+   ```
+
+4. In tests, explicitly verify that `authenticatedDio` is used and `basicDio` is never used for profile requests.
+
+5. Remember that the `AuthInterceptor` function reference will need updating later to point to the new `AuthenticationApiClient` - don't worry about this yet, but keep it in mind.
+
+6. The most challenging part will be in Cycle 3 when updating the DI registration in `AuthModule` - study the current registration order carefully before making changes.
 
 ### Cycle 2: Create UserApiClient
 
