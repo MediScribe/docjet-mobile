@@ -16,6 +16,7 @@ Follow these steps religiously, or face the fucking consequences.
     *   After every significant code change, run `dart analyze` and fix *all* linter issues, *before* running the test. No exceptions. Clean code isn't optional.
     *   **DO NOT** run tests with `-v`. It's fucking useless noise. If a test fails, don't guess or blindly retry. Add logging using `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` (even in the test itself!) to understand *why* it failed. Analyze, don't flail.
     *   **DO NOT** run `flutter test`. You will drown in debug output. Use ./scripts/list_failed_tests.dart.
+    *   **DO NOT** use flutter run. It will block the thread and that's it! Ask ME to do it for you!
 6.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
 7.  **Check Test Failures**: Always start by running `./scripts/list_failed_tests.dart` ([list_failed_tests.dart](mdc:scripts/list_failed_tests.dart)) to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. If tests fail, you can run again with:
     *   None, one or multiple targets (both file and dir)
