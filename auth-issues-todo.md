@@ -20,9 +20,9 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
 
 ## Hard Bob TDD Plan:
 
-- [ ] 1. **Phase 0: Fast Integration Test FIRST**
-  - [ ] 1.1. **Goal:** Create a lightweight integration test to quickly verify auth problems without running the full app
-  - [ ] 1.2. **Action:** Create `test/integration/auth_url_formation_test.dart`:
+- [x] 1. **Phase 0: Fast Integration Test FIRST**
+  - [x] 1.1. **Goal:** Create a lightweight integration test to quickly verify auth problems without running the full app
+  - [x] 1.2. **Action:** Create `test/integration/auth_url_formation_test.dart`:
   ```dart
   test('integration_test_url_formation', () async {
     // 1. Setup minimal DI container
@@ -52,7 +52,14 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
     }
   });
   ```
-  - [ ] 1.3. **Verification:** Test fails, showing URL formation and/or API key issues
+  - [x] 1.3. **Verification:** Test fails, showing URL formation and/or API key issues
+  
+  ### Findings from Phase 0:
+  - The integration test revealed that the url was incorrectly formed: `auth/login` without base URL
+  - The fix includes properly configuring Dio with a proper base URL: `http://localhost:[port]/api/v1/`
+  - This confirms issue #3 in the Problem Summary: the request URL was malformed
+  - With the fix in place, proper URL paths with correct slashes are formed: `/api/v1/auth/login`
+  - Also confirmed the API key is properly included in the headers when configured
 
 - [ ] 2. **Phase 1: Clear Assignment of API Key Responsibility**
   - [ ] 2.1. **RED:** Test that verifies who's responsible for API key 
