@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
@@ -24,8 +23,12 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 ///
 /// IMPORTANT: The registration order in this module is critical to avoid circular
 /// dependencies. The current design uses a function-based DI approach for token refresh,
-/// allowing AuthApiClient to be used with basicDio while authenticatedDio uses
-/// AuthInterceptor with a function reference to the AuthApiClient's refreshToken method.
+/// allowing AuthenticationApiClient to be used with basicDio while authenticatedDio uses
+/// AuthInterceptor with a function reference to the AuthenticationApiClient's refreshToken method.
+///
+/// The module uses a "Split Client" pattern where:
+/// - AuthenticationApiClient: Handles login/refresh with basicDio
+/// - UserApiClient: Handles user profile with authenticatedDio
 class AuthModule {
   final DioFactory _dioFactory;
   final AuthCredentialsProvider _credentialsProvider;
@@ -196,23 +199,6 @@ class AuthModule {
     } else {
       _logger.i(
         '$_tag UserApiClient already registered. Skipping registration.',
-      );
-    }
-
-    // For backward compatibility, register the legacy AuthApiClient that delegates to the new clients
-    if (!getIt.isRegistered<AuthApiClient>()) {
-      _logger.d(
-        '$_tag Registering legacy AuthApiClient for backward compatibility',
-      );
-      getIt.registerLazySingleton<AuthApiClient>(
-        () => AuthApiClient(
-          httpClient: getIt<Dio>(instanceName: 'basicDio'),
-          credentialsProvider: finalCredentialsProvider,
-        ),
-      );
-    } else {
-      _logger.i(
-        '$_tag AuthApiClient already registered. Skipping registration.',
       );
     }
 
