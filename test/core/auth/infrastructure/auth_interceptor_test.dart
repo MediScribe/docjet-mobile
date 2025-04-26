@@ -46,7 +46,8 @@ void main() {
     mockErrorHandler = MockErrorInterceptorHandler();
 
     interceptor = AuthInterceptor(
-      apiClient: mockApiClient,
+      refreshTokenFunction:
+          (refreshToken) => mockApiClient.refreshToken(refreshToken),
       credentialsProvider: mockCredProvider,
       dio: mockDio,
       authEventBus: mockAuthEventBus,

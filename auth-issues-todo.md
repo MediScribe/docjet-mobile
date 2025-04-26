@@ -79,9 +79,9 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
   - The integration test confirmed that with the trailing slash in the base URL, Dio correctly forms the full URL even when endpoint constants don't have leading slashes
   - The new `joinPaths` utility function makes URL path joining robust regardless of trailing/leading slash presence in the components
 
-- [ ] 4. **Phase 3: Break Circular Dependency**
-  - [ ] 4.1. **RED:** Create test showing circular dependency issue
-  - [ ] 4.2. **GREEN:** Implement function-based DI
+- [x] 4. **Phase 3: Break Circular Dependency**
+  - [x] 4.1. **RED:** Created test showing circular dependency issue
+  - [x] 4.2. **GREEN:** Implemented function-based DI
     ```dart
     // In AuthInterceptor constructor
     AuthInterceptor({
@@ -94,7 +94,7 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
     // Use in onError
     final authResponse = await _refreshTokenFunction(refreshToken);
     ```
-  - [ ] 4.3. **REFACTOR:** Fix DioFactory and AuthModule
+  - [x] 4.3. **REFACTOR:** Fix DioFactory and AuthModule
     ```dart
     // In DioFactory
     dio.interceptors.add(
@@ -107,7 +107,14 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
       ),
     );
     ```
-  - [ ] 4.4. Update all affected tests
+  - [x] 4.4. Updated all affected code with enhanced documentation about registration order
+
+  ### Findings from Phase 3:
+  - The circular dependency was successfully broken by using function-based DI
+  - Instead of directly injecting the AuthApiClient into the AuthInterceptor, we now pass a function reference to the specific method needed (refreshToken)
+  - This allows the DI container to properly resolve dependencies without circular references
+  - The registration order in AuthModule is now clearly documented to avoid future issues
+  - The test confirms we can now safely create an AuthApiClient that uses an authenticatedDio with AuthInterceptor
 
 - [ ] 5. **Phase 4: Improve Error Messages**
   - [ ] 5.1. **RED:** Create failing tests for specific error scenarios

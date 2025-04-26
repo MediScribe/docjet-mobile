@@ -58,6 +58,9 @@ class DioFactory {
 
   /// Creates a Dio instance configured with authentication interceptors.
   /// Requires AuthApiClient and AuthCredentialsProvider for token refresh.
+  ///
+  /// Uses function-based DI to break the circular dependency between
+  /// AuthInterceptor and AuthApiClient.
   Dio createAuthenticatedDio({
     required AuthApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
@@ -89,9 +92,12 @@ class DioFactory {
     // Add the authentication interceptor for handling 401s and token refresh
     dio.interceptors.add(
       AuthInterceptor(
-        dio: dio, // Pass the Dio instance itself
-        apiClient: authApiClient,
+        // Pass a function reference instead of the entire AuthApiClient instance
+        // This breaks the circular dependency
+        refreshTokenFunction:
+            (refreshToken) => authApiClient.refreshToken(refreshToken),
         credentialsProvider: credentialsProvider,
+        dio: dio,
         authEventBus: authEventBus,
       ),
     );

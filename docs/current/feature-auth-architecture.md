@@ -45,6 +45,7 @@ graph TD
         AuthInterceptor -->|Retries Original Request| HttpClient
         AuthInterceptor -->|Uses Exponential Backoff| TokenRefresh
         AuthInterceptor -->|Listens to| AuthEventBus
+        AuthInterceptor -->|Uses Function Reference to| AuthApiClient
         
         HttpClient -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>(e.g., /api/v1/auth/login)}
     end
@@ -129,6 +130,7 @@ sequenceDiagram
     Interceptor->>CredProvider: getRefreshToken()
     CredProvider-->>Interceptor: Refresh token
     Interceptor->>ApiClient: refreshToken(refreshToken)
+    Note right of Interceptor: Using function reference instead of direct dependency
     ApiClient->>CredProvider: getApiKey()
     CredProvider-->>ApiClient: API Key
     ApiClient->>API: POST /api/v1/auth/refresh-session
@@ -231,6 +233,10 @@ A Dio interceptor that:
 5. Retries the original request with the new token
 6. Uses mutex locking to prevent concurrent refresh attempts 
 7. Provides robust error propagation for unexpected failures
+8. **Uses function-based DI:** Instead of directly depending on `AuthApiClient`, it accepts a 
+   function reference to the `refreshToken` method. This breaks the circular dependency where 
+   `AuthApiClient` needs an authenticated Dio with `AuthInterceptor`, and `AuthInterceptor` 
+   needs `AuthApiClient` for token refresh.
 
 This approach provides seamless token refresh without UI layer awareness of expired tokens. The authentication flow is handled at the data layer where it belongs, maintaining clean separation of concerns.
 
@@ -262,4 +268,29 @@ State management for authentication, connecting UI to domain services:
 - Provides methods like `login()`, `logout()`, `checkAuthStatus()`, `getUserProfile()` which interact with the `AuthService`.
 - Crucially, listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
 
-The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed. 
+The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed.
+
+## Dependency Injection Considerations
+
+### Avoiding Circular Dependencies
+
+To avoid circular dependencies between `AuthApiClient` and `AuthInterceptor`:
+
+1. **Function-Based DI:** `AuthInterceptor` accepts a function reference to `refreshToken` instead of
+   directly depending on the `AuthApiClient` instance:
+
+   ```dart
+   AuthInterceptor({
+     required Future<AuthResponseDto> Function(String) refreshTokenFunction,
+     required this.credentialsProvider,
+     // ...
+   }) : _refreshTokenFunction = refreshTokenFunction;
+   ```
+
+2. **Proper Registration Order:** The DI container registers components in this order:
+   - First register `basicDio` (without auth interceptors)
+   - Then register `AuthApiClient` (using `basicDio`)
+   - Finally register `authenticatedDio` (using function reference to `AuthApiClient.refreshToken`)
+
+3. **Clear API Responsibilities:** The API key injection is handled entirely by `DioFactory` via interceptors.
+   The `AuthApiClient` does not add the API key itself, which makes the correct DI setup critical. 

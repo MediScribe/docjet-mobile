@@ -19,6 +19,11 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 /// Encapsulates the configuration of authentication-related services.
 /// Instances of this class are responsible for registering services into a GetIt
 /// container using provided dependencies.
+///
+/// IMPORTANT: The registration order in this module is critical to avoid circular
+/// dependencies. The current design uses a function-based DI approach for token refresh,
+/// allowing AuthApiClient to be used with basicDio while authenticatedDio uses
+/// AuthInterceptor with a function reference to the AuthApiClient's refreshToken method.
 class AuthModule {
   final DioFactory _dioFactory;
   final AuthCredentialsProvider _credentialsProvider;
@@ -40,6 +45,11 @@ class AuthModule {
   /// Registers authentication services with the provided GetIt instance using
   /// the dependencies provided during construction. This avoids implicit lookups
   /// and ensures testability.
+  ///
+  /// The registration order is important to avoid circular dependencies:
+  /// 1. First register basicDio
+  /// 2. Then register AuthApiClient (using basicDio)
+  /// 3. Then register authenticatedDio (using AuthApiClient for token refresh via function reference)
   ///
   /// Optional dependencies like FlutterSecureStorage, JwtValidator, and
   /// AuthSessionProvider can still be passed to override default registrations,
@@ -103,7 +113,8 @@ class AuthModule {
     final AuthCredentialsProvider finalCredentialsProvider =
         _credentialsProvider;
 
-    // Register basic Dio (using the constructor-provided factory instance)
+    // STEP 1: Register basic Dio (using the constructor-provided factory instance)
+    // This must be registered before AuthApiClient
     if (!getIt.isRegistered<Dio>(instanceName: 'basicDio')) {
       getIt.registerLazySingleton<Dio>(
         () => _dioFactory.createBasicDio(), // Use instance field
@@ -114,7 +125,8 @@ class AuthModule {
       _logger.i('$_tag basicDio already registered. Skipping registration.');
     }
 
-    // Register the auth API client (depends on basicDio and constructor-provided credentialsProvider)
+    // STEP 2: Register the auth API client (depends on basicDio)
+    // This must be registered BEFORE authenticatedDio to break the circular dependency
     if (!getIt.isRegistered<AuthApiClient>()) {
       getIt.registerLazySingleton<AuthApiClient>(
         () => AuthApiClient(
@@ -123,7 +135,7 @@ class AuthModule {
               finalCredentialsProvider, // Use instance field via variable
         ),
       );
-      _logger.d('$_tag Registered AuthApiClient.');
+      _logger.d('$_tag Registered AuthApiClient with basicDio.');
     } else {
       _logger.i(
         '$_tag AuthApiClient already registered. Skipping registration.',
@@ -134,7 +146,8 @@ class AuthModule {
     _logger.d('$_tag Using constructor-provided AuthEventBus.');
     final AuthEventBus finalAuthEventBus = _authEventBus;
 
-    // Register the authenticated Dio client (using constructor-provided dependencies)
+    // STEP 3: Register the authenticated Dio client
+    // This must be registered AFTER AuthApiClient since it depends on it for the refreshToken function
     if (!getIt.isRegistered<Dio>(instanceName: 'authenticatedDio')) {
       _logger.d(
         '$_tag About to create authenticatedDio via createAuthenticatedDio...',

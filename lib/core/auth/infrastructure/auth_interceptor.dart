@@ -3,7 +3,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'dart:math';
 import 'package:mutex/mutex.dart';
@@ -19,8 +19,9 @@ import 'package:mutex/mutex.dart';
 /// 6. Triggers logout events for irrecoverable auth errors
 /// 7. Uses mutex to prevent concurrent refresh attempts
 class AuthInterceptor extends Interceptor {
-  /// API client for authentication operations
-  final AuthApiClient apiClient;
+  /// Function to call for token refresh operations
+  /// This breaks the circular dependency with AuthApiClient
+  final Future<AuthResponseDto> Function(String) _refreshTokenFunction;
 
   /// Credentials provider for token management
   final AuthCredentialsProvider credentialsProvider;
@@ -47,12 +48,15 @@ class AuthInterceptor extends Interceptor {
   static const int _initialDelayMs = 500;
 
   /// Creates an [AuthInterceptor] with the required dependencies
+  ///
+  /// Uses a function-based approach for token refresh to break circular dependencies.
+  /// The [refreshTokenFunction] should typically point to AuthApiClient.refreshToken.
   AuthInterceptor({
-    required this.apiClient,
+    required Future<AuthResponseDto> Function(String) refreshTokenFunction,
     required this.credentialsProvider,
     required this.dio,
     required this.authEventBus,
-  });
+  }) : _refreshTokenFunction = refreshTokenFunction;
 
   /// Adds the access token to authenticated requests
   @override
@@ -100,8 +104,8 @@ class AuthInterceptor extends Interceptor {
             return handler.next(err);
           }
 
-          // Get new tokens
-          final authResponse = await apiClient.refreshToken(refreshToken);
+          // Get new tokens using the provided function instead of direct dependency
+          final authResponse = await _refreshTokenFunction(refreshToken);
 
           // Store the new tokens
           await credentialsProvider.setAccessToken(authResponse.accessToken);

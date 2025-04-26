@@ -47,32 +47,32 @@ void main() {
       // Test localhost domains use http://
       final localhostUrl = ApiConfig.baseUrlFromDomain('localhost:8080');
       expect(localhostUrl, startsWith('http://'));
-      expect(localhostUrl, 'http://localhost:8080/api/v1');
+      expect(localhostUrl, 'http://localhost:8080/api/v1/');
 
       // Test IP addresses use http://
       final ipUrl = ApiConfig.baseUrlFromDomain('127.0.0.1:3000');
       expect(ipUrl, startsWith('http://'));
-      expect(ipUrl, 'http://127.0.0.1:3000/api/v1');
+      expect(ipUrl, 'http://127.0.0.1:3000/api/v1/');
 
       // Test regular domains use https://
       final regularUrl = ApiConfig.baseUrlFromDomain('api.docjet.com');
       expect(regularUrl, startsWith('https://'));
-      expect(regularUrl, 'https://api.docjet.com/api/v1');
+      expect(regularUrl, 'https://api.docjet.com/api/v1/');
 
       // Test mock server domain (may be used in scripts)
       final mockServerUrl = ApiConfig.baseUrlFromDomain('localhost:8080');
       expect(mockServerUrl, startsWith('http://'));
-      expect(mockServerUrl, 'http://localhost:8080/api/v1');
+      expect(mockServerUrl, 'http://localhost:8080/api/v1/');
     });
 
     test('ApiConfig handles domains with port correctly', () {
       final urlWithPort = ApiConfig.baseUrlFromDomain('dev.docjet.com:8080');
-      expect(urlWithPort, 'https://dev.docjet.com:8080/api/v1');
+      expect(urlWithPort, 'https://dev.docjet.com:8080/api/v1/');
 
       final urlWithPortLocalhost = ApiConfig.baseUrlFromDomain(
         'localhost:9000',
       );
-      expect(urlWithPortLocalhost, 'http://localhost:9000/api/v1');
+      expect(urlWithPortLocalhost, 'http://localhost:9000/api/v1/');
     });
 
     test('run_with_mock.sh integration', () {
@@ -85,7 +85,7 @@ void main() {
       final mockServerDomain = 'localhost:8080';
       final expectedBaseUrl = ApiConfig.baseUrlFromDomain(mockServerDomain);
 
-      expect(expectedBaseUrl, 'http://localhost:8080/api/v1');
+      expect(expectedBaseUrl, 'http://localhost:8080/api/v1/');
     });
   });
 }

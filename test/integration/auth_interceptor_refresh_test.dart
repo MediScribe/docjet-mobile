@@ -114,7 +114,8 @@ void main() {
 
     // Initialize the AuthInterceptor with mocks
     authInterceptor = AuthInterceptor(
-      apiClient: mockApiClient,
+      refreshTokenFunction:
+          (refreshToken) => mockApiClient.refreshToken(refreshToken),
       credentialsProvider: mockCredentialsProvider,
       dio: mockDio,
       authEventBus: mockAuthEventBus,
