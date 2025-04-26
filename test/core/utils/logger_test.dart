@@ -21,6 +21,8 @@ void main() {
     // Before each test, clear logs
     setUp(() {
       LoggerFactory.clearLogs();
+      // Reset timestamp setting after each test
+      LoggerFactory.setPrintTimestamps(false);
     });
 
     test('captures logs from components', () {
@@ -103,6 +105,35 @@ void main() {
 
       // Verify logs are gone
       expect(LoggerFactory.getAllLogs().isEmpty, isTrue);
+    });
+
+    test('controls timestamp display in logs', () {
+      // First test with timestamps disabled (default)
+      expect(
+        LoggerFactory.getTimestampSetting(),
+        isFalse,
+        reason: 'Timestamps should be disabled by default',
+      );
+
+      // Enable timestamps
+      LoggerFactory.setPrintTimestamps(true);
+
+      // Verify the setting was updated
+      expect(
+        LoggerFactory.getTimestampSetting(),
+        isTrue,
+        reason: 'Timestamps should be enabled after setting to true',
+      );
+
+      // Reset to default for other tests
+      LoggerFactory.setPrintTimestamps(false);
+
+      // Verify the reset worked
+      expect(
+        LoggerFactory.getTimestampSetting(),
+        isFalse,
+        reason: 'Timestamps should be disabled after setting to false',
+      );
     });
   });
 }

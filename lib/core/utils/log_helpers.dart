@@ -50,6 +50,7 @@ library;
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:logger/logger.dart';
+import 'package:intl/intl.dart';
 
 // Export the necessary Logger classes so consumers only need to import this file
 export 'package:logger/logger.dart'
@@ -71,6 +72,27 @@ String logTag(dynamic context) {
   return '[${_getLoggerId(context)}]';
 }
 
+/// Custom printer that handles our timestamp display preference
+class CustomPrinter extends LogPrinter {
+  final bool includeTimestamps;
+
+  CustomPrinter({required this.includeTimestamps});
+
+  @override
+  List<String> log(LogEvent event) {
+    final message = event.message.toString();
+
+    if (includeTimestamps) {
+      final now = DateTime.now();
+      final formatter = DateFormat('HH:mm:ss.SSS');
+      final timestamp = formatter.format(now);
+      return ['$timestamp $message'];
+    } else {
+      return [message];
+    }
+  }
+}
+
 /// Factory for creating loggers with consistent configuration
 class LoggerFactory {
   // Private constructor to prevent instantiation
@@ -87,9 +109,15 @@ class LoggerFactory {
   // Map of component types to their log levels
   static final Map<String, Level> _logLevels = {};
 
+  // Registry of active loggers to update when settings change
+  static final Map<String, Logger> _activeLoggers = {};
+
   // Global shared memory output that captures ALL logs
   static final _sharedMemoryOutput = MemoryOutput();
   static bool _outputsInitialized = false;
+
+  // Flag to control timestamp printing globally
+  static bool _printTimestamps = false;
 
   // Initialize outputs only once
   static void _ensureOutputsInitialized() {
@@ -117,27 +145,50 @@ class LoggerFactory {
     // The filter will dynamically use the level from _logLevels or the default
     final effectiveLevel = _logLevels[id] ?? _defaultLevel;
 
+    // Create a new logger or reuse existing one
+    if (!_activeLoggers.containsKey(id)) {
+      _activeLoggers[id] = _createLogger(id, effectiveLevel);
+    }
+
+    return _activeLoggers[id]!;
+  }
+
+  /// Creates a new logger with current settings
+  static Logger _createLogger(String id, Level effectiveLevel) {
     return Logger(
-      filter: CustomLogFilter(
-        id,
-        effectiveLevel, // Pass the dynamically determined level
-        _logLevels,
-        _defaultLevel,
-      ),
-      printer: PrettyPrinter(
-        methodCount: 0,
-        printEmojis: false,
-        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
-        colors: !kReleaseMode,
-      ),
+      filter: CustomLogFilter(id, effectiveLevel, _logLevels, _defaultLevel),
+      printer: CustomPrinter(includeTimestamps: _printTimestamps),
       output: ConsoleOutput(),
     );
+  }
+
+  /// Sets whether timestamps should be printed in logs globally
+  static void setPrintTimestamps(bool enabled) {
+    if (_printTimestamps == enabled) return; // No change
+
+    _printTimestamps = enabled;
+
+    // Update all existing loggers with new settings
+    _activeLoggers.forEach((id, logger) {
+      final effectiveLevel = _logLevels[id] ?? _defaultLevel;
+      _activeLoggers[id] = _createLogger(id, effectiveLevel);
+    });
+  }
+
+  /// Gets the current timestamp setting
+  static bool getTimestampSetting() {
+    return _printTimestamps;
   }
 
   /// Sets the log level for a specific type
   static void setLogLevel(dynamic type, Level level) {
     final id = _getLoggerId(type);
     _logLevels[id] = level;
+
+    // Update the logger if it exists
+    if (_activeLoggers.containsKey(id)) {
+      _activeLoggers[id] = _createLogger(id, level);
+    }
   }
 
   /// Gets the current log level for a specific type
