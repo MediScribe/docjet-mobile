@@ -8,11 +8,17 @@ import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io'; // For SocketException
 
-/// Client responsible for communication with authentication-related API endpoints
+/// Client responsible for communication with authentication-related API endpoints.
 ///
 /// Handles the low-level HTTP details and error mapping specific to auth operations.
+/// **Important:** This client relies on the injected [Dio] instance (`httpClient`)
+/// having the necessary interceptors configured (e.g., via [DioFactory])
+/// to handle tasks like adding the `x-api-key` header and managing
+/// access token injection and refresh via [AuthInterceptor]. It does NOT
+/// handle these concerns directly.
 class AuthApiClient {
-  /// Base API client
+  /// Base API client, expected to be pre-configured with necessary interceptors
+  /// (e.g., API key, token refresh).
   final Dio httpClient;
 
   /// Provider for API key and tokens

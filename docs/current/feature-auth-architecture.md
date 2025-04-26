@@ -33,8 +33,11 @@ graph TD
         AuthCredProviderImpl -->|Stores/Reads JWT| SecureStorage([FlutterSecureStorage])
         AuthCredProviderImpl -->|Validates Tokens via| JwtValidator([JWT Validator])
         
+        DioFactory -->|Configures| HttpClient
+        DioFactory -->|Injects API Key via Interceptor| HttpClient
+        DioFactory -->|Injects AuthInterceptor| HttpClient
+        
         AuthApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
-        AuthApiClient -->|Gets API Key from| AuthCredProvider
         AuthApiClient -->|Gets User Profile| AuthAPI
         
         AuthInterceptor -->|Intercepts 401 Errors| HttpClient
@@ -215,6 +218,9 @@ Responsible for communication with authentication endpoints:
 - `refreshToken()` - Refreshes tokens when expired
 - `getUserProfile()` - Retrieves full user profile data
 - Maps API errors to domain-specific exceptions using enhanced exception types
+- **Note:** Relies on the injected `Dio` instance (typically configured by `DioFactory`)
+  to handle `x-api-key` header injection and JWT token management via interceptors.
+  It does *not* directly manage the API key or access tokens.
 
 #### AuthInterceptor
 A Dio interceptor that:

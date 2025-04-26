@@ -53,7 +53,7 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
   });
   ```
   - [x] 1.3. **Verification:** Test fails, showing URL formation and/or API key issues
-  
+
   ### Findings from Phase 0:
   - The integration test revealed that the url was incorrectly formed: `auth/login` without base URL
   - The fix includes properly configuring Dio with a proper base URL: `http://localhost:[port]/api/v1/`
@@ -61,12 +61,10 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
   - With the fix in place, proper URL paths with correct slashes are formed: `/api/v1/auth/login`
   - Also confirmed the API key is properly included in the headers when configured
 
-- [ ] 2. **Phase 1: Clear Assignment of API Key Responsibility**
-  - [ ] 2.1. **RED:** Test that verifies who's responsible for API key 
-  - [ ] 2.2. **GREEN:** Refactor code for clearer API key handling
-    - [ ] 2.2.1. Option A: Make `AuthApiClient` responsible for API key by adding it directly in request methods
-    - [ ] 2.2.2. Option B: Document explicitly that `AuthApiClient` does NOT handle API keys, and ensure DioFactory properly injects it
-  - [ ] 2.3. **REFACTOR:** Update auth architecture documentation to clearly state API key responsibility
+- [x] 2. **Phase 1: Clear Assignment of API Key Responsibility**
+  - [x] 2.1. **RED/Confirm:** Confirmed `AuthApiClient` relies on DI/Interceptor for API key (Option B) via code inspection (`AuthApiClient`, `DioFactory`) and validated by successful integration test (`auth_url_formation_test.dart`). No new failing test needed.
+  - [x] 2.2. **GREEN/Clarify:** Added JSDoc to `AuthApiClient` explicitly stating reliance on injected `httpClient` interceptors for API key and token handling.
+  - [x] 2.3. **REFACTOR/Document:** Updated `docs/current/feature-auth-architecture.md` (diagram and text) to reflect that `DioFactory` configures the interceptor responsible for the `x-api-key` header, not `AuthApiClient`.
 
 - [ ] 3. **Phase 2: Fix URL Path Issue (`/` missing)**
   - [ ] 3.1. **RED:** Create a failing test that demonstrates URL path issue
