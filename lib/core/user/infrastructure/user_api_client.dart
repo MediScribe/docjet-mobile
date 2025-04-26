@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 /// Client responsible for authenticated user-related API calls
 ///
@@ -15,6 +16,10 @@ import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dar
 ///
 /// This separation ensures clear responsibilities and proper authentication flow.
 class UserApiClient {
+  /// Logger for UserApiClient
+  final _logger = LoggerFactory.getLogger('UserApiClient');
+  final _tag = logTag('UserApiClient');
+
   /// HTTP client configured with authentication interceptors
   ///
   /// This MUST be the authenticatedDio instance that includes the AuthInterceptor
@@ -46,15 +51,39 @@ class UserApiClient {
   ///
   /// @returns UserProfileDto containing the user's profile information
   Future<UserProfileDto> getUserProfile() async {
+    _logger.d(
+      '$_tag Getting user profile from ${ApiConfig.userProfileEndpoint}',
+    );
+
     try {
+      _logger.d('$_tag Making request with authenticatedHttpClient');
       final response = await authenticatedHttpClient.get(
         ApiConfig.userProfileEndpoint,
       );
 
       if (response.statusCode == 200) {
-        return UserProfileDto.fromJson(response.data);
+        _logger.d('$_tag Received 200 response, parsing user profile data');
+        try {
+          // Ensure we have a proper Map<String, dynamic> for JSON deserialization
+          final responseData = Map<String, dynamic>.from(response.data as Map);
+          _logger.d(
+            '$_tag Successfully converted response data to Map<String, dynamic>',
+          );
+
+          return UserProfileDto.fromJson(responseData);
+        } catch (e) {
+          _logger.e('$_tag Data conversion error: ${e.toString()}');
+          throw DioException(
+            requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+            error:
+                'Failed to parse user profile data: ${e.toString()}. '
+                'Expected JSON map with keys "id", "email", etc.',
+            type: DioExceptionType.unknown,
+          );
+        }
       }
 
+      _logger.w('$_tag Received non-200 status code: ${response.statusCode}');
       throw DioException(
         requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
         error: 'Failed to get user profile. Status: ${response.statusCode}',
@@ -64,6 +93,7 @@ class UserApiClient {
     } on DioException catch (e) {
       // Add more context to Dio exceptions before rethrowing
       if (e.type == DioExceptionType.connectionError) {
+        _logger.e('$_tag Network error: ${e.message}');
         throw DioException(
           requestOptions: e.requestOptions,
           error: 'Network error while fetching user profile: ${e.message}',
@@ -74,21 +104,24 @@ class UserApiClient {
 
       // Handle authentication-specific errors
       if (e.response?.statusCode == 401) {
+        _logger.e('$_tag Authentication failed (401 Unauthorized)');
         throw DioException(
           requestOptions: e.requestOptions,
           error:
-              'Authentication failed while fetching user profile. JWT token may be invalid.',
+              'Authentication failed while fetching user profile. JWT token may be invalid or missing.',
           type: e.type,
           response: e.response,
         );
       }
 
+      _logger.e('$_tag Dio exception: ${e.type} - ${e.message}');
       rethrow;
     } catch (e) {
       // Wrap other exceptions in a DioException with clear context
+      _logger.e('$_tag Unexpected error: ${e.toString()}');
       throw DioException(
         requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
-        error: 'Unexpected error getting user profile: $e',
+        error: 'Unexpected error getting user profile: ${e.toString()}',
         type: DioExceptionType.unknown,
       );
     }
