@@ -294,3 +294,122 @@ To avoid circular dependencies between `AuthApiClient` and `AuthInterceptor`:
 
 3. **Clear API Responsibilities:** The API key injection is handled entirely by `DioFactory` via interceptors.
    The `AuthApiClient` does not add the API key itself, which makes the correct DI setup critical. 
+
+## Troubleshooting Authentication Issues
+
+This section provides guidance for diagnosing and fixing common authentication issues in DocJet Mobile. Our enhanced error handling now provides much more context to help you quickly identify and resolve problems.
+
+### Common Authentication Error Types
+
+The system can now detect and report these specific authentication issues:
+
+| Error Type | Description | Likely Causes |
+|------------|-------------|---------------|
+| `invalidCredentials` | Invalid email/password combination | User entered incorrect credentials |
+| `network` | Cannot connect to the server | Network connectivity issues, server unavailable |
+| `server` | Server responded with an error status | Backend API issues, check server logs |
+| `tokenExpired` | Authentication token has expired | Token lifetime ended, needs refresh |
+| `unauthenticated` | User is not authenticated | No valid authentication token |
+| `refreshTokenInvalid` | Failed to refresh the authentication token | Expired or invalid refresh token, server issues |
+| `userProfileFetchFailed` | Failed to fetch user profile | Server issues or permission problems |
+| `unauthorizedOperation` | User lacks permission for operation | Insufficient user permissions |
+| `offlineOperation` | Operation failed due to being offline | No network connectivity available |
+| `missingApiKey` | The API key header is missing from the request | DI setup incorrectly using `basicDio` instead of `authenticatedDio`, or API key not provided at build time |
+| `malformedUrl` | The request URL is incorrectly formed | Missing slash in path joining or incorrect endpoint configuration |
+| `unknown` | Unclassified error | Check error details for more information |
+
+### Enhanced Error Context
+
+All authentication errors now include:
+
+- Specific error type classification
+- The endpoint path that failed (e.g., `auth/login`)
+- HTTP status code where applicable
+- Original exception and stack trace (preserved for debugging)
+- Descriptive error message with troubleshooting guidance
+
+Example error message:
+```
+API key is missing for endpoint auth/login - check your app configuration
+```
+
+### Troubleshooting Steps
+
+#### Missing API Key Issues
+
+1. **Verify compile-time defines**: Ensure the API key is provided at build time:
+   ```bash
+   flutter run --dart-define=API_KEY=your_api_key
+   ```
+
+2. **Check DI configuration**: Ensure `AuthApiClient` is using the `authenticatedDio` instance, not `basicDio`.
+
+3. **Verify interceptor registration**: Check that `DioFactory` is properly configuring the API key interceptor.
+
+#### URL Formation Issues
+
+1. **Verify endpoint constants**: Ensure all endpoint paths in `ApiConfig` are formatted correctly.
+
+2. **Check base URL format**: The base URL should end with a trailing slash (e.g., `https://api.example.com/`).
+
+3. **Use the utility function**: Always use `ApiConfig.joinPaths()` for path concatenation.
+
+#### Authentication Failures
+
+1. **Verify credentials**: Confirm email and password are correct.
+
+2. **Check token storage**: Use Flutter Secure Storage Inspector tools to verify token storage.
+
+3. **Inspect token claims**: Use `JwtValidator.getClaims()` to debug token content.
+
+4. **Reset local state**: Try clearing app storage and re-authenticating.
+
+#### Network and Server Issues
+
+1. **Verify connectivity**: Check device network connectivity.
+
+2. **Test API directly**: Use tools like Postman to test the authentication endpoints.
+
+3. **Review server logs**: Check backend logs for server-side issues.
+
+4. **Verify CORS settings**: For web-based testing, ensure CORS is properly configured.
+
+### Debugging with Enhanced Error Information
+
+When troubleshooting authentication issues, use the `diagnosticString()` method of `AuthException` for detailed information including the stack trace:
+
+```dart
+try {
+  await authService.login(email, password);
+} on AuthException catch (e) {
+  log(e.diagnosticString());  // includes detailed information and stack trace
+  // Handle specific error types
+  switch (e.type) {
+    case AuthErrorType.invalidCredentials:
+      // Handle invalid credentials
+      break;
+    case AuthErrorType.network:
+      // Handle network issues
+      break;
+    case AuthErrorType.malformedUrl:
+      // Handle malformed URL
+      break;
+    // Handle other error types...
+  }
+}
+```
+
+### Regression Testing
+
+To verify authentication is working correctly after changes:
+
+1. Run the integration tests:
+   ```bash
+   ./scripts/list_failed_tests.dart test/integration/auth_url_formation_test.dart
+   ```
+
+2. Check for common issues detected by the tests:
+   - URL formation problems
+   - Missing API key
+   - Circular dependency issues
+   - Error message clarity

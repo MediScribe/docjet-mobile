@@ -150,6 +150,6 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
   - [x] 6.1. Create a new integration test that verifies all issues are fixed. Look for existing ones, so that we don't create random new files.
   - [x] 6.2. Only run `./scripts/run_with_mock.sh` as final confirmation
 
-- [ ] 7. **Documentation**
-  - [ ] 7.1. Update `docs/current/feature-auth-architecture.md` to reflect new design
-  - [ ] 7.2. Add a section on troubleshooting common auth issues 
+- [x] 7. **Documentation**
+  - [x] 7.1. Update `docs/current/feature-auth-architecture.md` to reflect new design
+  - [x] 7.2. Add a section on troubleshooting common auth issues 
