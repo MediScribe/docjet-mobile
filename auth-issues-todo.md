@@ -66,24 +66,18 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
   - [x] 2.2. **GREEN/Clarify:** Added JSDoc to `AuthApiClient` explicitly stating reliance on injected `httpClient` interceptors for API key and token handling.
   - [x] 2.3. **REFACTOR/Document:** Updated `docs/current/feature-auth-architecture.md` (diagram and text) to reflect that `DioFactory` configures the interceptor responsible for the `x-api-key` header, not `AuthApiClient`.
 
-- [ ] 3. **Phase 2: Fix URL Path Issue (`/` missing)**
-  - [ ] 3.1. **RED:** Create a failing test that demonstrates URL path issue
-  - [ ] 3.2. **GREEN:** Implement robust URL path handling
-    - [ ] 3.2.1. Add a utility function to `ApiConfig` that normalizes paths:
-    ```dart
-    /// Safely joins path components with proper slash handling
-    static String joinPath(String base, String path) {
-      if (base.endsWith('/')) {
-        base = base.substring(0, base.length - 1);
-      }
-      if (!path.startsWith('/')) {
-        path = '/$path';
-      }
-      return '$base$path';
-    }
-    ```
-    - [ ] 3.2.2. Use this in all endpoint methods, OR add leading slashes to all endpoint constants
-  - [ ] 3.3. **REFACTOR:** Update existing tests
+- [x] 3. **Phase 2: Fix URL Path Issue (`/` missing)**
+  - [x] 3.1. **RED:** Created test using Dio's RequestOptions to verify URL resolution behavior with different slash combinations
+  - [x] 3.2. **GREEN:** Implemented robust URL path handling
+    - [x] 3.2.1. Added a `joinPaths` utility function to `ApiConfig` that handles slash normalization
+    - [x] 3.2.2. Modified `baseUrlFromDomain` to include a trailing slash, helping Dio properly resolve paths
+    - [x] 3.2.3. Updated all `fullEndpoint` methods to use `joinPaths` instead of string concatenation
+  - [x] 3.3. **REFACTOR:** Updated tests to reflect the trailing slash in base URLs and added tests for the new utility function
+  
+  ### Findings from Phase 2:
+  - The root cause was that when Dio uses a path without a leading slash against a baseUrl without a trailing slash, the path gets appended directly, causing malformed URLs
+  - The integration test confirmed that with the trailing slash in the base URL, Dio correctly forms the full URL even when endpoint constants don't have leading slashes
+  - The new `joinPaths` utility function makes URL path joining robust regardless of trailing/leading slash presence in the components
 
 - [ ] 4. **Phase 3: Break Circular Dependency**
   - [ ] 4.1. **RED:** Create test showing circular dependency issue

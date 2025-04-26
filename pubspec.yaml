@@ -67,7 +67,7 @@ dependencies:
   injectable:
 
   # Internationalization
-  intl: # Added for date formatting
+  intl: ^0.20.2 # Added for date formatting
   jwt_decoder: ^2.0.1
 
 dev_dependencies:
