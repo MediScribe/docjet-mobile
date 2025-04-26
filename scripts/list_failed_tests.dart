@@ -85,8 +85,7 @@ ArgParser _buildArgParser() {
       _debugFlag,
       abbr: 'd',
       negatable: false,
-      help:
-          'Show console output captured *during* the execution of failed tests only.',
+      help: 'Show both console output and exception details for failed tests.',
     )
     ..addFlag(
       _exceptFlag,
@@ -383,7 +382,7 @@ class ResultFormatter {
       // Only show debug tip if tests failed
       print('');
       print(
-        '\x1B[33mTip: Run with --debug to see console output from the failing tests.\x1B[0m',
+        '\x1B[33mTip: Run with --debug to see both console output and exception details from the failing tests.\x1B[0m',
       );
     }
     if (!exceptMode && failedCount > 0) {
@@ -453,13 +452,20 @@ class ResultFormatter {
 
         print('  • \x1B[31mTest: $displayName\x1B[0m');
 
-        // Conditionally print details based on mode
-        if (exceptMode) {
+        // --- MODIFIED LOGIC ---
+        // Always print exception details if available, unless in default mode
+        if (debugMode || exceptMode) {
           _printSingleExceptionDetail(failure);
-        } else if (debugMode) {
+        }
+        // Additionally, print console output if debugMode is true
+        if (debugMode) {
+          // Add a small separator if both are printed
+          if (failure.error != null || failure.stackTrace != null) {
+            print('    --- '); // Separator
+          }
           _printDebugConsoleOutput(failure.id, allEvents);
         }
-        // Default mode: print nothing extra
+        // Default mode (neither debugMode nor exceptMode) prints nothing extra
       }
     }
 
