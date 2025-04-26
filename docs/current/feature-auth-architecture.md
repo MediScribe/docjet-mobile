@@ -308,6 +308,80 @@ To avoid circular dependencies between `AuthenticationApiClient` and `AuthInterc
    Both `basicDio` and `authenticatedDio` instances include the API key interceptor to ensure
    all API requests have the correct authorization. The `AuthenticationApiClient` does not add the API key itself.
 
+### Split Client Pattern for API Clients
+
+The authentication system implements the "Split Client" pattern to clearly separate authenticated and non-authenticated API concerns:
+
+1. **Separate Client Classes by Authentication Context:**
+   - `AuthenticationApiClient` - Handles pre-authentication operations (login, token refresh) using `basicDio`
+   - `UserApiClient` - Handles authenticated user operations (profile) using `authenticatedDio`
+
+2. **Explicit Constructor Parameter Naming:**
+   ```dart
+   // Clear parameter naming makes Dio usage explicit
+   AuthenticationApiClient({required Dio basicHttpClient, /*...*/})
+   UserApiClient({required Dio authenticatedHttpClient, /*...*/})
+   ```
+
+3. **Proper Dio Instance Usage:**
+   - `basicDio` - No auth interceptors, only API key, for public endpoints
+   - `authenticatedDio` - Full interceptor chain including auth, for protected endpoints
+
+4. **Registration in AuthModule:**
+   ```dart
+   // Register clients with the correct Dio instance
+   getIt.registerFactory<AuthenticationApiClient>(() => AuthenticationApiClient(
+     basicHttpClient: sl<Dio>('basicDio'),
+     // ...
+   ));
+   
+   getIt.registerFactory<UserApiClient>(() => UserApiClient(
+     authenticatedHttpClient: sl<Dio>('authenticatedDio'),
+     // ...
+   ));
+   ```
+
+### Guidelines for New API Clients
+
+When adding new API clients to the app, follow these patterns:
+
+1. **Determine Authentication Needs:**
+   - Does this endpoint require authentication? → Use `authenticatedDio`
+   - Is this a public endpoint or auth operation? → Use `basicDio`
+
+2. **API Client Responsibilities:**
+   - Each API client should have a clear, focused responsibility
+   - Limit each client to similar endpoints with the same authentication requirements
+   - Use descriptive naming that reflects the domain area (e.g., `DocumentApiClient`, `JobApiClient`)
+
+3. **API Client Implementation:**
+   ```dart
+   /// Example of an authenticated API client
+   class DocumentApiClient {
+     final Dio authenticatedHttpClient; // For authenticated endpoints
+     final AuthCredentialsProvider credentialsProvider;
+   
+     DocumentApiClient({
+       required this.authenticatedHttpClient,
+       required this.credentialsProvider,
+     });
+   
+     // Methods that use authenticatedHttpClient...
+   }
+   ```
+
+4. **Error Handling:**
+   - Handle authentication errors consistently
+   - Provide clear error messages that distinguish between different failure types
+   - Use safe type conversion with explicit error handling
+
+5. **Testing:**
+   - Test authenticated clients with authenticatedDio mocks
+   - Verify correct headers (both API key and JWT token)
+   - Test error cases like network failures, authentication failures, etc.
+
+Following these guidelines ensures consistent authentication behavior across the app and prevents issues like "Missing API key" when "401 Unauthorized" would be more appropriate.
+
 ## Troubleshooting Authentication Issues
 
 This section provides guidance for diagnosing and fixing common authentication issues in DocJet Mobile. Our enhanced error handling now provides much more context to help you quickly identify and resolve problems.
