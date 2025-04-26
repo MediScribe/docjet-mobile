@@ -66,9 +66,9 @@ class AuthTestServer {
 
       // Prepare valid auth response (matching what AuthResponseDto expects)
       final responseJson = {
-        'accessToken': 'test-access-token',
-        'refreshToken': 'test-refresh-token',
-        'userId': 'test-user-id',
+        'access_token': 'test-access-token',
+        'refresh_token': 'test-refresh-token',
+        'user_id': 'test-user-id',
       };
 
       // Return proper error responses for error test cases

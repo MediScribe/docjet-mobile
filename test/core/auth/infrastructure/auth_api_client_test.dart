@@ -34,9 +34,9 @@ void main() {
 
   // Sample successful auth response
   final successAuthResponse = {
-    'accessToken': testAccessToken,
-    'refreshToken': testRefreshToken,
-    'userId': testUserId,
+    'access_token': testAccessToken,
+    'refresh_token': testRefreshToken,
+    'user_id': testUserId,
   };
 
   // Sample successful user profile response (placeholder)
@@ -179,7 +179,7 @@ void main() {
       dioAdapter.onPost(
         ApiConfig.refreshEndpoint,
         (server) => server.reply(200, successAuthResponse),
-        data: {'refreshToken': testRefreshToken},
+        data: {'refresh_token': testRefreshToken},
         headers: {'x-api-key': testApiKey},
       );
 
@@ -198,7 +198,7 @@ void main() {
         dioAdapter.onPost(
           ApiConfig.refreshEndpoint,
           (server) => server.reply(401, {'message': 'Invalid refresh token'}),
-          data: {'refreshToken': testRefreshToken},
+          data: {'refresh_token': testRefreshToken},
           headers: {'x-api-key': testApiKey},
         );
 
@@ -227,7 +227,7 @@ void main() {
             type: DioExceptionType.connectionTimeout,
           ),
         ),
-        data: {'refreshToken': testRefreshToken},
+        data: {'refresh_token': testRefreshToken},
         headers: {'x-api-key': testApiKey},
       );
 
@@ -249,7 +249,7 @@ void main() {
       dioAdapter.onPost(
         ApiConfig.refreshEndpoint,
         (server) => server.reply(500, {'message': 'Internal server error'}),
-        data: {'refreshToken': testRefreshToken},
+        data: {'refresh_token': testRefreshToken},
         headers: {'x-api-key': testApiKey},
       );
 

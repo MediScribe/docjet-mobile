@@ -22,18 +22,18 @@ class AuthResponseDto {
   /// Creates an [AuthResponseDto] from a JSON map
   factory AuthResponseDto.fromJson(Map<String, dynamic> json) {
     return AuthResponseDto(
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
-      userId: json['userId'] as String,
+      accessToken: json['access_token'] as String,
+      refreshToken: json['refresh_token'] as String,
+      userId: json['user_id'] as String,
     );
   }
 
   /// Converts this DTO to a JSON map
   Map<String, dynamic> toJson() {
     return {
-      'accessToken': accessToken,
-      'refreshToken': refreshToken,
-      'userId': userId,
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'user_id': userId,
     };
   }
 }

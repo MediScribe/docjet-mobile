@@ -1,4 +1,4 @@
-# API Client DI Refactoring Plan
+# TDD Approach: API Client DI Refactoring Plan
 
 ## Issue
 
@@ -21,128 +21,150 @@ Refactor the API client architecture to properly separate authenticated and non-
 4. Test stability and correctness
 5. Minimal disturbance to the rest of the codebase
 
-## Findings
+## Approach: Test-Driven Split Client Architecture
 
-1. `AuthApiClient` currently handles mixed auth contexts:
-   - Login/refresh (no auth required) 
-   - User profile (JWT required)
-
-2. Registration in `AuthModule` links `AuthApiClient` with `basicDio` only:
-   ```dart
-   getIt.registerLazySingleton<AuthApiClient>(
-     () => AuthApiClient(
-       httpClient: getIt<Dio>(instanceName: 'basicDio'),
-       credentialsProvider: finalCredentialsProvider,
-     ),
-   );
-   ```
-
-3. The `AuthInterceptor` (which adds JWT) is only added to `authenticatedDio`, not `basicDio`
-
-4. There's a function-based DI approach for token refresh, where `AuthApiClient.refreshToken` is passed to `AuthInterceptor` to break circular dependencies
-
-## Approach: Split Client Architecture
-
-We'll implement the "Split Client" approach as it provides the cleanest separation of concerns:
-
+We'll implement the "Split Client" pattern using Test-Driven Development (TDD):
 - `AuthenticationApiClient` - Handles login/refresh with `basicDio`
 - `UserApiClient` - Handles user profile with `authenticatedDio`
-- Modified services to use the correct clients
 
-## Implementation Plan
+Each change will follow the RED-GREEN-REFACTOR cycle:
+1. Write/modify a failing test (RED)
+2. Make minimal changes to pass the test (GREEN)
+3. Refactor for clean code while keeping tests passing
 
-### 1. Create New API Clients
+## TDD Implementation Cycles
 
-- [ ] **1.1.** Create `lib/core/auth/infrastructure/authentication_api_client.dart`
-   - [ ] 1.1.1. Migrate login and refresh token methods from `AuthApiClient`
-   - [ ] 1.1.2. Inject `basicDio` and `credentialsProvider`
-   - [ ] 1.1.3. Adapt error handling for authentication-specific cases
+### Cycle 1: Verify Failing State and Create Test for AuthenticationApiClient
 
-- [ ] **1.2.** Create `lib/core/user/infrastructure/user_api_client.dart`
-   - [ ] 1.2.1. Create directory structure if needed
-   - [ ] 1.2.2. Migrate `getUserProfile` method from `AuthApiClient`
-   - [ ] 1.2.3. Inject `authenticatedDio` and any other dependencies
-   - [ ] 1.2.4. Adapt error handling for user-specific cases
+#### 1.1 RED: Verify Current Tests Fail
+- [ ] Run `./scripts/list_failed_tests.dart test/core/auth/infrastructure/auth_module_test.dart --debug`
+- [ ] Confirm the exact failure mode in "getUserProfile needs JWT token" test
+- [ ] Document the failure for comparison after changes
 
-### 2. Update DI Registration
+#### 1.2 RED: Create AuthenticationApiClient Test
+- [ ] Create `test/core/auth/infrastructure/authentication_api_client_test.dart`
+- [ ] Write tests for login and refreshToken that expect BasicDio
+- [ ] Run the tests to confirm they fail (RED)
 
-- [ ] **2.1.** Modify `AuthModule` in `lib/core/auth/infrastructure/auth_module.dart`
-   - [ ] 2.1.1. Register `AuthenticationApiClient` with `basicDio`
-   - [ ] 2.1.2. Register `UserApiClient` with `authenticatedDio`
-   - [ ] 2.1.3. Handle circular dependency for token refresh function
-   - [ ] 2.1.4. Update ordering of registrations to maintain dependency flow
+#### 1.3 GREEN: Create AuthenticationApiClient
+- [ ] Create `lib/core/auth/infrastructure/authentication_api_client.dart`
+- [ ] Implement login and refreshToken methods copied from AuthApiClient
+- [ ] Make minimal changes to pass the tests
+- [ ] Run tests to verify they pass (GREEN)
 
-- [ ] **2.2.** Create `UserModule` if doesn't exist
-   - [ ] 2.2.1. Create module structure if needed
-   - [ ] 2.2.2. Add necessary registrations for user-related services
+#### 1.4 REFACTOR: Clean Up New Client
+- [ ] Add proper documentation
+- [ ] Improve error handling if needed
+- [ ] Ensure tests still pass after refactoring
 
-### 3. Update Service Layer
+### Cycle 2: Create UserApiClient
 
-- [ ] **3.1.** Modify `AuthService` interface in `lib/core/auth/auth_service.dart` if needed
-   - [ ] 3.1.1. Review method signatures for any changes
-   - [ ] 3.1.2. Add new methods or modify existing ones as needed
+#### 2.1 RED: Create UserApiClient Test
+- [ ] Create `test/core/user/infrastructure/user_api_client_test.dart`
+- [ ] Write test for getUserProfile that explicitly expects AuthenticatedDio
+- [ ] Run the test to confirm it fails (RED)
 
-- [ ] **3.2.** Update `AuthServiceImpl` in `lib/core/auth/infrastructure/auth_service_impl.dart`
-   - [ ] 3.2.1. Inject both API clients
-   - [ ] 3.2.2. Route method calls to appropriate clients
-   - [ ] 3.2.3. Update method implementations
-   - [ ] 3.2.4. Maintain error handling and event emission
+#### 2.2 GREEN: Create UserApiClient
+- [ ] Create necessary directories and `lib/core/user/infrastructure/user_api_client.dart`
+- [ ] Implement getUserProfile method migrated from AuthApiClient
+- [ ] Make the implementation pass the test
+- [ ] Run test to verify it passes (GREEN)
 
-### 4. Update Tests
+#### 2.3 REFACTOR: Clean Up User Client
+- [ ] Add proper documentation
+- [ ] Enhance error handling
+- [ ] Verify tests still pass
 
-- [ ] **4.1.** Fix `auth_module_test.dart`
-   - [ ] 4.1.1. Update test expectations for new DI structure
-   - [ ] 4.1.2. Fix the failing test for "getUserProfile needs AuthInterceptor"
-   - [ ] 4.1.3. Fix the failing test for "Fixed AuthApiClient"
+### Cycle 3: Update AuthModule Registration Test
 
-- [ ] **4.2.** Create new test files
-   - [ ] 4.2.1. Create `test/core/auth/infrastructure/authentication_api_client_test.dart`
-   - [ ] 4.2.2. Create `test/core/user/infrastructure/user_api_client_test.dart`
-   - [ ] 4.2.3. Migrate and adapt tests from `auth_api_client_test.dart`
+#### 3.1 RED: Modify AuthModule Test
+- [ ] Update `auth_module_test.dart` to verify both clients are registered correctly
+- [ ] Create test case that verifies AuthenticationApiClient gets basicDio
+- [ ] Create test case that verifies UserApiClient gets authenticatedDio
+- [ ] Run tests to confirm they fail (RED)
 
-- [ ] **4.3.** Update mocks and test utilities
-   - [ ] 4.3.1. Create new mock classes for the new clients
-   - [ ] 4.3.2. Update existing tests that mock `AuthApiClient`
+#### 3.2 GREEN: Update AuthModule Registration
+- [ ] Modify `auth_module.dart` to register both clients properly
+- [ ] Ensure circular dependencies are broken properly with function-based DI
+- [ ] Run tests to verify they pass (GREEN)
 
-### 5. Update AuthInterceptor
+#### 3.3 REFACTOR: Clean Up Module
+- [ ] Improve registration order and documentation
+- [ ] Remove any redundant code
+- [ ] Ensure tests still pass
 
-- [ ] **5.1.** Review and update `AuthInterceptor` in `lib/core/auth/infrastructure/auth_interceptor.dart`
-   - [ ] 5.1.1. Update token refresh function reference to point to new `AuthenticationApiClient`
-   - [ ] 5.1.2. Ensure no circular dependencies are introduced
+### Cycle 4: Update AuthService Interface and Implementation
 
-### 6. Cleanup and Documentation
+#### 4.1 RED: Update AuthService Tests
+- [ ] Modify AuthService tests to reflect the updated dependency structure
+- [ ] Set expectations for both clients being used for their respective methods
+- [ ] Run tests to confirm they fail (RED)
 
-- [ ] **6.1.** Mark old `AuthApiClient` as deprecated
-   - [ ] 6.1.1. Add `@deprecated` annotation
-   - [ ] 6.1.2. Add migration documentation
-   - [ ] 6.1.3. Plan for eventual removal
+#### 4.2 GREEN: Update AuthServiceImpl
+- [ ] Modify AuthServiceImpl to inject both new clients
+- [ ] Update method implementations to call the correct client
+- [ ] Run tests to verify they pass (GREEN)
 
-- [ ] **6.2.** Update documentation
-   - [ ] 6.2.1. Update class documentation with authentication context
-   - [ ] 6.2.2. Document DI changes in `AuthModule`
-   - [ ] 6.2.3. Update ADRs if applicable
+#### 4.3 REFACTOR: Clean Up Service Implementation
+- [ ] Improve error handling
+- [ ] Add documentation
+- [ ] Verify tests still pass
 
-### 7. Verification
+### Cycle 5: Handle Smooth Transition (Legacy Support)
 
-- [ ] **7.1.** Run all tests
-   - [ ] 7.1.1. Run `./scripts/list_failed_tests.dart`
-   - [ ] 7.1.2. Fix any newly introduced failures
+#### 5.1 RED: Create Legacy Compatibility Tests
+- [ ] Create tests that verify the old AuthApiClient still works if used
+- [ ] Test that it forwards calls to the correct new client
+- [ ] Run tests to confirm they fail (RED)
 
-- [ ] **7.2.** Verify application functionality
-   - [ ] 7.2.1. Test login flow manually
-   - [ ] 7.2.2. Test profile retrieval manually
-   - [ ] 7.2.3. Verify error handling for invalid credentials
+#### 5.2 GREEN: Implement Legacy Compatibility
+- [ ] Mark AuthApiClient as @deprecated with migration notes
+- [ ] Modify it to delegate to the appropriate new client
+- [ ] Run tests to verify they pass (GREEN)
 
-## Risks and Mitigations
+#### 5.3 REFACTOR: Plan for Eventual Removal
+- [ ] Add logging to track usage of deprecated methods
+- [ ] Document timeline for removal
+- [ ] Ensure all tests still pass
 
-1. **Risk:** Breaking changes to service interfaces
-   **Mitigation:** Maintain backward compatibility or update all call sites
+### Cycle 6: Fix Original Failing Test
 
-2. **Risk:** Circular dependencies in DI
-   **Mitigation:** Use function-based DI as currently done with token refresh
+#### 6.1 RED: Review Original Test Failure
+- [ ] Re-examine the original "getUserProfile needs JWT token" test
+- [ ] Confirm it's still failing with the current implementation
 
-3. **Risk:** Regression in error handling
-   **Mitigation:** Comprehensive testing of error cases 
+#### 6.2 GREEN: Complete Integration
+- [ ] Make any final adjustments to fix the failing test
+- [ ] Ensure AuthInterceptor now gets its refreshToken function from AuthenticationApiClient
+- [ ] Run tests to verify they pass (GREEN)
+
+#### 6.3 REFACTOR: Clean Up and Integrate
+- [ ] Improve error messages
+- [ ] Add clear logging
+- [ ] Run full test suite to ensure everything passes
+
+### Cycle 7: Verify No Regressions
+
+#### 7.1 RED: Create Additional Verification Tests
+- [ ] Create combined tests that verify complete auth flow (login → get profile)
+- [ ] Add tests for error handling between components
+- [ ] Run the tests to identify any issues (RED if issues exist)
+
+#### 7.2 GREEN: Fix Any Regressions
+- [ ] Fix any regressions or integration issues
+- [ ] Run tests to verify everything passes (GREEN)
+
+#### 7.3 REFACTOR: Final Documentation and Guidelines
+- [ ] Document the new pattern for future API clients
+- [ ] Create guidelines for which Dio to use when
+- [ ] Update architecture documentation
+
+## Post-Implementation Verification
+
+- [ ] Run all tests (`dart test` or `./scripts/list_failed_tests.dart`)
+- [ ] Manually test the app login and profile flow
+- [ ] Review logs to ensure proper authentication behavior
+- [ ] Verify no new warnings or errors are introduced
 
 ## Additional Insights
 

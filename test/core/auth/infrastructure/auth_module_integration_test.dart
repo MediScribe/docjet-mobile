@@ -6,15 +6,11 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
-import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
-import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
@@ -65,9 +61,9 @@ class TestServer {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
           jsonEncode({
-            'accessToken': 'test-access-token',
-            'refreshToken': 'test-refresh-token',
-            'userId': 'test-user-id',
+            'access_token': 'test-access-token',
+            'refresh_token': 'test-refresh-token',
+            'user_id': 'test-user-id',
           }),
         );
       }

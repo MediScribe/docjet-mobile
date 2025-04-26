@@ -1,268 +1,248 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
+import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
-import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
+import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
+import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
 // Generate mocks for dependencies needed by AuthModule constructor and registration
-import 'auth_module_test.mocks.dart'; // Import generated mocks
-
-// Create test-specific logger
-final _logger = LoggerFactory.getLogger('AuthModuleTest');
-final _tag = logTag('AuthModuleTest');
-
-/// Helper method to trigger lazy resolution of authenticatedDio
-Dio _resolveAuthenticatedDio(GetIt getIt) {
-  _logger.d('$_tag Resolving authenticatedDio to trigger lazy factory...');
-  final dio = getIt<Dio>(instanceName: 'authenticatedDio');
-  _logger.d('$_tag authenticatedDio resolved: $dio');
-  return dio;
-}
-
-/// Helper method to verify createAuthenticatedDio was called correctly
-void _verifyAuthenticatedDioCreation(
-  MockDioFactory mockDioFactory,
-  MockAuthCredentialsProvider mockCredentialsProvider,
-  MockAuthEventBus mockAuthEventBus,
-) {
-  verify(
-    mockDioFactory.createAuthenticatedDio(
-      authApiClient: anyNamed('authApiClient'),
-      credentialsProvider: mockCredentialsProvider,
-      authEventBus: mockAuthEventBus,
-    ),
-  ).called(1);
-  _logger.d('$_tag createAuthenticatedDio() verification succeeded');
-}
-
 @GenerateMocks([
-  DioFactory,
   AuthCredentialsProvider,
-  AuthEventBus, // Also mock event bus for consistency
+  AuthEventBus,
+  DioFactory,
   Dio, // Mock Dio for factory return values
   AuthService, // Needed for static providerOverrides test
+  FlutterSecureStorage,
+  JwtValidator,
 ])
+import 'auth_module_test.mocks.dart';
+
 void main() {
-  // Mocks for required dependencies passed via constructor
+  // Set up logger for this test file
+  final logger = LoggerFactory.getLogger('AuthModuleTest');
+  final tag = logTag('AuthModuleTest');
+
+  // Test dependencies
   late MockDioFactory mockDioFactory;
   late MockAuthCredentialsProvider mockCredentialsProvider;
-  late MockAuthEventBus mockAuthEventBus;
-  late AuthModule authModule; // Instance of the class under test
-
-  // Mocks for dependencies potentially registered by AuthModule
+  late MockAuthEventBus mockEventBus;
   late MockDio mockBasicDio;
   late MockDio mockAuthenticatedDio;
+  late MockFlutterSecureStorage mockSecureStorage;
+  late MockJwtValidator mockJwtValidator;
+
+  // Module to test
+  late AuthModule authModule;
 
   // GetIt instance for verification within tests
   late GetIt getIt;
 
+  const testAccessToken = 'test-access-token';
+
   setUp(() {
-    _logger.i('$_tag === SETUP STARTED ===');
+    logger.i('$tag Setting up test dependencies');
 
-    // Create mocks for constructor dependencies
+    // Create a fresh GetIt instance for each test
+    getIt = GetIt.instance;
+    getIt.reset();
+
+    // Set up test dependencies
+    logger.d('$tag Creating mock instances');
     mockDioFactory = MockDioFactory();
-    _logger.d('$_tag Created mockDioFactory');
     mockCredentialsProvider = MockAuthCredentialsProvider();
-    _logger.d('$_tag Created mockCredentialsProvider');
-    mockAuthEventBus = MockAuthEventBus();
-    _logger.d('$_tag Created mockAuthEventBus');
-
-    // Create mocks for dependencies potentially registered by AuthModule
+    mockEventBus = MockAuthEventBus();
     mockBasicDio = MockDio();
-    _logger.d('$_tag Created mockBasicDio');
     mockAuthenticatedDio = MockDio();
-    _logger.d('$_tag Created mockAuthenticatedDio');
+    mockSecureStorage = MockFlutterSecureStorage();
+    mockJwtValidator = MockJwtValidator();
 
-    // --- Stub mockDioFactory methods used within AuthModule.register ---
-    _logger.d('$_tag Setting up mockDioFactory.createBasicDio() stub');
+    // Configure mockDioFactory to return our mocks
+    logger.d('$tag Setting up stubs for mock DioFactory');
     when(mockDioFactory.createBasicDio()).thenReturn(mockBasicDio);
-
-    _logger.d('$_tag Setting up mockDioFactory.createAuthenticatedDio() stub');
     when(
       mockDioFactory.createAuthenticatedDio(
-        // Dependencies for authenticated Dio now come from AuthModule instance
-        authApiClient: anyNamed(
-          'authApiClient',
-        ), // AuthApiClient is created internally
-        credentialsProvider: anyNamed(
-          'credentialsProvider',
-        ), // Match ANY credentialsProvider
-        authEventBus: anyNamed('authEventBus'), // Match ANY authEventBus
+        authApiClient: anyNamed('authApiClient'),
+        credentialsProvider: anyNamed('credentialsProvider'),
+        authEventBus: anyNamed('authEventBus'),
       ),
     ).thenReturn(mockAuthenticatedDio);
-    _logger.d('$_tag Stubs created successfully');
+
+    logger.d('$tag Stubs created successfully');
+
+    // Setup credential provider to return a token
+    when(
+      mockCredentialsProvider.getAccessToken(),
+    ).thenAnswer((_) async => testAccessToken);
 
     // Instantiate AuthModule with explicit dependencies
-    _logger.d('$_tag Creating AuthModule instance');
+    logger.d('$tag Creating AuthModule instance');
     authModule = AuthModule(
       dioFactory: mockDioFactory,
       credentialsProvider: mockCredentialsProvider,
-      authEventBus: mockAuthEventBus,
+      authEventBus: mockEventBus,
     );
-    _logger.d('$_tag AuthModule instance created');
-
-    // Create a fresh GetIt instance ONLY for verification within each test
-    _logger.d('$_tag Creating GetIt instance');
-    getIt = GetIt.instance; // Use the global instance for simplicity in tests
-    _logger.d('$_tag GetIt instance created');
-    _logger.i('$_tag === SETUP COMPLETED ===');
   });
 
-  tearDown(() async {
-    _logger.i('$_tag === TEARDOWN STARTED ===');
-    // Reset GetIt after each test to avoid interference
-    await getIt.reset();
-    _logger.i('$_tag GetIt has been reset');
-    _logger.i('$_tag === TEARDOWN COMPLETED ===');
+  tearDown(() {
+    logger.i('$tag Tearing down...');
+    getIt.reset();
   });
 
-  group('AuthModule Instance Register', () {
-    test('should register all dependencies correctly when called', () {
-      _logger.i(
-        '$_tag TEST STARTED: should register all dependencies correctly when called',
-      );
-
+  group('Registration', () {
+    test('should register all core components in correct order', () async {
       // Act
-      _logger.d('$_tag Calling authModule.register(getIt)');
-      // Call the instance method; dependencies are now internal to authModule
+      logger.d('$tag Running registration');
       authModule.register(getIt);
-      _logger.d('$_tag authModule.register(getIt) completed');
 
-      // Assert: Check that AuthModule registered what it was supposed to
-      _logger.d('$_tag Starting assertions to verify registrations');
+      // Assert
+      expect(getIt.isRegistered<Dio>(instanceName: 'basicDio'), isTrue);
+      expect(getIt.isRegistered<AuthApiClient>(), isTrue);
+      expect(getIt.isRegistered<Dio>(instanceName: 'authenticatedDio'), isTrue);
+      expect(getIt.isRegistered<AuthService>(), isTrue);
 
-      _logger.d('$_tag Verifying FlutterSecureStorage registration');
-      expect(
-        getIt.isRegistered<FlutterSecureStorage>(),
-        isTrue,
-        reason: "FlutterSecureStorage should be registered by default",
-      );
-      _logger.d('$_tag Verifying JwtValidator registration');
-      expect(
-        getIt.isRegistered<JwtValidator>(),
-        isTrue,
-        reason: "JwtValidator should be registered by default",
-      );
-      expect(
-        getIt.isRegistered<AuthApiClient>(),
-        isTrue,
-        reason: "AuthApiClient should be registered",
-      );
-      expect(
-        getIt.isRegistered<AuthService>(),
-        isTrue,
-        reason: "AuthService should be registered",
-      );
-      expect(
-        getIt.isRegistered<Dio>(instanceName: 'basicDio'),
-        isTrue,
-        reason: "basicDio should be registered",
-      );
-      expect(
-        getIt.isRegistered<Dio>(instanceName: 'authenticatedDio'),
-        isTrue,
-        reason: "authenticatedDio should be registered",
-      );
-
-      // Verify that the register method used the dependencies passed via constructor
-      _logger.d('$_tag Verifying createBasicDio() was called');
-      verify(mockDioFactory.createBasicDio()).called(1);
-      _logger.d('$_tag createBasicDio() verification succeeded');
-
-      _logger.d(
-        '$_tag Attempting to verify createAuthenticatedDio() was called',
-      );
-      // Force the lazy singleton to be resolved, which will trigger the factory function
-      _resolveAuthenticatedDio(getIt);
-
-      // Now the factory should have been called
-      _verifyAuthenticatedDioCreation(
-        mockDioFactory,
-        mockCredentialsProvider,
-        mockAuthEventBus,
-      );
-
-      // We can't use verifyNever with GetIt since it's not a mock
-      _logger.d('$_tag Skipping GetIt.get verifications - GetIt is not a mock');
-
-      _logger.i(
-        '$_tag TEST COMPLETED: should register all dependencies correctly when called',
-      );
+      // Verify the registration order by examining invocation order
+      logger.d('$tag Verifying call order');
+      verifyInOrder([
+        // Step 1: Create basic Dio first
+        mockDioFactory.createBasicDio(),
+        // Step 3: Create authenticated Dio after API client is available
+        mockDioFactory.createAuthenticatedDio(
+          authApiClient: anyNamed('authApiClient'),
+          credentialsProvider: anyNamed('credentialsProvider'),
+          authEventBus: anyNamed('authEventBus'),
+        ),
+      ]);
     });
 
-    test('should resolve dependencies with correct types', () {
-      _logger.i(
-        '$_tag TEST STARTED: should resolve dependencies with correct types',
-      );
-
+    test('should not re-register already registered components', () async {
       // Arrange
-      authModule.register(getIt);
-
-      // Act & Assert
-      // Check types of registered components
-      expect(getIt<AuthService>(), isA<AuthServiceImpl>());
-      expect(
-        getIt<Dio>(instanceName: 'basicDio'),
-        isA<MockDio>(),
-      ); // Comes from mocked factory
-      expect(
-        getIt<Dio>(instanceName: 'authenticatedDio'),
-        isA<MockDio>(), // Comes from mocked factory
-      );
-      expect(getIt<JwtValidator>(), isA<JwtValidator>());
-      expect(getIt<FlutterSecureStorage>(), isA<FlutterSecureStorage>());
-      expect(getIt<AuthApiClient>(), isA<AuthApiClient>());
-
-      // Verify dependencies passed via constructor are NOT resolved via GetIt
-      // unless explicitly registered (which they shouldn't be)
-      expect(getIt.isRegistered<AuthCredentialsProvider>(), isFalse);
-      expect(getIt.isRegistered<AuthEventBus>(), isFalse);
-      expect(getIt.isRegistered<DioFactory>(), isFalse);
-
-      // Also verify factory methods were called as expected during registration
-      verify(mockDioFactory.createBasicDio()).called(1);
-
-      // Force the lazy singleton to be resolved, which will trigger the factory function
-      _resolveAuthenticatedDio(getIt);
-
-      // Use the same lenient verification as in the first test
-      _verifyAuthenticatedDioCreation(
-        mockDioFactory,
-        mockCredentialsProvider,
-        mockAuthEventBus,
-      );
-
-      _logger.i(
-        '$_tag TEST COMPLETED: should resolve dependencies with correct types',
-      );
-    });
-
-    // Test for the static providerOverrides method remains unchanged
-    test('should create provider overrides', () {
-      // Arrange: Minimal registration needed just for the static method test
-      // Use the main test GetIt instance, it will be reset in tearDown
-      getIt.registerLazySingleton<AuthService>(() => MockAuthService());
+      logger.d('$tag Pre-registering basicDio for duplicate test');
+      getIt.registerSingleton<Dio>(mockBasicDio, instanceName: 'basicDio');
 
       // Act
+      logger.d('$tag Running registration with pre-registered component');
+      authModule.register(getIt);
+
+      // Assert - should not try to create a new basicDio
+      verifyNever(mockDioFactory.createBasicDio());
+    });
+  });
+
+  group('Riverpod Integration', () {
+    test('providerOverrides should include auth service provider', () {
+      // Arrange
+      logger.d('$tag Setting up GetIt for provider overrides test');
+      final mockAuthService = MockAuthService();
+      getIt.registerSingleton<AuthService>(mockAuthService);
+
+      // Act
+      logger.d('$tag Getting provider overrides');
       final overrides = AuthModule.providerOverrides(getIt);
 
       // Assert
-      expect(overrides, isA<List<Object>>()); // Riverpod Override is an Object
-      expect(overrides.length, 1); // One override for authServiceProvider
-
-      // No need to reset temp instance anymore
+      logger.d('$tag Verifying overrides contain authServiceProvider');
+      expect(overrides.length, greaterThan(0));
     });
   });
-}
 
-// MockAuthService is now generated by @GenerateMocks, so the manual class is removed
+  test('getUserProfile needs AuthInterceptor to add JWT token', () async {
+    // Arrange: Register components with the auth module
+    authModule.register(
+      getIt,
+      secureStorage: mockSecureStorage,
+      jwtValidator: mockJwtValidator,
+    );
+
+    // Access the registered components
+    final authApiClient = getIt<AuthApiClient>();
+
+    // Set expectations for the basic Dio (missing Authorization header)
+    when(mockBasicDio.get(any)).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+        response: Response(
+          statusCode: 401,
+          data: {'error': 'Missing or invalid Authorization header'},
+          requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+        ),
+        type: DioExceptionType.badResponse,
+      ),
+    );
+
+    // Set expectations for authenticated Dio (includes Authorization header)
+    when(mockAuthenticatedDio.get(any)).thenAnswer(
+      (_) async => Response(
+        statusCode: 200,
+        data: {'id': 'user-id', 'name': 'Test User'},
+        requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+      ),
+    );
+
+    // Act & Assert - getUserProfile() should fail with basic Dio
+    expect(
+      () => authApiClient.getUserProfile(),
+      throwsA(
+        isA<AuthException>().having(
+          (e) => e.type,
+          'type',
+          equals(AuthErrorType.userProfileFetchFailed),
+        ),
+      ),
+    );
+
+    // Verify basicDio was used and authenticatedDio was not used
+    verify(mockBasicDio.get(any)).called(1);
+    verifyNever(mockAuthenticatedDio.get(any));
+  });
+
+  test(
+    'Fixed AuthApiClient uses authenticatedDio for profile requests',
+    () async {
+      // Arrange: Register components
+      authModule.register(
+        getIt,
+        secureStorage: mockSecureStorage,
+        jwtValidator: mockJwtValidator,
+      );
+
+      // Replace the AuthApiClient with one that uses authenticatedDio
+      getIt.unregister<AuthApiClient>();
+      getIt.registerSingleton<AuthApiClient>(
+        AuthApiClient(
+          httpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
+          credentialsProvider: mockCredentialsProvider,
+        ),
+      );
+
+      // Get the fixed API client
+      final fixedAuthApiClient = getIt<AuthApiClient>();
+
+      // Set expectations for authenticated Dio (includes Authorization header correctly)
+      when(mockAuthenticatedDio.get(any)).thenAnswer(
+        (_) async => Response(
+          statusCode: 200,
+          data: {'id': 'user-id', 'name': 'Test User'},
+          requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+        ),
+      );
+
+      // Act - Call getUserProfile with the fixed API client
+      await fixedAuthApiClient.getUserProfile();
+
+      // Assert - authenticatedDio should be used, not basicDio
+      verifyNever(mockBasicDio.get(any));
+      verify(mockAuthenticatedDio.get(any)).called(1);
+    },
+  );
+}

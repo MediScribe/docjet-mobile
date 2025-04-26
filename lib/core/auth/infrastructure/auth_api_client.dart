@@ -52,7 +52,7 @@ class AuthApiClient {
     try {
       final response = await httpClient.post(
         ApiConfig.refreshEndpoint,
-        data: {'refreshToken': refreshToken},
+        data: {'refresh_token': refreshToken},
       );
 
       return AuthResponseDto.fromJson(response.data);

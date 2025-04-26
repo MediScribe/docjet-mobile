@@ -334,6 +334,20 @@ Example error message:
 API key is missing for endpoint auth/login - check your app configuration
 ```
 
+### API Response Format
+
+**IMPORTANT:** The authentication API endpoints return responses with snake_case keys:
+
+```json
+{
+  "access_token": "jwt-token-value",
+  "refresh_token": "refresh-token-value",
+  "user_id": "user-identifier"
+}
+```
+
+The `AuthResponseDto` class in the codebase handles this format properly. Always use snake_case keys (`access_token`, `refresh_token`, `user_id`) when working with auth API requests and responses.
+
 ### Troubleshooting Steps
 
 #### Missing API Key Issues

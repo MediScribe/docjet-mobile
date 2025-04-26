@@ -70,18 +70,18 @@ dependencies:
   intl: ^0.20.2 # Added for date formatting
   jwt_decoder: ^2.0.1
   stack_trace: ^1.12.1
+  mockito: ^5.4.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
-  test: # Add the test package for integration_test
+  test: ^1.25.15 # Add the test package for integration_test
 
   # Dev Dependencies from old project
   bloc_test: # Testing for bloc/cubit state management
-  mockito: # Using latest stable
-  build_runner: # Using latest stable
+  build_runner: ^2.4.15 # Using latest stable
   hive_generator:
   json_serializable: # Reverted due to source_gen conflict with hive_generator
   http_mock_adapter: # Corrected package name for mocking dio requests
