@@ -146,9 +146,9 @@ Fixing the DI and URL issues introduced a circular dependency (`AuthApiClient` <
     - Created a centralized `fromStatusCode` factory method that provides consistent error type assignment
     - Comprehensive test suite with 23+ tests for AuthException functionality
 
-- [ ] 6. **Phase 5: Final Integration Test**
-  - [ ] 6.1. Create a new integration test that verifies all issues are fixed
-  - [ ] 6.2. Only run `./scripts/run_with_mock.sh` as final confirmation
+- [x] 6. **Phase 5: Final Integration Test**
+  - [x] 6.1. Create a new integration test that verifies all issues are fixed. Look for existing ones, so that we don't create random new files.
+  - [x] 6.2. Only run `./scripts/run_with_mock.sh` as final confirmation
 
 - [ ] 7. **Documentation**
   - [ ] 7.1. Update `docs/current/feature-auth-architecture.md` to reflect new design
