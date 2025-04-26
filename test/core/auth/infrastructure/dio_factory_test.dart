@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +12,7 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
 
 @GenerateMocks([
-  AuthApiClient,
+  AuthenticationApiClient,
   AuthCredentialsProvider,
   AuthEventBus,
   AppConfigInterface,
@@ -20,13 +20,13 @@ import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
 import 'dio_factory_test.mocks.dart';
 
 void main() {
-  late MockAuthApiClient mockApiClient;
+  late MockAuthenticationApiClient mockApiClient;
   late MockAuthCredentialsProvider mockCredProvider;
   late MockAuthEventBus mockAuthEventBus;
   late MockAppConfigInterface mockAppConfig;
 
   setUp(() {
-    mockApiClient = MockAuthApiClient();
+    mockApiClient = MockAuthenticationApiClient();
     mockCredProvider = MockAuthCredentialsProvider();
     mockAuthEventBus = MockAuthEventBus();
     mockAppConfig = MockAppConfigInterface();

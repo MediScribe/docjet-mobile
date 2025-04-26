@@ -221,7 +221,8 @@ class AuthModule {
       _logger.d('$_tag Registering AuthServiceImpl');
       getIt.registerLazySingleton<AuthService>(
         () => AuthServiceImpl(
-          apiClient: getIt<AuthApiClient>(), // Depends on registered/existing
+          authenticationApiClient: getIt<AuthenticationApiClient>(),
+          userApiClient: getIt<UserApiClient>(),
           credentialsProvider:
               finalCredentialsProvider, // Use instance field via variable
           eventBus: finalAuthEventBus, // Use instance field via variable

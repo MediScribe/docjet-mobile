@@ -4,15 +4,19 @@ import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
+import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 
 /// Implementation of the AuthService interface
 ///
 /// Orchestrates authentication flows by coordinating between
-/// the AuthApiClient and AuthCredentialsProvider.
+/// the AuthenticationApiClient, UserApiClient and AuthCredentialsProvider.
 class AuthServiceImpl implements AuthService {
-  /// Client for making authentication API requests
-  final AuthApiClient apiClient;
+  /// Client for making authentication API requests (login, refresh)
+  final AuthenticationApiClient authenticationApiClient;
+
+  /// Client for making user-related API requests (profile)
+  final UserApiClient userApiClient;
 
   /// Provider for storing and retrieving authentication credentials
   final AuthCredentialsProvider credentialsProvider;
@@ -22,7 +26,8 @@ class AuthServiceImpl implements AuthService {
 
   /// Creates an [AuthServiceImpl] with the required dependencies
   AuthServiceImpl({
-    required this.apiClient,
+    required this.authenticationApiClient,
+    required this.userApiClient,
     required this.credentialsProvider,
     required this.eventBus,
   });
@@ -30,7 +35,7 @@ class AuthServiceImpl implements AuthService {
   @override
   Future<User> login(String email, String password) async {
     try {
-      final authResponse = await apiClient.login(email, password);
+      final authResponse = await authenticationApiClient.login(email, password);
 
       // Store tokens securely
       await credentialsProvider.setAccessToken(authResponse.accessToken);
@@ -39,10 +44,6 @@ class AuthServiceImpl implements AuthService {
 
       // Fire loggedIn event
       eventBus.add(AuthEvent.loggedIn);
-
-      // TODO: Implement actual UserProfile fetching during login
-      // In the future, we might want to call getUserProfile here
-      // and return the full User entity, or handle profile loading separately.
 
       // Return a domain entity
       return User(id: authResponse.userId);
@@ -67,8 +68,10 @@ class AuthServiceImpl implements AuthService {
     }
 
     try {
-      // Attempt to refresh the session
-      final authResponse = await apiClient.refreshToken(refreshToken);
+      // Attempt to refresh the session using the authentication client
+      final authResponse = await authenticationApiClient.refreshToken(
+        refreshToken,
+      );
 
       // Store the new tokens
       await credentialsProvider.setAccessToken(authResponse.accessToken);
@@ -145,18 +148,11 @@ class AuthServiceImpl implements AuthService {
         );
       }
 
-      // TODO: Implement actual DTO and mapping
-      // final UserProfileDto profileDto = await apiClient.getUserProfile();
-      // For now, assume apiClient.getUserProfile returns void
-      await apiClient.getUserProfile(); // Call API, ignore void return for now
+      // Get user profile from the user-specific client
+      final profileDto = await userApiClient.getUserProfile();
 
-      // Basic mapping using only the ID we already confirmed
-      return User(
-        id: userId,
-        // name: profileData['name'] as String?, // Cannot use profileData yet
-        // email: profileData['email'] as String?, // Cannot use profileData yet
-        // Add other fields as needed based on User entity and API response
-      );
+      // Map DTO to domain entity
+      return User(id: profileDto.id);
     } on AuthException {
       // Propagate AuthExceptions (unauthenticated, userProfileFetchFailed, offline, etc.)
       rethrow;

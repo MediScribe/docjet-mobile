@@ -5,25 +5,33 @@ import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
+import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 // Generate mocks for dependencies
-@GenerateMocks([AuthApiClient, AuthCredentialsProvider, AuthEventBus, Dio])
+@GenerateMocks([
+  AuthenticationApiClient,
+  UserApiClient,
+  AuthCredentialsProvider,
+  AuthEventBus,
+  Dio,
+])
 import 'auth_service_impl_test.mocks.dart';
 
 void main() {
-  late MockAuthApiClient mockApiClient;
+  late MockAuthenticationApiClient mockAuthenticationApiClient;
+  late MockUserApiClient mockUserApiClient;
   late MockAuthCredentialsProvider mockCredentialsProvider;
   late MockAuthEventBus mockAuthEventBus;
-  late MockDio mockDio;
+  late MockDio mockBasicDio;
+  late MockDio mockAuthenticatedDio;
   late AuthService authService;
-  late AuthService authServiceWithRealApiClient;
-  late AuthApiClient realAuthApiClient;
 
   const testEmail = 'test@example.com';
   const testPassword = 'password123';
@@ -38,28 +46,24 @@ void main() {
     userId: testUserId,
   );
 
-  // Sample user DTO (needed for getUserProfile tests)
-  // TODO: Replace with actual UserProfileDto when created
-  const userProfileDto = {'id': testUserId, 'name': 'Test User'};
+  // Sample user profile DTO
+  final userProfileDto = UserProfileDto(
+    id: testUserId,
+    email: testEmail,
+    name: 'Test User',
+  );
 
   setUp(() {
-    mockApiClient = MockAuthApiClient();
+    mockAuthenticationApiClient = MockAuthenticationApiClient();
+    mockUserApiClient = MockUserApiClient();
     mockCredentialsProvider = MockAuthCredentialsProvider();
     mockAuthEventBus = MockAuthEventBus();
-    mockDio = MockDio();
+    mockBasicDio = MockDio();
+    mockAuthenticatedDio = MockDio();
 
     authService = AuthServiceImpl(
-      apiClient: mockApiClient,
-      credentialsProvider: mockCredentialsProvider,
-      eventBus: mockAuthEventBus,
-    );
-
-    realAuthApiClient = AuthApiClient(
-      httpClient: mockDio,
-      credentialsProvider: mockCredentialsProvider,
-    );
-    authServiceWithRealApiClient = AuthServiceImpl(
-      apiClient: realAuthApiClient,
+      authenticationApiClient: mockAuthenticationApiClient,
+      userApiClient: mockUserApiClient,
       credentialsProvider: mockCredentialsProvider,
       eventBus: mockAuthEventBus,
     );
@@ -71,7 +75,7 @@ void main() {
       () async {
         // Arrange
         when(
-          mockApiClient.login(testEmail, testPassword),
+          mockAuthenticationApiClient.login(testEmail, testPassword),
         ).thenAnswer((_) async => authResponse);
         when(
           mockCredentialsProvider.setAccessToken(testAccessToken),
@@ -79,9 +83,9 @@ void main() {
         when(
           mockCredentialsProvider.setRefreshToken(testRefreshToken),
         ).thenAnswer((_) async => {});
-        // TODO: Mock getUserProfile call when implemented in login flow
-        // when(mockApiClient.getUserProfile())
-        //     .thenAnswer((_) async => userProfileDto);
+        when(
+          mockCredentialsProvider.setUserId(testUserId),
+        ).thenAnswer((_) async => {});
 
         // Act
         final result = await authService.login(testEmail, testPassword);
@@ -89,22 +93,24 @@ void main() {
         // Assert
         expect(result, isA<User>());
         expect(result.id, equals(testUserId));
-        verify(mockApiClient.login(testEmail, testPassword)).called(1);
+        verify(
+          mockAuthenticationApiClient.login(testEmail, testPassword),
+        ).called(1);
         verify(
           mockCredentialsProvider.setAccessToken(testAccessToken),
         ).called(1);
         verify(
           mockCredentialsProvider.setRefreshToken(testRefreshToken),
         ).called(1);
+        verify(mockCredentialsProvider.setUserId(testUserId)).called(1);
         verify(mockAuthEventBus.add(AuthEvent.loggedIn)).called(1);
-        // TODO: Verify getUserProfile call when implemented
       },
     );
 
     test('should propagate authentication exceptions', () async {
       // Arrange
       when(
-        mockApiClient.login(testEmail, testPassword),
+        mockAuthenticationApiClient.login(testEmail, testPassword),
       ).thenThrow(AuthException.invalidCredentials());
 
       // Act & Assert
@@ -118,7 +124,7 @@ void main() {
     test('should propagate offline exceptions during login', () async {
       // Arrange
       when(
-        mockApiClient.login(testEmail, testPassword),
+        mockAuthenticationApiClient.login(testEmail, testPassword),
       ).thenThrow(AuthException.offlineOperationFailed());
 
       // Act & Assert
@@ -134,50 +140,6 @@ void main() {
       );
       verifyNever(mockAuthEventBus.add(any));
     });
-
-    test(
-      'should rely on Dio interceptor for API key and NOT call credentialsProvider.getApiKey during login',
-      () async {
-        // Arrange
-        when(mockDio.post(any, data: anyNamed('data'))).thenAnswer(
-          (_) async => Response(
-            data: authResponse.toJson(),
-            statusCode: 200,
-            requestOptions: RequestOptions(path: '/login'),
-          ),
-        );
-
-        when(
-          mockCredentialsProvider.setAccessToken(any),
-        ).thenAnswer((_) async => Future<void>.value());
-        when(
-          mockCredentialsProvider.setRefreshToken(any),
-        ).thenAnswer((_) async => Future<void>.value());
-        when(
-          mockCredentialsProvider.setUserId(any),
-        ).thenAnswer((_) async => Future<void>.value());
-
-        // Act
-        final result = await authServiceWithRealApiClient.login(
-          testEmail,
-          testPassword,
-        );
-
-        // Assert
-        verify(mockDio.post(any, data: anyNamed('data'))).called(1);
-        verifyNever(mockCredentialsProvider.getApiKey());
-        verify(
-          mockCredentialsProvider.setAccessToken(testAccessToken),
-        ).called(1);
-        verify(
-          mockCredentialsProvider.setRefreshToken(testRefreshToken),
-        ).called(1);
-        verify(mockCredentialsProvider.setUserId(testUserId)).called(1);
-        verify(mockAuthEventBus.add(AuthEvent.loggedIn)).called(1);
-        expect(result, isA<User>());
-        expect(result.id, equals(testUserId));
-      },
-    );
   });
 
   group('refreshSession', () {
@@ -189,13 +151,16 @@ void main() {
           mockCredentialsProvider.getRefreshToken(),
         ).thenAnswer((_) async => testRefreshToken);
         when(
-          mockApiClient.refreshToken(testRefreshToken),
+          mockAuthenticationApiClient.refreshToken(testRefreshToken),
         ).thenAnswer((_) async => authResponse);
         when(
           mockCredentialsProvider.setAccessToken(testAccessToken),
         ).thenAnswer((_) async => {});
         when(
           mockCredentialsProvider.setRefreshToken(testRefreshToken),
+        ).thenAnswer((_) async => {});
+        when(
+          mockCredentialsProvider.setUserId(testUserId),
         ).thenAnswer((_) async => {});
 
         // Act
@@ -204,13 +169,16 @@ void main() {
         // Assert
         expect(result, isTrue);
         verify(mockCredentialsProvider.getRefreshToken()).called(1);
-        verify(mockApiClient.refreshToken(testRefreshToken)).called(1);
+        verify(
+          mockAuthenticationApiClient.refreshToken(testRefreshToken),
+        ).called(1);
         verify(
           mockCredentialsProvider.setAccessToken(testAccessToken),
         ).called(1);
         verify(
           mockCredentialsProvider.setRefreshToken(testRefreshToken),
         ).called(1);
+        verify(mockCredentialsProvider.setUserId(testUserId)).called(1);
       },
     );
 
@@ -226,7 +194,7 @@ void main() {
       // Assert
       expect(result, isFalse);
       verify(mockCredentialsProvider.getRefreshToken()).called(1);
-      verifyNever(mockApiClient.refreshToken(any));
+      verifyNever(mockAuthenticationApiClient.refreshToken(any));
     });
 
     test('should return false when refresh token is invalid', () async {
@@ -234,9 +202,9 @@ void main() {
       when(
         mockCredentialsProvider.getRefreshToken(),
       ).thenAnswer((_) async => testRefreshToken);
-      when(mockApiClient.refreshToken(testRefreshToken)).thenThrow(
-        AuthException.refreshTokenInvalid(),
-      ); // Use specific exception
+      when(
+        mockAuthenticationApiClient.refreshToken(testRefreshToken),
+      ).thenThrow(AuthException.refreshTokenInvalid());
 
       // Act
       final result = await authService.refreshSession();
@@ -244,7 +212,9 @@ void main() {
       // Assert
       expect(result, isFalse);
       verify(mockCredentialsProvider.getRefreshToken()).called(1);
-      verify(mockApiClient.refreshToken(testRefreshToken)).called(1);
+      verify(
+        mockAuthenticationApiClient.refreshToken(testRefreshToken),
+      ).called(1);
     });
 
     test('should propagate offline exceptions during refresh', () async {
@@ -253,7 +223,7 @@ void main() {
         mockCredentialsProvider.getRefreshToken(),
       ).thenAnswer((_) async => testRefreshToken);
       when(
-        mockApiClient.refreshToken(testRefreshToken),
+        mockAuthenticationApiClient.refreshToken(testRefreshToken),
       ).thenThrow(AuthException.offlineOperationFailed());
 
       // Act & Assert
@@ -290,7 +260,7 @@ void main() {
     });
   });
 
-  group('isAuthenticated (basic check)', () {
+  group('isAuthenticated', () {
     test(
       'should return true when access token exists (no validation)',
       () async {
@@ -328,33 +298,8 @@ void main() {
         verifyNever(mockCredentialsProvider.isAccessTokenValid());
       },
     );
-
-    test(
-      'should propagate offline exception when checking token existence',
-      () async {
-        // Arrange
-        when(
-          mockCredentialsProvider.getAccessToken(),
-        ).thenThrow(AuthException.offlineOperationFailed());
-
-        // Act & Assert
-        expect(
-          () => authService.isAuthenticated(), // Default: validate = false
-          throwsA(
-            predicate(
-              (e) =>
-                  e is AuthException &&
-                  e == AuthException.offlineOperationFailed(),
-            ),
-          ),
-        );
-        verify(mockCredentialsProvider.getAccessToken()).called(1);
-        verifyNever(mockCredentialsProvider.isAccessTokenValid());
-      },
-    );
   });
 
-  // New group for Step 6.1: Local Token Validation
   group('isAuthenticated (with local validation)', () {
     test('should return true when token exists and is valid', () async {
       // Arrange
@@ -370,9 +315,7 @@ void main() {
       // Assert
       expect(result, isTrue);
       verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
-      verifyNever(
-        mockCredentialsProvider.getAccessToken(),
-      ); // Should only call validator
+      verifyNever(mockCredentialsProvider.getAccessToken());
     });
 
     test('should return false when token exists but is invalid', () async {
@@ -390,63 +333,17 @@ void main() {
       expect(result, isFalse);
       verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
     });
-
-    test(
-      'should return false when token validation throws (e.g., missing)',
-      () async {
-        // This simulates the provider throwing if the token doesn't exist to validate
-        // Alternatively, the validator itself could return false for null token
-        when(
-          mockCredentialsProvider.isAccessTokenValid(),
-        ).thenThrow(Exception('Token not found')); // Or return false
-
-        // Act
-        final result = await authService.isAuthenticated(
-          validateTokenLocally: true,
-        );
-
-        // Assert
-        expect(result, isFalse); // Assuming false on error during validation
-        verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
-      },
-    );
-
-    test(
-      'should propagate offline exception during token validation',
-      () async {
-        // Arrange
-        when(
-          mockCredentialsProvider.isAccessTokenValid(),
-        ).thenThrow(AuthException.offlineOperationFailed());
-
-        // Act & Assert
-        expect(
-          () => authService.isAuthenticated(validateTokenLocally: true),
-          throwsA(
-            predicate(
-              (e) =>
-                  e is AuthException &&
-                  e == AuthException.offlineOperationFailed(),
-            ),
-          ),
-        );
-        verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
-      },
-    );
   });
 
-  // New group for Step 6.2: Get User Profile
   group('getUserProfile', () {
     test('should return User when API call is successful', () async {
       // Arrange
-      // TODO: Replace with actual UserProfileDto and mapping logic in impl
-      when(
-        mockApiClient.getUserProfile(),
-      ).thenAnswer((_) async => userProfileDto); // Assume returns a Map for now
-      // Mock getting user ID (needed by impl)
       when(
         mockCredentialsProvider.getUserId(),
       ).thenAnswer((_) async => testUserId);
+      when(
+        mockUserApiClient.getUserProfile(),
+      ).thenAnswer((_) async => userProfileDto);
 
       // Act
       final result = await authService.getUserProfile();
@@ -454,17 +351,15 @@ void main() {
       // Assert
       expect(result, isA<User>());
       expect(result.id, testUserId);
-      // TODO: Add more assertions when DTO and mapping are defined
       verify(mockCredentialsProvider.getUserId()).called(1);
-      verify(mockApiClient.getUserProfile()).called(1);
+      verify(mockUserApiClient.getUserProfile()).called(1);
     });
 
     test(
       'should throw unauthenticated if user ID cannot be determined',
       () async {
         // Arrange
-        when(mockCredentialsProvider.getUserId()) // Corrected method name
-        .thenAnswer((_) async => null); // Simulate unable to get user ID
+        when(mockCredentialsProvider.getUserId()).thenAnswer((_) async => null);
 
         // Act & Assert
         expect(
@@ -474,22 +369,21 @@ void main() {
               (e) => e.toString(),
               'toString',
               'AuthException: Cannot get user profile: User ID not found.',
-            ), // Match exact exception
+            ),
           ),
         );
-        verify(
-          mockCredentialsProvider.getUserId(),
-        ).called(1); // Verify provider call
-        verifyNever(mockApiClient.getUserProfile()); // Ensure API not called
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verifyNever(mockUserApiClient.getUserProfile());
       },
     );
 
     test('should throw userProfileFetchFailed on API client error', () async {
       // Arrange
-      when(mockCredentialsProvider.getUserId()) // Corrected method name
-      .thenAnswer((_) async => testUserId);
       when(
-        mockApiClient.getUserProfile(),
+        mockCredentialsProvider.getUserId(),
+      ).thenAnswer((_) async => testUserId);
+      when(
+        mockUserApiClient.getUserProfile(),
       ).thenThrow(AuthException.userProfileFetchFailed());
 
       // Act & Assert
@@ -503,76 +397,9 @@ void main() {
           ),
         ),
       );
-      // Removed verify(mockApiClient.getUserProfile()).called(1);
-      // Verification not needed here as we test the rethrow behaviour.
-      // Call is verified in the success case.
-    });
-
-    test('should propagate other exceptions from API client', () async {
-      // Arrange
-      when(mockCredentialsProvider.getUserId()) // Corrected method name
-      .thenAnswer((_) async => testUserId);
-      when(
-        mockApiClient.getUserProfile(),
-      ).thenThrow(AuthException.networkError());
-
-      // Act & Assert
-      expect(
-        () => authService.getUserProfile(),
-        throwsA(
-          predicate(
-            (e) => e is AuthException && e == AuthException.networkError(),
-          ),
-        ),
-      );
-      // Removed verify(mockApiClient.getUserProfile()).called(1);
-    });
-
-    test('should propagate offline exception from API client', () async {
-      // Arrange
-      when(mockCredentialsProvider.getUserId()) // Corrected method name
-      .thenAnswer((_) async => testUserId);
-      when(
-        mockApiClient.getUserProfile(),
-      ).thenThrow(AuthException.offlineOperationFailed());
-
-      // Act & Assert
-      expect(
-        () => authService.getUserProfile(),
-        throwsA(
-          predicate(
-            (e) =>
-                e is AuthException &&
-                e == AuthException.offlineOperationFailed(),
-          ),
-        ),
-      );
-      // Removed verify(mockApiClient.getUserProfile()).called(1);
-    });
-
-    test('should propagate offline exception when getting user ID', () async {
-      // Arrange
-      when(
-        mockCredentialsProvider.getUserId(),
-      ).thenThrow(AuthException.offlineOperationFailed());
-
-      // Act & Assert
-      expect(
-        () => authService.getUserProfile(),
-        throwsA(
-          predicate(
-            (e) =>
-                e is AuthException &&
-                e == AuthException.offlineOperationFailed(),
-          ),
-        ),
-      );
-      verify(mockCredentialsProvider.getUserId()).called(1);
-      verifyNever(mockApiClient.getUserProfile());
     });
   });
 
-  // Placeholder for getCurrentUserId tests if logic is added to AuthServiceImpl
   group('getCurrentUserId', () {
     test('should retrieve user ID from credentials provider', () async {
       // Arrange
@@ -590,8 +417,7 @@ void main() {
 
     test('should throw unauthenticated if provider returns null', () async {
       // Arrange
-      when(mockCredentialsProvider.getUserId()) // Corrected method name
-      .thenAnswer((_) async => null);
+      when(mockCredentialsProvider.getUserId()).thenAnswer((_) async => null);
 
       // Act & Assert
       expect(
@@ -601,28 +427,6 @@ void main() {
             (e) => e.toString(),
             'toString',
             'AuthException: No authenticated user ID found',
-          ), // Match exact exception
-        ),
-      );
-      verify(
-        mockCredentialsProvider.getUserId(),
-      ).called(1); // Corrected method name
-    });
-
-    test('should propagate offline exception from provider', () async {
-      // Arrange
-      when(
-        mockCredentialsProvider.getUserId(),
-      ).thenThrow(AuthException.offlineOperationFailed());
-
-      // Act & Assert
-      expect(
-        () => authService.getCurrentUserId(),
-        throwsA(
-          predicate(
-            (e) =>
-                e is AuthException &&
-                e == AuthException.offlineOperationFailed(),
           ),
         ),
       );

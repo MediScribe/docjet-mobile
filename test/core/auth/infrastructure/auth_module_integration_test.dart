@@ -7,9 +7,11 @@ import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
+import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -169,7 +171,15 @@ void main() {
           instanceName: 'basicDio',
         );
 
-        // Register AuthApiClient FIRST (like in the app) - CRITICAL: this uses basicDio
+        // Register AuthenticationApiClient FIRST (like in the app) - CRITICAL: this uses basicDio
+        getIt.registerSingleton<AuthenticationApiClient>(
+          AuthenticationApiClient(
+            basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
+            credentialsProvider: getIt<AuthCredentialsProvider>(),
+          ),
+        );
+
+        // Register AuthApiClient for backward compatibility
         getIt.registerSingleton<AuthApiClient>(
           AuthApiClient(
             httpClient: getIt<Dio>(instanceName: 'basicDio'),
@@ -177,20 +187,31 @@ void main() {
           ),
         );
 
-        // Register authenticatedDio AFTER AuthApiClient
+        // Register authenticatedDio AFTER AuthenticationApiClient
         getIt.registerSingleton<Dio>(
           getIt<DioFactory>().createAuthenticatedDio(
-            authApiClient: getIt<AuthApiClient>(),
+            authApiClient: getIt<AuthenticationApiClient>(),
             credentialsProvider: getIt<AuthCredentialsProvider>(),
             authEventBus: getIt<AuthEventBus>(),
           ),
           instanceName: 'authenticatedDio',
         );
 
+        // Register UserApiClient which uses authenticatedDio
+        getIt.registerSingleton<UserApiClient>(
+          UserApiClient(
+            authenticatedHttpClient: getIt<Dio>(
+              instanceName: 'authenticatedDio',
+            ),
+            credentialsProvider: getIt<AuthCredentialsProvider>(),
+          ),
+        );
+
         // Register AuthService
         getIt.registerSingleton<AuthService>(
           AuthServiceImpl(
-            apiClient: getIt<AuthApiClient>(),
+            authenticationApiClient: getIt<AuthenticationApiClient>(),
+            userApiClient: getIt<UserApiClient>(),
             credentialsProvider: getIt<AuthCredentialsProvider>(),
             eventBus: getIt<AuthEventBus>(),
           ),

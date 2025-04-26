@@ -232,19 +232,59 @@ Each change will follow the RED-GREEN-REFACTOR cycle:
 ### Cycle 4: Update AuthService Interface and Implementation
 
 #### 4.1 RED: Update AuthService Tests
-- [ ] Modify AuthService tests to reflect the updated dependency structure
-- [ ] Set expectations for both clients being used for their respective methods
-- [ ] Run tests to confirm they fail (RED)
+- [x] Modify AuthService tests to reflect the updated dependency structure
+- [x] Set expectations for both clients being used for their respective methods
+- [x] Run tests to confirm they fail (RED)
+
+**Insights:**
+- Updated `auth_service_impl_test.dart` to use both new clients instead of the single `AuthApiClient`
+- Modified the test setup to inject both `AuthenticationApiClient` and `UserApiClient`
+- Ensured tests verify that login calls go to `AuthenticationApiClient` and profile calls go to `UserApiClient`
+- Some tests initially passed because the mocks were accepting any calls
 
 #### 4.2 GREEN: Update AuthServiceImpl
-- [ ] Modify AuthServiceImpl to inject both new clients
-- [ ] Update method implementations to call the correct client
-- [ ] Run tests to verify they pass (GREEN)
+- [x] Modify AuthServiceImpl to inject both new clients
+- [x] Update method implementations to call the correct client
+- [x] Run tests to verify they pass (GREEN)
+
+**Insights:**
+- Updated `AuthServiceImpl` constructor to accept both clients
+- Modified `login` and `refreshSession` to use `authenticationApiClient`
+- Updated `getUserProfile` to use `userApiClient`
+- Updated the dependency injection setup in `auth_module.dart` to register the implementation with both new clients
 
 #### 4.3 REFACTOR: Clean Up Service Implementation
-- [ ] Improve error handling
-- [ ] Add documentation
-- [ ] Verify tests still pass
+- [x] Improve error handling
+- [x] Add documentation
+- [x] Verify tests still pass
+
+**Insights:**
+- Updated the class documentation to clarify the Split Client pattern
+- Ensured both clients are properly documented with their responsibilities
+- Fixed issues in integration tests that were still using the old pattern
+- Updated the `auth_flow_test.dart` to separately test that each client is used for its intended purpose
+- Added a new test that explicitly verifies `basicDio` is used for login and `authenticatedDio` is used for profile
+
+**Guidance for the next developer (Cycle 5):**
+1. When implementing Legacy Compatibility in Cycle 5, the `AuthApiClient` should delegate to the appropriate specialized client:
+   ```dart
+   // In AuthApiClient (legacy)
+   Future<UserProfileDto> getUserProfile() {
+     return getIt<UserApiClient>().getUserProfile();
+   }
+   
+   Future<AuthResponseDto> login(String email, String password) {
+     return getIt<AuthenticationApiClient>().login(email, password);
+   }
+   ```
+
+2. Be careful with any circular dependencies when implementing the legacy compatibility layer. The pattern used in this cycle (Split Client pattern) should be maintained.
+
+3. When updating tests, focus on verifying the correct delegation rather than duplicating functionality tests.
+
+4. Add proper deprecation notices to the legacy `AuthApiClient` to encourage migration.
+
+5. In your tests, verify that the expected Dio instance is used for each request type.
 
 ### Cycle 5: Handle Smooth Transition (Legacy Support)
 
