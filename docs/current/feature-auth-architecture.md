@@ -23,7 +23,8 @@ graph TD
 
     subgraph "Data Layer"
         AuthServiceImpl(AuthServiceImpl) -->|Implements| AuthService
-        AuthServiceImpl -->|Uses| AuthApiClient(Auth API Client)
+        AuthServiceImpl -->|Uses| AuthenticationApiClient(Authentication API Client)
+        AuthServiceImpl -->|Uses| UserApiClient(User API Client)
         AuthServiceImpl -->|Updates| AuthState
         AuthServiceImpl -->|Uses| AuthCredProviderImpl(SecureStorageAuthCredentialsProvider)
         AuthServiceImpl -->|Uses| AuthInterceptor(Auth Interceptor)
@@ -37,15 +38,18 @@ graph TD
         DioFactory -->|Injects API Key via Interceptor| HttpClient
         DioFactory -->|Injects AuthInterceptor| HttpClient
         
-        AuthApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
-        AuthApiClient -->|Gets User Profile| AuthAPI
+        AuthenticationApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
+        AuthenticationApiClient -->|Gets User Profile| AuthAPI
+        
+        UserApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
+        UserApiClient -->|Gets User Profile| AuthAPI
         
         AuthInterceptor -->|Intercepts 401 Errors| HttpClient
         AuthInterceptor -->|Triggers| TokenRefresh([Token Refresh Flow])
         AuthInterceptor -->|Retries Original Request| HttpClient
         AuthInterceptor -->|Uses Exponential Backoff| TokenRefresh
         AuthInterceptor -->|Listens to| AuthEventBus
-        AuthInterceptor -->|Uses Function Reference to| AuthApiClient
+        AuthInterceptor -->|Uses Function Reference to| AuthenticationApiClient
         
         HttpClient -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>(e.g., /api/v1/auth/login)}
     end
@@ -63,7 +67,7 @@ This sequence diagram illustrates the current authentication implementation incl
 sequenceDiagram
     participant UI as UI
     participant AuthSvc as AuthService
-    participant ApiClient as AuthApiClient
+    participant ApiClient as AuthenticationApiClient
     participant Interceptor as AuthInterceptor
     participant CredProvider as AuthCredentialsProvider
     participant API as Auth API
@@ -209,20 +213,28 @@ Manages secure storage and retrieval of authentication credentials:
 #### AuthServiceImpl
 Implements the `AuthService` interface, orchestrating the authentication flow:
 - Handles local token validation for offline authentication
-- Coordinates with `AuthApiClient` for network operations
+- Coordinates with both `AuthenticationApiClient` and `UserApiClient` for network operations
 - Emits events via `AuthEventBus` for logout and login
 - Gracefully handles offline scenarios with appropriate error propagation
 
-#### AuthApiClient
-Responsible for communication with authentication endpoints:
+#### AuthenticationApiClient
+Responsible for pre-authentication communication:
 - Uses `ApiConfig` constants for endpoint paths (e.g., `ApiConfig.loginEndpoint`)
 - `login()` - Authenticates with email/password
 - `refreshToken()` - Refreshes tokens when expired
-- `getUserProfile()` - Retrieves full user profile data
 - Maps API errors to domain-specific exceptions using enhanced exception types
-- **Note:** Relies on the injected `Dio` instance (typically configured by `DioFactory`)
-  to handle `x-api-key` header injection and JWT token management via interceptors.
-  It does *not* directly manage the API key or access tokens.
+- **Important**: Uses `basicDio` without auth interceptors since these endpoints establish authentication
+  but don't require it themselves.
+
+#### UserApiClient
+Responsible for authenticated user-related API calls:
+- `getUserProfile()` - Retrieves full user profile data using JWT authentication
+- Handles authentication token errors and propagation
+- **Important**: Uses `authenticatedDio` with auth interceptors to ensure proper
+  JWT token management for all requests.
+
+These two API clients implement the Split Client pattern where responsibilities are
+clearly separated based on authentication requirements.
 
 #### AuthInterceptor
 A Dio interceptor that:
@@ -233,10 +245,10 @@ A Dio interceptor that:
 5. Retries the original request with the new token
 6. Uses mutex locking to prevent concurrent refresh attempts 
 7. Provides robust error propagation for unexpected failures
-8. **Uses function-based DI:** Instead of directly depending on `AuthApiClient`, it accepts a 
+8. **Uses function-based DI:** Instead of directly depending on `AuthenticationApiClient`, it accepts a 
    function reference to the `refreshToken` method. This breaks the circular dependency where 
-   `AuthApiClient` needs an authenticated Dio with `AuthInterceptor`, and `AuthInterceptor` 
-   needs `AuthApiClient` for token refresh.
+   the authenticated Dio needs `AuthInterceptor`, and `AuthInterceptor` needs 
+   `AuthenticationApiClient` for token refresh.
 
 This approach provides seamless token refresh without UI layer awareness of expired tokens. The authentication flow is handled at the data layer where it belongs, maintaining clean separation of concerns.
 
@@ -274,10 +286,10 @@ The UI components observe the `AuthNotifier` state to render the appropriate scr
 
 ### Avoiding Circular Dependencies
 
-To avoid circular dependencies between `AuthApiClient` and `AuthInterceptor`:
+To avoid circular dependencies between `AuthenticationApiClient` and `AuthInterceptor`:
 
 1. **Function-Based DI:** `AuthInterceptor` accepts a function reference to `refreshToken` instead of
-   directly depending on the `AuthApiClient` instance:
+   directly depending on the `AuthenticationApiClient` instance:
 
    ```dart
    AuthInterceptor({
@@ -289,12 +301,12 @@ To avoid circular dependencies between `AuthApiClient` and `AuthInterceptor`:
 
 2. **Proper Registration Order:** The DI container registers components in this order:
    - First register `basicDio` (without auth interceptors)
-   - Then register `AuthApiClient` (using `basicDio`)
-   - Finally register `authenticatedDio` (using function reference to `AuthApiClient.refreshToken`)
+   - Then register `AuthenticationApiClient` (using `basicDio`)
+   - Finally register `authenticatedDio` (using function reference to `AuthenticationApiClient.refreshToken`)
 
 3. **Clear API Responsibilities:** The API key injection is handled entirely by `DioFactory` via interceptors.
    Both `basicDio` and `authenticatedDio` instances include the API key interceptor to ensure
-   all API requests have the correct authorization. The `AuthApiClient` does not add the API key itself.
+   all API requests have the correct authorization. The `AuthenticationApiClient` does not add the API key itself.
 
 ## Troubleshooting Authentication Issues
 
@@ -357,7 +369,7 @@ The `AuthResponseDto` class in the codebase handles this format properly. Always
    flutter run --dart-define=API_KEY=your_api_key
    ```
 
-2. **Check DI configuration**: Ensure `AuthApiClient` is using the `authenticatedDio` instance, not `basicDio`.
+2. **Check DI configuration**: Ensure `AuthenticationApiClient` is using the `authenticatedDio` instance, not `basicDio`.
 
 3. **Verify interceptor registration**: Check that `DioFactory` is properly configuring the API key interceptor.
 

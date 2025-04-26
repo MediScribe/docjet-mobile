@@ -1,10 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
-import 'package:docjet_mobile/core/auth/auth_error_type.dart';
-import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_module.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
@@ -27,7 +24,8 @@ import 'package:mockito/mockito.dart';
   AuthService, // Needed for static providerOverrides test
   FlutterSecureStorage,
   JwtValidator,
-  AuthenticationApiClient, // Add mock for AuthenticationApiClient
+  AuthenticationApiClient, // Authentication API client mock
+  UserApiClient, // User API client mock
 ])
 import 'auth_module_test.mocks.dart';
 
@@ -44,8 +42,8 @@ void main() {
   late MockDio mockAuthenticatedDio;
   late MockFlutterSecureStorage mockSecureStorage;
   late MockJwtValidator mockJwtValidator;
-  late MockAuthenticationApiClient
-  mockAuthenticationApiClient; // Add mock instance
+  late MockAuthenticationApiClient mockAuthenticationApiClient;
+  late MockUserApiClient mockUserApiClient;
 
   // Module to test
   late AuthModule authModule;
@@ -71,8 +69,8 @@ void main() {
     mockAuthenticatedDio = MockDio();
     mockSecureStorage = MockFlutterSecureStorage();
     mockJwtValidator = MockJwtValidator();
-    mockAuthenticationApiClient =
-        MockAuthenticationApiClient(); // Initialize mock
+    mockAuthenticationApiClient = MockAuthenticationApiClient();
+    mockUserApiClient = MockUserApiClient();
 
     // Configure mockDioFactory to return our mocks
     logger.d('$tag Setting up stubs for mock DioFactory');
@@ -187,7 +185,7 @@ void main() {
     expect(userApiClient.authenticatedHttpClient, equals(mockAuthenticatedDio));
   });
 
-  test('getUserProfile needs AuthInterceptor to add JWT token', () async {
+  test('getUserProfile needs authenticatedDio with JWT token', () async {
     // Arrange: Register components with the auth module
     authModule.register(
       getIt,
@@ -196,7 +194,7 @@ void main() {
     );
 
     // Access the registered components
-    final authApiClient = getIt<AuthApiClient>();
+    final userApiClient = getIt<UserApiClient>();
 
     // Set expectations for the basic Dio (missing Authorization header)
     when(mockBasicDio.get(any)).thenThrow(
@@ -220,60 +218,80 @@ void main() {
       ),
     );
 
-    // Act & Assert - getUserProfile() should fail with basic Dio
-    expect(
-      () => authApiClient.getUserProfile(),
-      throwsA(
-        isA<AuthException>().having(
-          (e) => e.type,
-          'type',
-          equals(AuthErrorType.missingApiKey),
-        ),
-      ),
-    );
+    // Act - Call getUserProfile which should use authenticatedDio
+    await userApiClient.getUserProfile();
 
-    // Verify basicDio was used and authenticatedDio was not used
-    verify(mockBasicDio.get(any)).called(1);
-    verifyNever(mockAuthenticatedDio.get(any));
+    // Assert - authenticatedDio should be used, not basicDio
+    verifyNever(mockBasicDio.get(any));
+    verify(mockAuthenticatedDio.get(any)).called(1);
   });
 
-  test(
-    'Fixed AuthApiClient uses authenticatedDio for profile requests',
-    () async {
-      // Arrange: Register components
-      authModule.register(
-        getIt,
-        secureStorage: mockSecureStorage,
-        jwtValidator: mockJwtValidator,
-      );
+  test('AuthenticatedDio should include API key and JWT token', () async {
+    // Arrange: Register components
+    authModule.register(
+      getIt,
+      secureStorage: mockSecureStorage,
+      jwtValidator: mockJwtValidator,
+    );
 
-      // Replace the AuthApiClient with one that uses authenticatedDio
-      getIt.unregister<AuthApiClient>();
-      getIt.registerSingleton<AuthApiClient>(
-        AuthApiClient(
-          httpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
-          credentialsProvider: mockCredentialsProvider,
-        ),
-      );
+    // Mock API key
+    const testApiKey = 'test-api-key';
+    when(
+      mockCredentialsProvider.getApiKey(),
+    ).thenAnswer((_) async => testApiKey);
 
-      // Get the fixed API client
-      final fixedAuthApiClient = getIt<AuthApiClient>();
-
-      // Set expectations for authenticated Dio (includes Authorization header correctly)
-      when(mockAuthenticatedDio.get(any)).thenAnswer(
-        (_) async => Response(
+    // Configure request options capture
+    final capturedOptions = <RequestOptions>[];
+    when(mockAuthenticatedDio.get(any)).thenAnswer((invocation) {
+      final options = invocation.positionalArguments[0] as String;
+      capturedOptions.add(RequestOptions(path: options));
+      return Future.value(
+        Response(
           statusCode: 200,
           data: {'id': 'user-id', 'name': 'Test User'},
-          requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+          requestOptions: RequestOptions(path: options),
         ),
       );
+    });
 
-      // Act - Call getUserProfile with the fixed API client
-      await fixedAuthApiClient.getUserProfile();
+    // Intercept requests to capture headers
+    when(
+      mockDioFactory.createAuthenticatedDio(
+        authApiClient: anyNamed('authApiClient'),
+        credentialsProvider: anyNamed('credentialsProvider'),
+        authEventBus: anyNamed('authEventBus'),
+      ),
+    ).thenAnswer((_) {
+      // Set up our interceptor to capture request headers
+      mockAuthenticatedDio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            capturedOptions.add(options);
+            options.headers['Authorization'] = 'Bearer $testAccessToken';
+            options.headers['x-api-key'] = testApiKey;
+            return handler.next(options);
+          },
+        ),
+      );
+      return mockAuthenticatedDio;
+    });
 
-      // Assert - authenticatedDio should be used, not basicDio
-      verifyNever(mockBasicDio.get(any));
-      verify(mockAuthenticatedDio.get(any)).called(1);
-    },
-  );
+    // Get components and make a request
+    final userApiClient = getIt<UserApiClient>();
+    await userApiClient.getUserProfile();
+
+    // Verify authenticatedDio was used
+    verify(mockAuthenticatedDio.get(any)).called(1);
+
+    // Verify headers are correct in the interceptor
+    expect(capturedOptions, isNotEmpty);
+    if (capturedOptions.isNotEmpty) {
+      final options = capturedOptions.first;
+      expect(
+        options.headers['Authorization'],
+        equals('Bearer $testAccessToken'),
+      );
+      expect(options.headers['x-api-key'], equals(testApiKey));
+    }
+  });
 }

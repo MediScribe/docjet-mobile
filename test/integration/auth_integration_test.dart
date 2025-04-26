@@ -7,7 +7,7 @@ import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
@@ -148,7 +148,7 @@ void main() {
   group('Auth Integration Tests - Complete Verification', () {
     late AuthTestServer server;
     late GetIt getIt;
-    late AuthApiClient authApiClient;
+    late AuthenticationApiClient authApiClient;
 
     setUp(() async {
       logger.i('$tag Setting up test');
@@ -184,7 +184,7 @@ void main() {
 
       // Setup proper DI for test
       _setupProperDI(getIt, server.port);
-      authApiClient = getIt<AuthApiClient>();
+      authApiClient = getIt<AuthenticationApiClient>();
 
       // Execute login request to check URL formation
       final result = await authApiClient.login('test@example.com', 'password');
@@ -223,7 +223,7 @@ void main() {
 
       // Setup DI with missing API key
       _setupDIWithMissingApiKey(getIt, server.port);
-      authApiClient = getIt<AuthApiClient>();
+      authApiClient = getIt<AuthenticationApiClient>();
 
       // Execute login request (should fail with missing API key error)
       try {
@@ -257,7 +257,7 @@ void main() {
 
       // Setup DI with malformed URL and server that returns malformed URL error
       _setupDIWithMalformedUrl(getIt, server.port);
-      authApiClient = getIt<AuthApiClient>();
+      authApiClient = getIt<AuthenticationApiClient>();
 
       // Execute login request (should fail with malformed URL error)
       try {
@@ -287,7 +287,7 @@ void main() {
 
       // Use an invalid port number to cause connection refused error
       _setupWithNetworkError(getIt, 65535); // Invalid port
-      authApiClient = getIt<AuthApiClient>();
+      authApiClient = getIt<AuthenticationApiClient>();
 
       // Execute login request (should fail with network error)
       try {
@@ -324,7 +324,7 @@ void main() {
       _setupProperDIWithAuthInterceptor(getIt, server.port);
 
       // Verify we can create the AuthApiClient and AuthInterceptor without circular issues
-      authApiClient = getIt<AuthApiClient>();
+      authApiClient = getIt<AuthenticationApiClient>();
       final dio = getIt<Dio>(instanceName: 'authenticatedDio');
 
       expect(dio.interceptors, isNotEmpty);
@@ -392,14 +392,14 @@ void main() {
         getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
 
         // Register auth client with basicDio (problematic)
-        getIt.registerSingleton<AuthApiClient>(
-          AuthApiClient(
-            httpClient: getIt<Dio>(instanceName: 'basicDio'),
+        getIt.registerSingleton<AuthenticationApiClient>(
+          AuthenticationApiClient(
+            basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
             credentialsProvider: credentialsProvider,
           ),
         );
 
-        authApiClient = getIt<AuthApiClient>();
+        authApiClient = getIt<AuthenticationApiClient>();
 
         // Execute login request - should fail due to missing API key
         try {
@@ -417,15 +417,15 @@ void main() {
         }
 
         // Now fix the issue by using authenticatedDio instead
-        getIt.unregister<AuthApiClient>();
-        getIt.registerSingleton<AuthApiClient>(
-          AuthApiClient(
-            httpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
+        getIt.unregister<AuthenticationApiClient>();
+        getIt.registerSingleton<AuthenticationApiClient>(
+          AuthenticationApiClient(
+            basicHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
             credentialsProvider: credentialsProvider,
           ),
         );
 
-        authApiClient = getIt<AuthApiClient>();
+        authApiClient = getIt<AuthenticationApiClient>();
 
         // Try again - should work now
         final result = await authApiClient.login(
@@ -461,9 +461,9 @@ void _setupProperDI(GetIt getIt, int serverPort) {
   getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
   getIt.registerSingleton<Dio>(dio, instanceName: 'basicDio');
 
-  getIt.registerSingleton<AuthApiClient>(
-    AuthApiClient(
-      httpClient: getIt<Dio>(instanceName: 'basicDio'),
+  getIt.registerSingleton<AuthenticationApiClient>(
+    AuthenticationApiClient(
+      basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
       credentialsProvider: credentialsProvider,
     ),
   );
@@ -486,9 +486,9 @@ void _setupDIWithMissingApiKey(GetIt getIt, int serverPort) {
   getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
   getIt.registerSingleton<Dio>(dio, instanceName: 'basicDio');
 
-  getIt.registerSingleton<AuthApiClient>(
-    AuthApiClient(
-      httpClient: getIt<Dio>(instanceName: 'basicDio'),
+  getIt.registerSingleton<AuthenticationApiClient>(
+    AuthenticationApiClient(
+      basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
       credentialsProvider: credentialsProvider,
     ),
   );
@@ -499,10 +499,10 @@ void _setupDIWithMalformedUrl(GetIt getIt, int serverPort) {
   final testHost = 'localhost:$serverPort';
   final credentialsProvider = TestAuthCredentialsProvider();
 
+  // Malformed URL - missing slash in base URL pattern
   final dio = Dio(
     BaseOptions(
-      // Missing slash in baseUrl
-      baseUrl: 'http://$testHost/api/v1',
+      baseUrl: 'http://$testHost/api/v1', // missing trailing slash
       headers: {'x-api-key': 'test-api-key'},
     ),
   );
@@ -510,47 +510,44 @@ void _setupDIWithMalformedUrl(GetIt getIt, int serverPort) {
   getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
   getIt.registerSingleton<Dio>(dio, instanceName: 'basicDio');
 
-  getIt.registerSingleton<AuthApiClient>(
-    AuthApiClient(
-      httpClient: getIt<Dio>(instanceName: 'basicDio'),
+  getIt.registerSingleton<AuthenticationApiClient>(
+    AuthenticationApiClient(
+      basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
       credentialsProvider: credentialsProvider,
     ),
   );
 }
 
 /// Sets up DI with network error
-void _setupWithNetworkError(GetIt getIt, int nonExistentPort) {
-  final testHost = 'localhost:$nonExistentPort';
+void _setupWithNetworkError(GetIt getIt, int invalidPort) {
+  final testHost = 'localhost:$invalidPort';
   final credentialsProvider = TestAuthCredentialsProvider();
 
   final dio = Dio(
     BaseOptions(
       baseUrl: 'http://$testHost/api/v1/',
       headers: {'x-api-key': 'test-api-key'},
-      // Small timeout to fail quickly
-      connectTimeout: const Duration(milliseconds: 500),
-      receiveTimeout: const Duration(milliseconds: 500),
-      sendTimeout: const Duration(milliseconds: 500),
     ),
   );
 
   getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
   getIt.registerSingleton<Dio>(dio, instanceName: 'basicDio');
 
-  getIt.registerSingleton<AuthApiClient>(
-    AuthApiClient(
-      httpClient: getIt<Dio>(instanceName: 'basicDio'),
+  getIt.registerSingleton<AuthenticationApiClient>(
+    AuthenticationApiClient(
+      basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
       credentialsProvider: credentialsProvider,
     ),
   );
 }
 
-/// Sets up DI with AuthInterceptor to test circular dependency fix
+/// Sets up proper DI with auth interceptor
 void _setupProperDIWithAuthInterceptor(GetIt getIt, int serverPort) {
   final testHost = 'localhost:$serverPort';
   final credentialsProvider = TestAuthCredentialsProvider();
+  final eventBus = TestAuthEventBus();
 
-  // Setup basic Dio first
+  // Create basic Dio
   final basicDio = Dio(
     BaseOptions(
       baseUrl: 'http://$testHost/api/v1/',
@@ -559,70 +556,53 @@ void _setupProperDIWithAuthInterceptor(GetIt getIt, int serverPort) {
   );
 
   getIt.registerSingleton<AuthCredentialsProvider>(credentialsProvider);
+  getIt.registerSingleton<AuthEventBus>(eventBus);
   getIt.registerSingleton<Dio>(basicDio, instanceName: 'basicDio');
 
-  // Register AuthApiClient with basicDio
-  final authApiClient = AuthApiClient(
-    httpClient: basicDio,
-    credentialsProvider: credentialsProvider,
+  // Register the auth API client with basicDio (for un-authenticated requests)
+  getIt.registerSingleton<AuthenticationApiClient>(
+    AuthenticationApiClient(
+      basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
+      credentialsProvider: credentialsProvider,
+    ),
   );
-  getIt.registerSingleton<AuthApiClient>(authApiClient);
 
-  // Create event bus mock
-  final authEventBus = TestAuthEventBus();
-  getIt.registerSingleton<AuthEventBus>(authEventBus);
+  // Function-based DI for auth interceptor
+  final authInterceptor = AuthInterceptor(
+    refreshTokenFunction:
+        (refreshToken) =>
+            getIt<AuthenticationApiClient>().refreshToken(refreshToken),
+    credentialsProvider: credentialsProvider,
+    dio: basicDio,
+    authEventBus: eventBus,
+  );
 
-  // Now create authenticatedDio with AuthInterceptor that references authApiClient
+  // Create authenticated Dio with auth interceptor
   final authenticatedDio = Dio(
     BaseOptions(
       baseUrl: 'http://$testHost/api/v1/',
       headers: {'x-api-key': 'test-api-key'},
     ),
   );
-
-  // Add AuthInterceptor with function-based DI to break circular dependency
-  authenticatedDio.interceptors.add(
-    AuthInterceptor(
-      refreshTokenFunction:
-          (refreshToken) => authApiClient.refreshToken(refreshToken),
-      credentialsProvider: credentialsProvider,
-      dio: authenticatedDio,
-      authEventBus: authEventBus,
-    ),
-  );
+  authenticatedDio.interceptors.add(authInterceptor);
 
   getIt.registerSingleton<Dio>(
     authenticatedDio,
     instanceName: 'authenticatedDio',
   );
-
-  // Replace AuthApiClient with one that uses authenticatedDio
-  getIt.unregister<AuthApiClient>();
-  getIt.registerSingleton<AuthApiClient>(
-    AuthApiClient(
-      httpClient: authenticatedDio,
-      credentialsProvider: credentialsProvider,
-    ),
-  );
-}
-
-/// Minimal implementation of AuthEventBus for testing
-class TestAuthEventBus implements AuthEventBus {
-  @override
-  void dispose() {}
-
-  @override
-  void add(AuthEvent event) {}
-
-  @override
-  Stream<AuthEvent> get stream => Stream.empty();
 }
 
 /// Test implementation of AuthCredentialsProvider
 class TestAuthCredentialsProvider implements AuthCredentialsProvider {
   final String? apiKey;
+  final String? accessToken;
+  final String? refreshToken;
 
-  TestAuthCredentialsProvider({this.apiKey = 'test-api-key'});
+  TestAuthCredentialsProvider({
+    this.apiKey = 'test-api-key',
+    this.accessToken,
+    this.refreshToken,
+  });
 
   @override
   Future<void> deleteAccessToken() async {}
@@ -631,13 +611,13 @@ class TestAuthCredentialsProvider implements AuthCredentialsProvider {
   Future<void> deleteRefreshToken() async {}
 
   @override
-  Future<String?> getAccessToken() async => null;
+  Future<String?> getAccessToken() async => accessToken;
 
   @override
   Future<String?> getApiKey() async => apiKey;
 
   @override
-  Future<String?> getRefreshToken() async => null;
+  Future<String?> getRefreshToken() async => refreshToken;
 
   @override
   Future<String?> getUserId() async => null;
@@ -656,4 +636,27 @@ class TestAuthCredentialsProvider implements AuthCredentialsProvider {
 
   @override
   Future<void> setUserId(String userId) async {}
+}
+
+/// Test implementation of AuthEventBus
+class TestAuthEventBus implements AuthEventBus {
+  final List<AuthEvent> events = [];
+
+  @override
+  void add(AuthEvent event) {
+    events.add(event);
+  }
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) {
+    // No-op for test
+  }
+
+  @override
+  Stream<AuthEvent> get stream => Stream.fromIterable(events);
+
+  @override
+  void dispose() {
+    // No-op for test
+  }
 }

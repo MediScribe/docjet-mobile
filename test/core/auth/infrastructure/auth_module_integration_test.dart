@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
@@ -144,113 +143,187 @@ void main() {
     });
 
     /// Test that simulates exactly how the app configures its DI container
-    test(
-      'AuthModule confirms both Dio instances have API key interceptor',
-      () async {
-        // Setup AppConfig with test server
-        final testDomain = 'localhost:${server.port}';
-        getIt.registerSingleton<AppConfigInterface>(
-          AppConfig.test(apiDomain: testDomain, apiKey: 'test-api-key'),
+    test('Authentication clients work with proper Dio instances', () async {
+      // Setup AppConfig with test server
+      final testDomain = 'localhost:${server.port}';
+      getIt.registerSingleton<AppConfigInterface>(
+        AppConfig.test(apiDomain: testDomain, apiKey: 'test-api-key'),
+      );
+
+      // Create a standard auth setup with real DioFactory
+      getIt.registerSingleton<DioFactory>(
+        DioFactory(appConfig: getIt<AppConfigInterface>()),
+      );
+
+      // Use our test credential provider instead of the real one
+      getIt.registerSingleton<AuthCredentialsProvider>(
+        TestAuthCredentialsProvider(),
+      );
+
+      getIt.registerSingleton<AuthEventBus>(AuthEventBus());
+
+      // Register the Dio instances like the app would
+      getIt.registerSingleton<Dio>(
+        getIt<DioFactory>().createBasicDio(),
+        instanceName: 'basicDio',
+      );
+
+      // Register AuthenticationApiClient FIRST - CRITICAL: this uses basicDio
+      getIt.registerSingleton<AuthenticationApiClient>(
+        AuthenticationApiClient(
+          basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+        ),
+      );
+
+      // Register authenticatedDio AFTER AuthenticationApiClient
+      getIt.registerSingleton<Dio>(
+        getIt<DioFactory>().createAuthenticatedDio(
+          authApiClient: getIt<AuthenticationApiClient>(),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+          authEventBus: getIt<AuthEventBus>(),
+        ),
+        instanceName: 'authenticatedDio',
+      );
+
+      // Register UserApiClient which uses authenticatedDio
+      getIt.registerSingleton<UserApiClient>(
+        UserApiClient(
+          authenticatedHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+        ),
+      );
+
+      // Register AuthService
+      getIt.registerSingleton<AuthService>(
+        AuthServiceImpl(
+          authenticationApiClient: getIt<AuthenticationApiClient>(),
+          userApiClient: getIt<UserApiClient>(),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+          eventBus: getIt<AuthEventBus>(),
+        ),
+      );
+
+      // Now attempt login with AuthenticationApiClient
+      try {
+        final result = await getIt<AuthenticationApiClient>().login(
+          'test@example.com',
+          'password',
         );
 
-        // Create a standard auth setup with real DioFactory
-        getIt.registerSingleton<DioFactory>(
-          DioFactory(appConfig: getIt<AppConfigInterface>()),
+        // Now we expect this to succeed since basicDio has the API key interceptor
+        expect(result.accessToken, equals('test-access-token'));
+        expect(result.refreshToken, equals('test-refresh-token'));
+        expect(result.userId, equals('test-user-id'));
+      } catch (e) {
+        fail(
+          'Login should have succeeded with AuthenticationApiClient using basicDio: $e',
         );
+      }
 
-        // Use our test credential provider instead of the real one
-        getIt.registerSingleton<AuthCredentialsProvider>(
-          TestAuthCredentialsProvider(),
-        );
+      // Verify the request that was made
+      expect(server.lastRequest, isNotNull);
+      expect(
+        server.lastRequest!.headers.value('x-api-key'),
+        equals('test-api-key'),
+      );
 
-        getIt.registerSingleton<AuthEventBus>(AuthEventBus());
+      // Reset test server to verify next request
+      server = await TestServer.create();
+      logger.i('Created new test server on port ${server.port}');
 
-        // Register the Dio instances like the app would
-        getIt.registerSingleton<Dio>(
-          getIt<DioFactory>().createBasicDio(),
-          instanceName: 'basicDio',
-        );
+      // Update the AppConfig to use the new server port
+      getIt.unregister<AppConfigInterface>();
+      getIt.registerSingleton<AppConfigInterface>(
+        AppConfig.test(
+          apiDomain: 'localhost:${server.port}',
+          apiKey: 'test-api-key',
+        ),
+      );
 
-        // Register AuthenticationApiClient FIRST (like in the app) - CRITICAL: this uses basicDio
-        getIt.registerSingleton<AuthenticationApiClient>(
-          AuthenticationApiClient(
-            basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
-            credentialsProvider: getIt<AuthCredentialsProvider>(),
-          ),
-        );
+      // Re-create DioFactory with updated config
+      getIt.unregister<DioFactory>();
+      getIt.registerSingleton<DioFactory>(
+        DioFactory(appConfig: getIt<AppConfigInterface>()),
+      );
 
-        // Register AuthApiClient for backward compatibility
-        getIt.registerSingleton<AuthApiClient>(
-          AuthApiClient(
-            httpClient: getIt<Dio>(instanceName: 'basicDio'),
-            credentialsProvider: getIt<AuthCredentialsProvider>(),
-          ),
-        );
+      // Re-register Dio instances
+      getIt.unregister<Dio>(instanceName: 'basicDio');
+      getIt.registerSingleton<Dio>(
+        getIt<DioFactory>().createBasicDio(),
+        instanceName: 'basicDio',
+      );
 
-        // Register authenticatedDio AFTER AuthenticationApiClient
-        getIt.registerSingleton<Dio>(
-          getIt<DioFactory>().createAuthenticatedDio(
-            authApiClient: getIt<AuthenticationApiClient>(),
-            credentialsProvider: getIt<AuthCredentialsProvider>(),
-            authEventBus: getIt<AuthEventBus>(),
-          ),
-          instanceName: 'authenticatedDio',
-        );
+      // Re-register AuthenticationApiClient
+      getIt.unregister<AuthenticationApiClient>();
+      getIt.registerSingleton<AuthenticationApiClient>(
+        AuthenticationApiClient(
+          basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+        ),
+      );
 
-        // Register UserApiClient which uses authenticatedDio
-        getIt.registerSingleton<UserApiClient>(
-          UserApiClient(
-            authenticatedHttpClient: getIt<Dio>(
-              instanceName: 'authenticatedDio',
-            ),
-            credentialsProvider: getIt<AuthCredentialsProvider>(),
-          ),
-        );
+      // Re-register authenticatedDio
+      getIt.unregister<Dio>(instanceName: 'authenticatedDio');
+      getIt.registerSingleton<Dio>(
+        getIt<DioFactory>().createAuthenticatedDio(
+          authApiClient: getIt<AuthenticationApiClient>(),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+          authEventBus: getIt<AuthEventBus>(),
+        ),
+        instanceName: 'authenticatedDio',
+      );
 
-        // Register AuthService
-        getIt.registerSingleton<AuthService>(
-          AuthServiceImpl(
-            authenticationApiClient: getIt<AuthenticationApiClient>(),
-            userApiClient: getIt<UserApiClient>(),
-            credentialsProvider: getIt<AuthCredentialsProvider>(),
-            eventBus: getIt<AuthEventBus>(),
-          ),
-        );
+      // Re-register UserApiClient
+      getIt.unregister<UserApiClient>();
+      getIt.registerSingleton<UserApiClient>(
+        UserApiClient(
+          authenticatedHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+        ),
+      );
 
-        // Now attempt login with this setup
-        try {
-          final result = await getIt<AuthApiClient>().login(
-            'test@example.com',
-            'password',
-          );
+      // Re-register AuthService
+      getIt.unregister<AuthService>();
+      getIt.registerSingleton<AuthService>(
+        AuthServiceImpl(
+          authenticationApiClient: getIt<AuthenticationApiClient>(),
+          userApiClient: getIt<UserApiClient>(),
+          credentialsProvider: getIt<AuthCredentialsProvider>(),
+          eventBus: getIt<AuthEventBus>(),
+        ),
+      );
 
-          // Now we expect this to succeed since basicDio has the API key interceptor
-          expect(result.accessToken, equals('test-access-token'));
-          expect(result.refreshToken, equals('test-refresh-token'));
-          expect(result.userId, equals('test-user-id'));
-        } catch (e) {
-          fail(
-            'Login should have succeeded now that basicDio includes API key: $e',
-          );
-        }
+      // Our fix is working! Both client types are using the right Dio instances
+      // Verify UserApiClient uses authenticatedDio
+      final mockUserProfile = {
+        'id': 'test-user-id',
+        'email': 'test@example.com',
+        'name': 'Test User',
+      };
 
-        // Verify the request that was made
-        expect(server.lastRequest, isNotNull);
+      // Set up mock response for next test
+      server._lastRequest = null;
+
+      try {
+        // This test will actually make an HTTP request, which will fail
+        // due to the mock server not properly handling user profile requests.
+        // But we can still verify the API key header was sent correctly.
+        await getIt<UserApiClient>().getUserProfile();
+      } catch (e) {
+        // Expected to fail because we don't mock the complete response
+        // We just want to verify the headers
+      }
+
+      // Verify an HTTP request was made
+      expect(server.lastRequest, isNotNull);
+      if (server.lastRequest != null) {
+        // Verify the API key was included in this request too
         expect(
           server.lastRequest!.headers.value('x-api-key'),
           equals('test-api-key'),
         );
-
-        // Our fix is working! Both Dio instances include API key headers.
-        // For completeness, let's also verify authenticatedDio works
-        getIt.unregister<AuthApiClient>();
-        getIt.registerSingleton<AuthApiClient>(
-          AuthApiClient(
-            httpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
-            credentialsProvider: getIt<AuthCredentialsProvider>(),
-          ),
-        );
-      },
-    );
+      }
+    });
   });
 }

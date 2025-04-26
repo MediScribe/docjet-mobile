@@ -3,7 +3,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
@@ -14,7 +14,7 @@ import 'package:mockito/mockito.dart';
 // Generate mocks for dependencies
 @GenerateMocks([
   AuthCredentialsProvider,
-  AuthApiClient,
+  AuthenticationApiClient,
   AuthEventBus,
   RequestInterceptorHandler,
   ErrorInterceptorHandler,
@@ -26,7 +26,7 @@ import 'auth_interceptor_refresh_test.mocks.dart';
 void main() {
   late MockDio mockDio;
   late MockAuthCredentialsProvider mockCredentialsProvider;
-  late MockAuthApiClient mockApiClient;
+  late MockAuthenticationApiClient mockApiClient;
   late MockAuthEventBus mockAuthEventBus;
   late AuthInterceptor authInterceptor;
   late MockErrorInterceptorHandler mockErrorHandler;
@@ -108,7 +108,7 @@ void main() {
     // Set up mocks
     mockDio = MockDio();
     mockCredentialsProvider = MockAuthCredentialsProvider();
-    mockApiClient = MockAuthApiClient();
+    mockApiClient = MockAuthenticationApiClient();
     mockAuthEventBus = MockAuthEventBus();
     mockErrorHandler = MockErrorInterceptorHandler();
 

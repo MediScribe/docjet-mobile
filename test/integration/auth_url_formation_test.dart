@@ -1,4 +1,4 @@
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -74,9 +74,9 @@ void main() {
 
       // Register auth API client with correctly named parameters
       logger.d('$tag Registering auth API client');
-      getIt.registerSingleton<AuthApiClient>(
-        AuthApiClient(
-          httpClient: getIt<Dio>(instanceName: 'basicDio'),
+      getIt.registerSingleton<AuthenticationApiClient>(
+        AuthenticationApiClient(
+          basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
           credentialsProvider: credentialsProvider,
         ),
       );
@@ -96,7 +96,7 @@ void main() {
       logger.i('$tag Starting test');
 
       // Try to login, don't care about the result (will likely fail)
-      final authClient = getIt<AuthApiClient>();
+      final authClient = getIt<AuthenticationApiClient>();
 
       logger.d(
         '$tag Attempting login - we expect this to fail, but want to see the request',

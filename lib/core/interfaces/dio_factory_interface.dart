@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 
 /// Defines the interface for a factory responsible for creating configured
 /// [Dio] HTTP client instances.
@@ -29,7 +29,7 @@ abstract class DioFactoryInterface {
   ///   [credentialsProvider]: The provider for accessing stored tokens.
   ///   [authEventBus]: The bus for dispatching authentication events (e.g., on logout).
   Dio createAuthenticatedDio({
-    required AuthApiClient authApiClient,
+    required AuthenticationApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
   });

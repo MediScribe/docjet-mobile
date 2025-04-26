@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
 import 'package:dio/dio.dart';
@@ -11,13 +11,16 @@ void main() {
     late Dio basicDio;
     late AuthCredentialsProvider credentialsProvider;
     late AuthEventBus eventBus;
-    late AuthApiClient authApiClient;
+    late AuthenticationApiClient authApiClient;
 
     setUp(() {
       basicDio = Dio();
       credentialsProvider = _FakeCredentialsProvider();
       eventBus = _FakeEventBus();
-      authApiClient = _FakeAuthApiClient(basicDio, credentialsProvider);
+      authApiClient = _FakeAuthenticationApiClient(
+        basicDio,
+        credentialsProvider,
+      );
     });
 
     test('Function-based DI breaks circular dependency', () {
@@ -35,26 +38,27 @@ void main() {
         reason: 'Should be able to create interceptor',
       );
 
-      // 2. The key test - we can now create a new AuthApiClient that depends on a Dio
+      // 2. The key test - we can now create a new AuthenticationApiClient that depends on a Dio
       // with the interceptor, and the circular dependency is broken
       final authenticatedDio = Dio()..interceptors.add(interceptor);
 
-      final newApiClient = AuthApiClient(
-        httpClient: authenticatedDio,
+      final newApiClient = AuthenticationApiClient(
+        basicHttpClient: basicDio,
         credentialsProvider: credentialsProvider,
       );
 
       expect(
         newApiClient,
         isNotNull,
-        reason: 'Should be able to create AuthApiClient with authenticatedDio',
+        reason:
+            'Should be able to create AuthenticationApiClient with basicDio',
       );
 
       // 3. Verify the circular references were successfully established
       expect(
-        identical(newApiClient.httpClient, authenticatedDio),
+        identical(newApiClient.basicHttpClient, basicDio),
         isTrue,
-        reason: 'ApiClient should reference authenticatedDio',
+        reason: 'ApiClient should reference basicDio',
       );
 
       expect(
@@ -83,9 +87,9 @@ class _FakeEventBus implements AuthEventBus {
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeAuthApiClient extends AuthApiClient {
-  _FakeAuthApiClient(Dio httpClient, AuthCredentialsProvider provider)
-    : super(httpClient: httpClient, credentialsProvider: provider);
+class _FakeAuthenticationApiClient extends AuthenticationApiClient {
+  _FakeAuthenticationApiClient(Dio httpClient, AuthCredentialsProvider provider)
+    : super(basicHttpClient: httpClient, credentialsProvider: provider);
 
   @override
   Future<AuthResponseDto> refreshToken(String refreshToken) async {

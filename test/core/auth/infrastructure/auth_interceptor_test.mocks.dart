@@ -9,7 +9,7 @@ import 'package:dio/dio.dart' as _i2;
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i3;
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i7;
 import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i8;
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart'
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart'
     as _i5;
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart'
     as _i4;
@@ -112,20 +112,21 @@ class _FakeResponse_7<T1> extends _i1.SmartFake implements _i2.Response<T1> {
         );
 }
 
-/// A class which mocks [AuthApiClient].
+/// A class which mocks [AuthenticationApiClient].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthApiClient extends _i1.Mock implements _i5.AuthApiClient {
-  MockAuthApiClient() {
+class MockAuthenticationApiClient extends _i1.Mock
+    implements _i5.AuthenticationApiClient {
+  MockAuthenticationApiClient() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i2.Dio get httpClient => (super.noSuchMethod(
-        Invocation.getter(#httpClient),
+  _i2.Dio get basicHttpClient => (super.noSuchMethod(
+        Invocation.getter(#basicHttpClient),
         returnValue: _FakeDio_0(
           this,
-          Invocation.getter(#httpClient),
+          Invocation.getter(#basicHttpClient),
         ),
       ) as _i2.Dio);
 
@@ -180,16 +181,6 @@ class MockAuthApiClient extends _i1.Mock implements _i5.AuthApiClient {
           ),
         )),
       ) as _i6.Future<_i4.AuthResponseDto>);
-
-  @override
-  _i6.Future<void> getUserProfile() => (super.noSuchMethod(
-        Invocation.method(
-          #getUserProfile,
-          [],
-        ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
 
   @override
   void testHandleDioException(_i2.DioException? e) => super.noSuchMethod(
