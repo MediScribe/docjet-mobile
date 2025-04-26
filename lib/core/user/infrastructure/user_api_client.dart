@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
-import 'package:flutter/foundation.dart';
 
 /// Client responsible for authenticated user-related API calls
 ///

@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/interfaces/app_config_interface.dart';
@@ -74,12 +74,12 @@ class DioFactory {
   }
 
   /// Creates a Dio instance configured with authentication interceptors.
-  /// Requires AuthApiClient and AuthCredentialsProvider for token refresh.
+  /// Requires AuthenticationApiClient and AuthCredentialsProvider for token refresh.
   ///
   /// Uses function-based DI to break the circular dependency between
-  /// AuthInterceptor and AuthApiClient.
+  /// AuthInterceptor and AuthenticationApiClient.
   Dio createAuthenticatedDio({
-    required AuthApiClient authApiClient,
+    required AuthenticationApiClient authApiClient,
     required AuthCredentialsProvider credentialsProvider,
     required AuthEventBus authEventBus,
   }) {
@@ -95,7 +95,7 @@ class DioFactory {
     // Add the authentication interceptor for handling 401s and token refresh
     dio.interceptors.add(
       AuthInterceptor(
-        // Pass a function reference instead of the entire AuthApiClient instance
+        // Pass a function reference instead of the entire AuthenticationApiClient instance
         // This breaks the circular dependency
         refreshTokenFunction:
             (refreshToken) => authApiClient.refreshToken(refreshToken),

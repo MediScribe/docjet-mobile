@@ -3,9 +3,11 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
@@ -48,8 +50,9 @@ class AuthModule {
   ///
   /// The registration order is important to avoid circular dependencies:
   /// 1. First register basicDio
-  /// 2. Then register AuthApiClient (using basicDio)
-  /// 3. Then register authenticatedDio (using AuthApiClient for token refresh via function reference)
+  /// 2. Then register AuthenticationApiClient (using basicDio)
+  /// 3. Then register UserApiClient (using authenticatedDio)
+  /// 4. Then register authenticatedDio (using AuthenticationApiClient for token refresh via function reference)
   ///
   /// Optional dependencies like FlutterSecureStorage, JwtValidator, and
   /// AuthSessionProvider can still be passed to override default registrations,
@@ -125,20 +128,20 @@ class AuthModule {
       _logger.i('$_tag basicDio already registered. Skipping registration.');
     }
 
-    // STEP 2: Register the auth API client (depends on basicDio)
+    // STEP 2: Register the AuthenticationApiClient (depends on basicDio)
     // This must be registered BEFORE authenticatedDio to break the circular dependency
-    if (!getIt.isRegistered<AuthApiClient>()) {
-      getIt.registerLazySingleton<AuthApiClient>(
-        () => AuthApiClient(
-          httpClient: getIt<Dio>(instanceName: 'basicDio'),
+    if (!getIt.isRegistered<AuthenticationApiClient>()) {
+      getIt.registerLazySingleton<AuthenticationApiClient>(
+        () => AuthenticationApiClient(
+          basicHttpClient: getIt<Dio>(instanceName: 'basicDio'),
           credentialsProvider:
               finalCredentialsProvider, // Use instance field via variable
         ),
       );
-      _logger.d('$_tag Registered AuthApiClient with basicDio.');
+      _logger.d('$_tag Registered AuthenticationApiClient with basicDio.');
     } else {
       _logger.i(
-        '$_tag AuthApiClient already registered. Skipping registration.',
+        '$_tag AuthenticationApiClient already registered. Skipping registration.',
       );
     }
 
@@ -147,12 +150,14 @@ class AuthModule {
     final AuthEventBus finalAuthEventBus = _authEventBus;
 
     // STEP 3: Register the authenticated Dio client
-    // This must be registered AFTER AuthApiClient since it depends on it for the refreshToken function
+    // This must be registered AFTER AuthenticationApiClient since it depends on it for the refreshToken function
     if (!getIt.isRegistered<Dio>(instanceName: 'authenticatedDio')) {
       _logger.d(
         '$_tag About to create authenticatedDio via createAuthenticatedDio...',
       );
-      _logger.d('$_tag AuthApiClient to be passed: ${getIt<AuthApiClient>()}');
+      _logger.d(
+        '$_tag AuthenticationApiClient to be passed: ${getIt<AuthenticationApiClient>()}',
+      );
       _logger.d(
         '$_tag CredentialsProvider to be passed: $finalCredentialsProvider',
       );
@@ -162,7 +167,7 @@ class AuthModule {
         _logger.d('$_tag Inside factory function for authenticatedDio...');
         final authenticatedDio = _dioFactory.createAuthenticatedDio(
           authApiClient:
-              getIt<AuthApiClient>(), // Depends on registered/existing
+              getIt<AuthenticationApiClient>(), // Use the new client class
           credentialsProvider:
               finalCredentialsProvider, // Use instance field via variable
           authEventBus: finalAuthEventBus, // Use instance field via variable
@@ -176,6 +181,38 @@ class AuthModule {
     } else {
       _logger.i(
         '$_tag authenticatedDio already registered. Skipping registration.',
+      );
+    }
+
+    // STEP 4: Register UserApiClient (depends on authenticatedDio)
+    if (!getIt.isRegistered<UserApiClient>()) {
+      getIt.registerLazySingleton<UserApiClient>(
+        () => UserApiClient(
+          authenticatedHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
+          credentialsProvider: finalCredentialsProvider,
+        ),
+      );
+      _logger.d('$_tag Registered UserApiClient with authenticatedDio.');
+    } else {
+      _logger.i(
+        '$_tag UserApiClient already registered. Skipping registration.',
+      );
+    }
+
+    // For backward compatibility, register the legacy AuthApiClient that delegates to the new clients
+    if (!getIt.isRegistered<AuthApiClient>()) {
+      _logger.d(
+        '$_tag Registering legacy AuthApiClient for backward compatibility',
+      );
+      getIt.registerLazySingleton<AuthApiClient>(
+        () => AuthApiClient(
+          httpClient: getIt<Dio>(instanceName: 'basicDio'),
+          credentialsProvider: finalCredentialsProvider,
+        ),
+      );
+    } else {
+      _logger.i(
+        '$_tag AuthApiClient already registered. Skipping registration.',
       );
     }
 

@@ -171,23 +171,63 @@ Each change will follow the RED-GREEN-REFACTOR cycle:
    - AuthenticationApiClient gets basicDio for unauthenticated operations
    - UserApiClient gets authenticatedDio for authenticated operations
 
-### Cycle 3: Update AuthModule Registration Test
+6. **Complete Legacy AuthApiClient Implementation**: The current implementation of the legacy AuthApiClient for backward compatibility still uses basicDio directly. For full correctness, it should delegate to the appropriate specialized client based on the method called:
+   ```dart
+   // In AuthApiClient
+   Future<UserProfileDto> getUserProfile() {
+     // Delegate to UserApiClient for profile endpoints
+     return getIt<UserApiClient>().getUserProfile();
+   }
+   
+   Future<AuthResponseDto> login(String email, String password) {
+     // Delegate to AuthenticationApiClient for auth endpoints
+     return getIt<AuthenticationApiClient>().login(email, password);
+   }
+   ```
 
-#### 3.1 RED: Modify AuthModule Test
-- [ ] Update `auth_module_test.dart` to verify both clients are registered correctly
-- [ ] Create test case that verifies AuthenticationApiClient gets basicDio
-- [ ] Create test case that verifies UserApiClient gets authenticatedDio
-- [ ] Run tests to confirm they fail (RED)
+7. **Auth Interceptor Uses Function Reference**: Note that AuthInterceptor takes a function reference, not a direct dependency on AuthenticationApiClient. The critical line is:
+   ```dart
+   refreshTokenFunction: (refreshToken) => authApiClient.refreshToken(refreshToken)
+   ```
+   This allows us to break the circular dependency. When updating other files, maintain this pattern.
 
-#### 3.2 GREEN: Update AuthModule Registration
-- [ ] Modify `auth_module.dart` to register both clients properly
-- [ ] Ensure circular dependencies are broken properly with function-based DI
-- [ ] Run tests to verify they pass (GREEN)
+8. **Test File Fixing Approach**: When fixing the failing integration tests, update the mocks first, then the test expectations. The signature changes from AuthApiClient to AuthenticationApiClient will require careful updates to all mock creation and verification code.
 
-#### 3.3 REFACTOR: Clean Up Module
-- [ ] Improve registration order and documentation
-- [ ] Remove any redundant code
-- [ ] Ensure tests still pass
+9. **Core Responsibility Division**: 
+   - AuthenticationApiClient: login, refreshToken (uses basicDio)
+   - UserApiClient: getUserProfile, other user operations (uses authenticatedDio)
+
+10. **Tests Must Verify Proper Client Usage**: Each test should explicitly verify the right requests go through the right Dio instance - that's the whole point of the refactoring.
+
+11. **Fix These Pending Analyzer Issues**: After Cycle 3, we still have these remaining issues to address:
+    ```
+    error • test/core/auth/infrastructure/auth_module_integration_test.dart:183:28 • The argument type
+            'AuthApiClient' can't be assigned to the parameter type 'AuthenticationApiClient'.
+    error • test/core/auth/infrastructure/dio_factory_test.dart:196:28 • The argument type
+            'MockAuthApiClient' can't be assigned to the parameter type 'AuthenticationApiClient'.
+    error • test/core/auth/infrastructure/dio_factory_test.dart:255:28 • The argument type
+            'MockAuthApiClient' can't be assigned to the parameter type 'AuthenticationApiClient'.
+    error • test/core/auth/infrastructure/dio_factory_test.dart:301:26 • The argument type
+            'MockAuthApiClient' can't be assigned to the parameter type 'AuthenticationApiClient'.
+    error • test/core/auth/infrastructure/dio_factory_test.dart:369:24 • The argument type
+            'MockAuthApiClient' can't be assigned to the parameter type 'AuthenticationApiClient'.
+    error • test/core/auth/infrastructure/dio_factory_test.dart:418:26 • The argument type
+            'MockAuthApiClient' can't be assigned to the parameter type 'AuthenticationApiClient'.
+    warning • lib/core/auth/infrastructure/dio_factory.dart:5:8 • Unused import:
+            'package:docjet_mobile/core/auth/infrastructure/auth_api_client.dart'.
+    warning • lib/core/user/infrastructure/user_api_client.dart:5:8 • Unused import:
+            'package:flutter/foundation.dart'.
+    warning • test/core/auth/infrastructure/auth_module_test.dart:48:3 • The value of the local variable
+            'mockAuthenticationApiClient' isn't used.
+    warning • test/core/user/infrastructure/user_api_client_test.dart:1:8 • Unused import:
+            'dart:convert'.
+    ```
+    
+    All these errors must be fixed as part of Cycle 4:
+    - Update mock generations in dio_factory_test.dart and auth_module_integration_test.dart
+    - Remove unused imports
+    - Fix variable usage
+    - This will require running `flutter pub run build_runner build --delete-conflicting-outputs` again
 
 ### Cycle 4: Update AuthService Interface and Implementation
 
