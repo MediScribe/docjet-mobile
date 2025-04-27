@@ -515,6 +515,9 @@ Next steps are to implement Cycle 7 to verify no regressions across the entire c
    - [ ] Ensure new developers understand the Split Client pattern
    - [ ] Update any team documentation that references the old architecture
 
+3. Alignment with other features:
+   - [ ] Align Job data layer with Split Client pattern (see [Job Data Auth Alignment](job_data_auth_alignment.md))
+
 ### Guidance for Future Developers
 1. **API Client Implementation:**
    - Follow the Split Client pattern for all feature areas (Documents, Jobs, etc.)

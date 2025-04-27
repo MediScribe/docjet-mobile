@@ -17,9 +17,10 @@ Unit tests focus on testing individual components in isolation:
 - **AuthException**: Tests for different exception types and factory methods
 - **AuthCredentialsProvider**: Tests secure storage of tokens and validation
 - **JWT Validation**: Tests token validation and expiry detection
-- **AuthApiClient**: Tests network operations and error mapping
-- **AuthService**: Tests authentication service interface methods
-- **AuthInterceptor**: Tests token refresh and retry mechanisms
+- **AuthenticationApiClient**: Tests non-authenticated operations (login, refresh) ensuring `basicDio` is used and errors are mapped correctly
+- **UserApiClient**: Tests authenticated operations (profile) ensuring `authenticatedDio` is used and errors are mapped correctly
+- **AuthService**: Tests implementation (`AuthServiceImpl`) verifying delegation to the correct API client (`AuthenticationApiClient` or `UserApiClient`) based on the method called
+- **AuthInterceptor**: Tests token refresh logic, ensuring it correctly uses the provided `refreshTokenFunction` (from `AuthenticationApiClient`) and handles 401s appropriately for requests made via `authenticatedDio`
 
 ## End-to-End Authentication Flow Testing
 

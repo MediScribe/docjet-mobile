@@ -27,31 +27,33 @@ graph TD
         AuthServiceImpl -->|Uses| UserApiClient(User API Client)
         AuthServiceImpl -->|Updates| AuthState
         AuthServiceImpl -->|Uses| AuthCredProviderImpl(SecureStorageAuthCredentialsProvider)
-        AuthServiceImpl -->|Uses| AuthInterceptor(Auth Interceptor)
-        
+
         AuthCredProviderImpl -->|Implements| AuthCredProvider
         AuthCredProviderImpl -->|Reads API Key From| CompileDefines([Compile-time Defines<br>via --dart-define])
         AuthCredProviderImpl -->|Stores/Reads JWT| SecureStorage([FlutterSecureStorage])
         AuthCredProviderImpl -->|Validates Tokens via| JwtValidator([JWT Validator])
-        
-        DioFactory -->|Configures| HttpClient
-        DioFactory -->|Injects API Key via Interceptor| HttpClient
-        DioFactory -->|Injects AuthInterceptor| HttpClient
-        
-        AuthenticationApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
-        AuthenticationApiClient -->|Gets User Profile| AuthAPI
-        
-        UserApiClient -->|Uses| HttpClient([HTTP Client<br>- Specifically Dio])
-        UserApiClient -->|Gets User Profile| AuthAPI
-        
-        AuthInterceptor -->|Intercepts 401 Errors| HttpClient
+
+        DioFactory -->|Configures| basicDio(Dio Instance<br>for Basic Auth)
+        DioFactory -->|Injects API Key Interceptor| basicDio
+        DioFactory -->|Configures| authenticatedDio(Dio Instance<br>for Authenticated Calls)
+        DioFactory -->|Injects API Key Interceptor| authenticatedDio
+        DioFactory -->|Injects| AuthInterceptor(Auth Interceptor) --> authenticatedDio
+
+        AuthenticationApiClient -->|Uses| basicDio
+        AuthenticationApiClient -->|Provides func to| AuthInterceptor
+
+        UserApiClient -->|Uses| authenticatedDio
+
+        AuthInterceptor -->|Intercepts 401 Errors on| authenticatedDio
+        AuthInterceptor -->|Calls refresh func on| AuthenticationApiClient
         AuthInterceptor -->|Triggers| TokenRefresh([Token Refresh Flow])
-        AuthInterceptor -->|Retries Original Request| HttpClient
+        AuthInterceptor -->|Retries Original Request via| authenticatedDio
         AuthInterceptor -->|Uses Exponential Backoff| TokenRefresh
         AuthInterceptor -->|Listens to| AuthEventBus
-        AuthInterceptor -->|Uses Function Reference to| AuthenticationApiClient
-        
-        HttpClient -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/auth/login&#41;}
+
+        basicDio -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/auth/login&#41;}
+        authenticatedDio -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/users/profile&#41;}
+
     end
 
     subgraph "Other Components"
@@ -348,37 +350,66 @@ When adding new API clients to the app, follow these patterns:
 1. **Determine Authentication Needs:**
    - Does this endpoint require authentication? → Use `authenticatedDio`
    - Is this a public endpoint or auth operation? → Use `basicDio`
+   - Does the feature require *both* public and authenticated endpoints? → See below.
 
 2. **API Client Responsibilities:**
    - Each API client should have a clear, focused responsibility
-   - Limit each client to similar endpoints with the same authentication requirements
-   - Use descriptive naming that reflects the domain area (e.g., `DocumentApiClient`, `JobApiClient`)
+   - Limit each client to similar endpoints within a specific domain area (e.g., `JobsApiClient`, `DocumentApiClient`)
 
 3. **API Client Implementation:**
-   ```dart
-   /// Example of an authenticated API client
-   class DocumentApiClient {
-     final Dio authenticatedHttpClient; // For authenticated endpoints
-     final AuthCredentialsProvider credentialsProvider;
-   
-     DocumentApiClient({
-       required this.authenticatedHttpClient,
-       required this.credentialsProvider,
-     });
-   
-     // Methods that use authenticatedHttpClient...
-   }
-   ```
+   - **Single Auth Context:** If all endpoints require the same context (all public or all authenticated), inject only the corresponding `Dio` instance:
+     ```dart
+     /// Example of an authenticated-only API client
+     class DocumentApiClient {
+       final Dio authenticatedHttpClient; // For authenticated endpoints
+       // ...
+     
+       DocumentApiClient({
+         required this.authenticatedHttpClient,
+         // ...
+       });
+     }
+     ```
+   - **Mixed Auth Context:** If a feature's API client needs to call *both* public and authenticated endpoints, inject *both* `Dio` instances:
+     ```dart
+     /// Example of an API client needing both contexts
+     class JobsApiClient {
+       final Dio basicHttpClient; // For public endpoints
+       final Dio authenticatedHttpClient; // For authenticated endpoints
+       // ...
+     
+       JobsApiClient({
+         required this.basicHttpClient,
+         required this.authenticatedHttpClient,
+         // ...
+       });
 
-4. **Error Handling:**
+       Future<void> getPublicJobs() async {
+         // Use basicHttpClient
+       }
+
+       Future<void> applyForJob(String jobId) async {
+         // Use authenticatedHttpClient
+       }
+     }
+     ```
+     Register this client providing both `sl<Dio>('basicDio')` and `sl<Dio>('authenticatedDio')`.
+
+4. **Handling Auth-Dependent Endpoints:**
+   - If the *same API endpoint* behaves differently based on authentication status (e.g., `/search`):
+     - Expose *separate methods* in the API client for each behavior (e.g., `searchPublic()`, `searchAuthenticated()`), each explicitly using the correct `Dio` instance.
+     - The corresponding **Service** layer (e.g., `JobsServiceImpl`) is responsible for checking the current auth state (using `AuthService.isAuthenticated()`) and calling the appropriate API client method.
+     - **Do not** put auth-state checking logic inside the API client itself.
+
+5. **Error Handling:**
    - Handle authentication errors consistently
    - Provide clear error messages that distinguish between different failure types
    - Use safe type conversion with explicit error handling
 
-5. **Testing:**
-   - Test authenticated clients with authenticatedDio mocks
-   - Verify correct headers (both API key and JWT token)
-   - Test error cases like network failures, authentication failures, etc.
+6. **Testing:**
+   - Test clients needing both contexts by mocking both `Dio` instances.
+   - Verify correct headers (API key only for `basicDio`, API key + JWT for `authenticatedDio`)
+   - Test error cases like network failures, authentication failures, etc. for both contexts.
 
 Following these guidelines ensures consistent authentication behavior across the app and prevents issues like "Missing API key" when "401 Unauthorized" would be more appropriate.
 
