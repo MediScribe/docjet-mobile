@@ -43,7 +43,6 @@ void main() {
   late MockDio mockAuthenticatedDio;
   late MockFlutterSecureStorage mockSecureStorage;
   late MockJwtValidator mockJwtValidator;
-  late MockAuthenticationApiClient mockAuthenticationApiClient;
   late MockUserApiClient mockUserApiClient;
 
   // Module to test
@@ -70,7 +69,6 @@ void main() {
     mockAuthenticatedDio = MockDio();
     mockSecureStorage = MockFlutterSecureStorage();
     mockJwtValidator = MockJwtValidator();
-    mockAuthenticationApiClient = MockAuthenticationApiClient();
     mockUserApiClient = MockUserApiClient();
 
     // Configure mockDioFactory to return our mocks

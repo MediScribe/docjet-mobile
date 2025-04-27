@@ -647,7 +647,6 @@ class TestAuthEventBus implements AuthEventBus {
     events.add(event);
   }
 
-  @override
   void addError(Object error, [StackTrace? stackTrace]) {
     // No-op for test
   }

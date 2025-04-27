@@ -29,8 +29,6 @@ void main() {
   late MockUserApiClient mockUserApiClient;
   late MockAuthCredentialsProvider mockCredentialsProvider;
   late MockAuthEventBus mockAuthEventBus;
-  late MockDio mockBasicDio;
-  late MockDio mockAuthenticatedDio;
   late AuthService authService;
 
   const testEmail = 'test@example.com';
@@ -58,8 +56,6 @@ void main() {
     mockUserApiClient = MockUserApiClient();
     mockCredentialsProvider = MockAuthCredentialsProvider();
     mockAuthEventBus = MockAuthEventBus();
-    mockBasicDio = MockDio();
-    mockAuthenticatedDio = MockDio();
 
     authService = AuthServiceImpl(
       authenticationApiClient: mockAuthenticationApiClient,

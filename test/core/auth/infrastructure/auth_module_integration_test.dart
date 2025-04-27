@@ -296,11 +296,13 @@ void main() {
 
       // Our fix is working! Both client types are using the right Dio instances
       // Verify UserApiClient uses authenticatedDio
+      /*
       final mockUserProfile = {
         'id': 'test-user-id',
         'email': 'test@example.com',
         'name': 'Test User',
       };
+      */
 
       // Set up mock response for next test
       server._lastRequest = null;
