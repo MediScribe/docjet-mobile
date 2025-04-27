@@ -4,6 +4,8 @@ import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:docjet_mobile/features/home/presentation/screens/home_screen.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_initializer.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,6 +23,11 @@ void main() async {
 
   // Initialize dependency injection
   await di.init();
+
+  // Initialize job sync service with proper DI
+  // We're in main.dart so using service locator directly is allowed
+  final syncService = getIt<JobSyncTriggerService>();
+  JobSyncInitializer.initialize(syncService);
 
   runApp(
     // Wrap the entire app in ProviderScope for Riverpod

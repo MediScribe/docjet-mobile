@@ -12,6 +12,7 @@ import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
 // Removed kDebugMode import
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
 
 // Add a MockAuthSessionProvider class (Simplified)
 class MockAuthSessionProvider implements AuthSessionProvider {
@@ -194,6 +195,34 @@ void main() {
     expect(() => sl<AppConfig>(), returnsNormally);
     final config = sl<AppConfig>();
     expect(config, isA<AppConfig>());
+  });
+
+  testWidgets('should register and resolve JobSyncTriggerService', (
+    WidgetTester tester,
+  ) async {
+    // Arrange: Ensure Flutter bindings are initialized
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    logger.i(
+      '$tag Testing JobSyncTriggerService registration as part of di.init()',
+    );
+
+    // Act: Initialize the container
+    await tester.runAsync(() async {
+      await di.init();
+    });
+
+    // Assert: Verify JobSyncTriggerService is registered
+    expect(
+      sl.isRegistered<JobSyncTriggerService>(),
+      isTrue,
+      reason: "JobSyncTriggerService should be registered after di.init()",
+    );
+
+    // Verify we can resolve the service
+    expect(() => sl<JobSyncTriggerService>(), returnsNormally);
+    final service = sl<JobSyncTriggerService>();
+    expect(service, isA<JobSyncTriggerService>());
   });
 
   // Removed the excessive diagnostic tests

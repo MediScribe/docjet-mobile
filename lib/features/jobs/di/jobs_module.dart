@@ -13,6 +13,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.da
 import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
@@ -118,6 +119,18 @@ class JobsModule {
           processorService: getIt(),
         ),
       );
+    }
+    if (!getIt.isRegistered<JobSyncTriggerService>()) {
+      getIt.registerLazySingleton<JobSyncTriggerService>(() {
+        final service = JobSyncTriggerService(
+          jobRepository: getIt(),
+          // Use a shorter interval for testing if running in test mode
+          syncInterval: const Duration(seconds: 15),
+        );
+        // We don't call init() here; it should be called during app initialization
+        // This allows for proper timing control and avoids premature lifecycle observation
+        return service;
+      });
     }
 
     // Data Sources Interfaces
