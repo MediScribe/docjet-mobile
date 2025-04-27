@@ -25,6 +25,51 @@ graph TD
     %% Planned Future Navigation (WIP)
     HomeScreen -.->|"Future Nav (WIP)"| TranscriptionsPage(TranscriptionsPage)
 ```
+
+## Typical User Flow (Sequence)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant LoginScreen
+    participant AuthNotifier
+    participant HomeScreen
+    participant JobListPage
+    participant JobListPlayground
+
+    %% Login Flow
+    User->>LoginScreen: Enters Credentials
+    User->>LoginScreen: Taps Login Button
+    LoginScreen->>AuthNotifier: login(email, password)
+    activate AuthNotifier
+    Note over AuthNotifier: Updates state to Loading
+    AuthNotifier-->>LoginScreen: AuthState(Loading)
+    Note over LoginScreen: Shows Loading Indicator
+    Note over AuthNotifier: Performs Auth... (Success)
+    AuthNotifier-->>LoginScreen: AuthState(Authenticated, User)
+    deactivate AuthNotifier
+    Note over LoginScreen: Navigates to HomeScreen
+
+    %% Post-Login & Intended Navigation
+    User->>HomeScreen: View Screen
+    Note over HomeScreen: Navigation to JobListPage (TODO)
+    User->>HomeScreen: (Future) Tap Navigate to Jobs
+    HomeScreen->>JobListPage: Navigate
+
+    %% Debug Playground Navigation (Optional)
+    User->>JobListPage: (Debug Build) Tap Flask Icon
+    JobListPage->>JobListPlayground: Navigate
+
+    %% Logout Flow
+    User->>HomeScreen: Tap Logout Button
+    HomeScreen->>AuthNotifier: logout()
+    activate AuthNotifier
+    Note over AuthNotifier: Clears Session, Updates State
+    AuthNotifier-->>HomeScreen: AuthState(Unauthenticated)
+    deactivate AuthNotifier
+    Note over HomeScreen: Navigates back to LoginScreen
+```
+
 ## Authentication Screens
 
 ### LoginScreen
