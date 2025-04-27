@@ -16,7 +16,7 @@ graph TD
     
     %% Normal Navigation Paths
     HomeScreen -->|"Logout (via AuthNotifier)"| LoginScreen
-    HomeScreen -->|Future Nav| JobListPage(JobListPage)
+    HomeScreen -->|"Go to Jobs List button"| JobListPage(JobListPage)
     
     %% Jobs Feature Navigation
     JobListPage -->|"Debug Mode<br>Only"| JobListPlayground(JobListPlayground)
@@ -52,8 +52,7 @@ sequenceDiagram
 
     %% Post-Login & Intended Navigation
     User->>HomeScreen: View Screen
-    Note over HomeScreen: Navigation to JobListPage (TODO)
-    User->>HomeScreen: (Future) Tap Navigate to Jobs
+    User->>HomeScreen: Tap "Go to Jobs List" button
     HomeScreen->>JobListPage: Navigate
 
     %% Debug Playground Navigation (Optional)
@@ -88,11 +87,12 @@ sequenceDiagram
 ### HomeScreen
 - **Path**: `lib/features/home/presentation/screens/home_screen.dart`
 - **Purpose**: Main screen shown after authentication, serves as an entry point to app features
-- **Current State**: Placeholder implementation showing user ID
+- **Current State**: Implemented with navigation to JobListPage
 - **Key Features**:
   - Displays the authenticated user's ID
   - Contains a logout button in the app bar
-  - TODO: Will incorporate navigation to `JobListPage` and other features, including the planned `TranscriptionsPage`.
+  - Includes a "Go to Jobs List" button that navigates to the JobListPage
+  - Will incorporate navigation to other features in the future, including the planned `TranscriptionsPage`.
 
 ### TranscriptionsPage [WIP]
 - **Path**: `lib/features/home/presentation/pages/transcriptions_page.dart`

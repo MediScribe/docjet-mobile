@@ -1,3 +1,4 @@
+import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -5,9 +6,12 @@ import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.d
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
+import 'package:get_it/get_it.dart';
+import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'dart:typed_data';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
 /// This doesn't require tests as it's purely for UI experimentation.
@@ -75,23 +79,43 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     });
 
     try {
+      // Get FileSystem instance
+      final fileSystem = GetIt.instance<FileSystem>();
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
+      // Define a relative path for the temporary file
+      final tempFilename = 'playground_temp_$timestamp.m4a';
+
+      // Create an empty file
+      await fileSystem.writeFile(tempFilename, Uint8List(0));
+      _logger.i('$_tag Created empty temporary file: $tempFilename');
+
+      // Use the created filename (relative path) in params
       final params = CreateJobParams(
-        audioFilePath: 'playground_job_$timestamp.m4a',
+        audioFilePath: tempFilename, // Pass the valid relative path
         text:
             'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
       );
 
+      // Check if the widget is still mounted before using context
+      if (!mounted) return;
+
       // Get Cubit from context and call its createJob method
       context.read<JobListCubit>().createJob(params);
 
-      _logger.i('$_tag Called Cubit to create new Lorem Ipsum job');
+      _logger.i(
+        '$_tag Called Cubit to create new Lorem Ipsum job with temp file: $tempFilename',
+      );
     } catch (e) {
       _logger.e('$_tag Error creating job: $e');
+      // Optionally show an error message to the user
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      // Check if the widget is still mounted before calling setState
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -102,14 +126,41 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: const Text('Job List UI Playground'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: const Icon(CupertinoIcons.refresh),
-          onPressed: () {
-            _logger.d(
-              '$_tag Refresh button pressed (does nothing - Cubit watches stream)',
-            );
-          },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(CupertinoIcons.refresh),
+              onPressed: () {
+                _logger.d(
+                  '$_tag Refresh button pressed (does nothing - Cubit watches stream)',
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Icon(CupertinoIcons.cloud_upload),
+              onPressed: () async {
+                _logger.i('$_tag Manual sync triggered!');
+                try {
+                  // TODO: [ARCH] Direct repository access is BAD PRACTICE.
+                  // This is only acceptable here because it's a playground
+                  // for quick testing/debugging. In real features, use a
+                  // Cubit/Notifier and a Use Case.
+                  final repo = GetIt.instance<JobRepository>();
+                  final result = await repo.syncPendingJobs();
+                  result.fold(
+                    (failure) => _logger.e('$_tag Sync failed: $failure'),
+                    (_) => _logger.i('$_tag Sync successful!'),
+                  );
+                } catch (e) {
+                  _logger.e('$_tag Error during manual sync: $e');
+                }
+              },
+            ),
+          ],
         ),
       ),
       child: SafeArea(

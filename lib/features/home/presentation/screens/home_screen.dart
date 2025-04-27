@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
-import 'package:flutter/material.dart';
+import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -16,21 +17,18 @@ class HomeScreen extends ConsumerWidget {
         authState.status == AuthStatus.authenticated ? authState.user : null;
 
     // TODO: Implement actual home screen UI (e.g., job list)
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () {
-              // Call logout method on the notifier
-              ref.read(authNotifierProvider.notifier).logout();
-            },
-          ),
-        ],
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('Home'),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.square_arrow_right),
+          onPressed: () {
+            ref.read(authNotifierProvider.notifier).logout();
+          },
+        ),
       ),
-      body: Center(
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -43,13 +41,23 @@ class HomeScreen extends ConsumerWidget {
             else if (authState.status == AuthStatus.loading)
               const Padding(
                 padding: EdgeInsets.only(top: 16.0),
-                child: CircularProgressIndicator(),
+                child: CupertinoActivityIndicator(),
               )
             else
               const Padding(
                 padding: EdgeInsets.only(top: 16.0),
                 child: Text('Not logged in or error state'),
               ),
+            const SizedBox(height: 32),
+            CupertinoButton.filled(
+              child: const Text('Go to Jobs List'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(builder: (context) => const JobListPage()),
+                );
+              },
+            ),
           ],
         ),
       ),
