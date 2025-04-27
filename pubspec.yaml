@@ -39,7 +39,7 @@ dependencies:
   logger:
   get_it:
   equatable:
-  path: # Using 1.9.0 instead of 1.9.1 from original list
+  path: # Keep empty entry as it's a path dependency placeholder
   path_provider:
   permission_handler:
   dartz:
@@ -62,26 +62,26 @@ dependencies:
   uuid:
   connectivity_plus:
   rxdart:
-  mutex: ^3.1.0
+  mutex:
   freezed_annotation:
   injectable:
 
   # Internationalization
-  intl: ^0.20.2 # Added for date formatting
-  jwt_decoder: ^2.0.1
-  stack_trace: ^1.12.1
-  mockito: ^5.4.5
+  intl:
+  jwt_decoder:
+  stack_trace:
+  mockito:
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
-  test: ^1.25.15 # Add the test package for integration_test
+  test:
 
   # Dev Dependencies from old project
   bloc_test: # Testing for bloc/cubit state management
-  build_runner: ^2.4.15 # Using latest stable
+  build_runner:
   hive_generator:
   json_serializable: # Reverted due to source_gen conflict with hive_generator
   http_mock_adapter: # Corrected package name for mocking dio requests
@@ -101,7 +101,7 @@ dev_dependencies:
   flutter_lints: # Updated to latest available
 
   # Custom Linters
-  custom_lint: ^0.6.0
+  custom_lint:
   docjet_custom_lints: # Our custom lint package
     path: ./tools/custom_lints
 
