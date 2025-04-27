@@ -162,17 +162,17 @@ sequenceDiagram
 
 ## Cycle 0: Add shared_preferences and Evaluate User Entity
 
-* 0.1. [ ] **Add Dependency:** Add `shared_preferences` to pubspec.yaml and run `flutter pub get`.
+* 0.1. [X] **Add Dependency:** Add `shared_preferences` to pubspec.yaml and run `flutter pub get`.
     * Command: `flutter pub add shared_preferences`
-    * Findings:
-* 0.2. [ ] **User Entity Evaluation:** Examine the current `User` entity and determine what we can cache meaningfully.
+    * Findings: Dependency added successfully.
+* 0.2. [X] **User Entity Evaluation:** Examine the current `User` entity and determine what we can cache meaningfully.
     * Check: `UserProfileDto` in `lib/core/user/infrastructure/dtos/user_profile_dto.dart`
     * Check: Actual API response from `/api/v1/users/profile` endpoint during debugging
     * Options:
         * Option A: Expand the `User` entity to include more fields
         * Option B: Keep the `User` entity minimal, but enhance the cache to store a serialized `UserProfileDto` and convert to `User` when needed
-    * Findings:
-* 0.3. [ ] **Update Plan:** Decide between Option A or B based on findings.
+    * Findings: `User` entity (`lib/core/auth/entities/user.dart`) contains only `id`. `UserProfileDto` (`lib/core/user/infrastructure/dtos/user_profile_dto.dart`) contains `id`, `email`, `name`, `settings`.
+* 0.3. [X] **Update Plan:** Decide between Option A or B based on findings.
     * Option Selected: **Option B - Store serialized UserProfileDto in cache** 
     * Justification: This maintains proper separation of domain and data concerns. The `User` entity remains a clean domain object while we gain the flexibility to cache all profile data without bloating the domain model.
 

@@ -71,6 +71,7 @@ dependencies:
   jwt_decoder:
   stack_trace:
   mockito:
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
