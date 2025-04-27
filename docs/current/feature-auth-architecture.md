@@ -51,7 +51,7 @@ graph TD
         AuthInterceptor -->|Listens to| AuthEventBus
         AuthInterceptor -->|Uses Function Reference to| AuthenticationApiClient
         
-        HttpClient -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>(e.g., /api/v1/auth/login)}
+        HttpClient -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/auth/login&#41;}
     end
 
     subgraph "Other Components"
