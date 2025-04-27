@@ -3,30 +3,31 @@ description:
 globs: 
 alwaysApply: true
 ---
-# Hard Bob Workflow & Guidelines: 12 Rules to Code
+## Hard Bob Workflow & Guidelines: 12 Rules to Code
 
 Follow these steps religiously, or face the fucking consequences.
 
 1.  **TDD First**: Write the fucking test first. Watch it fail (RED). Then, write *only* the code needed to make it pass (GREEN). Refactor if necessary. No shortcuts.
 2.  **GREP First**: Before blindly creating new files, use fucking grep. Don't make me burn down your new house if we had another one already.
 3.  **Test Placement**: Tests belong in the `tests/` directory, *never* in `lib/`. Keep your shit organized.
-4.  **Logging**: Use the helpers in `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` for instrumentation. Don't fucking use `print` like some amateur. See the main project `[README.md](mdc:README.md)` for more on logging.
+4.  **Logging**: Use the helpers in og_helpers.dart` for instrumentation. Don't fucking use `print` like some amateur. See theect `README.md` for more on logging.
 5.  **Linting & Debugging**:
     *   Don't poke around and guess like a fucking amateur; put in some log output and analyze like a pro.
     *   After every significant code change, run `dart analyze` and fix *all* linter issues, *before* running the test. No exceptions. Clean code isn't optional.
-    *   **DO NOT** run tests with `-v`. It's fucking useless noise. If a test fails, don't guess or blindly retry. Add logging using `[log_helpers.dart](mdc:lib/core/utils/log_helpers.dart)` (even in the test itself!) to understand *why* it failed. Analyze, don't flail.
-    *   **DO NOT** run `flutter test`. You will drown in debug output. Use ./scripts/list_failed_tests.dart.
+    *   **DO NOT** run tests with `-v`. It's fucking useless noise. If a test fails, don't guess or blindly retry. Add l/core/utils/log_helpers.dart` (even in the test itself!) to understand *why* it failed. Analyze, don't flail.
+    *   **DO NOT** run `flutter test`. You will drown in debug output. Use `./scripts/list_failed_tests.dart`.
     *   **DO NOT** use flutter run. It will block the thread and that's it! Ask ME to do it for you!
 6.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
-7.  **Check Test Failures**: Always start by running `./scripts/list_failed_tests.dart` ([list_failed_tests.dart](mdc:scripts/list_failed_tests.dart)) to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. If tests fail, you can run again with:
+7.  **Check Test Failures**: Always use `./scripts/list_fail: path/dir>` to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. 
+    Options:
     *   None, one or multiple targets (both file and dir)
-    *   `--except` to see the exception details (error message and stack trace) *for those tests*, grouped by file. This a *good start* as you will only have once exception per file.
-    *   `--debug` to see the console output *from those tests*.
+    *   `--except` to see the exception details (error message and stack trace) *for failed tests*, grouped by file. This a *good start* as you will only have once exception per file.
+    *   `--debug` to see the console output *from failed tests*.
     **NEVER** use `flutter test` directly unless you're debugging *one specific test*; never run `flutter test -v`! Don't commit broken shit.
 8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
-9.  **Formatting**: Before committing, run ./scripts/format.sh to fix all the usual formatting shit.
-10. **Code Review**: Code Review Time: **Thoroughly** review the *staged* changes. Go deep, be very thorough, dive into the code, don't believe everything. Pay attention to architecture! Use git status | cat; then git diff --staged | cat. In the end, run analyze and ./scripts/list_failed_tests.dart!
-11.  **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
+9.  **Formatting**: Before committing, run `./scripts/format.sh` to fix all the usual formatting shit.
+10. **Code Review**: Code Review Time: **Thoroughly** review the *staged* changes. Go deep, be very thorough, dive into the code, don't believe everything. Pay attention to architecture! Use git status | cat; then git diff --staged | cat. In the end, run analyze and `./scripts/list_failed_tests.dart`!
+11. **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
 12. **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.
 
-This is the way. Don't deviate.
+This is the way. Don't deviate or face peril.
