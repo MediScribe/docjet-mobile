@@ -268,6 +268,7 @@ E2EDependencyContainer setupDependencies({
       dio: dio,
       authCredentialsProvider: mockAuthCredentialsProvider, // Use mock provider
       authSessionProvider: mockAuthSessionProvider, // Use mock provider
+      fileSystem: mockFileSystem, // Use mock FS for path resolution
     );
   }
 

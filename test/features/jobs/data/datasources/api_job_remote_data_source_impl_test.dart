@@ -2,13 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 // Generate mocks for the dependencies
-@GenerateMocks([Dio, AuthCredentialsProvider, AuthSessionProvider])
+@GenerateMocks([Dio, AuthCredentialsProvider, AuthSessionProvider, FileSystem])
 // Import the generated mocks
 import 'api_job_remote_data_source_impl_test.mocks.dart';
 
@@ -17,16 +18,22 @@ void main() {
   late MockDio mockDio;
   late MockAuthCredentialsProvider mockAuthCredentialsProvider;
   late MockAuthSessionProvider mockAuthSessionProvider;
+  late MockFileSystem mockFileSystem;
 
   // Test data
   final tApiKey = 'test-api-key';
   final tAccessToken = 'test-access-token';
   final tUserId = 'test-user-id';
   final tAudioFilePath = '/path/to/audio.mp3';
+  final tResolvedAudioPath = '/resolved/path/to/audio.mp3';
   final tText = 'Test job text';
+
+  // Track calls to multipartFileCreator to verify the path passed
+  String? capturedMultipartPath;
 
   // Custom function to create mock MultipartFile without requiring file system
   Future<MultipartFile> mockMultipartFileCreator(String path) async {
+    capturedMultipartPath = path;
     return MultipartFile.fromString('test-content', filename: 'test-audio.mp3');
   }
 
@@ -34,11 +41,14 @@ void main() {
     mockDio = MockDio();
     mockAuthCredentialsProvider = MockAuthCredentialsProvider();
     mockAuthSessionProvider = MockAuthSessionProvider();
+    mockFileSystem = MockFileSystem();
+    capturedMultipartPath = null;
 
     remoteDataSource = ApiJobRemoteDataSourceImpl(
       dio: mockDio,
       authCredentialsProvider: mockAuthCredentialsProvider,
       authSessionProvider: mockAuthSessionProvider,
+      fileSystem: mockFileSystem,
       multipartFileCreator: mockMultipartFileCreator,
     );
 
@@ -55,9 +65,56 @@ void main() {
     when(
       mockAuthSessionProvider.isAuthenticated(),
     ).thenAnswer((_) async => true);
+
+    // Default stub for FileSystem
+    when(mockFileSystem.resolvePath(any)).thenReturn(tResolvedAudioPath);
   });
 
   group('createJob', () {
+    test(
+      'should resolve the audio file path using FileSystem when creating a job',
+      () async {
+        // Arrange
+        final responseData = {
+          'data': {
+            'id': 'server-123',
+            'user_id': tUserId,
+            'job_status': 'submitted',
+            'created_at': '2023-01-01T00:00:00.000Z',
+            'updated_at': '2023-01-01T00:00:00.000Z',
+            'text': tText,
+          },
+        };
+
+        when(
+          mockDio.post(
+            argThat(anything),
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: responseData,
+            statusCode: 201,
+            requestOptions: RequestOptions(path: '/jobs'),
+          ),
+        );
+
+        // Act
+        await remoteDataSource.createJob(
+          audioFilePath: tAudioFilePath,
+          text: tText,
+        );
+
+        // Assert
+        // Verify that FileSystem.resolvePath was called with the original path
+        verify(mockFileSystem.resolvePath(tAudioFilePath)).called(1);
+
+        // Verify that multipartFileCreator was called with the resolved path
+        expect(capturedMultipartPath, equals(tResolvedAudioPath));
+      },
+    );
+
     test(
       'should get userId from AuthSessionProvider when creating a job',
       () async {

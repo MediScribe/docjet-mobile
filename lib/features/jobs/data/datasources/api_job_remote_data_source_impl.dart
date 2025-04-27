@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart'; // Import the new provider
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // Import the AuthSessionProvider
 import 'package:docjet_mobile/core/error/exceptions.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart'; // Import FileSystem
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
@@ -29,6 +30,9 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// Provider for authentication session information like user ID.
   final AuthSessionProvider authSessionProvider;
 
+  /// FileSystem instance for path resolution and file operations.
+  final FileSystem fileSystem;
+
   /// Function used to create a [MultipartFile] from a file path.
   /// Injected for testability.
   final MultipartFileCreator _multipartFileCreator;
@@ -42,12 +46,14 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   /// {@macro api_job_remote_data_source_impl}
   /// Creates an instance of [ApiJobRemoteDataSourceImpl].
   ///
-  /// Requires a [Dio] instance and optionally accepts a [multipartFileCreator]
-  /// function. If no creator is provided, it defaults to [MultipartFile.fromFile].
+  /// Requires a [Dio] instance, auth providers, [FileSystem] for path resolution,
+  /// and optionally accepts a [multipartFileCreator] function.
+  /// If no creator is provided, it defaults to [MultipartFile.fromFile].
   ApiJobRemoteDataSourceImpl({
     required this.dio,
     required this.authCredentialsProvider,
     required this.authSessionProvider,
+    required this.fileSystem,
     // Default to the actual static method for production
     MultipartFileCreator multipartFileCreator = MultipartFile.fromFile,
   }) : _multipartFileCreator = multipartFileCreator;
@@ -212,8 +218,14 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       // Use Dio's default boundary handling.
       final formData = FormData();
 
-      // Use the injected creator function to create the audio file
-      final audioFile = await _multipartFileCreator(audioFilePath);
+      // Resolve the audio file path to handle relative paths
+      final resolvedPath = fileSystem.resolvePath(audioFilePath);
+      _logger.d(
+        '$_tag Resolved audio path: $resolvedPath (from: $audioFilePath)',
+      );
+
+      // Use the injected creator function to create the audio file with the resolved path
+      final audioFile = await _multipartFileCreator(resolvedPath);
 
       // Add fields and files manually
       formData.fields.add(MapEntry('user_id', userId));

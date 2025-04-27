@@ -134,6 +134,7 @@ class JobsModule {
           dio: _authenticatedDio,
           authSessionProvider: _authSessionProvider,
           authCredentialsProvider: _authCredentialsProvider,
+          fileSystem: _fileSystem, // Add FileSystem for path resolution
         ),
       );
     }
