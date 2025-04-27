@@ -180,23 +180,23 @@ sequenceDiagram
 
 ## Cycle 1: Define Cache Interface & Implement User Serialization
 
-* 1.1. [ ] **Define Interface:** Create the `IUserProfileCache` interface in the domain layer (`lib/core/auth/domain/repositories`) with methods:
+* 1.1. [X] **Define Interface:** Create the `IUserProfileCache` interface in the domain layer (`lib/core/auth/domain/repositories`) with methods:
    * `Future<void> saveProfile(UserProfileDto profileDto, DateTime timestamp)` - Added timestamp parameter
    * `Future<UserProfileDto?> getProfile(String userId)` 
    * `Future<void> clearProfile(String userId)` 
    * `Future<void> clearAllProfiles()`
    * `Future<bool> isProfileStale(String userId, {required bool isAccessTokenValid, required bool isRefreshTokenValid, Duration? maxAge})` - Added maxAge parameter
-   * Findings:
-* 1.2. [ ] **Implement User Serialization:** Update the caching mechanism to handle serialization of `UserProfileDto` with timestamp information.
-   * Findings:
-* 1.3. [ ] **Initial Test Setup:** Add basic test file for the future implementation.
-   * Findings:
+   * Findings: Interface `lib/core/auth/domain/repositories/i_user_profile_cache.dart` created successfully.
+* 1.2. [X] **Implement User Serialization:** Update the caching mechanism to handle serialization of `UserProfileDto` with timestamp information.
+   * Findings: `UserProfileDto` already uses `json_serializable` and supports `fromJson`/`toJson`. No changes needed for serialization itself.
+* 1.3. [X] **Initial Test Setup:** Add basic test file for the future implementation.
+   * Findings: Placeholder test file `test/core/auth/data/repositories/shared_preferences_user_profile_cache_test.dart` created.
 * 1.4. [ ] **Run Tests:** Execute relevant tests.
-   * Findings:
+   * Findings: No specific cache tests implemented yet to run.
 * 1.5. [ ] **Handover Brief:**
-   * Status: Interface defined, User serialization implemented.
-   * Gotchas: Any issues with User serialization?
-   * Recommendations: Next steps clear for implementation?
+   * Status: Interface defined, User serialization confirmed, placeholder test file created.
+   * Gotchas: None.
+   * Recommendations: Proceed to Cycle 2 for implementation and actual testing.
 
 ---
 
