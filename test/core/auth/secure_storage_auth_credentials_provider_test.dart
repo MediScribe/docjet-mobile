@@ -4,24 +4,28 @@ import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
 
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 
 // Generate mocks for FlutterSecureStorage and JwtValidator
-@GenerateMocks([FlutterSecureStorage, JwtValidator])
+@GenerateMocks([FlutterSecureStorage, JwtValidator, AppConfig])
 import 'secure_storage_auth_credentials_provider_test.mocks.dart';
 
 void main() {
   late MockFlutterSecureStorage mockSecureStorage;
   late MockJwtValidator mockJwtValidator;
+  late MockAppConfig mockAppConfig;
   late SecureStorageAuthCredentialsProvider provider;
 
   setUp(() {
     mockSecureStorage = MockFlutterSecureStorage();
     mockJwtValidator = MockJwtValidator();
+    mockAppConfig = MockAppConfig();
     provider = SecureStorageAuthCredentialsProvider(
       secureStorage: mockSecureStorage,
       jwtValidator: mockJwtValidator,
+      appConfig: mockAppConfig,
     );
   });
 
@@ -59,13 +63,45 @@ void main() {
   group('getApiKey', () {
     // This test covers the case where the API_KEY is not defined via --dart-define
     // String.fromEnvironment will return an empty string, triggering the exception.
-    test('should throw exception when API key is not provided', () async {
-      // Arrange
-      // No arrangement needed, relies on API_KEY not being defined during test execution.
+    test(
+      'should throw exception when AppConfig provides an empty API key',
+      () async {
+        // Arrange
+        // Stub AppConfig to return an empty key
+        when(mockAppConfig.apiKey).thenReturn('');
 
-      // Act & Assert
-      // Use expectLater for async throws check
-      expectLater(() => provider.getApiKey(), throwsA(isA<Exception>()));
+        // Act & Assert
+        expectLater(
+          () => provider.getApiKey(),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('API Key not found in AppConfig'),
+            ),
+          ),
+        );
+        // Verify apiKey was called
+        verify(mockAppConfig.apiKey).called(1);
+      },
+    );
+
+    // NEW TEST
+    test('should return API key from AppConfig when provided', () async {
+      // Arrange
+      const expectedApiKey = 'api-key-from-config';
+      // Setup the mock AppConfig to return the key
+      when(mockAppConfig.apiKey).thenReturn(expectedApiKey);
+
+      // Act
+      final result = await provider.getApiKey();
+
+      // Assert
+      expect(result, equals(expectedApiKey));
+      verify(mockAppConfig.apiKey).called(1);
+
+      // TEMPORARY: Mark test as skipped until implementation is ready
+      // markTestSkipped('Skipping test until SecureStorageAuthCredentialsProvider is updated to use AppConfig');
     });
   });
 

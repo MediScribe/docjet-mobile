@@ -27,6 +27,7 @@ The primary goal of the UI Playground is to provide a sandboxed environment wher
 -   [X] Add a debug **button** to the production screen (`lib/features/jobs/presentation/pages/job_list_page.dart`) to trigger navigation.
 -   [X] Implement navigation from the production screen to the playground screen using `CupertinoPageRoute`.
 -   [X] Fix `ListTile` error by wrapping it in a `Material` widget within `JobListItem` (`lib/features/jobs/presentation/widgets/job_list_item.dart`).
+-   [X] Add manual sync button to directly trigger `JobRepository.syncPendingJobs()` for testing the sync process.
 
 ## Workflow
 
@@ -35,4 +36,11 @@ The primary goal of the UI Playground is to provide a sandboxed environment wher
 3.  Modify the code within `job_list_playground.dart` and/or the specific widgets (like `lib/features/jobs/presentation/widgets/job_list_item.dart`) being tested.
 4.  Use hot reload/restart to see changes instantly.
 5.  Once a design is finalized, transfer the necessary code changes from the playground/widgets back into the production widgets/pages.
-6.  Ensure the final production code is covered by appropriate tests (ViewModel tests, Cubit tests, potentially Golden tests for stable UI). 
+6.  Ensure the final production code is covered by appropriate tests (ViewModel tests, Cubit tests, potentially Golden tests for stable UI).
+
+## Testing Features
+
+The playground includes several testing utilities to help developers validate functionality:
+
+-   **Manual Sync Button**: A cloud upload icon in the navigation bar that directly triggers `JobRepository.syncPendingJobs()`. This helps test the sync process independent of the automatic 15-second timer. When pressed, it will log the outcome of the sync process to the console.
+-   **Lorem Ipsum Job Creation**: Creates test jobs with placeholder data and empty audio files for testing job creation and sync behavior. 

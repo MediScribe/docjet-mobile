@@ -6,8 +6,10 @@
 import 'dart:async' as _i3;
 
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart' as _i4;
+import 'package:docjet_mobile/core/config/app_config.dart' as _i5;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i6;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -174,6 +176,39 @@ class MockJwtValidator extends _i1.Mock implements _i4.JwtValidator {
           #isTokenExpired,
           [token],
         ),
+        returnValue: false,
+      ) as bool);
+}
+
+/// A class which mocks [AppConfig].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAppConfig extends _i1.Mock implements _i5.AppConfig {
+  MockAppConfig() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  String get apiDomain => (super.noSuchMethod(
+        Invocation.getter(#apiDomain),
+        returnValue: _i6.dummyValue<String>(
+          this,
+          Invocation.getter(#apiDomain),
+        ),
+      ) as String);
+
+  @override
+  String get apiKey => (super.noSuchMethod(
+        Invocation.getter(#apiKey),
+        returnValue: _i6.dummyValue<String>(
+          this,
+          Invocation.getter(#apiKey),
+        ),
+      ) as String);
+
+  @override
+  bool get isDevelopment => (super.noSuchMethod(
+        Invocation.getter(#isDevelopment),
         returnValue: false,
       ) as bool);
 }

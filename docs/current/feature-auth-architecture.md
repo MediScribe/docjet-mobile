@@ -257,7 +257,7 @@ This approach provides seamless token refresh without UI layer awareness of expi
 #### SecureStorageAuthCredentialsProvider
 Concrete implementation of `AuthCredentialsProvider` using:
 - `flutter_secure_storage` for token storage
-- `String.fromEnvironment` for the API key (sourced from compile-time definitions)
+- `AppConfig` for the API key (sourced via dependency injection)
 - JWT validation for checking token expiry and extracting claims
 
 #### JwtValidator

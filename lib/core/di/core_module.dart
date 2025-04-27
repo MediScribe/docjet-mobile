@@ -88,6 +88,7 @@ class CoreModule {
         () => SecureStorageAuthCredentialsProvider(
           secureStorage: getIt<FlutterSecureStorage>(),
           jwtValidator: getIt<JwtValidator>(),
+          appConfig: getIt<AppConfig>(),
         ),
       );
       logger.d('$tag Registered AuthCredentialsProvider');

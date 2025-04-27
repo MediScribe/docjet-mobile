@@ -3,25 +3,33 @@ import 'package:flutter/services.dart'; // For PlatformException
 
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
+import 'package:docjet_mobile/core/config/app_config.dart';
 
 /// Concrete implementation of [AuthCredentialsProvider] using
-/// flutter_secure_storage for JWT and String.fromEnvironment for the API Key.
+/// `flutter_secure_storage` for JWT storage and `AppConfig` for API key retrieval.
+///
+/// IMPORTANT: Configuration values like API keys should be accessed via
+/// `AppConfig` (provided through DI) rather than compile-time environment
+/// variables (`String.fromEnvironment`) to ensure consistency across different
+/// build configurations (e.g., main_dev.dart overrides).
 class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
   final FlutterSecureStorage _secureStorage;
   final JwtValidator _jwtValidator;
+  final AppConfig _appConfig;
 
   static const String _accessTokenKey = 'accessToken';
   static const String _refreshTokenKey = 'refreshToken';
   static const String _userIdKey = 'userId'; // Added key for user ID
-  static const String _apiKeyEnvVariable =
-      'API_KEY'; // Keep variable name for clarity
+  // Keep variable name for clarity
 
   // Constructor updated - removed EnvReader dependency and added JwtValidator dependency
   SecureStorageAuthCredentialsProvider({
     required FlutterSecureStorage secureStorage,
     required JwtValidator jwtValidator,
+    required AppConfig appConfig,
   }) : _secureStorage = secureStorage,
-       _jwtValidator = jwtValidator;
+       _jwtValidator = jwtValidator,
+       _appConfig = appConfig;
 
   @override
   Future<String?> getAccessToken() async {
@@ -30,14 +38,13 @@ class SecureStorageAuthCredentialsProvider implements AuthCredentialsProvider {
 
   @override
   Future<String> getApiKey() async {
-    // API Key is now retrieved using compile-time definitions
-    const apiKey = String.fromEnvironment(_apiKeyEnvVariable);
+    // API Key is now retrieved using AppConfig
+    final apiKey = _appConfig.apiKey;
 
     if (apiKey.isEmpty) {
-      // Throw a specific exception or handle as appropriate
-      // As per spec, API key is mandatory
+      // Throw a specific exception if API key is missing from AppConfig
       throw Exception(
-        'API Key not found. Ensure $_apiKeyEnvVariable is provided via --dart-define=API_KEY=YOUR_KEY or --dart-define-from-file=secrets.json',
+        'API Key not found in AppConfig. Ensure AppConfig is correctly configured.',
       );
     }
     return apiKey;
