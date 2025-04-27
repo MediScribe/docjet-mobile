@@ -557,6 +557,22 @@ Key features:
 * Provides proper authentication error handling
 * Wraps API failures in domain-specific exceptions
 
+##### ApiJobRemoteDataSourceImpl
+- **Implementation**: `lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart`
+- **Purpose**: Implements `JobRemoteDataSource` using `Dio` for HTTP requests.
+- **Key Responsibilities**:
+  - Fetching all jobs (`/jobs`).
+  - Fetching a single job by ID (`/jobs/{id}`).
+  - Creating a new job (`POST /jobs` with multipart/form-data for audio).
+  - Updating an existing job (`PATCH /jobs/{id}`).
+  - Deleting a job (`DELETE /jobs/{id}`).
+- **Authentication**: 
+  - This implementation receives the `authenticatedDio` instance (configured with base URL and authentication interceptors) via dependency injection.
+  - All API calls (`GET`, `POST`, `PATCH`, `DELETE`) to the `/jobs/...` endpoints require authentication and utilize this injected `authenticatedDio` instance.
+  - This aligns with the Split Client pattern detailed in [feature-auth-architecture.md](../../core/feature-auth-architecture.md).
+- **Error Handling**: Maps HTTP errors and `Dio` exceptions to domain-specific exceptions (e.g., `ApiException`).
+- **Dependencies**: `Dio`, `AuthCredentialsProvider`, `AuthSessionProvider`.
+
 ### Job Model Enhancements
 
 #### SyncStatus Enum
