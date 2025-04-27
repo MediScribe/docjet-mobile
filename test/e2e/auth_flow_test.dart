@@ -237,7 +237,8 @@ class MockAuthService implements AuthService {
   Future<String> getCurrentUserId() => Future.value(_user.id);
 
   @override
-  Future<User> getUserProfile() => Future.value(_user);
+  Future<User> getUserProfile({bool acceptOfflineProfile = true}) =>
+      Future.value(_user);
 
   @override
   Future<bool> isAuthenticated({bool validateTokenLocally = false}) =>

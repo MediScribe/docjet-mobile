@@ -31,6 +31,9 @@ import 'package:mockito/mockito.dart';
 import 'auth_module_test.mocks.dart';
 
 void main() {
+  // Ensure Flutter bindings are initialized for SharedPreferences
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   // Set up logger for this test file
   final logger = LoggerFactory.getLogger('AuthModuleTest');
   final tag = logTag('AuthModuleTest');

@@ -13,6 +13,7 @@ import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
 
 // Generate mocks for dependencies
 @GenerateMocks([
@@ -20,6 +21,7 @@ import 'package:mockito/mockito.dart';
   UserApiClient,
   AuthCredentialsProvider,
   AuthEventBus,
+  IUserProfileCache,
   Dio,
 ])
 import 'auth_service_impl_test.mocks.dart';
@@ -29,6 +31,7 @@ void main() {
   late MockUserApiClient mockUserApiClient;
   late MockAuthCredentialsProvider mockCredentialsProvider;
   late MockAuthEventBus mockAuthEventBus;
+  late MockIUserProfileCache mockUserProfileCache;
   late AuthService authService;
 
   const testEmail = 'test@example.com';
@@ -56,12 +59,14 @@ void main() {
     mockUserApiClient = MockUserApiClient();
     mockCredentialsProvider = MockAuthCredentialsProvider();
     mockAuthEventBus = MockAuthEventBus();
+    mockUserProfileCache = MockIUserProfileCache();
 
     authService = AuthServiceImpl(
       authenticationApiClient: mockAuthenticationApiClient,
       userApiClient: mockUserApiClient,
       credentialsProvider: mockCredentialsProvider,
       eventBus: mockAuthEventBus,
+      userProfileCache: mockUserProfileCache,
     );
   });
 
@@ -245,6 +250,14 @@ void main() {
       when(
         mockCredentialsProvider.deleteRefreshToken(),
       ).thenAnswer((_) async => {});
+      // Need user ID to clear specific cache
+      when(
+        mockCredentialsProvider.getUserId(),
+      ).thenAnswer((_) async => testUserId);
+      // Mock cache clear
+      when(
+        mockUserProfileCache.clearProfile(testUserId),
+      ).thenAnswer((_) async => {});
 
       // Act
       await authService.logout();
@@ -252,8 +265,45 @@ void main() {
       // Assert
       verify(mockCredentialsProvider.deleteAccessToken()).called(1);
       verify(mockCredentialsProvider.deleteRefreshToken()).called(1);
+      // Verify cache was cleared AFTER getting user ID
+      verify(mockCredentialsProvider.getUserId()).called(1);
+      verify(mockUserProfileCache.clearProfile(testUserId)).called(1);
       verify(mockAuthEventBus.add(AuthEvent.loggedOut)).called(1);
     });
+
+    test(
+      'should still fire loggedOut event even if cache clear fails',
+      () async {
+        // Arrange
+        when(
+          mockCredentialsProvider.deleteAccessToken(),
+        ).thenAnswer((_) async => {});
+        when(
+          mockCredentialsProvider.deleteRefreshToken(),
+        ).thenAnswer((_) async => {});
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => testUserId);
+        // Mock cache clear to throw an error
+        when(
+          mockUserProfileCache.clearProfile(testUserId),
+        ).thenThrow(Exception('Cache clear failed'));
+
+        // Act
+        // Should not throw, logout is best effort for cleanup
+        await authService.logout();
+
+        // Assert
+        // Verify token deletion attempted
+        verify(mockCredentialsProvider.deleteAccessToken()).called(1);
+        verify(mockCredentialsProvider.deleteRefreshToken()).called(1);
+        // Verify cache clear was attempted
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verify(mockUserProfileCache.clearProfile(testUserId)).called(1);
+        // Crucially, verify event was still fired
+        verify(mockAuthEventBus.add(AuthEvent.loggedOut)).called(1);
+      },
+    );
   });
 
   group('isAuthenticated', () {
@@ -428,5 +478,220 @@ void main() {
       );
       verify(mockCredentialsProvider.getUserId()).called(1);
     });
+  });
+
+  // NEW: Group for getUserProfile with caching logic
+  group('getUserProfile (with caching)', () {
+    test(
+      'should save profile to cache with current timestamp on successful API fetch',
+      () async {
+        // Arrange
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => testUserId);
+        when(
+          mockUserApiClient.getUserProfile(),
+        ).thenAnswer((_) async => userProfileDto);
+        // Mock cache save to succeed
+        when(
+          mockUserProfileCache.saveProfile(any, any),
+        ).thenAnswer((_) async => {});
+
+        // Act
+        final result = await authService.getUserProfile(
+          // acceptOfflineProfile doesn't matter here as API succeeds
+        );
+
+        // Assert
+        expect(result, isA<User>());
+        expect(result.id, testUserId);
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verify(mockUserApiClient.getUserProfile()).called(1);
+
+        // Verify cache save was called with the correct DTO and a recent timestamp
+        final verificationResult =
+            verify(
+              mockUserProfileCache.saveProfile(captureAny, captureAny),
+            ).captured;
+
+        final capturedDto = verificationResult[0] as UserProfileDto;
+        final capturedTimestamp = verificationResult[1] as DateTime;
+
+        expect(capturedDto.id, userProfileDto.id);
+        expect(capturedDto.email, userProfileDto.email);
+        // Check timestamp is recent (e.g., within the last 5 seconds)
+        expect(
+          DateTime.now().difference(capturedTimestamp).inSeconds,
+          lessThan(5),
+        );
+      },
+    );
+
+    test(
+      'should return User from cache when API fails (offline) and acceptOfflineProfile is true',
+      () async {
+        // Arrange
+        final offlineException = AuthException.offlineOperationFailed();
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => testUserId);
+        // API client throws offline error
+        when(mockUserApiClient.getUserProfile()).thenThrow(offlineException);
+        // Tokens are valid
+        when(
+          mockCredentialsProvider.isAccessTokenValid(),
+        ).thenAnswer((_) async => true);
+        when(
+          mockCredentialsProvider.isRefreshTokenValid(),
+        ).thenAnswer((_) async => true);
+        // Cache has the profile
+        when(
+          mockUserProfileCache.getProfile(testUserId),
+        ).thenAnswer((_) async => userProfileDto);
+
+        // Act
+        final result = await authService.getUserProfile(
+          acceptOfflineProfile: true, // Explicitly allow offline cache
+        );
+
+        // Assert FIRST verify calls, THEN check result
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verify(mockUserApiClient.getUserProfile()).called(1);
+        verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
+        verify(mockCredentialsProvider.isRefreshTokenValid()).called(1);
+        verify(mockUserProfileCache.getProfile(testUserId)).called(1);
+        verifyNever(mockUserProfileCache.saveProfile(any, any));
+        verifyNever(mockUserProfileCache.clearProfile(any));
+
+        // THEN check result
+        expect(result, isA<User>());
+        expect(result.id, userProfileDto.id);
+      },
+    );
+
+    test(
+      'should throw offline exception when API fails (offline) and acceptOfflineProfile is false',
+      () async {
+        // Arrange
+        final offlineException = AuthException.offlineOperationFailed();
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => testUserId);
+        when(mockUserApiClient.getUserProfile()).thenThrow(offlineException);
+
+        // Act
+        AuthException? thrownException;
+        try {
+          await authService.getUserProfile(acceptOfflineProfile: false);
+        } on AuthException catch (e) {
+          thrownException = e;
+        }
+
+        // Assert
+        expect(thrownException, isNotNull);
+        expect(thrownException, equals(offlineException));
+
+        // Verify API was called, but cache and token checks were NOT
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verify(mockUserApiClient.getUserProfile()).called(1); // Restored verify
+        verifyNever(mockCredentialsProvider.isAccessTokenValid());
+        verifyNever(mockCredentialsProvider.isRefreshTokenValid());
+        verifyNever(mockUserProfileCache.getProfile(any));
+        verifyNever(mockUserProfileCache.saveProfile(any, any));
+        verifyNever(mockUserProfileCache.clearProfile(any));
+      },
+    );
+
+    test(
+      'should clear cache and throw unauthenticated when API fails (offline) and both tokens are invalid',
+      () async {
+        // Arrange
+        final offlineException = AuthException.offlineOperationFailed();
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => testUserId);
+        when(mockUserApiClient.getUserProfile()).thenThrow(offlineException);
+        when(
+          mockCredentialsProvider.isAccessTokenValid(),
+        ).thenAnswer((_) async => false);
+        when(
+          mockCredentialsProvider.isRefreshTokenValid(),
+        ).thenAnswer((_) async => false);
+        when(
+          mockUserProfileCache.clearProfile(testUserId),
+        ).thenAnswer((_) async => {});
+
+        // Act
+        AuthException? thrownException;
+        try {
+          await authService.getUserProfile(acceptOfflineProfile: true);
+        } on AuthException catch (e) {
+          thrownException = e;
+        }
+
+        // Assert
+        expect(thrownException, isNotNull);
+        expect(
+          thrownException,
+          isA<AuthException>().having(
+            (e) => e.toString(),
+            'toString',
+            contains('Both tokens expired'),
+          ),
+        );
+
+        // Verify API was called, then token checks, then cache clear
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verify(mockUserApiClient.getUserProfile()).called(1);
+        verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
+        verify(mockCredentialsProvider.isRefreshTokenValid()).called(1);
+        verify(
+          mockUserProfileCache.clearProfile(testUserId),
+        ).called(1); // Restored verify
+        verifyNever(mockUserProfileCache.getProfile(any));
+        verifyNever(mockUserProfileCache.saveProfile(any, any));
+      },
+    );
+
+    test(
+      'should NOT clear cache but return cached profile when API fails (offline) and only one token is invalid',
+      () async {
+        // Arrange
+        final offlineException = AuthException.offlineOperationFailed();
+        when(
+          mockCredentialsProvider.getUserId(),
+        ).thenAnswer((_) async => testUserId);
+        when(mockUserApiClient.getUserProfile()).thenThrow(offlineException);
+        // Access token invalid, Refresh token VALID
+        when(
+          mockCredentialsProvider.isAccessTokenValid(),
+        ).thenAnswer((_) async => false);
+        when(
+          mockCredentialsProvider.isRefreshTokenValid(),
+        ).thenAnswer((_) async => true); // Refresh token is still good!
+        // Cache has the profile
+        when(
+          mockUserProfileCache.getProfile(testUserId),
+        ).thenAnswer((_) async => userProfileDto);
+
+        // Act
+        final result = await authService.getUserProfile(
+          acceptOfflineProfile: true,
+        );
+
+        // Assert FIRST verify calls, THEN check result
+        verify(mockCredentialsProvider.getUserId()).called(1);
+        verify(mockUserApiClient.getUserProfile()).called(1);
+        verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
+        verify(mockCredentialsProvider.isRefreshTokenValid()).called(1);
+        verify(mockUserProfileCache.getProfile(testUserId)).called(1);
+        verifyNever(mockUserProfileCache.clearProfile(any));
+        verifyNever(mockUserProfileCache.saveProfile(any, any));
+
+        // THEN check result
+        expect(result, isA<User>());
+        expect(result.id, userProfileDto.id);
+      },
+    );
   });
 }

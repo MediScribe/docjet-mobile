@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
+import 'package:docjet_mobile/core/auth/data/repositories/shared_preferences_user_profile_cache.dart';
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
@@ -14,6 +16,7 @@ import 'package:docjet_mobile/core/auth/utils/jwt_validator.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/secure_storage_auth_session_provider.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Authentication module for dependency injection setup using explicit dependencies.
 ///
@@ -56,6 +59,7 @@ class AuthModule {
   /// 2. Then register AuthenticationApiClient (using basicDio)
   /// 3. Then register UserApiClient (using authenticatedDio)
   /// 4. Then register authenticatedDio (using AuthenticationApiClient for token refresh via function reference)
+  /// 5. Finally, register shared services like SharedPreferences, IUserProfileCache, AuthService, etc.
   ///
   /// Optional dependencies like FlutterSecureStorage, JwtValidator, and
   /// AuthSessionProvider can still be passed to override default registrations,
@@ -68,6 +72,8 @@ class AuthModule {
     FlutterSecureStorage? secureStorage,
     JwtValidator? jwtValidator,
     AuthSessionProvider? authSessionProvider,
+    // Added optional dependency for SharedPreferences for testing flexibility
+    SharedPreferences? sharedPreferences,
   }) {
     _logger.i(
       '$_tag Registering auth module components via instance method...',
@@ -113,6 +119,32 @@ class AuthModule {
     // Resolve the instance to be used downstream
     // final JwtValidator finalJwtValidator =
     //     jwtValidator ?? getIt<JwtValidator>(); // Removed as unused
+
+    // Register SharedPreferences if not provided and not already registered
+    // We use registerSingletonAsync for SharedPreferences.getInstance()
+    if (sharedPreferences == null && !getIt.isRegistered<SharedPreferences>()) {
+      _logger.d('$_tag Registering default SharedPreferences asynchronously.');
+      getIt.registerSingletonAsync<SharedPreferences>(() async {
+        _logger.d('$_tag SharedPreferences factory: calling getInstance().');
+        final prefs = await SharedPreferences.getInstance();
+        _logger.d('$_tag SharedPreferences factory: getInstance() completed.');
+        return prefs;
+      });
+      // Ensure dependent registrations wait for SharedPreferences
+      // getIt.isReady<SharedPreferences>(); // Consider if needed based on usage pattern
+    } else if (sharedPreferences != null &&
+        !getIt.isRegistered<SharedPreferences>()) {
+      // If provided but not registered, register the provided one (synchronously)
+      _logger.d('$_tag Registered provided SharedPreferences.');
+      getIt.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
+    } else {
+      _logger.d(
+        '$_tag Using ${sharedPreferences != null ? 'provided' : 'existing'} SharedPreferences.',
+      );
+    }
+    // Note: Downstream dependencies need to 'await getIt.isReady<SharedPreferences>()'
+    // OR ensure SharedPreferences is ready before they are first accessed if using async registration.
+    // Lazy singletons depending on it might need adjustment if immediate access is required.
 
     // Use the constructor-provided instance for AuthCredentialsProvider
     _logger.d('$_tag Using constructor-provided AuthCredentialsProvider.');
@@ -202,9 +234,38 @@ class AuthModule {
       );
     }
 
-    // Register the auth service implementation (depends on apiClient, provider, eventBus from instance fields)
+    // STEP 5: Register shared services
+
+    // Register the User Profile Cache implementation
+    // Depends on SharedPreferences, so GetIt needs to ensure it's ready
+    if (!getIt.isRegistered<IUserProfileCache>()) {
+      _logger.d(
+        '$_tag Registering SharedPreferencesUserProfileCache as IUserProfileCache',
+      );
+      getIt.registerLazySingleton<IUserProfileCache>(() {
+        // Ensure SharedPreferences is ready before creating the cache
+        if (!getIt.isReadySync<SharedPreferences>()) {
+          _logger.w(
+            '$_tag SharedPreferences not ready synchronously when registering IUserProfileCache! Access might fail.',
+          );
+        }
+        // Provide SharedPreferences and a Logger instance using LoggerFactory
+        return SharedPreferencesUserProfileCache(
+          getIt<SharedPreferences>(),
+          LoggerFactory.getLogger(
+            'SharedPreferencesUserProfileCache',
+          ), // Correct: Use LoggerFactory from log_helpers
+        );
+      });
+    } else {
+      _logger.i(
+        '$_tag IUserProfileCache already registered. Skipping registration.',
+      );
+    }
+
+    // Register the auth service implementation (depends on apiClient, provider, eventBus from instance fields AND the new cache)
     if (!getIt.isRegistered<AuthService>()) {
-      _logger.d('$_tag Registering AuthServiceImpl');
+      _logger.d('$_tag Registering AuthServiceImpl with cache dependency');
       getIt.registerLazySingleton<AuthService>(
         () => AuthServiceImpl(
           authenticationApiClient: getIt<AuthenticationApiClient>(),
@@ -212,6 +273,7 @@ class AuthModule {
           credentialsProvider:
               finalCredentialsProvider, // Use instance field via variable
           eventBus: finalAuthEventBus, // Use instance field via variable
+          userProfileCache: getIt<IUserProfileCache>(), // Inject the cache
         ),
       );
     } else {

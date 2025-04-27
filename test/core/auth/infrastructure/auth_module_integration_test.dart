@@ -14,6 +14,8 @@ import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
+import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 
 /// Simple HTTP server for capturing auth requests in integration tests
 class TestServer {
@@ -120,6 +122,54 @@ class TestAuthCredentialsProvider implements AuthCredentialsProvider {
   Future<void> setUserId(String userId) async {}
 }
 
+/// Test implementation of IUserProfileCache
+class TestUserProfileCache implements IUserProfileCache {
+  UserProfileDto? _profile;
+  DateTime? _timestamp;
+
+  @override
+  Future<void> clearAllProfiles() async {
+    _profile = null;
+    _timestamp = null;
+  }
+
+  @override
+  Future<void> clearProfile(String userId) async {
+    // Assuming single user for tests
+    _profile = null;
+    _timestamp = null;
+  }
+
+  @override
+  Future<UserProfileDto?> getProfile(String userId) async {
+    return _profile;
+  }
+
+  @override
+  Future<bool> isProfileStale(
+    String userId, {
+    required bool isAccessTokenValid,
+    required bool isRefreshTokenValid,
+    Duration? maxAge,
+  }) async {
+    if (!isAccessTokenValid && !isRefreshTokenValid) return true;
+    if (_timestamp == null) return true;
+    if (maxAge != null && DateTime.now().difference(_timestamp!) > maxAge) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Future<void> saveProfile(
+    UserProfileDto profileDto,
+    DateTime timestamp,
+  ) async {
+    _profile = profileDto;
+    _timestamp = timestamp;
+  }
+}
+
 void main() {
   final logger = LoggerFactory.getLogger('AuthModuleIntegrationTest');
 
@@ -194,13 +244,17 @@ void main() {
         ),
       );
 
-      // Register AuthService
+      // Added: Register TestUserProfileCache
+      getIt.registerSingleton<IUserProfileCache>(TestUserProfileCache());
+
+      // Register AuthService WITH CACHE
       getIt.registerSingleton<AuthService>(
         AuthServiceImpl(
           authenticationApiClient: getIt<AuthenticationApiClient>(),
           userApiClient: getIt<UserApiClient>(),
           credentialsProvider: getIt<AuthCredentialsProvider>(),
           eventBus: getIt<AuthEventBus>(),
+          userProfileCache: getIt<IUserProfileCache>(),
         ),
       );
 
@@ -283,7 +337,11 @@ void main() {
         ),
       );
 
-      // Re-register AuthService
+      // Added: Re-register TestUserProfileCache
+      getIt.unregister<IUserProfileCache>();
+      getIt.registerSingleton<IUserProfileCache>(TestUserProfileCache());
+
+      // Re-register AuthService WITH CACHE
       getIt.unregister<AuthService>();
       getIt.registerSingleton<AuthService>(
         AuthServiceImpl(
@@ -291,6 +349,7 @@ void main() {
           userApiClient: getIt<UserApiClient>(),
           credentialsProvider: getIt<AuthCredentialsProvider>(),
           eventBus: getIt<AuthEventBus>(),
+          userProfileCache: getIt<IUserProfileCache>(),
         ),
       );
 

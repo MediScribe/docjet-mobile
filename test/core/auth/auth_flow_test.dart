@@ -8,8 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/src/mock.dart';
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
 
-@GenerateMocks([AuthCredentialsProvider, Dio, AuthEventBus])
+@GenerateMocks([AuthCredentialsProvider, Dio, AuthEventBus, IUserProfileCache])
 import 'auth_flow_test.mocks.dart';
 
 void main() {
@@ -17,6 +18,7 @@ void main() {
   late MockDio mockAuthenticatedDio;
   late MockAuthCredentialsProvider mockCredentialsProvider;
   late MockAuthEventBus mockEventBus;
+  late MockIUserProfileCache mockUserProfileCache;
   late AuthenticationApiClient authenticationApiClient;
   late UserApiClient userApiClient;
   late AuthServiceImpl authService;
@@ -26,6 +28,7 @@ void main() {
     mockAuthenticatedDio = MockDio();
     mockCredentialsProvider = MockAuthCredentialsProvider();
     mockEventBus = MockAuthEventBus();
+    mockUserProfileCache = MockIUserProfileCache();
 
     // Setup auth client with mockBasicDio
     authenticationApiClient = AuthenticationApiClient(
@@ -40,12 +43,13 @@ void main() {
       credentialsProvider: mockCredentialsProvider,
     );
 
-    // Setup auth service with both clients
+    // Setup auth service with both clients and the new cache
     authService = AuthServiceImpl(
       authenticationApiClient: authenticationApiClient,
       userApiClient: userApiClient,
       credentialsProvider: mockCredentialsProvider,
       eventBus: mockEventBus,
+      userProfileCache: mockUserProfileCache,
     );
 
     // Default setup for credential provider
@@ -62,6 +66,15 @@ void main() {
     when(
       mockCredentialsProvider.getUserId(),
     ).thenAnswer((_) async => 'test-user-id');
+
+    // Default setup for cache (optional, good practice)
+    when(
+      mockUserProfileCache.saveProfile(any, any),
+    ).thenAnswer((_) async => {});
+    when(
+      mockUserProfileCache.getProfile(any),
+    ).thenAnswer((_) async => null); // Default to cache miss
+    when(mockUserProfileCache.clearProfile(any)).thenAnswer((_) async => {});
   });
 
   group('Authentication Flow', () {
@@ -136,12 +149,13 @@ void main() {
         credentialsProvider: mockCredentialsProvider,
       );
 
-      // 2. Create auth service with both API clients
+      // 2. Create auth service with both API clients AND CACHE
       final fixedAuthService = AuthServiceImpl(
         authenticationApiClient: fixedAuthenticationApiClient,
         userApiClient: fixedUserApiClient,
         credentialsProvider: mockCredentialsProvider,
         eventBus: mockEventBus,
+        userProfileCache: mockUserProfileCache,
       );
 
       // Setup credential provider to return a token and user ID
@@ -195,6 +209,7 @@ void main() {
         userApiClient: mockUserApiClient,
         credentialsProvider: mockCredentialsProvider,
         eventBus: mockEventBus,
+        userProfileCache: mockUserProfileCache,
       );
 
       // Setup login response
@@ -273,12 +288,13 @@ void main() {
           credentialsProvider: mockCredentialsProvider,
         );
 
-        // Create auth service with proper API clients
+        // Create auth service with proper API clients AND CACHE
         final testAuthService = AuthServiceImpl(
           authenticationApiClient: testAuthenticationApiClient,
           userApiClient: testUserApiClient,
           credentialsProvider: mockCredentialsProvider,
           eventBus: mockEventBus,
+          userProfileCache: mockUserProfileCache,
         );
 
         // Setup interceptors for mockAuthenticatedDio (to verify headers)
@@ -413,6 +429,7 @@ void main() {
         userApiClient: testUserApiClient,
         credentialsProvider: mockCredentialsProvider,
         eventBus: mockEventBus,
+        userProfileCache: mockUserProfileCache,
       );
 
       // Setup interceptors for both Dio instances

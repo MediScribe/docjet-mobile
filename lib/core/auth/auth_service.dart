@@ -44,5 +44,8 @@ abstract class AuthService {
   /// Returns the [User] entity containing profile details.
   /// Throws an [AuthException] if the user is not authenticated or the profile
   /// cannot be fetched.
-  Future<User> getUserProfile();
+  ///
+  /// - [acceptOfflineProfile]: If true (default), allows returning a cached profile
+  ///   if the network fetch fails due to being offline.
+  Future<User> getUserProfile({bool acceptOfflineProfile = true});
 }
