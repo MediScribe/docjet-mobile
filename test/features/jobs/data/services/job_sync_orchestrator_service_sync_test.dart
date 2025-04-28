@@ -1,4 +1,6 @@
 import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import for AuthEventBus
+import 'package:docjet_mobile/core/auth/events/auth_events.dart'; // Import for AuthEvent
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
@@ -18,6 +20,7 @@ import 'dart:async';
   JobLocalDataSource,
   NetworkInfo,
   JobSyncProcessorService, // Added processor mock
+  AuthEventBus, // Add AuthEventBus to mocks
 ])
 import 'job_sync_orchestrator_service_sync_test.mocks.dart'; // Updated mock file name
 
@@ -107,6 +110,7 @@ void main() {
   late MockJobLocalDataSource mockLocalDataSource;
   late MockNetworkInfo mockNetworkInfo;
   late MockJobSyncProcessorService mockProcessorService; // Renamed/Added mock
+  late MockAuthEventBus mockAuthEventBus; // Add AuthEventBus mock
   late JobSyncOrchestratorService service; // Updated service type
 
   setUp(() {
@@ -115,12 +119,17 @@ void main() {
     mockNetworkInfo = MockNetworkInfo();
     mockProcessorService =
         MockJobSyncProcessorService(); // Instantiate new mock
+    mockAuthEventBus = MockAuthEventBus(); // Initialize AuthEventBus mock
+
+    // Mock stream from auth event bus
+    when(mockAuthEventBus.stream).thenAnswer((_) => Stream<AuthEvent>.empty());
 
     service = JobSyncOrchestratorService(
       // Updated instantiation
       localDataSource: mockLocalDataSource,
       networkInfo: mockNetworkInfo,
       processorService: mockProcessorService, // Inject processor mock
+      authEventBus: mockAuthEventBus, // Add auth event bus
     );
 
     // Default mocks

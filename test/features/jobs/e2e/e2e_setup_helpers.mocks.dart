@@ -1085,6 +1085,15 @@ class MockJobSyncOrchestratorService extends _i1.Mock
           ),
         )),
       ) as _i10.Future<_i8.Either<_i17.Failure, _i8.Unit>>);
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
 }
 
 /// A class which mocks [AuthEventBus].

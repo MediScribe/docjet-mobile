@@ -322,16 +322,38 @@ Dependencies: Cycle 4 complete, `AuthState.isOffline` already exists.
 
 WHY: Syncing with dead creds or when explicitly offline is wasted effort and log noise. Orchestrator must pause when offline and on logout, resume when online.
 
-* 6.1. [ ] Research – Inspect orchestrator run loop + NetworkInfo gate.
-* 6.2. [ ] Tests RED – Validate:
+* 6.1. [X] Research – Inspect orchestrator run loop + NetworkInfo gate.
+  * Findings: Completed review of JobSyncOrchestratorService. The service already handles auth events and has implementation for _handleOfflineDetected(), _handleOnlineRestored(), _handleLoggedOut(), and _handleLoggedIn() methods. The architecture is sound with appropriate locking using a mutex for sync operations. The _isOfflineFromAuth and _isLoggedOut flags control whether sync operations run or are skipped.
+* 6.2. [X] Tests RED – Validate:
    * receives `offlineDetected` → skips sync
    * receives `loggedOut` → skips sync / cancels in-flight
    * receives `onlineRestored` → triggers immediate sync
-* 6.3. [ ] Implement GREEN – Inject `AuthEventBus`; manage `StreamSubscription`; guard sync logic.
-* 6.4. [ ] Refactor – Clean logging (DEBUG in loops), cancel subs in dispose.
-* 6.5. [ ] Documentation – Update `feature-job-dataflow.md` sync strategy section.
-* 6.6. [ ] Run Tests – `./scripts/list_failed_tests.dart --except`.
-* 6.7. [ ] Handover – Confirm job feature reacts correctly.
+   * Findings: Tests were already implemented in job_sync_orchestrator_service_auth_events_test.dart and passing. They include tests for offline detection, online restoration, and logout handling. The tests verify that sync operations are skipped when offline or logged out, and that an immediate sync is triggered when coming back online.
+* 6.3. [X] Implement GREEN – Inject `AuthEventBus`; manage `StreamSubscription`; guard sync logic.
+   * Findings: Implementation was already in place and working correctly. The JobSyncOrchestratorService correctly injects the AuthEventBus, subscribes to events, updates internal flags based on events received, and guards sync operations appropriately.
+* 6.4. [X] Refactor – Clean logging (DEBUG in loops), cancel subs in dispose.
+   * Findings: Improved logging to reduce log noise by moving per-job logging from INFO to DEBUG level, added summary logging at start and end of batch operations. Enhanced the dispose() method to more robustly handle subscription cancellation with proper null checking.
+* 6.5. [X] Documentation – Update `feature-job-dataflow.md` sync strategy section.
+   * Findings: Added a new "Authentication Integration" section to the sync strategy documentation that explains how the JobSyncOrchestratorService listens to AuthEventBus events, guards sync operations, and manages resources properly.
+* 6.6. [X] Run ALL Tests – `./scripts/list_failed_tests.dart --except`.
+   * Findings: Initial run revealed 6 failing E2E tests due to the JobSyncOrchestratorService constructor now requiring an authEventBus parameter that wasn't being provided in the E2E test setup. Fixed the issue by updating test/features/jobs/e2e/e2e_setup_helpers.dart to pass the authEventBus instance to the JobSyncOrchestratorService constructor. After the fix, all 698 tests now pass successfully.
+* 6.7. [X] Handover – Confirm job feature reacts correctly.
+   * Findings: The JobSyncOrchestratorService now properly reacts to authentication events. It pauses sync when offline is detected or when the user logs out, and resumes sync (with an immediate sync trigger) when online is restored or the user logs in. The implementation is complete, well-tested, and well-documented, with all unit tests and E2E tests now passing.
+
+**Handover Brief for Cycle 6:**
+- **Status**: COMPLETE. The JobSyncOrchestratorService now properly integrates with the AuthEventBus, with all unit tests AND E2E tests passing. The service correctly responds to auth events, maintaining appropriate sync behavior based on connectivity and authentication state.
+- **Key Accomplishments**:
+  - Fixed E2E tests by adding the required authEventBus parameter to JobSyncOrchestratorService in the test setup
+  - Improved logging by reducing noisy INFO-level logs in loops down to DEBUG level
+  - Added batch summary logs to provide high-level sync status without overwhelming log output
+  - Enhanced resource management in dispose() with proper null checking for subscription cancellation
+  - Added comprehensive documentation to feature-job-dataflow.md explaining auth integration
+  - Verified all 698 tests are now passing, including unit tests and E2E tests
+- **Gotchas**: 
+  - Our implementation required updating e2e_setup_helpers.dart which was instantiating JobSyncOrchestratorService without the now-required authEventBus parameter
+  - Many E2E tests depend on this helper, so fixing it in one place resolved multiple test failures
+  - Watch out for this pattern in future modifications - when adding required parameters to services, check all test helpers that instantiate them
+- **Next Steps**: The JobSyncOrchestratorService is now robust and ready for Cycle 7 (Offline UI Banner Component)
 
 ---
 
@@ -339,12 +361,13 @@ WHY: Syncing with dead creds or when explicitly offline is wasted effort and log
 
 WHY: Users must clearly see they're offline. Single source of truth = AuthState.isOffline. Banner must be globally available.
 
-* 7.1. [ ] Research – Current app Scaffold / Shell widget.
+* 7.1. [ ] Research – Current app Scaffold / Shell widget. Update the plan, if required.
 * 7.2. [ ] Tests RED – Widget tests: shows when offline, hides when online.
 * 7.3. [ ] Implement GREEN – Create `OfflineBanner` widget; mount it once in root `AppShell` observing `authNotifierProvider`.
-* 7.4. [ ] Refactor – Move styling to theme constants, add fade animation.
-* 7.5. [ ] Run Tests – `./scripts/list_failed_tests.dart --except`.
-* 7.6. [ ] Handover – Banner ready for screen integration.
+* 7.4. [ ] Refactor – Move styling to theme constants, add fade animation. Use UX best practice; for now, show a simple, but permanent banner on top, which pushes all content down.
+* 7.5. [ ] Run NEW Tests – `./scripts/list_failed_tests.dart <path/dir> --except`.
+* 7.6. [ ] Run ALL Tests – `./scripts/list_failed_tests.dart --except`.
+* 7.7. [ ] Handover – Banner ready for screen integration.
 
 ---
 
@@ -358,7 +381,7 @@ WHY: Authenticated-offline users must stay on Home, not be booted to Login; netw
    * Update route guard logic to ignore `isOffline`.
    * Pass `isOffline` to screens; disable actions / show cached indicators.
 * 8.4. [ ] Manual smoke test on device.
-* 8.5. [ ] Run Tests – `./scripts/run_all_tests.dart`.
+* 8.5. [ ] Run ALL Tests – `./scripts/run_all_tests.dart`.
 * 8.6. [ ] Handover – UX solid for offline flows.
 
 ---
@@ -370,7 +393,7 @@ WHY: Time-based `maxAge` check is YAGNI and currently unused. Remove it to reduc
 * 9.1. [ ] Code – Delete `maxAge` param from `IUserProfileCache.isProfileStale` + implementation + tests.
 * 9.2. [ ] Update imports / fix compile.
 * 9.3. [ ] Docs – Strip references to `maxAge` (this file & architecture docs).
-* 9.4. [ ] Run Tests – `./scripts/list_failed_tests.dart --except`.
+* 9.4. [ ] Run ALL Tests – `./scripts/list_failed_tests.dart --except`.
 * 9.5. [ ] Handover – Interface smaller, zero uncertainty.
 
 ---

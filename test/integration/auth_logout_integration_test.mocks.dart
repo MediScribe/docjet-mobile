@@ -626,6 +626,15 @@ class MockJobSyncOrchestratorService extends _i1.Mock
           ),
         )),
       ) as _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>);
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
 }
 
 /// A class which mocks [AuthService].

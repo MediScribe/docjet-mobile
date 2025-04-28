@@ -112,11 +112,21 @@ class JobsModule {
       );
     }
     if (!getIt.isRegistered<JobSyncOrchestratorService>()) {
+      // NOTE: This is registered as a lazy singleton but its dispose() method is never
+      // automatically called since singletons live for the app's entire lifecycle.
+      //
+      // RESOURCE MANAGEMENT:
+      // - The service maintains a StreamSubscription to AuthEventBus
+      // - During testing, ensure test helpers call dispose() after use
+      // - For production code, consider adding an onAppTerminate handler in the
+      //   main.dart that calls: getIt<JobSyncOrchestratorService>().dispose()
+      //   to properly clean up resources when the app is shutting down
       getIt.registerLazySingleton<JobSyncOrchestratorService>(
         () => JobSyncOrchestratorService(
           localDataSource: getIt(),
           networkInfo: _networkInfo, // Use injected
           processorService: getIt(),
+          authEventBus: _authEventBus, // Pass the auth event bus
         ),
       );
     }

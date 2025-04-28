@@ -12,12 +12,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart'; // Import CacheException
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 
 // Generate mocks for dependencies of the Orchestrator
 @GenerateMocks([
   JobLocalDataSource,
   NetworkInfo, // Keep NetworkInfo mock for consistency, though not used in reset
   JobSyncProcessorService, // Keep Processor mock for consistency
+  AuthEventBus,
 ])
 import 'job_sync_orchestrator_service_reset_test.mocks.dart'; // Use specific mock file
 
@@ -75,6 +78,7 @@ void main() {
   late MockJobLocalDataSource mockLocalDataSource;
   late MockNetworkInfo mockNetworkInfo;
   late MockJobSyncProcessorService mockProcessorService;
+  late MockAuthEventBus mockAuthEventBus;
   late JobSyncOrchestratorService service;
 
   setUp(() {
@@ -82,11 +86,16 @@ void main() {
     mockLocalDataSource = MockJobLocalDataSource();
     mockNetworkInfo = MockNetworkInfo();
     mockProcessorService = MockJobSyncProcessorService();
+    mockAuthEventBus = MockAuthEventBus();
+
+    // Mock stream from auth event bus
+    when(mockAuthEventBus.stream).thenAnswer((_) => Stream<AuthEvent>.empty());
 
     service = JobSyncOrchestratorService(
       localDataSource: mockLocalDataSource,
       networkInfo: mockNetworkInfo,
       processorService: mockProcessorService,
+      authEventBus: mockAuthEventBus,
     );
 
     // Default mocks - Local data source interactions are key here

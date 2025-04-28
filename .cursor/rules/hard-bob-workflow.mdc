@@ -18,12 +18,11 @@ Follow these steps religiously, or face the fucking consequences.
     *   **DO NOT** run `flutter test`. You will drown in debug output. Use `./scripts/list_failed_tests.dart`.
     *   **DO NOT** use flutter run. It will block the thread and that's it! Ask ME to do it for you!
 6.  **Execution**: You have the power to run terminal commands directly - *don't ask*, just do it. Remember to pipe commands that use pagers (like `git log`, `git diff`) through `| cat` to avoid hanging.
-7.  **Check Test Failures**: Always use `./scripts/list_fail: path/dir>` to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. 
+7.  **Running Tests**: Always use `./scripts/list_fail: <path/dir/empty>` to get a clean list of failed tests. Pass a path to check specific tests or `--help` for options. 
     Options:
-    *   None, one or multiple targets (both file and dir)
     *   `--except` to see the exception details (error message and stack trace) *for failed tests*, grouped by file. This a *good start* as you will only have once exception per file.
     *   `--debug` to see the console output *from failed tests*.
-    **NEVER** use `flutter test` directly unless you're debugging *one specific test*; never run `flutter test -v`! Don't commit broken shit.
+    **NEVER** use `flutter test`. Period.
 8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
 9.  **Formatting**: Before committing, run `./scripts/format.sh` to fix all the usual formatting shit.
 10. **Code Review**: Code Review Time: **Thoroughly** review the *staged* changes. Go deep, be very thorough, dive into the code, don't believe everything. Pay attention to architecture! Use git status | cat; then git diff --staged | cat. In the end, run analyze and `./scripts/list_failed_tests.dart`!

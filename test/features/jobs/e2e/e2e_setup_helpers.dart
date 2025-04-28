@@ -302,6 +302,7 @@ E2EDependencyContainer setupDependencies({
     localDataSource: jobLocalDataSource,
     networkInfo: mockNetworkInfo, // Use mock network info
     processorService: jobSyncProcessorService, // Use created service
+    authEventBus: authEventBus, // Add the required authEventBus parameter
   );
 
   // --- Instantiate Repository ---

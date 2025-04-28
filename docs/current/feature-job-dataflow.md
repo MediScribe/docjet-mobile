@@ -34,6 +34,7 @@ This document details the data flow architecture for the Job feature in DocJet M
   - [Sync Process Details](#sync-process-details)
   - [Server-Side Deletion Handling](#server-side-deletion-handling)
   - [Audio File Management](#audio-file-management)
+  - [Authentication Integration](#authentication-integration)
 - [Background Processing Support](#background-processing-support)
 - [Remaining Improvements](#remaining-improvements)
 - [Synchronization Flow Diagrams](#synchronization-flow-diagrams)
@@ -736,6 +737,31 @@ When fetching jobs from the server:
    * Log entries include the job's `localId`, the full file path, and the specific error message.
    * These failures are considered non-fatal to the job deletion process itself (the job record is still removed locally).
    * A retry mechanism for failed file deletions will be implemented (e.g., on next app startup or sync cycle) to ensure eventual cleanup.
+
+### Authentication Integration
+
+The Job Sync system integrates with the AuthEventBus to respond to authentication-related events and manage synchronization accordingly:
+
+1. **Auth Event Handling:** `JobSyncOrchestratorService` subscribes to the `AuthEventBus` to receive auth-related events:
+   - `AuthEvent.offlineDetected`: Pauses sync operations by setting `_isOfflineFromAuth = true`
+   - `AuthEvent.onlineRestored`: Resumes sync operations and triggers an immediate sync to handle pending changes
+   - `AuthEvent.loggedOut`: Prevents sync operations by setting `_isLoggedOut = true`
+   - `AuthEvent.loggedIn`: Enables sync operations by setting `_isLoggedOut = false`
+
+2. **Sync Operation Guards:** The `syncPendingJobs()` method includes guards that:
+   - Skip sync when `_isOfflineFromAuth` is true (preventing unnecessary API calls when offline)
+   - Skip sync when `_isLoggedOut` is true (preventing sync with expired/invalid credentials)
+   - These guards operate before any network checks or data retrieval, eliminating unnecessary operations
+
+3. **Resource Management:** The service properly manages its auth event subscription:
+   - Subscribes to auth events when initialized
+   - Unsubscribes when `dispose()` is called to prevent memory leaks
+
+This integration provides several benefits:
+- Prevents unnecessary API calls when the app is offline or not authenticated
+- Automatically triggers sync when connectivity is restored
+- Cleanly separates authentication concerns from synchronization logic
+- Maintains a loose coupling between the auth and job systems through event-based communication
 
 ## Background Processing Support
 

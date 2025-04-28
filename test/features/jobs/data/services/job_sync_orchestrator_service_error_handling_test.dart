@@ -1,4 +1,6 @@
 import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -13,7 +15,12 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 // Generate mocks for dependencies
-@GenerateMocks([JobLocalDataSource, NetworkInfo, JobSyncProcessorService])
+@GenerateMocks([
+  JobLocalDataSource,
+  NetworkInfo,
+  JobSyncProcessorService,
+  AuthEventBus,
+])
 // Use a distinct mock file name
 import 'job_sync_orchestrator_service_error_handling_test.mocks.dart';
 
@@ -59,6 +66,7 @@ void main() {
   late MockJobLocalDataSource mockLocalDataSource;
   late MockNetworkInfo mockNetworkInfo;
   late MockJobSyncProcessorService mockProcessorService;
+  late MockAuthEventBus mockAuthEventBus;
   late JobSyncOrchestratorService service;
 
   setUp(() {
@@ -66,11 +74,16 @@ void main() {
     mockLocalDataSource = MockJobLocalDataSource();
     mockNetworkInfo = MockNetworkInfo();
     mockProcessorService = MockJobSyncProcessorService();
+    mockAuthEventBus = MockAuthEventBus();
+
+    // Mock stream from auth event bus
+    when(mockAuthEventBus.stream).thenAnswer((_) => Stream<AuthEvent>.empty());
 
     service = JobSyncOrchestratorService(
       localDataSource: mockLocalDataSource,
       networkInfo: mockNetworkInfo,
       processorService: mockProcessorService,
+      authEventBus: mockAuthEventBus,
     );
 
     // Default mocks
