@@ -264,328 +264,120 @@ sequenceDiagram
 
 ---
 
-## Cycle 4: Update AuthNotifier State Logic (Presentation Layer)
+## Cycle 4: Extend AuthEventBus with Connectivity Events (TDD)
 
-* 4.1. [ ] **Research:** Re-read `AuthNotifier` (`lib/core/auth/presentation/auth_notifier.dart`). Focus on `login` and `_checkAuthStatus` methods' `try/catch` blocks. Also check existing event bus usage.
-   * Findings:
-* 4.2. [ ] **Write/Update Tests (RED):** Update `auth_notifier_test.dart`. Add/modify tests for scenarios:
-   * Login API OK, Profile API Fail (Network): State becomes `authenticated` with `isOffline=true` and cached `user`.
-   * Login API OK, Profile API Fail (Other Error): State becomes `error` (unauthenticated).
-   * Initial Check OK (cached/live profile): State becomes `authenticated`.
-   * Initial Check Fail (Network but cached exists): State becomes `authenticated` with `isOffline=true`.
-   * Online → Offline transition: Test that state updates correctly when network becomes unavailable.
-   * **NEW:** Test `AuthEvent.onlineRestored` handling: State transitions from `authenticated(isOffline=true)` to `authenticated(isOffline=false)` after event and successful profile re-fetch.
-   * **NEW:** Test `AuthEvent.onlineRestored` handling: State remains `authenticated(isOffline=true)` if profile re-fetch fails *again* after the event.
-   * Findings:
-* 4.3. [ ] **Implement State Logic (GREEN):** Modify `AuthNotifier`'s handling of auth states:
-   ```dart
-   // ... existing try/catch logic for login/initial check ...
-   try {
-     // Get profile - AuthService.getUserProfile now handles the "try network, then cache if offline" flow internally
-     final userProfile = await _authService.getUserProfile(acceptOfflineProfile: true);
+WHY: We need a canonical source of truth for auth-related connectivity state so every feature (AuthNotifier, Job sync, UI, etc.) can respond **without tight coupling**. Adding two events solves that and kills uncertainty.
 
-     // Check if the call succeeded but via offline profile
-     final isOffline = false; // We need to determine this somehow - see step 4.4 below
+* 4.1. [ ] Research – Audit current `AuthEventBus`/`AuthEvent` usage to ensure no name collisions.
+* 4.2. [ ] Tests RED – Update / add unit tests verifying new enum values propagate through the bus.
+* 4.3. [ ] Implement GREEN – Add `offlineDetected` & `onlineRestored` to `AuthEvent`; update bus (no code change needed), regenerate mocks.
+* 4.4. [ ] Refactor – Add logging via `log_helpers`, dart-doc each event, run formatter.
+* 4.5. [ ] Docs – Amend `feature-auth-architecture.md` explaining when/why events fire.
+* 4.6. [ ] Run Tests – `./scripts/list_failed_tests.dart core/auth`.
+* 4.7. [ ] Handover – Confirm events available for next cycle.
 
-     // Update authenticated state with offline flag if needed
-     state = AuthState.authenticated(userProfile, isOffline: isOffline);
-     _logger.i('$_tag User profile retrieved' + (isOffline ? ' (offline mode)' : ''));
-
-     // **NEW:** Emit onlineRestored event if transitioning from offline to online
-     if (_wasPreviouslyOffline && !isOffline) { // Requires tracking previous state
-        _authEventBus.fire(AuthEvent.onlineRestored);
-     }
-     _wasPreviouslyOffline = isOffline; // Update tracking variable
-
-   } on AuthException catch (e) {
-     // No need for complex offline retry logic - AuthService already tried that if acceptOfflineProfile=true
-     // Just handle the exception appropriately here
-     final errorType = AuthErrorMapper.getErrorTypeFromException(e);
-     state = AuthState.error(errorType, e.message);
-     _logger.w('$_tag Failed to get user profile: ${e.message}');
-
-     // **NEW:** Emit offlineDetected event if transitioning to offline
-     if (!_wasPreviouslyOffline && e.type == AuthErrorType.offlineOperation) { // Or based on the result of 4.4
-        _authEventBus.fire(AuthEvent.offlineDetected);
-        _wasPreviouslyOffline = true; // Update tracking variable
-     } else {
-       _wasPreviouslyOffline = false; // Reset if error is not offline related
-     }
-   }
-   ```
-   * Add a field like `bool _wasPreviouslyOffline = false;` to track state transitions for event firing.
-   * Findings:
-* 4.4. [ ] **Detect Offline Status:** Implement a way to detect if the profile came from cache (offline mode) vs. network:
-   * **Option A (Preferred):** Modify `AuthService.getUserProfile()` to return a tuple/wrapper containing both the User and an `isOffline` flag. Update `AuthServiceImpl` and tests.
-   * **Option B:** Add a method like `isNetworkAvailable()` to AuthService or inject a NetworkInfoService.
-   * **Option C:** Add a specific exception type that includes information about falling back to cached profile.
-   * Implement the selected approach (Option A) and update tests.
-   * Findings:
-* 4.5. [ ] **Implement Event Subscription (GREEN):**
-   * **NEW:** Inject `AuthEventBus` into `AuthNotifier` if not already done.
-   * **NEW:** Add `StreamSubscription<AuthEvent>? _authEventSubscription;` field.
-   * **NEW:** In `AuthNotifier`'s constructor or an init method, subscribe to the `AuthEventBus`:
-     ```dart
-     _authEventSubscription = _authEventBus.on<AuthEvent>().listen((event) {
-       if (event == AuthEvent.onlineRestored) {
-         _logger.i('$_tag Received onlineRestored event, attempting profile refresh.');
-         // Re-fetch profile to confirm online status and get fresh data
-         // Use a separate internal method to avoid loops/state issues
-         _refreshProfileOnConnectivityChange();
-       }
-       // Optional: Handle offlineDetected if needed for specific UI logic beyond isOffline flag
-     });
-     ```
-   * **NEW:** Implement the `_refreshProfileOnConnectivityChange` method:
-     ```dart
-     Future<void> _refreshProfileOnConnectivityChange() async {
-        // Only attempt refresh if currently authenticated but marked offline
-        if (state.status == AuthStatus.authenticated && state.isOffline) {
-           try {
-              // Attempt to get profile, *requiring* online (acceptOfflineProfile: false)
-              // Or use the primary method and check the 'isOffline' flag in the result from 4.4
-              final userProfile = await _authService.getUserProfile(acceptOfflineProfile: false); // Or use updated method from 4.4
-              state = AuthState.authenticated(userProfile, isOffline: false);
-              _logger.i('$_tag Profile refreshed successfully after regaining connectivity.');
-              _wasPreviouslyOffline = false; // Update tracking
-           } catch (e) {
-               // If refresh fails again (e.g., transient network issue), stay offline
-               _logger.w('$_tag Profile refresh failed after onlineRestored event: $e. Remaining offline.');
-               // State remains authenticated(isOffline=true)
-           }
-        }
-     }
-     ```
-   * **NEW:** Ensure the subscription is cancelled in the `dispose()` method of the notifier.
-   * Findings:
-* 4.6. [ ] **Refactor:** Clean up `AuthNotifier` (state logic, event handling, subscription) and its tests.
-   * Findings:
-* 4.7. [ ] **Run Tests:** Execute tests for `AuthNotifier`, including new event handling tests.
-   * Findings:
-* 4.8. [ ] **Handover Brief:**
-   * Status: `AuthNotifier` now handles offline profiles and reacts to `onlineRestored` events to update UI state.
-   * Gotchas: Complexity in state/event interaction? Correct subscription lifecycle?
-   * Recommendations: Ready for UI adjustments. Cycle 7 still needed to define/implement the events themselves if not already done.
+**MANDATORY REPORTING RULE:** For **every** task/cycle below the dev must (a) write a brief *Findings* paragraph and (b) a *Handover Brief* summarising status, edge-cases, and next-step readiness **inside this doc** before ticking the checkbox.  No silent check-offs allowed – uncertainty gets you fired.
 
 ---
 
-## Cycle 5: UI Adjustments & Testing (Presentation Layer)
+## Cycle 5: AuthNotifier Emits & Reacts to Connectivity Events (TDD)
 
-* 5.1. [ ] **Research:** Identify screens observing `AuthNotifier` state (likely `LoginScreen`, `HomeScreen`, and the initial routing logic in `main.dart`).
-   * Findings:
-* 5.2. [ ] **Write/Update Tests (RED):** Add/modify widget/integration tests for offline states.
-   * Findings:
-* 5.3. [ ] **Implement UI Changes (GREEN):** Modify UI widgets to handle offline states:
-   * Add explicit offline indicator banner on authenticated screens:
-     * Red banner at top of screen with "OFFLINE MODE" text
-     * Icon showing disconnected network
-     * Banner only appears when `authState.isOffline == true`
-   * Update `HomeScreen` to show appropriate offline UI variants:
-     * Disable network-dependent actions 
-     * Show cached data with "offline" label
-   * Ensure routing logic directs to `HomeScreen` when `state.status == AuthStatus.authenticated`, regardless of `isOffline`
-   * Findings:
-* 5.4. [ ] **Refactor:** Clean up UI code and tests.
-   * Findings:
-* 5.5. [ ] **Manual Testing:** Perform manual tests for the key scenarios:
-   * Login online → success → force offline → restart app → check state/UI
-   * Login online → success → trigger action needing profile → check state/UI
-   * Start app offline → login → check state/UI
-   * Online → Offline transition: Test UI update when network becomes unavailable
-   * Offline → Online transition: Test UI update when network is restored
-   * Findings:
-* 5.6. [ ] **Run Tests:** Execute relevant widget/integration tests.
-   * Findings:
-* 5.7. [ ] **Handover Brief:**
-   * Status: UI correctly handles authenticated offline state.
-   * Gotchas: Routing complexity? Offline indicator display issues?
-   * Recommendations: Ready for final cleanup and broader testing.
+WHY: AuthNotifier is the gatekeeper of UI auth state. It must (a) detect offline/online flips, (b) emit the new events and (c) respond to `loggedOut` etc.  This keeps UI & other features in sync without extra DTOs.
+
+Dependencies: Cycle 4 complete, `AuthState.isOffline` already exists.
+
+* 5.1. [ ] Research – Verify current state transition logic; identify where to hook detection.
+* 5.2. [ ] Tests RED – Unit tests for:
+   * online→offline triggers `offlineDetected`
+   * offline→online triggers `onlineRestored`
+   * subscription cancelled on dispose
+* 5.3. [ ] Implement GREEN –
+   * Add `_wasOffline` tracker & subscription to AuthEventBus.
+   * On state update, compare against previous, emit events via bus.
+   * Debounce profile refresh after `onlineRestored` (≥1 sec) to avoid API spam.
+* 5.4. [ ] Refactor – Extract helper methods, add robust logging, format.
+* 5.5. [ ] Run Tests – `./scripts/list_failed_tests.dart core/auth`.
+* 5.6. [ ] Handover – Ready for consumers (Job sync, UI).
 
 ---
 
-## Cycle 6: Final Integration Testing & Cleanup
+## Cycle 6: JobSyncOrchestratorService Listens to Auth Events (TDD)
 
-* 6.1. [ ] **Run Lint & Format:** Run `dart analyze` and `./scripts/format.sh`. Fix any reported issues.
-   * Findings:
-* 6.2. [ ] **Run All Tests:** Execute *all* tests. `./scripts/list_failed_tests.dart`
-   * Findings:
-* 6.3. [ ] **Code Review:** Thoroughly review all staged changes (`git diff --staged | cat`). Check architecture, naming, logic.
-   * Findings:
-* 6.4. [ ] **Update Docs:** Update `feature-auth-architecture.md` to reflect the new caching mechanism.
-   * Add section about UserProfileCache and its role in offline authentication
-   * Update sequence diagram to show offline profile fetch from cache
-   * Add section documenting the offline UI indicators
-   * Findings:
-* 6.5. [ ] **Additional Documentation Updates:**
-   * [ ] Update `architecture-overview.md` to mention the offline profile caching capability
-   * [ ] Update `feature-auth-testing.md` to include testing strategies for offline profile scenarios
-   * [ ] Update `feature-job-dataflow.md` to reference how the offline authentication enhancement benefits job operations
-   * [ ] Create a standalone `offline-authentication.md` documentation file with comprehensive guidance on working with offline capabilities
-   * Findings:
-* 6.6. [ ] **Run Tests:** Final check. `./scripts/list_failed_tests.dart`
-   * Findings:
-* 6.7. [ ] **Handover Brief:**
-   * Status: Feature complete, tested, documented.
-   * Gotchas: Any lingering concerns or edge cases found?
-   * Recommendations: Ready for merge. Consider future enhancements like user-initiated refresh button for forcing online check.
+WHY: Syncing with dead creds or when explicitly offline is wasted effort and log noise. Orchestrator must pause when offline and on logout, resume when online.
+
+* 6.1. [ ] Research – Inspect orchestrator run loop + NetworkInfo gate.
+* 6.2. [ ] Tests RED – Validate:
+   * receives `offlineDetected` → skips sync
+   * receives `loggedOut` → skips sync / cancels in-flight
+   * receives `onlineRestored` → triggers immediate sync
+* 6.3. [ ] Implement GREEN – Inject `AuthEventBus`; manage `StreamSubscription`; guard sync logic.
+* 6.4. [ ] Refactor – Clean logging (DEBUG in loops), cancel subs in dispose.
+* 6.5. [ ] Documentation – Update `feature-job-dataflow.md` sync strategy section.
+* 6.6. [ ] Run tests – `./scripts/list_failed_tests.dart features/jobs`.
+* 6.7. [ ] Handover – Confirm job feature reacts correctly.
 
 ---
 
-## Cycle 7: Implement AuthEventBus Offline Detection Events (TDD)
+## Cycle 7: Offline UI Banner Component (TDD)
 
-* 7.1. [ ] **Research:** Review the existing `AuthEventBus` implementation and usage patterns.
-   * Check: `lib/core/auth/events/auth_event_bus.dart` and `lib/core/auth/events/auth_events.dart`
-   * Find all current subscribers and emitters of auth events
-   * Findings:
+WHY: Users must clearly see they're offline. Single source of truth = AuthState.isOffline. Banner must be globally available.
 
-* 7.2. [ ] **Write Tests (RED):** Create failing tests for the new events:
-   * Update `auth_events_test.dart` to include new enum values
-   * Update `auth_notifier_test.dart` to test event emission:
-     * Test that `AuthEvent.offlineDetected` is emitted when network errors occur
-     * Test that `AuthEvent.onlineRestored` is emitted when connection is restored
-   * Create a mock event subscriber to verify events are received
-   * Run tests and confirm they fail (RED phase)
-   * Findings:
-
-* 7.3. [ ] **Implement Events (GREEN):** Update code to make tests pass:
-   * Update `auth_events.dart` with new event types:
-     ```dart
-     enum AuthEvent {
-       loggedIn,
-       loggedOut,
-       offlineDetected,  // New: emitted when offline mode is detected
-       onlineRestored,   // New: emitted when online mode is restored
-     }
-     ```
-   * Modify `AuthNotifier` to emit the new events at appropriate points: (Already covered in Cycle 4.3)
-   * Run tests to confirm they now pass (GREEN phase)
-   * Findings:
-
-* 7.4. [ ] **Refactor Implementation:** Clean up the implementation:
-   * Extract common offline detection logic into a helper method
-   * Add proper logging with log helpers
-   * Ensure consistent coding patterns with existing code
-   * Run tests again to verify refactoring didn't break functionality
-   * Findings:
-
-* 7.5. [ ] **Documentation:**
-   * Update `feature-auth-architecture.md` to document the new events:
-     * Document the new event types and their purpose
-     * Document when each event is triggered
-     * Provide general guidance on subscribing to events
-   * Findings:
-
-* 7.6. [ ] **Run Tests:** Run auth module tests to ensure everything works together.
-   * Findings:
-
-* 7.7. [ ] **Handover Brief:**
-   * Status: AuthEventBus enhanced with offline detection events following TDD
-   * Gotchas: Any subtle timing issues with event emission?
-   * Recommendations: Ready for integration with job features in Cycle 8.
+* 7.1. [ ] Research – Current app Scaffold / Shell widget.
+* 7.2. [ ] Tests RED – Widget tests: shows when offline, hides when online.
+* 7.3. [ ] Implement GREEN – Create `OfflineBanner` widget; mount it once in root `AppShell` observing `authNotifierProvider`.
+* 7.4. [ ] Refactor – Move styling to theme constants, add fade animation.
+* 7.5. [ ] Run Tests – `./scripts/list_failed_tests.dart ui`.
+* 7.6. [ ] Handover – Banner ready for screen integration.
 
 ---
 
-## Cycle 8: Job Feature Integration with Offline Events (TDD)
+## Cycle 8: Screen & Routing Adjustments for Offline Mode (TDD)
 
-* 8.1. [ ] **Research:** Analyze the `JobSyncOrchestratorService` for integration points.
-   * Find existing network connectivity checks
-   * Identify where to add event subscription logic
-   * Findings:
+WHY: Authenticated-offline users must stay on Home, not be booted to Login; network-dependent buttons must disable.
 
-* 8.2. [ ] **Integration Tests (RED):** Write failing tests for integration with Job feature:
-   * Create/update `job_sync_orchestrator_test.dart`:
-     * Test that orchestrator subscribes to the event bus correctly
-     * Test reaction to `AuthEvent.offlineDetected` (should pause sync attempts)
-     * Test reaction to `AuthEvent.onlineRestored` (should trigger sync)
-   * Test proper cleanup of event subscriptions on dispose
-   * Run tests and confirm they fail
-   * Findings:
-
-* 8.3. [ ] **Integration Implementation (GREEN):** Add code to make integration tests pass:
-   * Update `JobSyncOrchestratorService`:
-     * Add field for event subscription: `StreamSubscription<AuthEvent>? _authEventSubscription;`
-     * Add subscription to auth events in constructor or init method
-     * Implement handling of `offlineDetected` event (pause sync)
-     * Implement handling of `onlineRestored` event (trigger sync)
-     * Ensure subscription is canceled on dispose
-   * Run tests to confirm they now pass
-   * Findings:
-
-* 8.4. [ ] **Integration Refactor:** Clean up and optimize integration:
-   * Extract event handling logic into separate methods
-   * Add comprehensive logging for offline/online transitions
-   * Ensure clean cancellation of subscriptions
-   * Run tests to verify refactoring didn't break functionality
-   * Findings:
-
-* 8.5. [ ] **Documentation:**
-   * Update `feature-job-dataflow.md` to document auth event integration:
-     * Add new section explaining how the job feature responds to auth events
-     * Document the offline detection mechanism
-     * Explain how job synchronization handles network transitions
-   * Add usage examples for other components that might need similar integration
-   * Findings:
-
-* 8.6. [ ] **Run All Tests:** Execute integration tests and full test suite.
-   * Findings:
-
-* 8.7. [ ] **Manual Testing:** Test actual behavior on device/emulator:
-   * Test offline behavior with real network disconnection
-   * Test transition from offline to online
-   * Test transition from online to offline
-   * Findings:
-
-* 8.8. [ ] **Handover Brief:**
-   * Status: Job Feature now properly integrated with auth events
-   * Gotchas: Any unexpected interactions between auth and job components?
-   * Recommendations: Consider adding a dedicated connectivity service for more fine-grained control in the future.
+* 8.1. [ ] Research – Review current `GoRouter` guards + HomeScreen actions.
+* 8.2. [ ] Tests RED – Navigation tests for offline authenticated state.
+* 8.3. [ ] Implement GREEN –
+   * Update route guard logic to ignore `isOffline`.
+   * Pass `isOffline` to screens; disable actions / show cached indicators.
+* 8.4. [ ] Manual smoke test on device.
+* 8.5. [ ] Run Tests.
+* 8.6. [ ] Handover – UX solid for offline flows.
 
 ---
 
-## Cycle 9: Final Full-Feature Integration & Testing
+## Cycle 9: Remove Dead Code & Simplify Cache API
 
-* 9.1. [ ] **Run Lint & Format:** Run `dart analyze` and `./scripts/format.sh` on all modified files.
-   * Findings:
+WHY: Time-based `maxAge` check is YAGNI and currently unused. Remove it to reduce surface and risk.
 
-* 9.2. [ ] **Run All Tests:** Execute *all* tests with `./scripts/list_failed_tests.dart`
-   * Test both profile caching and event bus features together
-   * Ensure all integration points work correctly
-   * Findings:
+* 9.1. [ ] Code – Delete `maxAge` param from `IUserProfileCache.isProfileStale` + implementation + tests.
+* 9.2. [ ] Update imports / fix compile.
+* 9.3. [ ] Docs – Strip references to `maxAge` (this file & architecture docs).
+* 9.4. [ ] Run Tests – ensure green.
+* 9.5. [ ] Handover – Interface smaller, zero uncertainty.
 
-* 9.3. [ ] **Cross-Feature Testing:** Specifically test interactions between profile caching and offline events:
-   * Test offline profile cache retrieval + event emission
-   * Test event subscribers responding during offline authentication
-   * Test transitions between online/offline with cached profiles
-   * Findings:
+---
 
-* 9.4. [ ] **Code Review:** Thoroughly review all staged changes (`git diff --staged | cat`):
-   * Verify architecture alignment across both features
-   * Check naming consistency between profile caching and event bus code
-   * Ensure error handling is consistent 
-   * Findings:
+## Cycle 10: Final Integration, Async DI & Hardening
 
-* 9.5. [ ] **Documentation Completeness:** Verify all documentation has been updated:
-   * `feature-auth-architecture.md` - Both profile caching and event bus documented
-   * `architecture-overview.md` - Offline capabilities referenced
-   * `feature-auth-testing.md` - Testing strategies for both features
-   * `feature-job-dataflow.md` - Integration with auth events documented
-   * `offline-authentication.md` (if created) - Comprehensive documentation
-   * Findings:
+WHY: Make sure DI is bullet-proof and the whole feature works end-to-end.
 
-* 9.6. [ ] **Manual Full-Flow Testing:** Test complete end-to-end scenarios:
-   * Login → Force offline → Verify cached profile used + offline events emitted
-   * Start offline → Attempt login → Verify appropriate failure handling
-   * Offline → Online transition → Verify proper state recovery
-   * Verify Job feature responds correctly to all auth states and transitions
-   * Findings:
+* 10.1. [ ] Decide on SharedPreferences init – Keep **async CoreModule registration** & enforce `await getIt.allReady()` during app start.  Update `README` accordingly.  AuthModule will fetch with `getIt<SharedPreferences>()` (guaranteed ready) – no more `isReadySync`.
+* 10.2. [ ] Remove `isReadySync` check from AuthModule; replace with direct retrieval.
+* 10.3. [ ] Lint & Format – `dart analyze` + `./scripts/format.sh`.
+* 10.4. [ ] Run **all** tests – `./scripts/list_failed_tests.dart` (no args) – must pass.
+* 10.5. [ ] Manual E2E smoke run: login online → force offline → navigate → restore online.
+* 10.6. [ ] Performance sanity: log spam, event leaks, memory.
+* 10.7. [ ] Code Review & Hard Bob Commit.
 
-* 9.7. [ ] **Performance Review:** Check for any performance implications:
-   * Verify event listeners don't introduce unnecessary overhead
-   * Check cache operations for efficiency
-   * Ensure no memory leaks from event subscriptions
-   * Findings:
+---
 
-* 9.8. [ ] **Handover Brief:**
-   * Status: Full feature integration complete - offline profile caching + event bus
-   * Gotchas: Any edge cases or interactions discovered during final testing?
-   * Recommendations: Consider extracting common network detection into a dedicated service for reuse in future features. 
+## DONE
+
+With these cycles we:
+1. Centralise connectivity state via AuthEventBus.
+2. Remove redundant DTOs and unused staleness logic.
+3. Harden DI startup path.
+4. Provide clear offline UX and rock-solid job sync behaviour.
+
+No bullshit, no uncertainty – Dollar Bill would be proud.
