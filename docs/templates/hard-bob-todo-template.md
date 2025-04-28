@@ -84,10 +84,13 @@ sequenceDiagram
 * 1.6. [ ] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
-* 1.7. [ ] **Run ALL E2E & Stability Tests:**
+* 1.7. [ ] **Format, Analyze, and Fix:**
+    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
+* 1.8. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
     * Findings: `[Confirm ALL tests pass, including E2E and stability checks. FIX if not.]`
-* 1.8. [ ] **Handover Brief:**
+* 1.9. [ ] **Handover Brief:**
     * Status: [e.g., Core logic for Feature X implemented and tested.]
     * Gotchas: [Any tricky bits, edge cases encountered, or fragile tests?]
     * Recommendations: [Ready for Cycle 2 integration? Any follow-up needed?]
@@ -113,10 +116,13 @@ sequenceDiagram
 * 2.6. [ ] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
-* 2.7. [ ] **Run ALL E2E & Stability Tests:**
+* 2.7. [ ] **Format, Analyze, and Fix:**
+    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
+* 2.8. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
     * Findings: `[Confirm ALL tests pass, including E2E and stability checks. FIX if not.]`
-* 2.8. [ ] **Handover Brief:**
+* 2.9. [ ] **Handover Brief:**
     * Status: ...
     * Gotchas: ...
     * Recommendations: ...
@@ -138,14 +144,17 @@ sequenceDiagram
 * N.3. [ ] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
-* N.4. [ ] **Run ALL E2E & Stability Tests:**
+* N.4. [ ] **Format, Analyze, and Fix:**
+    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
+* N.5. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
     * Findings: `[Confirm ALL tests pass, including E2E and stability checks. FIX if not.]`
-* N.5. [ ] **Manual Smoke Test:** [If applicable, perform a quick E2E check of the feature.]
+* N.6. [ ] **Manual Smoke Test:** [If applicable, perform a quick E2E check of the feature.]
     * Findings: [Describe test steps and results.]
-* N.6. [ ] **Code Review & Commit Prep:** [Review staged changes (`git diff --staged | cat`), ensure adherence to guidelines.]
+* N.7. [ ] **Code Review & Commit Prep:** [Review staged changes (`git diff --staged | cat`), ensure adherence to guidelines.]
     * Findings: [Confirm code is clean, follows principles, ready for Hard Bob Commit.]
-* N.7. [ ] **Handover Brief:**
+* N.8. [ ] **Handover Brief:**
     * Status: [e.g., Feature complete, tested, documented, ready for commit.]
     * Gotchas: [Any final caveats or observations?]
     * Recommendations: [Merge it, ship it, or burn it?]
