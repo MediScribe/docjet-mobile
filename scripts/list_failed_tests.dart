@@ -62,6 +62,11 @@ void main(List<String> arguments) async {
     );
 
     formatter.printResults(result, debugMode, exceptMode);
+
+    // Exit with proper code based on test results
+    if (result.totalTestsFailed > 0) {
+      exit(1); // Exit with non-zero code when tests fail
+    }
   } on FormatException catch (e) {
     stderr.writeln('Error parsing arguments: ${e.message}');
     _printUsage(_buildArgParser());

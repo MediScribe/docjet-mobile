@@ -41,18 +41,16 @@ echo "=================================="
 
 # Step 1: Run unit tests check
 echo "🔎 Checking for failed unit tests..."
-OUTPUT=$(./scripts/list_failed_tests.dart)
-echo "$OUTPUT"
-if [[ "$OUTPUT" =~ "tests failed" ]]; then
+./scripts/list_failed_tests.dart
+if [[ $? -ne 0 ]]; then
     error_exit "Unit tests failed! See output above for details."
 fi
 echo "✅ All unit tests are passing!"
 
 # Step 2: Run mock API server tests
 echo "🔎 Checking mock API server tests..."
-OUTPUT=$(./scripts/list_failed_tests.dart mock_api_server)
-echo "$OUTPUT"
-if [[ "$OUTPUT" =~ "tests failed" ]]; then
+./scripts/list_failed_tests.dart mock_api_server
+if [[ $? -ne 0 ]]; then
     error_exit "Mock API server tests failed! See output above for details."
 fi
 echo "✅ All mock API server tests are passing!"
