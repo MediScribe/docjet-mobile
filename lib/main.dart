@@ -61,6 +61,12 @@ class MyApp extends ConsumerWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
+        // Use builder to wrap all routes with AppShell
+        builder: (context, child) {
+          // This ensures every screen, including those navigated to with push,
+          // are wrapped with AppShell and have access to the offline banner
+          return AppShell(child: child ?? const SizedBox.shrink());
+        },
         // Conditionally show screens based on auth state
         home: _buildHomeBasedOnAuthState(authState),
       ),
@@ -73,10 +79,10 @@ class MyApp extends ConsumerWidget {
       case AuthStatus.loading:
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AuthStatus.authenticated:
-        return const AppShell(child: HomeScreen());
+        return const HomeScreen();
       case AuthStatus.unauthenticated:
       case AuthStatus.error:
-        return const AppShell(child: LoginScreen());
+        return const LoginScreen();
     }
   }
 }

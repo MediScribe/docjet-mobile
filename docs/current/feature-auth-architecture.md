@@ -291,6 +291,22 @@ State management for authentication, connecting UI to domain services:
 - Provides methods like `login()`, `logout()`, `checkAuthStatus()`, `getUserProfile()` which interact with the `AuthService`.
 - Crucially, listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
 
+#### UI Components
+
+##### OfflineBanner
+A theme-aware banner that automatically displays when the app is in offline mode:
+- Observes the `authNotifierProvider` to detect offline status
+- Animates height and opacity for smooth transitions
+- Adapts to light/dark theme using `Theme.of(context).colorScheme`
+- Provides accessibility support through `Semantics` labels
+- Consistently displays across all screens through the AppShell
+
+##### AppShell
+A global wrapper component that ensures consistent UI elements across the app:
+- Applied via `MaterialApp.builder` to automatically wrap all screens
+- Handles displaying the offline banner at the top of each screen
+- Preserves navigation and screen structure while adding app-wide UI elements
+
 The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed.
 
 ## Dependency Injection Considerations

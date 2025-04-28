@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 ///
 /// This banner is designed to be placed at the top of the screen and will
 /// automatically show/hide based on the app's connectivity state as tracked
-/// by the [authNotifierProvider].
+/// by the [authNotifierProvider]. It adapts its colors to the current theme
+/// and provides proper semantics for accessibility.
 class OfflineBanner extends ConsumerWidget {
   /// Creates an OfflineBanner widget.
   const OfflineBanner({super.key});
@@ -19,25 +20,35 @@ class OfflineBanner extends ConsumerWidget {
     final isOffline = authState.isOffline;
 
     // Use AnimatedContainer for smooth height transition and AnimatedOpacity for fade
-    return AnimatedContainer(
-      duration: OfflineBannerTheme.animationDuration,
-      height: isOffline ? OfflineBannerTheme.height : 0.0,
-      color: OfflineBannerTheme.backgroundColor,
-      child: AnimatedOpacity(
+    return Semantics(
+      label: 'Offline status indicator',
+      value:
+          isOffline ? 'You are currently offline' : 'You are currently online',
+      excludeSemantics:
+          true, // Excludes children semantics to avoid duplication
+      child: AnimatedContainer(
         duration: OfflineBannerTheme.animationDuration,
-        opacity: isOffline ? 1.0 : 0.0,
-        child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                CupertinoIcons.wifi_slash,
-                color: OfflineBannerTheme.foregroundColor,
-                size: OfflineBannerTheme.iconSize,
-              ),
-              SizedBox(width: OfflineBannerTheme.iconTextSpacing),
-              Text('You are offline', style: OfflineBannerTheme.textStyle),
-            ],
+        height: isOffline ? OfflineBannerTheme.height : 0.0,
+        color: OfflineBannerTheme.getBackgroundColor(context),
+        child: AnimatedOpacity(
+          duration: OfflineBannerTheme.animationDuration,
+          opacity: isOffline ? 1.0 : 0.0,
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.wifi_slash,
+                  color: OfflineBannerTheme.getForegroundColor(context),
+                  size: OfflineBannerTheme.iconSize,
+                ),
+                SizedBox(width: OfflineBannerTheme.iconTextSpacing),
+                Text(
+                  'You are offline',
+                  style: OfflineBannerTheme.getTextStyle(context),
+                ),
+              ],
+            ),
           ),
         ),
       ),
