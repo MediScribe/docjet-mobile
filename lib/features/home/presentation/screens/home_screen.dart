@@ -16,6 +16,9 @@ class HomeScreen extends ConsumerWidget {
     final user =
         authState.status == AuthStatus.authenticated ? authState.user : null;
 
+    // Get offline status
+    final isOffline = authState.isOffline;
+
     // TODO: Implement actual home screen UI (e.g., job list)
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -50,13 +53,18 @@ class HomeScreen extends ConsumerWidget {
               ),
             const SizedBox(height: 32),
             CupertinoButton.filled(
+              onPressed:
+                  isOffline
+                      ? null
+                      : () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (context) => const JobListPage(),
+                          ),
+                        );
+                      },
               child: const Text('Go to Jobs List'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(builder: (context) => const JobListPage()),
-                );
-              },
             ),
           ],
         ),

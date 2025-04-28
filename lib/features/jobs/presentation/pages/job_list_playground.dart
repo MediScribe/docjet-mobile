@@ -1,3 +1,4 @@
+import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
@@ -12,15 +13,20 @@ import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.da
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'dart:typed_data';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
 /// This doesn't require tests as it's purely for UI experimentation.
 /// It now demonstrates getting dependencies via BlocProvider/context instead of sl.
-class JobListPlayground extends StatelessWidget {
+class JobListPlayground extends ConsumerWidget {
   const JobListPlayground({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get offline status from auth state
+    final authState = ref.watch(authNotifierProvider);
+    final isOffline = authState.isOffline;
+
     // For a playground, we provide the cubit here.
     // In a real app, this would be provided higher up the tree.
     // This assumes the dependencies needed by JobListCubit and CreateJobUseCase
@@ -29,13 +35,15 @@ class JobListPlayground extends StatelessWidget {
       create:
           (context) =>
               di.sl<JobListCubit>(), // Use sl ONLY at provider creation
-      child: const _JobListPlaygroundContent(),
+      child: _JobListPlaygroundContent(isOffline: isOffline),
     );
   }
 }
 
 class _JobListPlaygroundContent extends StatefulWidget {
-  const _JobListPlaygroundContent();
+  final bool isOffline;
+
+  const _JobListPlaygroundContent({required this.isOffline});
 
   @override
   State<_JobListPlaygroundContent> createState() =>
@@ -45,10 +53,6 @@ class _JobListPlaygroundContent extends StatefulWidget {
 class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
   static final Logger _logger = LoggerFactory.getLogger('JobListPlayground');
   static final String _tag = logTag('JobListPlayground');
-
-  // Dependencies obtained via context or constructor
-  // late final CreateJobUseCase
-  // _createJobUseCase; // REMOVED - Now accessed via Cubit
 
   // We'll keep a small set of mock jobs as fallback
   final List<JobViewModel> _mockJobs = [
@@ -64,16 +68,12 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
 
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Get UseCase via sl - acceptable ONLY IF this widget is considered
-    // a "composition root" for this specific playground scenario.
-    // In a real app, this would likely be injected into the Cubit itself.
-    // _createJobUseCase = di.sl<CreateJobUseCase>(); // REMOVED
-  }
-
   Future<void> _createLoremIpsumJob() async {
+    if (widget.isOffline) {
+      _logger.i('$_tag Job creation skipped because offline');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -119,9 +119,46 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     }
   }
 
+  // Helper to handle data refresh (no action needed, just logs)
+  void _handleRefresh() {
+    _logger.d(
+      '$_tag Refresh button pressed (does nothing - Cubit watches stream)',
+    );
+  }
+
+  // Helper to handle manual sync
+  Future<void> _handleManualSync() async {
+    _logger.i('$_tag Manual sync triggered!');
+    try {
+      // TODO: [ARCH] Direct repository access is BAD PRACTICE.
+      // This is only acceptable here because it's a playground
+      // for quick testing/debugging. In real features, use a
+      // Cubit/Notifier and a Use Case.
+      final repo = GetIt.instance<JobRepository>();
+      final result = await repo.syncPendingJobs();
+      result.fold(
+        (failure) => _logger.e('$_tag Sync failed: $failure'),
+        (_) => _logger.i('$_tag Sync successful!'),
+      );
+    } catch (e) {
+      _logger.e('$_tag Error during manual sync: $e');
+    }
+  }
+
+  // Helper to handle view toggle
+  void _handleViewToggle(String viewType) {
+    _logger.d('$_tag Showing $viewType');
+    setState(() {
+      // Toggle view mode
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     _logger.d('$_tag Building UI playground');
+
+    // Get offline status from widget
+    final isOffline = widget.isOffline;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -131,34 +168,16 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
           children: [
             CupertinoButton(
               padding: EdgeInsets.zero,
+              // Disable refresh when offline
+              onPressed: isOffline ? null : _handleRefresh,
               child: const Icon(CupertinoIcons.refresh),
-              onPressed: () {
-                _logger.d(
-                  '$_tag Refresh button pressed (does nothing - Cubit watches stream)',
-                );
-              },
             ),
             const SizedBox(width: 8),
             CupertinoButton(
               padding: EdgeInsets.zero,
+              // Disable sync when offline
+              onPressed: isOffline ? null : _handleManualSync,
               child: const Icon(CupertinoIcons.cloud_upload),
-              onPressed: () async {
-                _logger.i('$_tag Manual sync triggered!');
-                try {
-                  // TODO: [ARCH] Direct repository access is BAD PRACTICE.
-                  // This is only acceptable here because it's a playground
-                  // for quick testing/debugging. In real features, use a
-                  // Cubit/Notifier and a Use Case.
-                  final repo = GetIt.instance<JobRepository>();
-                  final result = await repo.syncPendingJobs();
-                  result.fold(
-                    (failure) => _logger.e('$_tag Sync failed: $failure'),
-                    (_) => _logger.i('$_tag Sync successful!'),
-                  );
-                } catch (e) {
-                  _logger.e('$_tag Error during manual sync: $e');
-                }
-              },
             ),
           ],
         ),
@@ -172,25 +191,18 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                 spacing: 8.0,
                 children: [
                   CupertinoButton(
-                    onPressed: () {
-                      _logger.d('$_tag Showing list view');
-                      setState(() {
-                        // Toggle to list view mode
-                      });
-                    },
+                    onPressed:
+                        isOffline ? null : () => _handleViewToggle('list view'),
                     child: const Text('List View'),
                   ),
                   CupertinoButton(
-                    onPressed: () {
-                      _logger.d('$_tag Showing grid view');
-                      setState(() {
-                        // Toggle to grid view mode (if implemented)
-                      });
-                    },
+                    onPressed:
+                        isOffline ? null : () => _handleViewToggle('grid view'),
                     child: const Text('Grid View'),
                   ),
                   CupertinoButton(
-                    onPressed: _isLoading ? null : _createLoremIpsumJob,
+                    onPressed:
+                        (isOffline || _isLoading) ? null : _createLoremIpsumJob,
                     child:
                         _isLoading
                             ? const CupertinoActivityIndicator()
@@ -218,7 +230,8 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                             const Text('No jobs available'),
                             const SizedBox(height: 16),
                             CupertinoButton(
-                              onPressed: _createLoremIpsumJob,
+                              onPressed:
+                                  isOffline ? null : _createLoremIpsumJob,
                               child: const Text('Create First Job'),
                             ),
                           ],
@@ -229,7 +242,10 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                     return ListView.builder(
                       itemCount: jobs.length,
                       itemBuilder: (context, index) {
-                        return JobListItem(job: jobs[index]);
+                        return JobListItem(
+                          job: jobs[index],
+                          isOffline: isOffline,
+                        );
                       },
                     );
                   }
@@ -242,11 +258,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                           Text('Error: ${state.message}'),
                           const SizedBox(height: 16),
                           CupertinoButton(
-                            onPressed: () {
-                              _logger.d(
-                                '$_tag Retry button pressed (does nothing - Cubit watches stream)',
-                              );
-                            },
+                            onPressed: isOffline ? null : _handleRefresh,
                             child: const Text('Retry'),
                           ),
                         ],
@@ -258,7 +270,10 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                   return ListView.builder(
                     itemCount: _mockJobs.length,
                     itemBuilder: (context, index) {
-                      return JobListItem(job: _mockJobs[index]);
+                      return JobListItem(
+                        job: _mockJobs[index],
+                        isOffline: isOffline,
+                      );
                     },
                   );
                 },
