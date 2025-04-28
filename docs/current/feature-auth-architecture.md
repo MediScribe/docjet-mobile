@@ -202,6 +202,15 @@ A central event bus that broadcasts authentication events to interested componen
 - Enables loose coupling between auth components and dependent features
 - Provides standardized events (`AuthEvent.loggedIn`, `AuthEvent.loggedOut`) 
 - Allows app components to react appropriately to auth state changes
+- Provides connectivity events (`AuthEvent.offlineDetected`, `AuthEvent.onlineRestored`) to allow features to adapt to connectivity changes without tight coupling
+
+The events are emitted in the following circumstances:
+- `loggedIn`: When a user successfully authenticates using login credentials
+- `loggedOut`: When a user explicitly logs out or when token refresh irrecoverably fails
+- `offlineDetected`: When the app transitions from online to offline state during an authenticated session
+- `onlineRestored`: When the app transitions from offline back to online state after previously being offline
+
+These events provide a consistent, centralized way for different app components to react to authentication and connectivity state changes without creating direct dependencies.
 
 #### AuthCredentialsProvider Interface
 Manages secure storage and retrieval of authentication credentials:

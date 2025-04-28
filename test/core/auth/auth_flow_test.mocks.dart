@@ -13,8 +13,12 @@ import 'package:dio/src/options.dart' as _i2;
 import 'package:dio/src/response.dart' as _i6;
 import 'package:dio/src/transformer.dart' as _i4;
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i8;
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart'
+    as _i13;
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i11;
 import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i12;
+import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart'
+    as _i14;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -983,4 +987,80 @@ class MockAuthEventBus extends _i1.Mock implements _i11.AuthEventBus {
         ),
         returnValueForMissingStub: null,
       );
+}
+
+/// A class which mocks [IUserProfileCache].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockIUserProfileCache extends _i1.Mock implements _i13.IUserProfileCache {
+  MockIUserProfileCache() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i9.Future<void> saveProfile(
+    _i14.UserProfileDto? profileDto,
+    DateTime? timestamp,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #saveProfile,
+          [
+            profileDto,
+            timestamp,
+          ],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<_i14.UserProfileDto?> getProfile(String? userId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getProfile,
+          [userId],
+        ),
+        returnValue: _i9.Future<_i14.UserProfileDto?>.value(),
+      ) as _i9.Future<_i14.UserProfileDto?>);
+
+  @override
+  _i9.Future<void> clearProfile(String? userId) => (super.noSuchMethod(
+        Invocation.method(
+          #clearProfile,
+          [userId],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> clearAllProfiles() => (super.noSuchMethod(
+        Invocation.method(
+          #clearAllProfiles,
+          [],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<bool> isProfileStale(
+    String? userId, {
+    required bool? isAccessTokenValid,
+    required bool? isRefreshTokenValid,
+    Duration? maxAge,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #isProfileStale,
+          [userId],
+          {
+            #isAccessTokenValid: isAccessTokenValid,
+            #isRefreshTokenValid: isRefreshTokenValid,
+            #maxAge: maxAge,
+          },
+        ),
+        returnValue: _i9.Future<bool>.value(false),
+      ) as _i9.Future<bool>);
 }

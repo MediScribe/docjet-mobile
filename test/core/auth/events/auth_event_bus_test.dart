@@ -80,5 +80,42 @@ void main() {
       // Expect the received event is still the first one
       expect(receivedEvent, equals(AuthEvent.loggedIn));
     });
+
+    // Tests for the new connectivity-related auth events
+    test('should emit offlineDetected event to listeners', () async {
+      final Completer<AuthEvent> completer = Completer<AuthEvent>();
+
+      // Subscribe to the stream
+      final subscription = authEventBus.stream.listen((event) {
+        completer.complete(event);
+      });
+
+      // Emit the event
+      authEventBus.add(AuthEvent.offlineDetected);
+
+      // Expect the listener to receive the event
+      expect(await completer.future, equals(AuthEvent.offlineDetected));
+
+      // Clean up
+      await subscription.cancel();
+    });
+
+    test('should emit onlineRestored event to listeners', () async {
+      final Completer<AuthEvent> completer = Completer<AuthEvent>();
+
+      // Subscribe to the stream
+      final subscription = authEventBus.stream.listen((event) {
+        completer.complete(event);
+      });
+
+      // Emit the event
+      authEventBus.add(AuthEvent.onlineRestored);
+
+      // Expect the listener to receive the event
+      expect(await completer.future, equals(AuthEvent.onlineRestored));
+
+      // Clean up
+      await subscription.cancel();
+    });
   });
 }

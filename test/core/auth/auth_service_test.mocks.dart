@@ -115,16 +115,19 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
       ) as _i4.Future<String>);
 
   @override
-  _i4.Future<_i2.User> getUserProfile() => (super.noSuchMethod(
+  _i4.Future<_i2.User> getUserProfile({bool? acceptOfflineProfile = true}) =>
+      (super.noSuchMethod(
         Invocation.method(
           #getUserProfile,
           [],
+          {#acceptOfflineProfile: acceptOfflineProfile},
         ),
         returnValue: _i4.Future<_i2.User>.value(_FakeUser_0(
           this,
           Invocation.method(
             #getUserProfile,
             [],
+            {#acceptOfflineProfile: acceptOfflineProfile},
           ),
         )),
       ) as _i4.Future<_i2.User>);

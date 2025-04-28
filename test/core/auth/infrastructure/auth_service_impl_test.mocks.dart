@@ -7,6 +7,8 @@ import 'dart:async' as _i7;
 
 import 'package:dio/dio.dart' as _i2;
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i3;
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart'
+    as _i11;
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i9;
 import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i10;
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart'
@@ -394,6 +396,82 @@ class MockAuthEventBus extends _i1.Mock implements _i9.AuthEventBus {
         ),
         returnValueForMissingStub: null,
       );
+}
+
+/// A class which mocks [IUserProfileCache].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockIUserProfileCache extends _i1.Mock implements _i11.IUserProfileCache {
+  MockIUserProfileCache() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i7.Future<void> saveProfile(
+    _i5.UserProfileDto? profileDto,
+    DateTime? timestamp,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #saveProfile,
+          [
+            profileDto,
+            timestamp,
+          ],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<_i5.UserProfileDto?> getProfile(String? userId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getProfile,
+          [userId],
+        ),
+        returnValue: _i7.Future<_i5.UserProfileDto?>.value(),
+      ) as _i7.Future<_i5.UserProfileDto?>);
+
+  @override
+  _i7.Future<void> clearProfile(String? userId) => (super.noSuchMethod(
+        Invocation.method(
+          #clearProfile,
+          [userId],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> clearAllProfiles() => (super.noSuchMethod(
+        Invocation.method(
+          #clearAllProfiles,
+          [],
+        ),
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
+
+  @override
+  _i7.Future<bool> isProfileStale(
+    String? userId, {
+    required bool? isAccessTokenValid,
+    required bool? isRefreshTokenValid,
+    Duration? maxAge,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #isProfileStale,
+          [userId],
+          {
+            #isAccessTokenValid: isAccessTokenValid,
+            #isRefreshTokenValid: isRefreshTokenValid,
+            #maxAge: maxAge,
+          },
+        ),
+        returnValue: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
 }
 
 /// A class which mocks [Dio].
