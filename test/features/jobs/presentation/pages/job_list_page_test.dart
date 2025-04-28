@@ -3,6 +3,7 @@ import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dar
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart'; // Import app_theme.dart for theme
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart'; // Add Cupertino import
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,6 +32,7 @@ void main() {
 
   Widget createTestWidget() {
     return MaterialApp(
+      theme: createLightTheme(), // Use our app's light theme
       home: BlocProvider<JobListCubit>.value(
         value: mockJobListCubit,
         child: const JobListPage(), // The page we will create

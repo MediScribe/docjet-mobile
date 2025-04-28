@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_theme.dart';
 
 /// Theme utilities for the offline banner to maintain consistent styling
 /// throughout the application.
@@ -19,24 +20,16 @@ class OfflineBannerTheme {
   static const double iconTextSpacing = 8.0;
 
   /// Get a color scheme adapted background color
-  /// Uses error container in light mode, dark grey in dark mode
+  /// Uses theme tokens for consistent offline styling
   static Color getBackgroundColor(BuildContext context) {
-    final theme = Theme.of(context);
-    final brightness = theme.brightness;
-
-    return brightness == Brightness.dark
-        ? theme.colorScheme.errorContainer.withAlpha((255 * 0.8).round())
-        : theme.colorScheme.error.withAlpha((255 * 0.1).round());
+    // Use the app's color tokens instead of direct ColorScheme access
+    return getAppColors(context).offlineBg;
   }
 
   /// Get a color scheme adapted foreground color for text and icons
   static Color getForegroundColor(BuildContext context) {
-    final theme = Theme.of(context);
-    final brightness = theme.brightness;
-
-    return brightness == Brightness.dark
-        ? theme.colorScheme.onErrorContainer
-        : theme.colorScheme.onError.withAlpha((255 * 0.7).round());
+    // Use the app's color tokens instead of direct ColorScheme access
+    return getAppColors(context).offlineFg;
   }
 
   /// Get text style for the banner message, using theme colors

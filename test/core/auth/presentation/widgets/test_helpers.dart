@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,8 +84,8 @@ Widget createTestApp({
       // No need to override authNotifierProvider directly
     ],
     child: MaterialApp(
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
+      theme: createLightTheme(),
+      darkTheme: createDarkTheme(),
       themeMode: themeMode,
       home: MockOfflineBannerConsumer(
         stateProvider: testAuthStateProvider,

@@ -309,6 +309,27 @@ A global wrapper component that ensures consistent UI elements across the app:
 
 The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed.
 
+## Auth Event Bus
+
+The `AuthEventBus` provides a publish-subscribe mechanism for auth-related events:
+
+1. **loggedIn**: Emitted when a user successfully logs in
+2. **loggedOut**: Emitted when a user logs out
+3. **offlineDetected**: Emitted when the app transitions to offline mode
+4. **onlineRestored**: Emitted when the app comes back online after being offline
+
+These events allow different components to react to auth state changes without tight coupling.
+
+## Theming & UI Components
+
+The auth module includes UI components that leverage the application's theme system:
+
+1. **OfflineBanner**: Banner shown when the app is in offline mode
+2. **AppShell**: Wrapper component that provides the offline banner across all screens
+3. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
+
+All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../features/feature-ui-theming.md).
+
 ## Dependency Injection Considerations
 
 ### Avoiding Circular Dependencies

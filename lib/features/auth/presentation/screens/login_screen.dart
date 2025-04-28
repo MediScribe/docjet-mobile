@@ -4,6 +4,7 @@ import 'package:docjet_mobile/features/auth/presentation/widgets/auth_error_mess
 import 'package:docjet_mobile/features/auth/presentation/widgets/auth_loading_indicator.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart'; // Import theme utilities
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -89,6 +90,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authNotifierProvider);
     final bool isLoading = authState.status == AuthStatus.loading;
 
+    // Get app color tokens
+    final appColors = getAppColors(context);
+
     // Disable button if loading or form is invalid
     final bool isButtonDisabled = isLoading || !_formValid;
 
@@ -120,8 +124,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     border: Border.all(
                       color:
                           _emailError != null
-                              ? CupertinoColors.systemRed
-                              : CupertinoColors.inactiveGray,
+                              ? appColors
+                                  .dangerFg // Use theme token for error
+                              : appColors
+                                  .infoBg, // Use theme token for normal state
                     ),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
@@ -131,8 +137,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     padding: const EdgeInsets.only(top: 4.0, left: 8.0),
                     child: Text(
                       _emailError!,
-                      style: const TextStyle(
-                        color: CupertinoColors.systemRed,
+                      style: TextStyle(
+                        color: appColors.dangerFg, // Use theme token for error
                         fontSize: 12,
                       ),
                     ),
@@ -155,8 +161,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     border: Border.all(
                       color:
                           _passwordError != null
-                              ? CupertinoColors.systemRed
-                              : CupertinoColors.inactiveGray,
+                              ? appColors
+                                  .dangerFg // Use theme token for error
+                              : appColors
+                                  .infoBg, // Use theme token for normal state
                     ),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
@@ -166,8 +174,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     padding: const EdgeInsets.only(top: 4.0, left: 8.0),
                     child: Text(
                       _passwordError!,
-                      style: const TextStyle(
-                        color: CupertinoColors.systemRed,
+                      style: TextStyle(
+                        color: appColors.dangerFg, // Use theme token for error
                         fontSize: 12,
                       ),
                     ),

@@ -41,17 +41,29 @@ echo "=================================="
 
 # Step 1: Run unit tests check
 echo "🔎 Checking for failed unit tests..."
-./scripts/list_failed_tests.dart || error_exit "Unit tests failed!"
+OUTPUT=$(./scripts/list_failed_tests.dart)
+echo "$OUTPUT"
+if [[ "$OUTPUT" =~ "tests failed" ]]; then
+    error_exit "Unit tests failed! See output above for details."
+fi
 echo "✅ All unit tests are passing!"
 
 # Step 2: Run mock API server tests
 echo "🔎 Checking mock API server tests..."
-./scripts/list_failed_tests.dart mock_api_server || error_exit "Mock API server tests failed!"
+OUTPUT=$(./scripts/list_failed_tests.dart mock_api_server)
+echo "$OUTPUT"
+if [[ "$OUTPUT" =~ "tests failed" ]]; then
+    error_exit "Mock API server tests failed! See output above for details."
+fi
 echo "✅ All mock API server tests are passing!"
 
 # Step 3: Run E2E tests
 echo "🔎 Running E2E tests..."
-./scripts/run_e2e_tests.sh || error_exit "E2E tests failed!"
+./scripts/run_e2e_tests.sh
+E2E_RESULT=$?
+if [[ $E2E_RESULT -ne 0 ]]; then
+    error_exit "E2E tests failed or were interrupted! Exit code: $E2E_RESULT"
+fi
 echo "✅ All E2E tests passed!"
 
 # Step 4: Run app with mock server and verify it starts

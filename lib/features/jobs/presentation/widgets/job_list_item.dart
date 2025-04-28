@@ -1,14 +1,10 @@
-import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart'; // For logging taps
-import 'package:flutter/cupertino.dart'; // Add Cupertino import
-import 'package:flutter/material.dart'
-    show
-        ListTile,
-        Colors,
-        Material,
-        MaterialType; // Keep ListTile & Colors, ADD Material
-import 'package:intl/intl.dart'; // For date formatting
+import 'package:docjet_mobile/core/theme/app_theme.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' hide Colors;
+import 'package:intl/intl.dart'; // For date formatting
 
 /// A widget representing a single item in the job list.
 class JobListItem extends StatelessWidget {
@@ -26,6 +22,9 @@ class JobListItem extends StatelessWidget {
     final DateFormat formatter = DateFormat('MMM d, yyyy - HH:mm');
     final String displayDateString = formatter.format(job.displayDate);
 
+    // Get app color tokens
+    final appColors = getAppColors(context);
+
     // WRAP ListTile with Material to provide context needed for ink splashes etc.
     // Use MaterialType.transparency to avoid drawing a Material background.
     return Material(
@@ -37,7 +36,8 @@ class JobListItem extends StatelessWidget {
               : CupertinoIcons.doc_text,
           color:
               job.hasFileIssue
-                  ? Colors.orange
+                  ? appColors
+                      .warningFg // Use theme token for warning
                   : CupertinoTheme.of(context).primaryColor, // Use theme color
         ), // Show warning if file issue
         title: Text(job.title),
@@ -59,13 +59,15 @@ class JobListItem extends StatelessWidget {
 
   /// Builds a Cupertino icon representing the sync status.
   Widget _buildSyncIcon(BuildContext context, SyncStatus status) {
-    // Use CupertinoIcons and potentially theme colors
+    // Get app color tokens and primary color
+    final appColors = getAppColors(context);
     final Color primaryColor = CupertinoTheme.of(context).primaryColor;
+
     switch (status) {
       case SyncStatus.synced:
         return Icon(
           CupertinoIcons.checkmark_alt_circle_fill,
-          color: Colors.green,
+          color: appColors.successFg, // Use theme token for success
         );
       case SyncStatus.pending:
       case SyncStatus.pendingDeletion:
@@ -73,10 +75,13 @@ class JobListItem extends StatelessWidget {
       case SyncStatus.error:
         return Icon(
           CupertinoIcons.exclamationmark_circle_fill,
-          color: Colors.orange,
+          color: appColors.warningFg, // Use theme token for warning
         );
       case SyncStatus.failed:
-        return Icon(CupertinoIcons.xmark_circle_fill, color: Colors.red);
+        return Icon(
+          CupertinoIcons.xmark_circle_fill,
+          color: appColors.dangerFg, // Use theme token for error/danger
+        );
     }
   }
 }

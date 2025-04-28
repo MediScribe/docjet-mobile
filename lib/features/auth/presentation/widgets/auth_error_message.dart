@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart'; // Import theme utilities
 
 /// A widget for displaying authentication-related error messages with consistent styling.
 class AuthErrorMessage extends StatelessWidget {
@@ -120,30 +121,33 @@ class AuthErrorMessage extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8.0),
       child: Text(
         errorMessage,
-        style: TextStyle(color: _getColorForErrorType()),
+        style: TextStyle(color: _getColorForErrorType(context)),
         textAlign: TextAlign.center,
       ),
     );
   }
 
-  /// Determines the appropriate color based on the error type
-  Color _getColorForErrorType() {
+  /// Determines the appropriate color based on the error type using theme tokens
+  Color _getColorForErrorType(BuildContext context) {
+    // Get app color tokens
+    final appColors = getAppColors(context);
+
     // If explicit error type is provided, use it
     if (errorType != null) {
-      // Offline mode uses gray
+      // Offline mode uses info color
       if (errorType == AuthErrorType.offlineOperation) {
-        return CupertinoColors.inactiveGray;
+        return appColors.infoFg;
       }
 
-      // All other errors use red
-      return CupertinoColors.destructiveRed;
+      // All other errors use danger color
+      return appColors.dangerFg;
     }
 
     // Fallback based on message content (legacy support)
     if (errorMessage == 'Offline Mode') {
-      return CupertinoColors.inactiveGray;
+      return appColors.infoFg;
     }
 
-    return CupertinoColors.destructiveRed;
+    return appColors.dangerFg;
   }
 }

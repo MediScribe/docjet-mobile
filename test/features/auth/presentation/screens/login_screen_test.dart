@@ -2,6 +2,7 @@ import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,16 @@ class MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   // If tests fail due to missing generated members, extend _$AuthNotifier instead.
 }
 
+// Helper function for creating the widget with theme
+Widget createTestWidget(WidgetRef? ref, AuthState state) {
+  return ProviderScope(
+    overrides: [
+      authNotifierProvider.overrideWith(() => MockAuthNotifier(state)),
+    ],
+    child: MaterialApp(theme: createLightTheme(), home: const LoginScreen()),
+  );
+}
+
 void main() {
   testWidgets(
     'LoginScreen displays offline indicator when auth state is offline error',
@@ -50,18 +61,8 @@ void main() {
         isOffline: true,
       );
 
-      // Arrange: Build the widget tree with ProviderScope and override
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            // Use overrideWith and provide the MockAuthNotifier instance
-            authNotifierProvider.overrideWith(
-              () => MockAuthNotifier(offlineState),
-            ),
-          ],
-          child: const MaterialApp(home: LoginScreen()),
-        ),
-      );
+      // Act: Build the widget tree with proper theme
+      await tester.pumpWidget(createTestWidget(null, offlineState));
 
       // Act: Let the UI rebuild
       await tester.pump();
@@ -82,15 +83,8 @@ void main() {
       errorType: AuthErrorType.invalidCredentials,
     );
 
-    // Arrange: Build the widget tree with ProviderScope and override
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(() => MockAuthNotifier(errorState)),
-        ],
-        child: const MaterialApp(home: LoginScreen()),
-      ),
-    );
+    // Act: Build the widget with proper theme
+    await tester.pumpWidget(createTestWidget(null, errorState));
 
     // Act: Let the UI rebuild
     await tester.pump();
@@ -112,15 +106,8 @@ void main() {
       errorType: AuthErrorType.network,
     );
 
-    // Arrange: Build the widget tree with ProviderScope and override
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(() => MockAuthNotifier(errorState)),
-        ],
-        child: const MaterialApp(home: LoginScreen()),
-      ),
-    );
+    // Act: Build the widget with proper theme
+    await tester.pumpWidget(createTestWidget(null, errorState));
 
     // Act: Let the UI rebuild
     await tester.pump();
@@ -138,17 +125,8 @@ void main() {
     // Arrange: Define the loading state
     final loadingState = AuthState.loading();
 
-    // Arrange: Build the widget tree with ProviderScope and override
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(
-            () => MockAuthNotifier(loadingState),
-          ),
-        ],
-        child: const MaterialApp(home: LoginScreen()),
-      ),
-    );
+    // Act: Build the widget with proper theme
+    await tester.pumpWidget(createTestWidget(null, loadingState));
 
     // Act: Let the UI rebuild
     await tester.pump();

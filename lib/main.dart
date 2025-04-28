@@ -11,6 +11,8 @@ import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.da
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Import our theme definitions
+import 'package:docjet_mobile/core/theme/app_theme.dart';
 
 // Access GetIt for convenience
 final getIt = di.sl;
@@ -57,10 +59,11 @@ class MyApp extends ConsumerWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'DocJet',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
+        // Use our theme definitions from app_theme.dart
+        theme: createLightTheme(),
+        darkTheme: createDarkTheme(),
+        // Use system preference for light/dark mode
+        themeMode: ThemeMode.system,
         // Use builder to wrap all routes with AppShell
         builder: (context, child) {
           // This ensures every screen, including those navigated to with push,
