@@ -573,49 +573,78 @@ WHY: Code review for Cycle 8 revealed several smells (test helpers in prod code,
   * Findings: Updated Cycle 8 to mark task 8.4 (manual smoke test) as pending with an appropriate note. A full smoke test will need to be conducted separately.
 * 8B.7. [X] **Lint & Format** – Run `dart analyze`, fix warnings (unused imports, unreachable switch cases, etc.), then `./scripts/format.sh`. *(Ignoring persistent getAppColorTokens error + deprecated withOpacity)*
   * Findings: Ran `dart analyze` and verified there were no issues reported. Made a minor formatting fix in `JobListItem.dart` to improve readability and consistency (removing extraneous line break in text color specification). The code is now clean and properly formatted.
-* 8B.8. [X] **Run ALL Tests** – `./scripts/list_failed_tests.dart --except` must be green.
+* 8B.8. [X] **Run ALL Tests** – `./scripts/list_failed_tests.dart --except` – all green.
   * Findings: Ran the full test suite with `./scripts/list_failed_tests.dart --except` and confirmed all 736 tests are passing. Our changes have not broken any existing functionality.
 * 8B.9. [X] **Handover** – Summarise fixes, confirm clean slate for Cycle 9.
   * Findings: Successfully completed all tasks for Cycle 8B, providing a clean slate for Cycle 9. Verified that the production code is free of test scaffolding, confirmed theme compliance with proper use of semantic color tokens, enhanced test coverage for icon and file issue behavior, and ensured all tests pass. The codebase is now cleaner and more maintainable, with clear separation between test and production code.
 
 ---
 
-## Cycle 8C: Runtime-Stability & SDK-Compatibility Fixes (TDD)
-**MANDATORY REPORTING RULE:** For **every** task below**,** before check-off the dev must (a) write a brief *Findings* paragraph and (b) a *Handover Brief* summarising status, edge-cases, and next-step readiness **inside this doc**.  No silent check-offs.
+## Cycle 8C: Runtime-Stability, Log-Noise & Minor UI Fixes (TDD)
+**MANDATORY REPORTING RULE:** For **every** task/cycle below, **before check-off** the dev must add (a) a brief *Findings* paragraph **and** (b) a *Handover Brief* summarising status, edge-cases, and next-step readiness **inside this doc**.  No silent check-offs.
 
-WHY: Post-review we still have runtime hazards (Cubit rebuilds), noisy logs, and a looming SDK break (`surfaceContainerHighest`). We fix those **before** tackling Cycle 9 scope-reduction.
+WHY: Post-review we still have runtime hazards (Cubit rebuilds), noisy logs, indicator inconsistencies.  The earlier SDK-compat section is obsolete (we're already on Flutter ≥ 3.29).  We clean the real mess and keep the plan lean.
 
-* 8C.1. [ ] **Research –**
-   * Verify Flutter SDK version in CI + local dev. Decide: bump to **≥ 3.22** *or* add backward-compat shim for `ColorScheme.surfaceContainerHighest`. Bump is preferred.
-   * Inspect `BlocProvider` usage in `JobListPage` & `JobListPlayground`; confirm cubit recreation on rebuild.
-   * Scan log output for `_logger.d` spam → list the worst offenders.
-   * Confirm loading indicator mismatches between real widget (`CupertinoActivityIndicator`) and tests (`CircularProgressIndicator`).
+### 8C.1  Research – "What's still broken?"
+1. [ ] **Cubit Re-creation**
+   Verify if `BlocProvider(create:` inside *JobListPage* & *JobListPlayground* rebuilds a new cubit every frame.  Use an in-widget static counter + log output.
+2. [ ] **Log Spam**
+   Run the app (Home → Jobs, rotate device, scroll).  Capture `flutter logs | grep -E "JobList(Page|Playground)"` and list the worst repeat offenders (`_logger.d` calls).
+3. [ ] **Indicator Mismatch**
+   `grep -R "CircularProgressIndicator" lib/` – record any widgets still using the Material spinner instead of `CupertinoActivityIndicator`.
+4. [ ] **Colour Reference Sanity**
+   `grep surfaceContainerHighest` – should only appear in *JobListItem*.  Confirm it renders correctly in light & dark mode.
 
-* 8C.2. [ ] **Tests RED –**
-   * Widget test that fails if `surfaceContainerHighest` lookup throws (simulate pre-3.22 ColorScheme).
-   * Widget test that rebuilds `JobListPage` twice and expects cubit **instance equality** (no recreation).
-   * Unit test proving `logger.d` inside build() only fires once per frame (use FakeLogger).
+---
 
-* 8C.3. [ ] **Implement GREEN –**
-   * **SDK decision**:      *If upgrading*: bump `environment.sdk` to `>=3.22.0 <4.0.0`, run `flutter pub upgrade`; update CI matrix.      *If shimming*: introduce `safeSurfaceContainerHighest(ColorScheme)` util returning `surfaceContainerHighest ?? surfaceVariant ?? surface` and refactor usages.
-   * Replace `BlocProvider(create:` with `BlocProvider.value` (or hoist provider above) in both pages to keep cubit singleton.
-   * Replace duplicate *inline* offline helper text with global banner only (HomeScreen & JobListPlayground).
-   * Convert tests & widget code to use a single indicator type (`CupertinoActivityIndicator`) – align both code & tests.
-   * Wrap verbose `_logger.d` calls in `if (kDebugMode)` or elevate to `trace` level.
+### 8C.2  Tests RED – "Lock the failures"
+1. [ ] **Cubit singleton** – Widget test: pump *JobListPage*, capture cubit instance; pump again after a `setState`; expect `identical(old, new)`.
+2. [ ] **Log-spam guard** – Unit test with `FakeLogger`; pump *JobListItem* twice; assert max **one** debug log per frame.
+3. [ ] **Spinner consistency** – Widget/golden test: any loading state renders `CupertinoActivityIndicator`; fail if `CircularProgressIndicator` is present.
 
-* 8C.4. [ ] **Refactor –**
-   * Extract `safeSurfaceContainerHighest` to `theme_utils.dart`; add unit test.
-   * Add `debugLog()` helper behind `assert` to eliminate release-spam.
-   * Run `dart format` & `dart analyze` – zero warnings.
+---
 
-* 8C.5. [ ] **Run Tests** – `./scripts/list_failed_tests.dart --except` – all green.
+### 8C.3  Implement GREEN – "Fix the real crap"
+A. [ ] **Cubit lifetime**
+   Hoist cubits one level higher via `BlocProvider.value` **or** `MultiBlocProvider` in `main.dart` so the instance survives rebuilds.  Ensure proper disposal in the parent.
+B. [ ] **Log noise**
+   Wrap all `_logger.d` in `if (kDebugMode)` **or** lower to `logger.trace`.  Create `debugLog()` helper in `log_helpers.dart` (behind `assert`) to avoid release spam.
+C. [ ] **Spinner unification**
+   Replace remaining `CircularProgressIndicator` with `CupertinoActivityIndicator` and update tests.
+D. [ ] **Colour utility (minor)**
+   Provide no-op helper in `theme_utils.dart`:
+   ```dart
+   Color surfaceContainerHighestOrDefault(ColorScheme cs) => cs.surfaceContainerHighest;
+   ```
+   (Keeps call-sites IDE-discoverable, even if not used elsewhere.)
 
-* 8C.6. [ ] **Manual Smoke Test** – Simulator + real device: login → list jobs → rotate device → confirm no cubit reset & no log flood.
+---
 
-* 8C.7. [ ] **Handover –** Document:
-   - Final SDK decision + migration notes.
-   - Any new helper APIs (`safeSurfaceContainerHighest`, `debugLog`).
-   - Remaining edge-cases (e.g., third-party packages still using old ColorScheme).
+### 8C.4  Refactor & Docs
+* [ ] Remove obsolete paragraphs deleted in **8C.0**.
+* [ ] Update `feature-job-dataflow.md` **Remaining Improvements** + `feature-auth-architecture.md` (Presentation/Performance) with:
+  * cubit-hoisting guideline
+  * `debugLog()` usage rule
+* [ ] Ensure `dart format` & `dart analyze` → 0 warnings.
+
+---
+
+### 8C.5  Run ALL Tests
+* [ ] `./scripts/list_failed_tests.dart --except` – must be green.
+
+---
+
+### 8C.6  Manual Smoke Test
+Simulator **and** physical device:
+1. [ ] Login → Job list scroll → device rotation.
+2. [ ] Confirm cubit instance doesn't change, no duplicate log spam.
+3. [ ] Verify `CupertinoActivityIndicator` everywhere.
+
+---
+
+### 8C.7  Handover
+* [ ] *Findings* – bullet list of fixes & any leftovers.
+* [ ] *Handover Brief* – confirm clean slate for Cycle 9.
 
 ---
 
