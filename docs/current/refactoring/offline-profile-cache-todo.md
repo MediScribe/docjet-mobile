@@ -586,14 +586,18 @@ WHY: Code review for Cycle 8 revealed several smells (test helpers in prod code,
 WHY: Post-review we still have runtime hazards (Cubit rebuilds), noisy logs, indicator inconsistencies.  The earlier SDK-compat section is obsolete (we're already on Flutter ≥ 3.29).  We clean the real mess and keep the plan lean.
 
 ### 8C.1  Research – "What's still broken?"
-1. [ ] **Cubit Re-creation**
+1. [X] **Cubit Re-creation**
    Verify if `BlocProvider(create:` inside *JobListPage* & *JobListPlayground* rebuilds a new cubit every frame.  Use an in-widget static counter + log output.
-2. [ ] **Log Spam**
+   * Findings: CONFIRMED issue found. Both `JobListPage` and `JobListPlayground` create new instances of `JobListCubit` with every rebuild through their `BlocProvider(create:...)` usage. `JobListPage` has `BlocProvider(create: (context) => di.sl<JobListCubit>())` directly in its build method. `JobListPlayground` does the same with its own BlocProvider. Additionally, there's a global `MultiBlocProvider` in `main.dart` that also creates a `JobListCubit` instance. This setup causes a new cubit instance to be created on every rebuild, wasting resources and potentially causing state issues.
+2. [X] **Log Spam**
    Run the app (Home → Jobs, rotate device, scroll).  Capture `flutter logs | grep -E "JobList(Page|Playground)"` and list the worst repeat offenders (`_logger.d` calls).
-3. [ ] **Indicator Mismatch**
+   * Findings: Found excessive debug logging in `JobListPage` and `JobListPlayground`. The most problematic calls are: (1) `_logger.d('$_tag Building UI playground')` in `JobListPlayground` which logs on every build; (2) `_logger.d('$_tag Using auth state, isOffline: $isOffline')` in `JobListPage` which logs on every auth state change; (3) `_logger.d('$_tag Jobs list is not empty, rendering ListView.')` in `JobListPage` which logs on every list update; and (4) `_logger.d('$_tag Initial or unhandled state: ${state.runtimeType}')` for state changes. The `JobListCubit` also has excessive debug logging with `_logger.d('$_tag: Receiving ${jobs.length} jobs.')`.
+3. [X] **Indicator Mismatch**
    `grep -R "CircularProgressIndicator" lib/` – record any widgets still using the Material spinner instead of `CupertinoActivityIndicator`.
-4. [ ] **Colour Reference Sanity**
+   * Findings: Found one instance of `CircularProgressIndicator` in production code at `lib/main.dart` line 82: `return const Scaffold(body: Center(child: CircularProgressIndicator()));` in the `_buildHomeBasedOnAuthState` method when showing loading state. All JobList-related pages correctly use `CupertinoActivityIndicator`. There are also several instances in test files that should be updated to match production code.
+4. [X] **Colour Reference Sanity**
    `grep surfaceContainerHighest` – should only appear in *JobListItem*.  Confirm it renders correctly in light & dark mode.
+   * Findings: Confirmed that `surfaceContainerHighest` is only used in `JobListItem` as expected (line 130: `color: colorScheme.surfaceContainerHighest.withAlpha(50)`). It's used correctly for the sync status tag background. However, it's using the deprecated `.withAlpha()` method that should be replaced with `.withOpacity()` or newer `.withValues()`. The color does adapt properly between light and dark modes because it's pulling from the theme's `colorScheme`.
 
 ---
 
