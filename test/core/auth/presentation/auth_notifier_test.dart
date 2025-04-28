@@ -335,6 +335,103 @@ void main() {
     });
   });
 
+  group('Offline/Online Transitions', () {
+    test(
+      'should emit offlineDetected when transitioning from online to offline',
+      () async {
+        // Arrange: Start authenticated and online
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: false),
+        ).thenAnswer((_) async => true);
+        when(
+          mockAuthService.getUserProfile(),
+        ).thenAnswer((_) async => userProfile);
+        when(
+          mockAuthService.login(testEmail, testPassword),
+        ).thenAnswer((_) async => testUser);
+
+        // Initialize notifier (will be online initially)
+        readNotifier();
+        await pumpEventQueue();
+        expect(readState().isOffline, false, reason: "Should start online");
+
+        // Clear any previous mock interactions
+        clearInteractions(mockAuthEventBus);
+
+        // Act: Change to offline state for the next call
+        when(mockAuthService.getUserProfile()).thenThrow(offlineException);
+        await readNotifier().login(
+          testEmail,
+          testPassword,
+        ); // This will trigger the state change
+        await pumpEventQueue();
+
+        // Assert: Should emit the offline event
+        verify(mockAuthEventBus.add(AuthEvent.offlineDetected)).called(1);
+        // Verify that isOffline flag is set correctly in the state
+        expect(
+          readState().isOffline,
+          true,
+          reason: "State should be offline after transition",
+        );
+      },
+    );
+
+    test(
+      'should emit onlineRestored when transitioning from offline to online',
+      () async {
+        // Arrange: We need to create a custom notifier for this scenario
+        // First, we create a state that's offline (caused by profile fetch fail)
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: false),
+        ).thenAnswer((_) async => true);
+        when(mockAuthService.getUserProfile()).thenThrow(offlineException);
+
+        // Initialize notifier (will be offline due to profile fetch error)
+        readNotifier();
+        await pumpEventQueue();
+        expect(readState().isOffline, true, reason: "Should start offline");
+
+        // We need to reset the mock verification since initialization called add
+        clearInteractions(mockAuthEventBus);
+
+        // Now prepare for the second call that will succeed
+        when(
+          mockAuthService.getUserProfile(),
+        ).thenAnswer((_) async => userProfile);
+
+        // Trigger state change by calling login again
+        when(
+          mockAuthService.login(testEmail, testPassword),
+        ).thenAnswer((_) async => testUser);
+        await readNotifier().login(testEmail, testPassword);
+        await pumpEventQueue();
+
+        // Assert: Should now be online and emitted the onlineRestored event
+        verify(mockAuthEventBus.add(AuthEvent.onlineRestored)).called(1);
+        // Verify that isOffline flag is set correctly in the state
+        expect(
+          readState().isOffline,
+          false,
+          reason: "State should be online after transition",
+        );
+      },
+    );
+
+    test('subscription to AuthEventBus is cancelled on dispose', () async {
+      // Arrange
+      readNotifier(); // Create the notifier
+      await pumpEventQueue();
+
+      // Act: Dispose the container which should trigger onDispose
+      container.dispose();
+
+      // Assert: Can't easily verify the subscription was cancelled, but the notifier
+      // should have had onDispose called which contains the cancellation logic
+      // This is a "does not throw" test, implicitly verifying cleanup
+    });
+  });
+
   // Remove old session refresh tests as logic is covered in init tests
   /*
   group('session refresh', () {

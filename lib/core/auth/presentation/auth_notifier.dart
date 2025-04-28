@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:docjet_mobile/core/auth/auth_error_mapper.dart';
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 // import 'package:docjet_mobile/core/auth/entities/user.dart'; // Removed unused import
@@ -28,6 +29,7 @@ class AuthNotifier extends _$AuthNotifier {
   late final AuthService _authService;
   late final AuthEventBus _authEventBus;
   StreamSubscription? _eventSubscription;
+  bool _wasOffline = false; // Track previous offline state
 
   @override
   AuthState build() {
@@ -46,6 +48,9 @@ class AuthNotifier extends _$AuthNotifier {
     ref.onDispose(() {
       _logger.d('$_tag Disposing AuthNotifier, cancelling subscription.');
       _eventSubscription?.cancel();
+      // Cancel any pending profile refresh timers to avoid leaks.
+      _profileRefreshTimer?.cancel();
+      _profileRefreshTimer = null;
     });
 
     // Return initial state
@@ -60,11 +65,55 @@ class AuthNotifier extends _$AuthNotifier {
         if (state.status != AuthStatus.unauthenticated) {
           _logger.i('$_tag Received loggedOut event, resetting state.');
           state = AuthState.initial();
+          _wasOffline = false; // Reset offline tracker on logout
         }
       }
       // Handle other events like loggedIn if needed
     });
     _logger.i('$_tag Subscribed to AuthEventBus stream.');
+  }
+
+  /// Detects offline/online transitions and emits appropriate events
+  void _checkConnectivityTransition(bool isCurrentlyOffline) {
+    // Only emit events when there's an actual state change
+    if (isCurrentlyOffline != _wasOffline) {
+      if (isCurrentlyOffline) {
+        _logger.i('$_tag Detected transition from online to offline');
+        _authEventBus.add(AuthEvent.offlineDetected);
+      } else {
+        _logger.i('$_tag Detected transition from offline to online');
+        _authEventBus.add(AuthEvent.onlineRestored);
+
+        // Consider refreshing user profile after online restored
+        // This would be a good place to add debounced profile refresh
+        // to avoid API spam if connectivity fluctuates rapidly
+        _refreshProfileAfterOnlineRestored();
+      }
+      _wasOffline = isCurrentlyOffline;
+    }
+  }
+
+  /// Refreshes the user profile after coming back online
+  /// Uses a simple debounce pattern to avoid API spam
+  Timer? _profileRefreshTimer;
+  void _refreshProfileAfterOnlineRestored() {
+    // Cancel any pending refresh
+    _profileRefreshTimer?.cancel();
+
+    // Schedule a new refresh after a short delay
+    _logger.d('$_tag Scheduling profile refresh after online restored');
+    _profileRefreshTimer = Timer(const Duration(seconds: 1), () async {
+      if (state.status == AuthStatus.authenticated) {
+        _logger.i('$_tag Refreshing profile after coming back online');
+        try {
+          final userProfile = await _authService.getUserProfile();
+          state = AuthState.authenticated(userProfile, isOffline: false);
+        } catch (e) {
+          _logger.w('$_tag Profile refresh after online restore failed: $e');
+          // Don't change state on failure, we've already transitioned to online
+        }
+      }
+    });
   }
 
   /// Attempts to log in with email and password
@@ -88,8 +137,10 @@ class AuthNotifier extends _$AuthNotifier {
       _logger.i(
         '$_tag Login successful, user profile fetched for ID: ${userProfile.id}',
       );
+      // Check for connectivity transition - we're online if we got here
+      _checkConnectivityTransition(false);
     } on AuthException catch (e, s) {
-      final isOffline = e == AuthException.offlineOperationFailed();
+      final isOffline = e.type == AuthErrorType.offlineOperation;
       final errorType = AuthErrorMapper.getErrorTypeFromException(e);
       _logger.e(
         '$_tag Login failed - AuthException, offline: $isOffline, type: $errorType',
@@ -101,6 +152,8 @@ class AuthNotifier extends _$AuthNotifier {
         isOffline: isOffline,
         errorType: errorType,
       );
+      // Check for connectivity transition
+      _checkConnectivityTransition(isOffline);
     } catch (e, s) {
       _logger.e(
         '$_tag Login failed - Unexpected error',
@@ -108,6 +161,7 @@ class AuthNotifier extends _$AuthNotifier {
         stackTrace: s,
       );
       state = AuthState.error('An unexpected error occurred during login');
+      // No connectivity transition check for non-network errors
     }
   }
 
@@ -121,7 +175,7 @@ class AuthNotifier extends _$AuthNotifier {
       _logger.i('$_tag Logout call successful (state reset via event).');
     } on AuthException catch (e, s) {
       // Handle potential logout errors (e.g., network issues if it calls API)
-      final isOffline = e == AuthException.offlineOperationFailed();
+      final isOffline = e.type == AuthErrorType.offlineOperation;
       final errorType = AuthErrorMapper.getErrorTypeFromException(e);
       _logger.e(
         '$_tag Logout failed - AuthException, offline: $isOffline, type: $errorType',
@@ -162,12 +216,15 @@ class AuthNotifier extends _$AuthNotifier {
           '$_tag Profile fetched successfully for ID: ${userProfile.id}',
         );
         state = AuthState.authenticated(userProfile);
+        // Check for connectivity transition - we're online if we got here
+        _checkConnectivityTransition(false);
       } else {
         _logger.i('$_tag Not authenticated locally.');
         state = AuthState.initial();
+        // No need to check connectivity for unauthenticated state
       }
     } on AuthException catch (e, s) {
-      final isOffline = e == AuthException.offlineOperationFailed();
+      final isOffline = e.type == AuthErrorType.offlineOperation;
       final errorType = AuthErrorMapper.getErrorTypeFromException(e);
       _logger.w(
         '$_tag Auth check failed - AuthException, offline: $isOffline, type: $errorType',
@@ -182,8 +239,8 @@ class AuthNotifier extends _$AuthNotifier {
         isOffline: isOffline,
         errorType: errorType,
       );
-      // Consider calling logout to ensure tokens are cleared if refresh/profile fetch fails
-      // await _authService.logout(); // Potentially trigger this? But event bus might handle it.
+      // Check for connectivity transition
+      _checkConnectivityTransition(isOffline);
     } catch (e, s) {
       _logger.e(
         '$_tag Auth check failed - Unexpected error',
@@ -193,6 +250,7 @@ class AuthNotifier extends _$AuthNotifier {
       state = AuthState.error(
         'An unexpected error occurred checking auth status',
       );
+      // No connectivity transition check - non-network error
       // await _authService.logout(); // Force clear state on unexpected error?
     }
   }
