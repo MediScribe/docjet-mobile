@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/auth/presentation/widgets/app_shell.dart';
 import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:docjet_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:docjet_mobile/features/home/presentation/screens/home_screen.dart';
@@ -72,10 +73,10 @@ class MyApp extends ConsumerWidget {
       case AuthStatus.loading:
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       case AuthStatus.authenticated:
-        return const HomeScreen();
+        return const AppShell(child: HomeScreen());
       case AuthStatus.unauthenticated:
       case AuthStatus.error:
-        return const LoginScreen();
+        return const AppShell(child: LoginScreen());
     }
   }
 }
