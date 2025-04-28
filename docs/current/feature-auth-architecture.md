@@ -328,7 +328,7 @@ The auth module includes UI components that leverage the application's theme sys
 2. **AppShell**: Wrapper component that provides the offline banner across all screens
 3. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
 
-All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../features/feature-ui-theming.md).
+All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../../features/feature-ui-theming.md).
 
 ## Dependency Injection Considerations
 

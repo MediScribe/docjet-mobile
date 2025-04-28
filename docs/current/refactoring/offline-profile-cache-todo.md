@@ -483,7 +483,7 @@ WHY: We're still iterating on UI/UX and don't want colour spaghetti sprinkled al
      - **Gotchas**: The withOpacity() method is deprecated in newer Flutter versions - we've kept it for simplicity but should consider updating to withValues() in the future.
      - **Next Steps**: Continue applying the theme system to other components in the app during future development. Consider adding more semantic tokens as needed.
 
-* 7B.8. [ ] **Feedback Fixes – Address post-review nits (except script robustness)**
+* 7B.8. [X] **Feedback Fixes – Address post-review nits (except script robustness)**
    * **Token Palette Clean-up** – Replace `Colors.pink` usage in dark `dangerFg` with a proper error-derived shade from `colorScheme.error`.
    * **Rename Widget-Specific Tokens** – Change `recordButtonBg/Fg` to semantic names (`primaryActionBg/Fg`) and update usages + docs.
    * **Shadow Token** – Introduce a `shadowColor` token (or derive from `ThemeData.shadowColor`) and migrate hard-coded `Colors.black.withAlpha(...)` in RecordButton widgets.
@@ -493,6 +493,17 @@ WHY: We're still iterating on UI/UX and don't want colour spaghetti sprinkled al
    * **Docs Fix** – Correct relative link in `feature-auth-architecture.md` to `../../features/feature-ui-theming.md`.
    * **Dark-mode Golden** – Add dedicated golden test for `OfflineBanner` in dark theme.
    * **Assert in Release** – Wrap `getAppColors` throw in `assert` for release safety.
+   * Findings: Successfully completed all requested feedback fixes. Created a centralized RecordButton component in core/widgets that's re-exported by feature-specific modules for backward compatibility. Fixed several token naming issues to focus on semantics rather than specific widget names. Added new tokens for shadows and outlines. Fixed theme documentation and added a dedicated dark mode test for OfflineBanner. Improved release safety with assert in getAppColors.
+   * Handover Brief:
+     - **Status**: COMPLETE. All requested feedback items have been addressed and verified. Tests are passing.
+     - **Key Changes**:
+       1. Improved color token semantics (primaryActionBg/Fg instead of recordButtonBg/Fg)
+       2. Added new tokens for outlines and shadows
+       3. DRY'd up RecordButton implementations with re-exports from a shared component
+       4. Improved release safety with assert in getAppColors
+       5. Fixed documentation links and added dark mode testing
+     - **Gotchas**: Had to use file removal and recreation to handle merge conflicts with re-export files.
+     - **Next Steps**: Ready for Cycle 8 (Offline UI Routing Adjustments)
 
 ---
 

@@ -69,11 +69,11 @@ void main() {
       final BoxDecoration decoration = container.decoration as BoxDecoration;
 
       // Instead of looking for hardcoded colors, check if the color matches
-      // our AppColorTokens.recordButtonBg, which is derived from theme.colorScheme.error
+      // our AppColorTokens.primaryActionBg, which is derived from theme.colorScheme.error
       final Color buttonColor = decoration.color!;
       expect(
         buttonColor,
-        equals(createLightTheme().extension<AppColorTokens>()!.recordButtonBg),
+        equals(createLightTheme().extension<AppColorTokens>()!.primaryActionBg),
         reason: 'RecordButton should use theme-provided color',
       );
 
@@ -82,7 +82,7 @@ void main() {
       final icon = tester.widget<Icon>(iconFinder);
       expect(
         icon.color,
-        equals(createLightTheme().extension<AppColorTokens>()!.recordButtonFg),
+        equals(createLightTheme().extension<AppColorTokens>()!.primaryActionFg),
         reason: 'RecordButton icon should use theme-provided color',
       );
     });

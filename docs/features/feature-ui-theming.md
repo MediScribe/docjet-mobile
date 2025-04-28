@@ -37,7 +37,9 @@ Key categories of tokens include:
 - **Success** colors (`successBg`, `successFg`)
 - **Info** colors (`infoBg`, `infoFg`)
 - **Offline status** colors (`offlineBg`, `offlineFg`)
-- **Record button** colors (`recordButtonBg`, `recordButtonFg`)
+- **Primary Action** colors (`primaryActionBg`, `primaryActionFg`) for important UI actions like recording
+- **Outline** color (`outlineColor`) for form input borders and dividers
+- **Shadow** color (`shadowColor`) for consistent elevation effects
 
 ### 2. `app_theme.dart` (Central Theme Definition)
 

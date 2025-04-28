@@ -47,9 +47,22 @@ void main() {
       );
 
       expect(
-        lightTokens.recordButtonBg,
-        isNot(equals(darkTokens.recordButtonBg)),
-        reason: 'Record button background color should differ between themes',
+        lightTokens.primaryActionBg,
+        isNot(equals(darkTokens.primaryActionBg)),
+        reason:
+            'Primary action button background color should differ between themes',
+      );
+
+      expect(
+        lightTokens.outlineColor,
+        isNot(equals(darkTokens.outlineColor)),
+        reason: 'Outline color should have consistent presence in both themes',
+      );
+
+      expect(
+        lightTokens.shadowColor,
+        isNot(equals(darkTokens.shadowColor)),
+        reason: 'Shadow color should have consistent presence in both themes',
       );
     });
   });

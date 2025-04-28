@@ -35,11 +35,17 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
   /// Foreground/text color for offline status indicators
   final Color offlineFg;
 
-  /// Color used for record button background
-  final Color recordButtonBg;
+  /// Color used for primary action button backgrounds (like record button)
+  final Color primaryActionBg;
 
-  /// Color used for record button icon
-  final Color recordButtonFg;
+  /// Color used for primary action button icons/text
+  final Color primaryActionFg;
+
+  /// Color used for outlines and borders of form fields and containers
+  final Color outlineColor;
+
+  /// Color used for shadows with appropriate opacity
+  final Color shadowColor;
 
   /// Creates an instance of [AppColorTokens] with the given colors.
   const AppColorTokens({
@@ -53,8 +59,10 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
     required this.infoFg,
     required this.offlineBg,
     required this.offlineFg,
-    required this.recordButtonBg,
-    required this.recordButtonFg,
+    required this.primaryActionBg,
+    required this.primaryActionFg,
+    required this.outlineColor,
+    required this.shadowColor,
   });
 
   /// Creates the light theme version of [AppColorTokens].
@@ -80,9 +88,15 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       offlineBg: colorScheme.error.withAlpha((255 * 0.1).round()),
       offlineFg: colorScheme.onError.withAlpha((255 * 0.7).round()),
 
-      // Record button colors
-      recordButtonBg: colorScheme.error,
-      recordButtonFg: colorScheme.onError,
+      // Primary action button colors (was record button colors)
+      primaryActionBg: colorScheme.error,
+      primaryActionFg: colorScheme.onError,
+
+      // Outline color for input fields and borders
+      outlineColor: colorScheme.outline,
+
+      // Shadow color with appropriate opacity
+      shadowColor: Colors.black.withAlpha((255 * 0.2).round()),
     );
   }
 
@@ -91,8 +105,8 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
     return AppColorTokens(
       // Danger colors (red-based) - ensure color is different from light theme
       dangerBg: colorScheme.errorContainer.withAlpha((255 * 0.7).round()),
-      // Use a completely different color to ensure test passes
-      dangerFg: Colors.pink.shade200,
+      // Use error shade instead of completely different color - Use alpha directly
+      dangerFg: colorScheme.error.withAlpha((255 * 0.8).round()),
 
       // Warning colors (orange-based) - make noticeably different
       warningBg: Colors.orange.shade900.withAlpha((255 * 0.5).round()),
@@ -108,9 +122,15 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       offlineBg: colorScheme.errorContainer.withAlpha((255 * 0.8).round()),
       offlineFg: colorScheme.onErrorContainer,
 
-      // Record button colors - make noticeably different
-      recordButtonBg: colorScheme.errorContainer,
-      recordButtonFg: colorScheme.onErrorContainer,
+      // Primary action button colors (was record button colors)
+      primaryActionBg: colorScheme.errorContainer,
+      primaryActionFg: colorScheme.onErrorContainer,
+
+      // Outline color for input fields and borders - darker in dark mode
+      outlineColor: colorScheme.outline,
+
+      // Shadow color with appropriate opacity - slightly different in dark mode
+      shadowColor: Colors.black.withAlpha((255 * 0.3).round()),
     );
   }
 
@@ -126,8 +146,10 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
     Color? infoFg,
     Color? offlineBg,
     Color? offlineFg,
-    Color? recordButtonBg,
-    Color? recordButtonFg,
+    Color? primaryActionBg,
+    Color? primaryActionFg,
+    Color? outlineColor,
+    Color? shadowColor,
   }) {
     return AppColorTokens(
       dangerBg: dangerBg ?? this.dangerBg,
@@ -140,8 +162,10 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       infoFg: infoFg ?? this.infoFg,
       offlineBg: offlineBg ?? this.offlineBg,
       offlineFg: offlineFg ?? this.offlineFg,
-      recordButtonBg: recordButtonBg ?? this.recordButtonBg,
-      recordButtonFg: recordButtonFg ?? this.recordButtonFg,
+      primaryActionBg: primaryActionBg ?? this.primaryActionBg,
+      primaryActionFg: primaryActionFg ?? this.primaryActionFg,
+      outlineColor: outlineColor ?? this.outlineColor,
+      shadowColor: shadowColor ?? this.shadowColor,
     );
   }
 
@@ -165,8 +189,10 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       infoFg: Color.lerp(infoFg, other.infoFg, t)!,
       offlineBg: Color.lerp(offlineBg, other.offlineBg, t)!,
       offlineFg: Color.lerp(offlineFg, other.offlineFg, t)!,
-      recordButtonBg: Color.lerp(recordButtonBg, other.recordButtonBg, t)!,
-      recordButtonFg: Color.lerp(recordButtonFg, other.recordButtonFg, t)!,
+      primaryActionBg: Color.lerp(primaryActionBg, other.primaryActionBg, t)!,
+      primaryActionFg: Color.lerp(primaryActionFg, other.primaryActionFg, t)!,
+      outlineColor: Color.lerp(outlineColor, other.outlineColor, t)!,
+      shadowColor: Color.lerp(shadowColor, other.shadowColor, t)!,
     );
   }
 }

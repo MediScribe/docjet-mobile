@@ -41,10 +41,9 @@ ThemeData createDarkTheme() {
 /// Example usage: `final colors = getAppColors(context);`
 AppColorTokens getAppColors(BuildContext context) {
   final tokens = Theme.of(context).extension<AppColorTokens>();
-  if (tokens == null) {
-    throw StateError(
-      'AppColorTokens not found in the theme. Make sure to use the themes from app_theme.dart',
-    );
-  }
-  return tokens;
+  assert(
+    tokens != null,
+    'AppColorTokens not found in the theme. Make sure to use the themes from app_theme.dart',
+  );
+  return tokens ?? AppColorTokens.light(Theme.of(context).colorScheme);
 }

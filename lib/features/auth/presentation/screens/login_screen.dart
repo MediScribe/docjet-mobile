@@ -127,7 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ? appColors
                                   .dangerFg // Use theme token for error
                               : appColors
-                                  .infoBg, // Use theme token for normal state
+                                  .outlineColor, // Use outline token for normal state
                     ),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
@@ -164,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ? appColors
                                   .dangerFg // Use theme token for error
                               : appColors
-                                  .infoBg, // Use theme token for normal state
+                                  .outlineColor, // Use outline token for normal state
                     ),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
