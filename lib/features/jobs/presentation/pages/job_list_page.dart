@@ -1,5 +1,4 @@
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
-import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_playground.dart';
@@ -32,7 +31,9 @@ class JobListPage extends ConsumerWidget {
     // Get offline status from auth state
     final authState = ref.watch(authNotifierProvider);
     final isOffline = authState.isOffline;
-    _logger.d('$_tag Using auth state, isOffline: $isOffline');
+    if (kDebugMode) {
+      _logger.d('$_tag Using auth state, isOffline: $isOffline');
+    }
 
     // Wrap the CupertinoNavigationBar with a GestureDetector for debug access
     final navBar = CupertinoNavigationBar(
@@ -50,86 +51,94 @@ class JobListPage extends ConsumerWidget {
               : null, // No button in release builds
     );
 
-    // Use BlocProvider to access the JobListCubit from context
-    return BlocProvider(
-      create: (context) => di.sl<JobListCubit>(),
-      child: CupertinoPageScaffold(
-        navigationBar: navBar,
-        child: BlocBuilder<JobListCubit, JobListState>(
-          builder: (context, state) {
-            if (state is JobListLoading) {
+    // Use BlocProvider.value to get the existing JobListCubit from the parent
+    // This prevents recreating the cubit on every rebuild
+    return CupertinoPageScaffold(
+      navigationBar: navBar,
+      child: BlocBuilder<JobListCubit, JobListState>(
+        builder: (context, state) {
+          if (state is JobListLoading) {
+            if (kDebugMode) {
               _logger.d('$_tag Showing loading indicator');
-              return const Center(child: CupertinoActivityIndicator());
-            } else if (state is JobListLoaded) {
+            }
+            return const Center(child: CupertinoActivityIndicator());
+          } else if (state is JobListLoaded) {
+            if (kDebugMode) {
               _logger.d(
                 '$_tag JobListLoaded state: ${state.jobs.length} jobs loaded',
               );
-              if (state.jobs.isEmpty) {
+            }
+            if (state.jobs.isEmpty) {
+              if (kDebugMode) {
                 _logger.d(
                   '$_tag Jobs list is empty, showing "No jobs yet." message.',
                 );
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('No jobs yet.'),
-                      if (!isOffline) // Only show Create Job button when online
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16.0),
-                          child: CupertinoButton.filled(
-                            child: const Text('Create Job'),
-                            onPressed: () {
-                              // TODO: Implement job creation
-                              _logger.i('$_tag Create Job button pressed');
-                            },
-                          ),
-                        ),
-                      if (isOffline)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            'Job creation disabled while offline',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              } else {
-                _logger.d('$_tag Jobs list is not empty, rendering ListView.');
-                final jobs = state.jobs;
-                return SafeArea(
-                  child: ListView.builder(
-                    itemCount: jobs.length,
-                    itemBuilder: (context, index) {
-                      final jobViewModel = jobs[index];
-                      return JobListItem(
-                        job: jobViewModel,
-                        // Pass isOffline to disable actions if needed
-                        isOffline: isOffline,
-                      );
-                    },
-                  ),
-                );
               }
-            } else if (state is JobListError) {
-              _logger.e('$_tag JobListError state: ${state.message}');
               return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text('Error: ${state.message}'),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('No jobs yet.'),
+                    if (!isOffline) // Only show Create Job button when online
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: CupertinoButton.filled(
+                          child: const Text('Create Job'),
+                          onPressed: () {
+                            // TODO: Implement job creation
+                            _logger.i('$_tag Create Job button pressed');
+                          },
+                        ),
+                      ),
+                    if (isOffline)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Job creation disabled while offline',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            } else {
+              if (kDebugMode) {
+                _logger.d('$_tag Jobs list is not empty, rendering ListView.');
+              }
+              final jobs = state.jobs;
+              return SafeArea(
+                child: ListView.builder(
+                  itemCount: jobs.length,
+                  itemBuilder: (context, index) {
+                    final jobViewModel = jobs[index];
+                    return JobListItem(
+                      job: jobViewModel,
+                      // Pass isOffline to disable actions if needed
+                      isOffline: isOffline,
+                    );
+                  },
                 ),
               );
             }
+          } else if (state is JobListError) {
+            _logger.e('$_tag JobListError state: ${state.message}');
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('Error: ${state.message}'),
+              ),
+            );
+          }
 
-            // Initial state or unhandled state type
+          // Initial state or unhandled state type
+          if (kDebugMode) {
             _logger.d('$_tag Initial or unhandled state: ${state.runtimeType}');
-            return const Center(child: Text('Loading jobs...'));
-          },
-        ),
+          }
+          return const Center(child: Text('Loading jobs...'));
+        },
       ),
     );
   }

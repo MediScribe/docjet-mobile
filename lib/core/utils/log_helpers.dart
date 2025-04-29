@@ -63,6 +63,22 @@ export 'package:logger/logger.dart'
         ConsoleOutput,
         MultiOutput;
 
+/// Helper function to debug log that is automatically stripped in release builds
+///
+/// The function is wrapped in an assert that makes it a no-op in release mode.
+/// This provides stronger guarantees than just a runtime check with kDebugMode.
+///
+/// Usage:
+/// ```dart
+/// debugLog(_logger, _tag, 'This only logs in debug builds');
+/// ```
+void debugLog(Logger logger, String tag, String message) {
+  assert(() {
+    logger.d('$tag $message');
+    return true;
+  }());
+}
+
 // NEW CENTRAL LOGGING SYSTEM
 // Use this file for all logging needs
 // test/helpers/log_helpers.dart is for testing

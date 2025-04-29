@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Mock screens for testing
@@ -32,7 +33,7 @@ void main() {
             switch (state.status) {
               case AuthStatus.loading:
                 return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                  body: Center(child: CupertinoActivityIndicator()),
                 );
               case AuthStatus.authenticated:
                 return const MockHomeScreen();
@@ -94,8 +95,8 @@ void main() {
       // The loading indicator should be shown immediately
       await tester.pump();
 
-      // Assert: Verify CircularProgressIndicator is shown
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Assert: Verify CupertinoActivityIndicator is shown
+      expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
       expect(find.byType(MockHomeScreen), findsNothing);
       expect(find.byType(MockLoginScreen), findsNothing);
     });

@@ -9,6 +9,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_initializer.d
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Import our theme definitions
@@ -55,7 +56,14 @@ class MyApp extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
 
     return MultiBlocProvider(
-      providers: [BlocProvider(create: (context) => getIt<JobListCubit>())],
+      providers: [
+        // Create the JobListCubit once at the app level
+        // This ensures the same instance is used throughout the app lifecycle
+        BlocProvider<JobListCubit>(
+          create: (context) => getIt<JobListCubit>(),
+          lazy: false, // Load immediately instead of when first accessed
+        ),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'DocJet',
@@ -80,7 +88,9 @@ class MyApp extends ConsumerWidget {
   Widget _buildHomeBasedOnAuthState(AuthState authState) {
     switch (authState.status) {
       case AuthStatus.loading:
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(
+          body: Center(child: CupertinoActivityIndicator()),
+        );
       case AuthStatus.authenticated:
         return const HomeScreen();
       case AuthStatus.unauthenticated:

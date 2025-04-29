@@ -1,4 +1,5 @@
 import 'package:docjet_mobile/core/theme/app_theme.dart';
+import 'package:docjet_mobile/core/theme/theme_utils.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -128,7 +129,10 @@ class JobListItem extends StatelessWidget {
                     vertical: 2.0,
                   ),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withAlpha(50),
+                    // Use the ThemeUtils helper to make the colorScheme property more discoverable
+                    color: ThemeUtils.surfaceContainerHighestOrDefault(
+                      colorScheme,
+                    ).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4.0),
                   ),
                   child: Text(

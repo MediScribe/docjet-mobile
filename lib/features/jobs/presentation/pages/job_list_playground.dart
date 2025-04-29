@@ -6,13 +6,12 @@ import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.d
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:get_it/get_it.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
@@ -21,20 +20,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class JobListPlayground extends ConsumerWidget {
   const JobListPlayground({super.key});
 
+  // Get logger instance for this class
+  static final Logger _logger = LoggerFactory.getLogger(JobListPlayground);
+  // Create standard log tag
+  static final String _tag = logTag(JobListPlayground);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Get offline status from auth state
     final authState = ref.watch(authNotifierProvider);
     final isOffline = authState.isOffline;
 
-    // For a playground, we provide the cubit here.
-    // In a real app, this would be provided higher up the tree.
-    // This assumes the dependencies needed by JobListCubit and CreateJobUseCase
-    // are already registered in sl via di.init().
-    return BlocProvider<JobListCubit>(
-      create:
-          (context) =>
-              di.sl<JobListCubit>(), // Use sl ONLY at provider creation
+    if (kDebugMode) {
+      _logger.d('$_tag Building UI playground');
+    }
+
+    // Access the existing JobListCubit from the parent context
+    // instead of creating a new one on every rebuild
+    final parentCubit = BlocProvider.of<JobListCubit>(context, listen: false);
+
+    return BlocProvider.value(
+      value: parentCubit,
       child: _JobListPlaygroundContent(isOffline: isOffline),
     );
   }

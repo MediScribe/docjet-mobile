@@ -42,44 +42,44 @@ void main() {
       _testLogger.i('$_tag Test setup complete');
     });
 
-    testWidgets('Loading state in main.dart uses MaterialProgressIndicator', (
+    testWidgets('Loading state in main.dart uses CupertinoActivityIndicator', (
       WidgetTester tester,
     ) async {
-      _testLogger.i('$_tag Starting MaterialProgressIndicator test');
+      _testLogger.i('$_tag Starting CupertinoActivityIndicator test');
       // Here we're testing the actual implementation in main.dart
-      // which currently uses CircularProgressIndicator
+      // which now uses CupertinoActivityIndicator
       Widget buildLoadingWidget() {
         _testLogger.d(
-          '$_tag Building loading widget with CircularProgressIndicator',
+          '$_tag Building loading widget with CupertinoActivityIndicator',
         );
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(
+          body: Center(child: CupertinoActivityIndicator()),
+        );
       }
 
-      _testLogger.i('$_tag Pumping widget with CircularProgressIndicator');
+      _testLogger.i('$_tag Pumping widget with CupertinoActivityIndicator');
       await tester.pumpWidget(MaterialApp(home: buildLoadingWidget()));
       _testLogger.i('$_tag Widget pumped successfully');
 
-      // This should fail - we should not find CircularProgressIndicator
-      _testLogger.i('$_tag Verifying CircularProgressIndicator is present');
-      expect(
-        find.byType(CircularProgressIndicator),
-        findsOneWidget,
-        reason: 'Main app loading should NOT use CircularProgressIndicator',
-      );
-      _testLogger.i('$_tag CircularProgressIndicator verification complete');
-
-      // This should pass after fixing
-      _testLogger.i(
-        '$_tag Verifying CupertinoActivityIndicator is not present',
-      );
+      // This should now pass
+      _testLogger.i('$_tag Verifying CupertinoActivityIndicator is present');
       expect(
         find.byType(CupertinoActivityIndicator),
-        findsNothing,
-        reason:
-            'Main app loading should use CupertinoActivityIndicator instead',
+        findsOneWidget,
+        reason: 'Main app loading should use CupertinoActivityIndicator',
       );
       _testLogger.i('$_tag CupertinoActivityIndicator verification complete');
-      _testLogger.i('$_tag MaterialProgressIndicator test completed');
+
+      // This should fail if CircularProgressIndicator is found
+      _testLogger.i('$_tag Verifying CircularProgressIndicator is not present');
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsNothing,
+        reason:
+            'CircularProgressIndicator should not be used in main app loading',
+      );
+      _testLogger.i('$_tag CircularProgressIndicator verification complete');
+      _testLogger.i('$_tag CupertinoActivityIndicator test completed');
     });
 
     testWidgets('JobListPage loading state uses CupertinoActivityIndicator', (
