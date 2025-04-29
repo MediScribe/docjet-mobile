@@ -1,17 +1,24 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
-import 'package:meta/meta.dart'; // For @visibleForTesting
+import 'package:flutter/foundation.dart'; // Import for kDebugMode and @visibleForTesting
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
 
 /// Concrete implementation of [NetworkInfo] using the `connectivity_plus` package.
+///
+/// This implementation also integrates with [AuthEventBus] to fire
+/// [AuthEvent.offlineDetected] and [AuthEvent.onlineRestored] events upon
+/// connectivity transitions.
 class NetworkInfoImpl implements NetworkInfo {
   // Logger setup
   static final String _tag = logTag(NetworkInfoImpl);
   final Logger _logger = LoggerFactory.getLogger(NetworkInfoImpl);
 
   final Connectivity connectivity;
+  final AuthEventBus authEventBus;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool? _lastKnownStatus; // Store the last known status
   // Controller to broadcast the distinct boolean status
@@ -20,10 +27,9 @@ class NetworkInfoImpl implements NetworkInfo {
 
   /// Creates an instance of [NetworkInfoImpl].
   ///
-  /// Requires a [Connectivity] instance, typically obtained from the
-  /// `connectivity_plus` package and registered in the DI container.
+  /// Requires a [Connectivity] instance and an [AuthEventBus].
   /// Immediately starts checking and listening for connectivity changes.
-  NetworkInfoImpl(this.connectivity) {
+  NetworkInfoImpl(this.connectivity, this.authEventBus) {
     // Call initialize but don't await it in the constructor
     _initialize();
   }
@@ -36,10 +42,10 @@ class NetworkInfoImpl implements NetworkInfo {
       _lastKnownStatus = initialResults.any(
         (result) => result != ConnectivityResult.none,
       );
-      // Emit the initial status if the stream has listeners
-      if (_statusStreamController.hasListener) {
-        _statusStreamController.add(_lastKnownStatus!);
-      }
+      _logger.i('$_tag Initial connectivity status: $_lastKnownStatus');
+      // DO NOT emit the initial status to the status stream controller here.
+      // Listeners should use `isConnected` for the initial state.
+      // We also DO NOT fire auth events on initialization.
 
       // Start listening to changes *after* the initial check
       _connectivitySubscription = connectivity.onConnectivityChanged.listen(
@@ -47,22 +53,50 @@ class NetworkInfoImpl implements NetworkInfo {
           final currentStatus = results.any(
             (result) => result != ConnectivityResult.none,
           );
-          // Only add to stream if status changed
+
+          // Only process if status actually changed
           if (currentStatus != _lastKnownStatus) {
+            _logger.i(
+              '$_tag Connectivity changed: $_lastKnownStatus -> $currentStatus',
+            );
+            // Fire event BEFORE updating state and BEFORE emitting to stream
+            if (_lastKnownStatus != null) {
+              // Avoid firing on first determination
+              if (!currentStatus) {
+                _logger.i('$_tag Firing AuthEvent.offlineDetected');
+                authEventBus.add(AuthEvent.offlineDetected);
+              } else {
+                _logger.i('$_tag Firing AuthEvent.onlineRestored');
+                authEventBus.add(AuthEvent.onlineRestored);
+              }
+            }
+
+            // Update the internal state
             _lastKnownStatus = currentStatus;
+            // Emit the change to the status stream
             _statusStreamController.add(currentStatus);
+          } else {
+            // Log ignored event if needed for debugging
+            if (kDebugMode) {
+              _logger.t('$_tag Connectivity status unchanged: $currentStatus');
+            }
           }
         },
-        onError: (error) {
+        onError: (error, stackTrace) {
+          // Add stack trace for better logging
           // Handle potential errors from the connectivity stream
-          _statusStreamController.addError(error);
-          _logger.e('$_tag Error in connectivity stream: $error');
+          _statusStreamController.addError(error, stackTrace);
+          _logger.e(
+            '$_tag Error in connectivity stream: $error',
+            error: error,
+            stackTrace: stackTrace,
+          );
         },
       );
     } catch (e, stackTrace) {
       // Handle errors during initial check
       _lastKnownStatus = false; // Indicate false state on error
-      _statusStreamController.addError(e);
+      _statusStreamController.addError(e, stackTrace);
       _logger.e(
         '$_tag Error during NetworkInfoImpl initialization: $e',
         error: e,
@@ -74,7 +108,7 @@ class NetworkInfoImpl implements NetworkInfo {
   /// Checks the current network connectivity status.
   ///
   /// Returns the last known status if initialized, otherwise performs an async check.
-  /// Returns `null` if initialization failed and no status is known.
+  /// Returns `false` if an error occurs during the check.
   @override
   Future<bool> get isConnected async {
     // Return last known status if available (most common case after init)
@@ -90,12 +124,18 @@ class NetworkInfoImpl implements NetworkInfo {
       _lastKnownStatus = currentStatus; // Update last known status
       return currentStatus;
     } catch (e, stackTrace) {
+      // Keep stacktrace for logging
       _logger.e(
+        // Use logger, not print
         '$_tag Error during isConnected check: $e',
         error: e,
         stackTrace: stackTrace,
       );
-      return false; // Or rethrow / return null depending on desired behavior on error
+      // In debug mode, rethrow to make errors more visible
+      if (kDebugMode) {
+        rethrow;
+      }
+      return false; // Return false on error
     }
   }
 
@@ -118,6 +158,6 @@ class NetworkInfoImpl implements NetworkInfo {
   Future<void> dispose() async {
     await _connectivitySubscription?.cancel();
     await _statusStreamController.close();
-    _logger.i('$_tag NetworkInfoImpl disposed.');
+    _logger.i('$_tag NetworkInfoImpl disposed.'); // Use logger, not print
   }
 }

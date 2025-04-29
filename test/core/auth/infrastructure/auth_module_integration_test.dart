@@ -150,13 +150,9 @@ class TestUserProfileCache implements IUserProfileCache {
     String userId, {
     required bool isAccessTokenValid,
     required bool isRefreshTokenValid,
-    Duration? maxAge,
   }) async {
     if (!isAccessTokenValid && !isRefreshTokenValid) return true;
     if (_timestamp == null) return true;
-    if (maxAge != null && DateTime.now().difference(_timestamp!) > maxAge) {
-      return true;
-    }
     return false;
   }
 

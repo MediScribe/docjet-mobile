@@ -4,23 +4,27 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart'; // Import AuthEventBus
+import 'package:docjet_mobile/core/auth/events/auth_events.dart'; // Import AuthEvent
 import 'package:docjet_mobile/core/platform/network_info_impl.dart'; // Implementation path
 // import 'package:docjet_mobile/core/interfaces/network_info.dart'; // UNUSED
 
-// Generate mocks for Connectivity
-@GenerateMocks([Connectivity])
+// Generate mocks for Connectivity and AuthEventBus
+@GenerateMocks([Connectivity, AuthEventBus])
 import 'network_info_impl_test.mocks.dart';
 
 void main() {
   late NetworkInfoImpl networkInfo;
   late MockConnectivity mockConnectivity;
   late StreamController<List<ConnectivityResult>> connectivityStreamController;
+  late MockAuthEventBus mockAuthEventBus; // Add mock bus
 
   // Helper to setup mocks and instance
   Future<void> setupNetworkInfo({
     ConnectivityResult initialResult = ConnectivityResult.wifi,
   }) async {
     mockConnectivity = MockConnectivity();
+    mockAuthEventBus = MockAuthEventBus(); // Initialize mock bus
     connectivityStreamController =
         StreamController<List<ConnectivityResult>>.broadcast();
 
@@ -36,8 +40,8 @@ void main() {
       return connectivityStreamController.stream;
     });
 
-    // Instantiate
-    networkInfo = NetworkInfoImpl(mockConnectivity);
+    // Instantiate with the mock bus
+    networkInfo = NetworkInfoImpl(mockConnectivity, mockAuthEventBus);
 
     // Allow initialization to complete
     await Future.delayed(Duration.zero);
@@ -49,7 +53,9 @@ void main() {
     // Ensure dispose is called ONLY if networkInfo was initialized
     // This requires careful handling in tests that might fail during setup
     // A simple approach: always try to dispose, null check might be safer
-    await networkInfo.dispose();
+    // await networkInfo?.dispose(); // Original had potential null issue if setup failed
+    await networkInfo
+        .dispose(); // Assuming networkInfo is always non-null in tearDown
     // Ensure controller is closed if setup happened
     if (!connectivityStreamController.isClosed) {
       await connectivityStreamController.close();
@@ -91,7 +97,7 @@ void main() {
           mockConnectivity.onConnectivityChanged,
         ).thenAnswer((_) => connectivityStreamController.stream);
 
-        networkInfo = NetworkInfoImpl(mockConnectivity);
+        networkInfo = NetworkInfoImpl(mockConnectivity, mockAuthEventBus);
         final futureResult = networkInfo.isConnected;
 
         // verify(mockConnectivity.checkConnectivity()).called(1); // REMOVED - Flaky intermediate check
@@ -175,6 +181,84 @@ void main() {
     );
   });
 
+  group('AuthEventBus Integration', () {
+    const streamProcessingDelay = Duration(milliseconds: 10);
+
+    setUp(() async {
+      // Initialize online by default for transition tests
+      await setupNetworkInfo(initialResult: ConnectivityResult.wifi);
+    });
+
+    test(
+      'should add AuthEvent.offlineDetected to bus when connectivity changes from online to offline',
+      () async {
+        // Act: Trigger offline event
+        connectivityStreamController.add([ConnectivityResult.none]);
+        await Future.delayed(streamProcessingDelay); // Allow stream processing
+
+        // Assert: Verify event added to bus
+        verify(mockAuthEventBus.add(AuthEvent.offlineDetected)).called(1);
+        verifyNever(mockAuthEventBus.add(AuthEvent.onlineRestored));
+        verifyNoMoreInteractions(mockAuthEventBus);
+      },
+    );
+
+    test(
+      'should add AuthEvent.onlineRestored to bus when connectivity changes from offline to online',
+      () async {
+        // Arrange: Start offline first
+        await networkInfo.dispose(); // Dispose previous instance
+        await setupNetworkInfo(initialResult: ConnectivityResult.none);
+
+        // Act: Trigger online event
+        connectivityStreamController.add([ConnectivityResult.wifi]);
+        await Future.delayed(streamProcessingDelay); // Allow stream processing
+
+        // Assert: Verify event added to bus
+        verify(mockAuthEventBus.add(AuthEvent.onlineRestored)).called(1);
+        verifyNever(mockAuthEventBus.add(AuthEvent.offlineDetected));
+        verifyNoMoreInteractions(mockAuthEventBus);
+      },
+    );
+
+    test(
+      'should NOT add events to bus when connectivity status does not change (online to online)',
+      () async {
+        // Arrange: Ensure we start online (default setUp)
+
+        // Act: Trigger another online event (mobile)
+        connectivityStreamController.add([ConnectivityResult.mobile]);
+        await Future.delayed(streamProcessingDelay); // Allow stream processing
+
+        // Assert: Verify no events were added
+        verifyNever(mockAuthEventBus.add(any));
+      },
+    );
+
+    test(
+      'should NOT add events to bus when connectivity status does not change (offline to offline)',
+      () async {
+        // Arrange: Start offline first
+        await networkInfo.dispose();
+        await setupNetworkInfo(initialResult: ConnectivityResult.none);
+
+        // Act: Trigger another offline event
+        connectivityStreamController.add([ConnectivityResult.none]);
+        await Future.delayed(streamProcessingDelay); // Allow stream processing
+
+        // Assert: Verify no events were added
+        verifyNever(mockAuthEventBus.add(any));
+      },
+    );
+
+    test('should NOT add events to bus on initialization', () async {
+      // Arrange: setupNetworkInfo already called in setUp, initialization is done.
+
+      // Assert: Verify no events were added during initialization
+      verifyNever(mockAuthEventBus.add(any));
+    });
+  });
+
   group('lifecycle and initialization', () {
     // No top-level setUp here, each test manages its instance
 
@@ -218,6 +302,7 @@ void main() {
 
     test('should handle errors during initial checkConnectivity', () async {
       mockConnectivity = MockConnectivity();
+      mockAuthEventBus = MockAuthEventBus(); // Init mock bus
       connectivityStreamController =
           StreamController<List<ConnectivityResult>>.broadcast();
       final testError = Exception('Connectivity check failed');
@@ -225,10 +310,17 @@ void main() {
       when(
         mockConnectivity.onConnectivityChanged,
       ).thenAnswer((_) => connectivityStreamController.stream);
-      networkInfo = NetworkInfoImpl(mockConnectivity);
-      await Future.delayed(Duration.zero);
-      expect(await networkInfo.isConnected, false);
+      networkInfo = NetworkInfoImpl(
+        mockConnectivity,
+        mockAuthEventBus,
+      ); // Add mock bus
+      await Future.delayed(Duration.zero); // Allow init to potentially run/fail
+      final isConnectedResult = await networkInfo.isConnected;
+      expect(isConnectedResult, false);
       verify(mockConnectivity.checkConnectivity()).called(1);
+      verifyNever(
+        mockAuthEventBus.add(any),
+      ); // Ensure no events fired on init error
     });
 
     test('should handle errors from onConnectivityChanged stream', () async {

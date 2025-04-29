@@ -8,6 +8,8 @@ import 'dart:async' as _i3;
 import 'package:connectivity_plus/connectivity_plus.dart' as _i2;
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart'
     as _i4;
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i5;
+import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i6;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -49,4 +51,37 @@ class MockConnectivity extends _i1.Mock implements _i2.Connectivity {
         returnValue: _i3.Future<List<_i4.ConnectivityResult>>.value(
             <_i4.ConnectivityResult>[]),
       ) as _i3.Future<List<_i4.ConnectivityResult>>);
+}
+
+/// A class which mocks [AuthEventBus].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAuthEventBus extends _i1.Mock implements _i5.AuthEventBus {
+  MockAuthEventBus() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Stream<_i6.AuthEvent> get stream => (super.noSuchMethod(
+        Invocation.getter(#stream),
+        returnValue: _i3.Stream<_i6.AuthEvent>.empty(),
+      ) as _i3.Stream<_i6.AuthEvent>);
+
+  @override
+  void add(_i6.AuthEvent? event) => super.noSuchMethod(
+        Invocation.method(
+          #add,
+          [event],
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
 }

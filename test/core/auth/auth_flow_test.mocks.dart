@@ -1049,7 +1049,6 @@ class MockIUserProfileCache extends _i1.Mock implements _i13.IUserProfileCache {
     String? userId, {
     required bool? isAccessTokenValid,
     required bool? isRefreshTokenValid,
-    Duration? maxAge,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -1058,7 +1057,6 @@ class MockIUserProfileCache extends _i1.Mock implements _i13.IUserProfileCache {
           {
             #isAccessTokenValid: isAccessTokenValid,
             #isRefreshTokenValid: isRefreshTokenValid,
-            #maxAge: maxAge,
           },
         ),
         returnValue: _i9.Future<bool>.value(false),

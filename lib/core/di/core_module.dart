@@ -64,24 +64,33 @@ class CoreModule {
       );
       logger.d('$tag Registered FileSystem');
     }
-    if (!getIt.isRegistered<NetworkInfo>()) {
-      getIt.registerLazySingleton<NetworkInfo>(
-        () => NetworkInfoImpl(getIt<Connectivity>()),
-      );
-      logger.d('$tag Registered NetworkInfo');
-    }
 
     // --- Core Infrastructure (Dio, EventBus) ---
+    if (!getIt.isRegistered<AuthEventBus>()) {
+      getIt.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
+      logger.d('$tag Registered AuthEventBus');
+    }
+
+    if (!getIt.isRegistered<NetworkInfo>()) {
+      // Register with disposal function
+      getIt.registerLazySingleton<NetworkInfo>(
+        () => NetworkInfoImpl(getIt<Connectivity>(), getIt<AuthEventBus>()),
+        dispose: (NetworkInfo networkInfo) async {
+          // We need to cast to access the dispose method
+          await (networkInfo as NetworkInfoImpl).dispose();
+          logger.d('$tag NetworkInfoImpl disposed during singleton disposal');
+        },
+      );
+      logger.d('$tag Registered NetworkInfo with disposal function');
+    }
+
     if (!getIt.isRegistered<DioFactory>()) {
       getIt.registerLazySingleton<DioFactory>(
         () => DioFactory(appConfig: getIt<AppConfig>()),
       );
       logger.d('$tag Registered DioFactory');
     }
-    if (!getIt.isRegistered<AuthEventBus>()) {
-      getIt.registerLazySingleton<AuthEventBus>(() => AuthEventBus());
-      logger.d('$tag Registered AuthEventBus');
-    }
+
     // Register concrete providers needed by modules BEFORE the modules run
     if (!getIt.isRegistered<AuthCredentialsProvider>()) {
       getIt.registerLazySingleton<AuthCredentialsProvider>(
