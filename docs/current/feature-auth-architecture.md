@@ -207,8 +207,8 @@ A central event bus that broadcasts authentication events to interested componen
 The events are emitted in the following circumstances:
 - `loggedIn`: When a user successfully authenticates using login credentials
 - `loggedOut`: When a user explicitly logs out or when token refresh irrecoverably fails
-- `offlineDetected`: When the app transitions from online to offline state during an authenticated session
-- `onlineRestored`: When the app transitions from offline back to online state after previously being offline
+- `offlineDetected`: When the app transitions from online to offline state, detected by NetworkInfoImpl
+- `onlineRestored`: When the app transitions from offline back to online state, detected by NetworkInfoImpl
 
 These events provide a consistent, centralized way for different app components to react to authentication and connectivity state changes without creating direct dependencies.
 
@@ -327,7 +327,9 @@ Immutable state object representing the current authentication state:
 State management for authentication, connecting UI to domain services:
 - Exposes the `AuthState` to the UI.
 - Provides methods like `login()`, `logout()`, `checkAuthStatus()`, `getUserProfile()` which interact with the `AuthService`.
-- Crucially, listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
+- Listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
+- Handles connectivity transitions by updating the `isOffline` flag in all states (authenticated, error, unauthenticated, loading) when receiving `offlineDetected` and `onlineRestored` events.
+- Automatically refreshes user profile when the app comes back online through the `_refreshProfileAfterOnlineRestored()` helper.
 
 #### UI Components
 

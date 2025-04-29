@@ -272,11 +272,11 @@ The authentication system includes several advanced features:
    - Token validity is checked before using cached profiles
    - Caches are cleared on logout or when both tokens are invalid
    - `acceptOfflineProfile` parameter controls whether cached profiles are acceptable
-3. **Connectivity Events**: `AuthEventBus` broadcasts connectivity state changes:
+3. **Connectivity Events**: `NetworkInfoImpl` detects and emits connectivity state changes through `AuthEventBus`:
    - `AuthEvent.offlineDetected`: When network connectivity is lost
    - `AuthEvent.onlineRestored`: When network connectivity is restored
-   - `AuthNotifier` detects and emits these events when state changes
    - Components like `JobSyncOrchestratorService` react to events by pausing/resuming sync
+   - `AuthNotifier` updates its state for all UI components based on these events
 4. **Offline Authentication**: JWT tokens are validated locally enabling offline operation when the network is unavailable
 5. **Comprehensive Exception Handling**: Specific exception types for different auth error scenarios
 6. **Global Offline UI**: The `OfflineBanner` component automatically shows when offline

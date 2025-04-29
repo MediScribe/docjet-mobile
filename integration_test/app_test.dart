@@ -111,7 +111,11 @@ void main() {
     // Use the SAME mock instance for the Riverpod provider override
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authServiceProvider.overrideWithValue(mockAuthService)],
+        overrides: [
+          authServiceProvider.overrideWithValue(mockAuthService),
+          // Override the authEventBusProvider to provide the mocked event bus
+          authEventBusProvider.overrideWithValue(mockAuthEventBus),
+        ],
         child: const app.MyApp(),
       ),
     );

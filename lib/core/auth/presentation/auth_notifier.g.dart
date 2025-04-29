@@ -26,7 +26,27 @@ final authServiceProvider = Provider<AuthService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AuthServiceRef = ProviderRef<AuthService>;
-String _$authNotifierHash() => r'0f5f39bb04c232f948d59607279a864127096e83';
+String _$authEventBusHash() => r'e22fc789307c885d58c50fa416c5a5c65653c410';
+
+/// Provider for the AuthEventBus
+///
+/// This should be overridden in the widget tree with the actual implementation.
+///
+/// Copied from [authEventBus].
+@ProviderFor(authEventBus)
+final authEventBusProvider = Provider<AuthEventBus>.internal(
+  authEventBus,
+  name: r'authEventBusProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$authEventBusHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef AuthEventBusRef = ProviderRef<AuthEventBus>;
+String _$authNotifierHash() => r'c93261858cfa254d21d51e47b3d582286cea7877';
 
 /// Manages authentication state for the application
 ///

@@ -14,6 +14,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Import our theme definitions
 import 'package:docjet_mobile/core/theme/app_theme.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 
 // Access GetIt for convenience
 final getIt = di.sl;
@@ -44,6 +45,8 @@ void main() async {
         // Override the generated authServiceProvider with the implementation from GetIt
         // Using the correct provider from auth_notifier.dart
         authServiceProvider.overrideWithValue(getIt<AuthService>()),
+        // Override the generated authEventBusProvider with the implementation from GetIt
+        authEventBusProvider.overrideWithValue(getIt<AuthEventBus>()),
       ],
       child: const MyApp(),
     ),

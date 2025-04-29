@@ -75,10 +75,9 @@ class CoreModule {
       // Register with disposal function
       getIt.registerLazySingleton<NetworkInfo>(
         () => NetworkInfoImpl(getIt<Connectivity>(), getIt<AuthEventBus>()),
-        dispose: (NetworkInfo networkInfo) async {
-          // We need to cast to access the dispose method
-          await (networkInfo as NetworkInfoImpl).dispose();
+        dispose: (n) {
           logger.d('$tag NetworkInfoImpl disposed during singleton disposal');
+          return (n as NetworkInfoImpl).dispose();
         },
       );
       logger.d('$tag Registered NetworkInfo with disposal function');

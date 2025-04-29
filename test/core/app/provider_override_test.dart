@@ -1,7 +1,6 @@
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
-import 'package:docjet_mobile/core/di/injection_container.dart' as di;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,7 +75,7 @@ void main() {
               // Override the generated provider that AuthNotifier uses
               authServiceProvider.overrideWithValue(mockAuthService),
               // Also override the event bus provider that AuthNotifier uses
-              di.authEventBusProvider.overrideWithValue(mockAuthEventBus),
+              authEventBusProvider.overrideWithValue(mockAuthEventBus),
             ],
             child: MaterialApp(
               home: Consumer(

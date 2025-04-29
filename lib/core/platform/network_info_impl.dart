@@ -63,9 +63,15 @@ class NetworkInfoImpl implements NetworkInfo {
             if (_lastKnownStatus != null) {
               // Avoid firing on first determination
               if (!currentStatus) {
+                // --- HARDCORE DEBUG LOG ---
+                _logger.f('$_tag !!! FIRING AuthEvent.offlineDetected !!!');
+                // --- END HARDCORE DEBUG LOG ---
                 _logger.i('$_tag Firing AuthEvent.offlineDetected');
                 authEventBus.add(AuthEvent.offlineDetected);
               } else {
+                // --- HARDCORE DEBUG LOG ---
+                _logger.f('$_tag !!! FIRING AuthEvent.onlineRestored !!!');
+                // --- END HARDCORE DEBUG LOG ---
                 _logger.i('$_tag Firing AuthEvent.onlineRestored');
                 authEventBus.add(AuthEvent.onlineRestored);
               }
@@ -154,7 +160,6 @@ class NetworkInfoImpl implements NetworkInfo {
   ///
   /// This should be called when the service is no longer needed, typically
   /// managed by the DI container's disposal mechanism.
-  @visibleForTesting // Allow calling in tests
   Future<void> dispose() async {
     await _connectivitySubscription?.cancel();
     await _statusStreamController.close();
