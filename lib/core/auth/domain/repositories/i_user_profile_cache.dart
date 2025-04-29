@@ -19,13 +19,12 @@ abstract class IUserProfileCache {
   ///
   /// Staleness can be determined by:
   /// 1. The validity of the access and refresh tokens. If both are invalid, the profile is stale.
-  /// 2. An optional maximum age (`maxAge`). If the profile is older than `maxAge`, it's stale.
+  /// 2. The validity of at least one token. If both tokens are invalid, the profile is stale.
   ///
   /// Returns `true` if the profile is considered stale, `false` otherwise.
   Future<bool> isProfileStale(
     String userId, {
     required bool isAccessTokenValid,
     required bool isRefreshTokenValid,
-    Duration? maxAge,
   });
 }

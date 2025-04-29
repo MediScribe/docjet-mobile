@@ -301,7 +301,7 @@ An interface that defines methods for caching user profile data locally:
 - `getProfile(String userId)` - Retrieves a cached profile by user ID
 - `clearProfile(String userId)` - Removes a specific user's profile from cache
 - `clearAllProfiles()` - Clears all cached profiles
-- `isProfileStale(String userId, {required bool isAccessTokenValid, required bool isRefreshTokenValid, Duration? maxAge})` - Determines if a cached profile should be considered stale based on token validity and optional time threshold
+- `isProfileStale(String userId, {required bool isAccessTokenValid, required bool isRefreshTokenValid})` - Determines if a cached profile should be considered stale based on token validity
 
 #### SharedPreferencesUserProfileCache
 Concrete implementation of `IUserProfileCache` using `SharedPreferences`:
@@ -378,7 +378,7 @@ The auth module includes UI components that leverage the application's theme sys
 2. **AppShell**: Wrapper component that provides the offline banner across all screens
 3. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
 
-All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../features/feature-ui-theming.md).
+All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../../features/feature-ui-theming.md).
 
 ## Dependency Injection Considerations
 

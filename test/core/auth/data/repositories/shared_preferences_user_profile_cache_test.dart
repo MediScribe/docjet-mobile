@@ -200,34 +200,19 @@ void main() {
     });
 
     group('isProfileStale', () {
-      const maxAge = Duration(hours: 1);
-      final now = DateTime.now();
-      final justUnderMaxAge = now
-          .subtract(maxAge)
-          .add(const Duration(seconds: 1));
-      final justOverMaxAge = now
-          .subtract(maxAge)
-          .subtract(const Duration(seconds: 1));
-
       // Helper to mock timestamp retrieval
-      void mockTimestamp(DateTime timestamp) {
-        when(
-          mockSharedPreferences.getString(timestampKey(testUserId)),
-        ).thenReturn(timestamp.toIso8601String());
-      }
 
       test(
         'should return true if both tokens are invalid, regardless of timestamp',
         () async {
           // Arrange
-          mockTimestamp(now); // Timestamp is very recent
+          // No need to mock timestamp as it shouldn't be checked
 
           // Act
           final isStale = await cache.isProfileStale(
             testUserId,
             isAccessTokenValid: false,
             isRefreshTokenValid: false,
-            maxAge: maxAge,
           );
 
           // Assert
@@ -240,145 +225,40 @@ void main() {
         },
       );
 
-      test(
-        'should return false if access token is valid, refresh token is invalid, and timestamp is within maxAge',
-        () async {
-          // Arrange
-          mockTimestamp(justUnderMaxAge);
-
-          // Act
-          final isStale = await cache.isProfileStale(
-            testUserId,
-            isAccessTokenValid: true,
-            isRefreshTokenValid: false,
-            maxAge: maxAge,
-          );
-
-          // Assert
-          expect(isStale, isFalse);
-          verify(
-            mockSharedPreferences.getString(timestampKey(testUserId)),
-          ).called(1);
-          verifyNoMoreInteractions(mockSharedPreferences);
-        },
-      );
-
-      test(
-        'should return false if refresh token is valid, access token is invalid, and timestamp is within maxAge',
-        () async {
-          // Arrange
-          mockTimestamp(justUnderMaxAge);
-
-          // Act
-          final isStale = await cache.isProfileStale(
-            testUserId,
-            isAccessTokenValid: false,
-            isRefreshTokenValid: true,
-            maxAge: maxAge,
-          );
-
-          // Assert
-          expect(isStale, isFalse);
-          verify(
-            mockSharedPreferences.getString(timestampKey(testUserId)),
-          ).called(1);
-          verifyNoMoreInteractions(mockSharedPreferences);
-        },
-      );
-
-      test(
-        'should return true if tokens are valid but timestamp is older than maxAge',
-        () async {
-          // Arrange
-          mockTimestamp(justOverMaxAge);
-
-          // Act
-          final isStale = await cache.isProfileStale(
-            testUserId,
-            isAccessTokenValid: true,
-            isRefreshTokenValid: true,
-            maxAge: maxAge,
-          );
-
-          // Assert
-          expect(isStale, isTrue);
-          verify(
-            mockSharedPreferences.getString(timestampKey(testUserId)),
-          ).called(1);
-          verifyNoMoreInteractions(mockSharedPreferences);
-        },
-      );
-
-      test(
-        'should return false if tokens are valid and maxAge is null',
-        () async {
-          // Arrange
-          mockTimestamp(
-            now.subtract(const Duration(days: 365)),
-          ); // Very old timestamp
-
-          // Act
-          final isStale = await cache.isProfileStale(
-            testUserId,
-            isAccessTokenValid: true,
-            isRefreshTokenValid: true,
-            maxAge: null, // No time limit
-          );
-
-          // Assert
-          expect(isStale, isFalse);
-          verifyNever(
-            mockSharedPreferences.getString(timestampKey(testUserId)),
-          ); // Timestamp shouldn't be checked if maxAge is null
-          verifyNoMoreInteractions(mockSharedPreferences);
-        },
-      );
-
-      test('should return true if timestamp is missing', () async {
-        // Arrange
-        when(
-          mockSharedPreferences.getString(timestampKey(testUserId)),
-        ).thenReturn(null);
-
+      test('should return false if access token is valid', () async {
         // Act
         final isStale = await cache.isProfileStale(
           testUserId,
-          isAccessTokenValid: true, // Tokens valid
-          isRefreshTokenValid: true,
-          maxAge: maxAge, // Has maxAge
+          isAccessTokenValid: true,
+          isRefreshTokenValid: false,
         );
-
         // Assert
-        expect(
-          isStale,
-          isTrue,
-        ); // Missing timestamp means it's stale if maxAge is set
-        verify(
-          mockSharedPreferences.getString(timestampKey(testUserId)),
-        ).called(1);
-        verifyNoMoreInteractions(mockSharedPreferences);
+        expect(isStale, isFalse);
+        verifyNever(mockSharedPreferences.getString(timestampKey(testUserId)));
       });
 
-      test('should return true if timestamp is invalid format', () async {
-        // Arrange
-        when(
-          mockSharedPreferences.getString(timestampKey(testUserId)),
-        ).thenReturn('invalid-date-format');
+      test('should return false if refresh token is valid', () async {
+        // Act
+        final isStale = await cache.isProfileStale(
+          testUserId,
+          isAccessTokenValid: false,
+          isRefreshTokenValid: true,
+        );
+        // Assert
+        expect(isStale, isFalse);
+        verifyNever(mockSharedPreferences.getString(timestampKey(testUserId)));
+      });
 
+      test('should return false if both tokens are valid', () async {
         // Act
         final isStale = await cache.isProfileStale(
           testUserId,
           isAccessTokenValid: true,
           isRefreshTokenValid: true,
-          maxAge: maxAge,
         );
-
         // Assert
-        expect(isStale, isTrue); // Invalid timestamp means it's stale
-        verify(
-          mockSharedPreferences.getString(timestampKey(testUserId)),
-        ).called(1);
-        verifyNoMoreInteractions(mockSharedPreferences);
+        expect(isStale, isFalse);
+        verifyNever(mockSharedPreferences.getString(timestampKey(testUserId)));
       });
     });
   });

@@ -110,7 +110,6 @@ class SharedPreferencesUserProfileCache implements IUserProfileCache {
     String userId, {
     required bool isAccessTokenValid,
     required bool isRefreshTokenValid,
-    Duration? maxAge,
   }) async {
     // Rule 1: If both tokens are invalid, it's definitely stale.
     if (!isAccessTokenValid && !isRefreshTokenValid) {
@@ -118,37 +117,7 @@ class SharedPreferencesUserProfileCache implements IUserProfileCache {
       return true;
     }
 
-    // Rule 2: If maxAge is set, check the timestamp.
-    if (maxAge != null) {
-      final tKey = _timestampKey(userId);
-      try {
-        final timestampString = _prefs.getString(tKey);
-        if (timestampString == null) {
-          _logger.w('Profile for $userId stale: Timestamp missing.');
-          return true; // No timestamp means we can't verify age.
-        }
-
-        final timestamp = DateTime.parse(timestampString);
-        final now = DateTime.now();
-        final age = now.difference(timestamp);
-
-        if (age > maxAge) {
-          _logger.i(
-            'Profile for $userId stale: Age ($age) exceeds maxAge ($maxAge).',
-          );
-          return true; // Older than allowed.
-        }
-      } catch (e, s) {
-        _logger.e(
-          'Failed to parse timestamp for user $userId. Assuming stale.',
-          error: e,
-          stackTrace: s,
-        );
-        return true; // Error parsing timestamp means we assume it's stale.
-      }
-    }
-
-    // If we reach here, tokens are valid (at least one) AND (maxAge is null OR timestamp is within maxAge).
+    // If we reach here, at least one token is valid.
     _logger.d('Profile for $userId is not stale.');
     return false;
   }
