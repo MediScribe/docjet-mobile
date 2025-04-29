@@ -1,6 +1,5 @@
 import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

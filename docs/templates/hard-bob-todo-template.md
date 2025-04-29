@@ -69,7 +69,7 @@ sequenceDiagram
 
 * 1.1. [ ] **Research:** [Optional: Investigate specific APIs, libraries, or existing code needed for this cycle.]
     * Findings: [Document findings, relevant methods, potential challenges.]
-* 1.2. [ ] **Tests RED:** [Write the test(s) for the desired behavior. Be specific about what you're testing.]
+* 1.2. [ ] **Tests RED:** [Write the unit or integration test(s) for the desired behavior. Be specific about what you're testing.]
     * Test File: [e.g., `test/feature/subfeature/some_service_test.dart`]
     * Test Description: [e.g., `should return cached data when network fails`, `throws SpecificException when input is invalid`]
     * Findings: [Confirm tests are written and fail as expected. Note any difficulties in writing the test.]

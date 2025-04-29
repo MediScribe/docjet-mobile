@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'dart:async'; // Make sure Timer is imported
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,11 +9,14 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
-import 'package:mime/mime.dart';
 import 'package:uuid/uuid.dart';
 
-// Flag to control verbose logging, set in main()
-bool _verboseLoggingEnabled = false;
+// Import the new debug routes, including the cleanup function
+import 'package:mock_api_server/src/debug_routes.dart';
+// Import the new job store with a prefix
+import 'package:mock_api_server/src/job_store.dart' as job_store;
+// Import the config (provides verboseLoggingEnabled)
+import 'package:mock_api_server/src/config.dart';
 
 // API version (should match ApiConfig.apiVersion in the app)
 const String _apiVersion = 'v1';
@@ -22,14 +26,12 @@ const String _versionedApiPath = '$_apiPrefix/$_apiVersion';
 // Hardcoded API key for mock validation, matching the test
 const String _expectedApiKey = 'test-api-key';
 
-// In-memory storage for jobs
-final List<Map<String, dynamic>> _jobs = [];
-const _uuid = Uuid();
+final Uuid _uuid = Uuid();
 
 // Helper function to read MimeMultipart as string
-Future<String> readAsString(MimeMultipart part) async {
+Future<String> readAsString(Stream<List<int>> stream) async {
   // MimeMultipart is a Stream<List<int>>, so collect all chunks and decode
-  final chunks = await part.toList();
+  final chunks = await stream.toList();
   final allBytes = <int>[];
   for (var chunk in chunks) {
     allBytes.addAll(chunk);
@@ -41,14 +43,14 @@ Future<String> readAsString(MimeMultipart part) async {
 Middleware _debugMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('=== DEBUG: Incoming Request ===');
         print('Method: ${request.method}, URL: ${request.url}');
         print('Headers: ${request.headers}');
       }
 
       // Add special debug for multipart content type
-      if (_verboseLoggingEnabled &&
+      if (verboseLoggingEnabled &&
           request.headers['content-type'] != null &&
           request.headers['content-type']!
               .toLowerCase()
@@ -66,7 +68,7 @@ Middleware _debugMiddleware() {
           !request.headers['content-type']!.startsWith('multipart/form-data')) {
         try {
           bodyContent = await request.readAsString();
-          if (_verboseLoggingEnabled) print('Body: $bodyContent');
+          if (verboseLoggingEnabled) print('Body: $bodyContent');
 
           // Create a new request with the same body since we consumed it
           requestForHandler = Request(
@@ -79,12 +81,12 @@ Middleware _debugMiddleware() {
             onHijack: request.hijack,
           );
         } catch (e) {
-          if (_verboseLoggingEnabled) print('Could not read body: $e');
+          if (verboseLoggingEnabled) print('Could not read body: $e');
           requestForHandler = request;
         }
       } else if (request.headers['content-type'] != null &&
           request.headers['content-type']!.startsWith('multipart/form-data')) {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print(
               'Body: [multipart form data detected - not displaying raw body]');
         }
@@ -98,7 +100,7 @@ Middleware _debugMiddleware() {
         // Call the next handler with our possibly modified request
         response = await innerHandler(requestForHandler);
       } catch (e) {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print('=== DEBUG: Handler Error ===');
           print('Error: $e');
           print('=============================');
@@ -106,18 +108,18 @@ Middleware _debugMiddleware() {
         rethrow; // Re-throw so shelf can handle it
       }
 
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('=== DEBUG: Outgoing Response ===');
         print('Status: ${response.statusCode}');
         print('Headers: ${response.headers}');
       }
 
       // Log error responses but don't try to read the body
-      if (_verboseLoggingEnabled && response.statusCode >= 400) {
+      if (verboseLoggingEnabled && response.statusCode >= 400) {
         print('Error response status: ${response.statusCode}');
       }
 
-      if (_verboseLoggingEnabled) print('=============================');
+      if (verboseLoggingEnabled) print('=============================');
       return response;
     };
   };
@@ -141,7 +143,12 @@ final _router = Router()
   ..get('/$_versionedApiPath/jobs/<jobId>', _getJobByIdHandler)
   ..get('/$_versionedApiPath/jobs/<jobId>/documents', _getJobDocumentsHandler)
   ..patch('/$_versionedApiPath/jobs/<jobId>', _updateJobHandler)
-  ..delete('/$_versionedApiPath/jobs/<jobId>', _deleteJobHandler);
+  ..delete('/$_versionedApiPath/jobs/<jobId>', _deleteJobHandler)
+
+  // Debug endpoints for job progression (Use handlers from debug_routes.dart)
+  ..post('/$_versionedApiPath/debug/jobs/start', startJobProgressionHandler)
+  ..post('/$_versionedApiPath/debug/jobs/stop', stopJobProgressionHandler)
+  ..post('/$_versionedApiPath/debug/jobs/reset', resetJobProgressionHandler);
 
 // Health check handler
 Response _healthHandler(Request request) {
@@ -150,7 +157,7 @@ Response _healthHandler(Request request) {
 
 // Login handler logic
 Future<Response> _loginHandler(Request request) async {
-  if (_verboseLoggingEnabled) print('DEBUG: Login handler called');
+  if (verboseLoggingEnabled) print('DEBUG: Login handler called');
   // Content-Type check (middleware could also do this, but fine here for simplicity)
   if (request.headers['content-type']
           ?.toLowerCase()
@@ -179,7 +186,7 @@ Future<Response> _loginHandler(Request request) async {
       }
     } catch (e) {
       // If JSON parsing fails, return a 400 to pass the malformed body test
-      if (_verboseLoggingEnabled) print('DEBUG: JSON parsing failed: $e');
+      if (verboseLoggingEnabled) print('DEBUG: JSON parsing failed: $e');
       return Response(
         HttpStatus.badRequest, // 400
         body: jsonEncode({'error': 'Malformed JSON or missing fields: $e'}),
@@ -202,7 +209,7 @@ Future<Response> _loginHandler(Request request) async {
     );
   } catch (e) {
     // Log any unexpected errors
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print('DEBUG LOGIN: Error processing login: $e');
     }
     return Response(
@@ -216,7 +223,7 @@ Future<Response> _loginHandler(Request request) async {
 
 // Refresh handler logic
 Future<Response> _refreshHandler(Request request) async {
-  if (_verboseLoggingEnabled) print('DEBUG: Refresh handler called');
+  if (verboseLoggingEnabled) print('DEBUG: Refresh handler called');
   // Content-Type check
   if (request.headers['content-type']
           ?.toLowerCase()
@@ -245,7 +252,7 @@ Future<Response> _refreshHandler(Request request) async {
       }
     } catch (e) {
       // If JSON parsing fails, return a 400 to pass the malformed body test
-      if (_verboseLoggingEnabled) print('DEBUG: JSON parsing failed: $e');
+      if (verboseLoggingEnabled) print('DEBUG: JSON parsing failed: $e');
       return Response(
         HttpStatus.badRequest, // 400
         body: jsonEncode(
@@ -268,7 +275,7 @@ Future<Response> _refreshHandler(Request request) async {
     );
   } catch (e) {
     // Log any unexpected errors
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print('DEBUG REFRESH: Error processing refresh: $e');
     }
     return Response(
@@ -282,7 +289,7 @@ Future<Response> _refreshHandler(Request request) async {
 
 // Get User Profile handler logic
 Future<Response> _getUserProfileHandler(Request request) async {
-  if (_verboseLoggingEnabled) print('DEBUG: Get User Profile handler called');
+  if (verboseLoggingEnabled) print('DEBUG: Get User Profile handler called');
 
   // Note: Header validation (API Key, Auth) is done by the middleware
 
@@ -305,13 +312,13 @@ Future<Response> _getUserProfileHandler(Request request) async {
 
 // Create Job handler logic
 Future<Response> _createJobHandler(Request request) async {
-  if (_verboseLoggingEnabled) {
+  if (verboseLoggingEnabled) {
     print(
         'DEBUG CREATE JOB: Content-Type is ${request.headers['content-type']}');
   }
 
   // Additional debugging for the request
-  if (_verboseLoggingEnabled) {
+  if (verboseLoggingEnabled) {
     print('DEBUG CREATE JOB: All headers:');
     request.headers.forEach((name, value) {
       print('  $name: $value');
@@ -319,7 +326,7 @@ Future<Response> _createJobHandler(Request request) async {
   }
 
   // IMPORTANT: DO NOT read the request body here as it can only be read once
-  if (_verboseLoggingEnabled) {
+  if (verboseLoggingEnabled) {
     print('DEBUG CREATE JOB: Processing multipart request');
   }
 
@@ -328,7 +335,7 @@ Future<Response> _createJobHandler(Request request) async {
       !request.headers['content-type']!
           .toLowerCase()
           .contains('multipart/form-data')) {
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print(
           'DEBUG CREATE JOB: Not a valid multipart request. Content-Type: ${request.headers['content-type']}');
     }
@@ -346,7 +353,7 @@ Future<Response> _createJobHandler(Request request) async {
   bool hasAudioFile = false;
 
   try {
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print('DEBUG CREATE JOB: Processing multipart request');
     }
 
@@ -365,13 +372,13 @@ Future<Response> _createJobHandler(Request request) async {
     // Process the multipart parts directly without storing them first
     await for (final part in multipartRequest.parts) {
       final headers = part.headers;
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('DEBUG CREATE JOB: Part headers: $headers');
       }
 
       final contentDisposition = headers['content-disposition'];
       if (contentDisposition == null) {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print('DEBUG CREATE JOB: Missing Content-Disposition header in part');
         }
         continue;
@@ -387,14 +394,14 @@ Future<Response> _createJobHandler(Request request) async {
       final filename = filenameMatch?.group(1);
 
       if (name == null) {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print(
               'DEBUG CREATE JOB: Could not find name in Content-Disposition: $contentDisposition');
         }
         continue;
       }
 
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print(
             'DEBUG CREATE JOB: Processing part with name: $name, filename: $filename');
       }
@@ -402,7 +409,7 @@ Future<Response> _createJobHandler(Request request) async {
       // Check if this is a file by looking for a filename
       if (filename != null) {
         if (name == 'audio_file') {
-          if (_verboseLoggingEnabled) {
+          if (verboseLoggingEnabled) {
             print(
                 'DEBUG CREATE JOB: Found audio_file upload with filename: $filename');
           }
@@ -414,7 +421,7 @@ Future<Response> _createJobHandler(Request request) async {
       } else {
         // Regular form field
         final value = await readAsString(part);
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print('DEBUG CREATE JOB: Field $name = $value');
         }
 
@@ -454,7 +461,7 @@ Future<Response> _createJobHandler(Request request) async {
       'audio_file_path': null,
     };
 
-    _jobs.add(newJob);
+    job_store.addJob(newJob);
 
     // Prepare response data
     final responseData = {
@@ -473,7 +480,7 @@ Future<Response> _createJobHandler(Request request) async {
     );
   } catch (e, stackTrace) {
     // Handle potential multipart parsing errors or validation FormatExceptions
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print('DEBUG CREATE JOB ERROR: $e');
       print('Stack trace: $stackTrace');
     }
@@ -492,7 +499,8 @@ Future<Response> _listJobsHandler(Request request) async {
   // Prepare the response data - we need to return a list of job summaries.
   // The exact fields might differ from the POST response based on spec.
   // Let's assume for now it returns the same fields as POST creation response.
-  final responseData = _jobs
+  final responseData = job_store
+      .getAllJobs()
       .map((job) => {
             'id': job['id'],
             'user_id': job['user_id'],
@@ -519,18 +527,14 @@ Future<Response> _getJobByIdHandler(Request request, String jobId) async {
   // Find the job by ID
   Map<String, dynamic>? foundJob;
   try {
-    foundJob = _jobs.firstWhere((job) => job['id'] == jobId);
+    foundJob = job_store.findJobById(jobId);
   } on StateError {
     // Thrown by firstWhere if no element is found
     foundJob = null;
   }
 
   if (foundJob == null) {
-    return Response(
-      HttpStatus.notFound, // 404
-      body: jsonEncode({'error': 'Job with ID $jobId not found'}),
-      headers: {'content-type': 'application/json'},
-    );
+    return job_store.createNotFoundResponse('Job', jobId);
   }
 
   // Prepare response data (similar to POST response, excluding null display fields)
@@ -561,17 +565,13 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   // Find the job by ID first
   Map<String, dynamic>? foundJob;
   try {
-    foundJob = _jobs.firstWhere((job) => job['id'] == jobId);
+    foundJob = job_store.findJobById(jobId);
   } on StateError {
     foundJob = null;
   }
 
   if (foundJob == null) {
-    return Response(
-      HttpStatus.notFound, // 404
-      body: jsonEncode({'error': 'Job with ID $jobId not found'}),
-      headers: {'content-type': 'application/json'},
-    );
+    return job_store.createNotFoundResponse('Job', jobId);
   }
 
   // Job found, return mock document data
@@ -611,19 +611,19 @@ Middleware _authMiddleware() {
 
       // Skip auth check for defined non-auth paths
       if (noAuthPaths.contains(path)) {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print(
               'DEBUG: Auth/Health endpoint ($path) detected, skipping auth middleware');
         }
         return innerHandler(request);
       }
 
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('DEBUG: Non-auth endpoint, applying auth check...');
       }
 
       // Authentication check logic (as before)
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print(
             'DEBUG: Received Authorization: ${request.headers['authorization']}');
       }
@@ -638,7 +638,7 @@ Middleware _authMiddleware() {
       }
 
       if (!isValid) {
-        if (_verboseLoggingEnabled) print('DEBUG: Auth validation failed');
+        if (verboseLoggingEnabled) print('DEBUG: Auth validation failed');
         return Response(
           HttpStatus.unauthorized, // 401
           body:
@@ -647,7 +647,7 @@ Middleware _authMiddleware() {
         );
       }
 
-      if (_verboseLoggingEnabled) print('DEBUG: Auth validation successful');
+      if (verboseLoggingEnabled) print('DEBUG: Auth validation successful');
       return innerHandler(request);
     };
   };
@@ -661,19 +661,19 @@ Middleware _apiKeyMiddleware(String expectedApiKey) {
 
       // Only skip API key check for the health check endpoint
       if (path == '/$_versionedApiPath/health') {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print('DEBUG: Health endpoint detected, skipping API key middleware');
         }
         return innerHandler(request);
       }
 
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('DEBUG: Applying API key check to $path...');
       }
 
       final apiKey = request.headers['x-api-key'];
       if (apiKey != expectedApiKey) {
-        if (_verboseLoggingEnabled) {
+        if (verboseLoggingEnabled) {
           print(
               'DEBUG: API Key validation failed. Expected \'$expectedApiKey\', got \'$apiKey\'');
         }
@@ -683,7 +683,7 @@ Middleware _apiKeyMiddleware(String expectedApiKey) {
           headers: {'content-type': 'application/json'},
         );
       }
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('DEBUG: API Key validation successful.');
       }
       return innerHandler(request);
@@ -693,7 +693,7 @@ Middleware _apiKeyMiddleware(String expectedApiKey) {
 
 // Update Job handler logic
 Future<Response> _updateJobHandler(Request request, String jobId) async {
-  if (_verboseLoggingEnabled) {
+  if (verboseLoggingEnabled) {
     print(
         'DEBUG UPDATE JOB: Handler called for jobId: $jobId, Path: ${request.requestedUri.path}, Content-Type: ${request.headers['content-type']}');
   }
@@ -703,7 +703,7 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
           ?.toLowerCase()
           .startsWith('application/json') !=
       true) {
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print(
           'DEBUG UPDATE JOB: Invalid Content-Type: ${request.headers['content-type']}');
     }
@@ -716,29 +716,22 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
   }
 
   // Find the job by ID
-  int jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
+  int jobIndex = job_store.findJobIndexById(jobId);
 
   if (jobIndex == -1) {
-    if (_verboseLoggingEnabled) {
-      print('DEBUG UPDATE JOB: Job with ID $jobId not found.');
-    }
-    return Response(
-      HttpStatus.notFound, // 404
-      body: jsonEncode({'error': 'Job with ID $jobId not found'}),
-      headers: {'content-type': 'application/json'},
-    );
+    return job_store.createNotFoundResponse('Job', jobId);
   }
 
   // Parse the update payload
   Map<String, dynamic> updatePayload;
   try {
     final body = await request.readAsString();
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print('DEBUG UPDATE JOB: Received update payload: $body');
     }
     updatePayload = jsonDecode(body) as Map<String, dynamic>;
   } catch (e) {
-    if (_verboseLoggingEnabled) {
+    if (verboseLoggingEnabled) {
       print('DEBUG UPDATE JOB: Error parsing update payload: $e');
     }
     return Response(
@@ -749,7 +742,7 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
   }
 
   // Apply updates
-  final existingJob = _jobs[jobIndex];
+  final existingJob = job_store.findJobById(jobId);
   final updatedJob = Map<String, dynamic>.from(existingJob);
 
   updatePayload.forEach((key, value) {
@@ -767,7 +760,7 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
     ];
     if (updatedJob.containsKey(key) || knownKeys.contains(key)) {
       updatedJob[key] = value;
-      if (_verboseLoggingEnabled) {
+      if (verboseLoggingEnabled) {
         print('DEBUG UPDATE JOB: Updated $key to $value');
       }
     }
@@ -777,9 +770,9 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
   updatedJob['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
   // Replace the old job with the updated one
-  _jobs[jobIndex] = updatedJob;
+  job_store.updateJobByIndex(jobIndex, updatedJob);
 
-  if (_verboseLoggingEnabled) {
+  if (verboseLoggingEnabled) {
     print('DEBUG UPDATE JOB: Job updated successfully. New state: $updatedJob');
   }
 
@@ -790,35 +783,43 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
   );
 }
 
-// Delete Job handler logic
+// Job deletion handler
 Future<Response> _deleteJobHandler(Request request, String jobId) async {
-  if (_verboseLoggingEnabled) {
-    print('DEBUG DELETE JOB: Handler called for jobId: $jobId');
+  if (verboseLoggingEnabled) {
+    print('DEBUG: Delete job handler called for $jobId');
   }
 
-  // Find the job by ID
-  final initialLength = _jobs.length;
-  _jobs.removeWhere((job) => job['id'] == jobId);
-  final finalLength = _jobs.length;
+  // --- IMPORTANT: Cancel progression timer before deleting job data ---
+  // We need to call the logic from debug_routes to cancel any timer.
+  // Let's add a dedicated function for this in debug_routes.dart for cleaner separation.
+  // For now, we'll assume such a function exists: cancelProgressionTimerForJob(jobId)
+  cancelProgressionTimerForJob(jobId); // Call the cancellation function
 
-  if (initialLength == finalLength) {
-    // Job was not found
-    if (_verboseLoggingEnabled) {
-      print('DEBUG DELETE JOB: Job with ID $jobId not found for deletion.');
+  try {
+    // Use JobStore
+    final removed = job_store.removeJob(jobId);
+
+    if (!removed) {
+      // Although cleanup timer was called, the job might have already been deleted
+      // by another request, or maybe never existed. Return 404.
+      return job_store.createNotFoundResponse('Job', jobId);
+    }
+
+    if (verboseLoggingEnabled) {
+      print('DEBUG: Deleted job with ID: $jobId');
+    }
+    return Response(HttpStatus.noContent); // 204
+  } catch (e, stackTrace) {
+    if (verboseLoggingEnabled) {
+      print('DEBUG: Error deleting job: $e');
+      print('Stack trace: $stackTrace');
     }
     return Response(
-      HttpStatus.notFound, // 404
-      body: jsonEncode({'error': 'Job with ID $jobId not found'}),
+      HttpStatus.internalServerError, // 500
+      body: jsonEncode({'error': 'Failed to delete job: ${e.toString()}'}),
       headers: {'content-type': 'application/json'},
     );
   }
-
-  if (_verboseLoggingEnabled) {
-    print('DEBUG DELETE JOB: Job with ID $jobId deleted successfully.');
-  }
-
-  // Return 204 No Content on successful deletion
-  return Response(HttpStatus.noContent); // 204
 }
 
 // Main function now just adds the router, as middleware is applied per-route or globally
@@ -830,7 +831,8 @@ void main(List<String> args) async {
         abbr: 'v', defaultsTo: false, help: 'Enable verbose logging');
   final argResults = parser.parse(args);
   final port = int.tryParse(argResults['port'] as String) ?? 8080;
-  _verboseLoggingEnabled = argResults['verbose'] as bool;
+  // Assign the parsed flag to the global config variable
+  verboseLoggingEnabled = argResults['verbose'] as bool;
 
   try {
     // Simplified Main server pipeline
