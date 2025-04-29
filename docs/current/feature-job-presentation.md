@@ -18,6 +18,7 @@ This document outlines the architecture for the presentation layer of the Job fe
   - `JobViewModel` - Contains UI-ready data derived from `Job` entities
   - `JobViewModelMapper` - Maps between domain entities and view models
 - **Use Cases:** Provide the data streams or perform actions requested by the Cubits/UI.
+- **AuthNotifier:** Provides authentication state including offline status that job components observe.
 
 ## Current Implemented Pages
 
@@ -28,13 +29,17 @@ The following pages are currently implemented for the Jobs feature:
    - Renders each job as a `JobListItem`
    - Shows loading indicators, error messages, or empty state messages as appropriate
    - Implemented using BLoC pattern with `JobListCubit`
+   - Observes `authNotifierProvider` to detect offline status and disable interactive elements accordingly
+   - Uses `BlocProvider.value` to access the existing `JobListCubit` from the parent to prevent recreation
 
 2. **Job List Playground (`JobListPlayground`)**
    - A development environment for testing job list UI components
    - Includes mock data and experimental UI elements
    - Provides tools for testing job creation and visualization
+   - Observes `authNotifierProvider` to implement offline-aware behavior
+   - Uses `BlocProvider.value` to reuse the existing `JobListCubit` instance from the parent context
 
-The Home Screen (`HomeScreen`) is currently a placeholder that will eventually incorporate navigation to the Jobs feature.
+The Home Screen (`HomeScreen`) contains a "Go to Jobs List" button that is automatically disabled when the app is in offline mode by checking `authState.isOffline`.
 
 ## State Management Flow
 
@@ -50,6 +55,7 @@ graph TD
         JobListState[JobListState]
         JobDetailState[JobDetailState]
         JobViewModel[JobViewModel]
+        AuthNotifier[AuthNotifier]
     end
 
     subgraph "Use Cases Layer"
@@ -67,6 +73,7 @@ graph TD
     %% Reactive Flow
     UI -- Observes --> JobListState
     UI -- Observes --> JobDetailState
+    UI -- Observes --> AuthNotifier
     JobListCubit -- Emits --> JobListState
     JobDetailCubit -- Emits --> JobDetailState
 
@@ -91,9 +98,10 @@ graph TD
     %% Auth Events Flow
     AuthEventBus -- loggedOut Event --> Repository
     Repository -- Clears User Data --> JobEntity
+    AuthEventBus -- offline/online Events --> AuthNotifier
+    AuthNotifier -- isOffline state --> UI
 
-
-    class UI,JobListCubit,JobDetailCubit,JobListState,JobDetailState,JobViewModel presentation;
+    class UI,JobListCubit,JobDetailCubit,JobListState,JobDetailState,JobViewModel,AuthNotifier presentation;
     class WatchJobsUC,WatchJobByIdUC,ActionUC usecases;
     class JobEntity,Repository,AuthEventBus domain;
 
@@ -109,6 +117,7 @@ graph TD
     - Maps the incoming `List<Job>` (or errors) to `JobListState` instances using the `JobViewModelMapper`.
     - Emits states like `JobListLoading`, `JobListLoaded(List<JobViewModel>)`, `JobListError`.
 - **ViewModel:** Uses a `JobViewModel` (created via the `JobViewModelMapper`) to prepare job data specifically for UI display (e.g., formatted dates, status text, derived properties like `hasFileIssue`).
+- **Lifecycle Management:** Created once at the application level in `main.dart` using `MultiBlocProvider` to prevent recreation on rebuilds.
 
 ### 2. Job Detail (`JobDetailCubit`)
 
@@ -161,7 +170,123 @@ The Jobs feature is integrated with the authentication system through the follow
    }
    ```
 
-This integration ensures that user data is properly cleared when a user logs out, maintaining data privacy and preventing data leakage between user sessions.
+4. **Offline Awareness:** The UI components observe the offline state from `AuthNotifier` to adapt their behavior:
+   ```dart
+   // In JobListPage
+   final authState = ref.watch(authNotifierProvider);
+   final isOffline = authState.isOffline;
+   
+   // Disable create button when offline
+   CupertinoButton(
+     onPressed: isOffline ? null : _handleCreateJob,
+     // ...
+   )
+   ```
+
+This integration ensures that:
+- User data is properly cleared when a user logs out, maintaining data privacy
+- UI components disable network-dependent actions when the app is offline
+- Users receive clear visual feedback about actions that aren't available offline
+
+## Offline UI Behavior
+
+The Jobs feature UI adapts to offline status by:
+
+1. **Status Awareness:**
+   - All job-related screens observe the `AuthNotifier` to detect offline status
+   - The `JobListPage` extracts offline state from `authNotifierProvider` at the top of its build method:
+     ```dart
+     final authState = ref.watch(authNotifierProvider);
+     final isOffline = authState.isOffline;
+     ```
+   - Offline state is passed to children like `JobListItem` that need to adapt:
+     ```dart
+     return JobListItem(
+       job: jobViewModel,
+       isOffline: isOffline,
+     );
+     ```
+
+2. **Disabled Actions:**
+   - The "Create Job" button on `JobListPage` is automatically disabled when offline:
+     ```dart
+     if (!isOffline) // Only show Create Job button when online
+       CupertinoButton.filled(
+         child: const Text('Create Job'),
+         onPressed: () { /* ... */ },
+       ),
+     ```
+   - In `JobListPlayground`, multiple buttons are disabled when offline:
+     ```dart
+     CupertinoButton(
+       // Disable refresh when offline
+       onPressed: isOffline ? null : _handleRefresh,
+       child: const Icon(CupertinoIcons.refresh),
+     ),
+     ```
+   - The "Go to Jobs List" button on `HomeScreen` is disabled when offline
+   - The Flask icon (debug mode) for accessing `JobListPlayground` is disabled when offline
+
+3. **Visual Indicators:**
+   - The global `OfflineBanner` component (visible at the top of all screens) provides the primary offline status indication
+   - When the "Create Job" button is hidden in offline mode, an explanatory message appears:
+     ```dart
+     if (isOffline)
+       const Text(
+         'Job creation disabled while offline',
+         style: TextStyle(
+           fontSize: 12,
+           fontStyle: FontStyle.italic,
+         ),
+       ),
+     ```
+   - Disabled buttons use theme-appropriate colors to visually indicate their inactive state
+   - Job items display their sync status, which may indicate offline-related states
+
+4. **Theme Integration:**
+   - All offline-aware UI elements use the app's theme system for consistent styling
+   - Colors adjust automatically between light and dark modes
+
+This approach ensures users clearly understand when offline limitations apply while still providing access to already-synced content.
+
+## Performance Considerations
+
+The Jobs feature implements several performance optimizations:
+
+1. **Cubit Lifecycle Management:**
+   - `JobListCubit` is created once at the application level in `main.dart` using `MultiBlocProvider`:
+     ```dart
+     MultiBlocProvider(
+       providers: [
+         BlocProvider<JobListCubit>(
+           create: (context) => getIt<JobListCubit>(),
+           lazy: false, // Load immediately instead of when first accessed
+         ),
+       ],
+       child: MaterialApp(/* ... */),
+     ```
+   - Child widgets like `JobListPage` access the existing instance using `BlocProvider.of`:
+     ```dart
+     final parentCubit = BlocProvider.of<JobListCubit>(context, listen: false);
+     ```
+   - When passing to other widgets, `BlocProvider.value` is used to avoid recreation:
+     ```dart
+     return BlocProvider.value(
+       value: parentCubit,
+       child: _JobListPlaygroundContent(isOffline: isOffline),
+     );
+     ```
+
+2. **Conditional Logging:**
+   - Debug logs are wrapped in `kDebugMode` checks to prevent unnecessary string interpolation in release builds:
+     ```dart
+     if (kDebugMode) {
+       _logger.d('$_tag Jobs list is not empty, rendering ListView.');
+     }
+     ```
+
+3. **Debounced Updates:**
+   - UI operations that could cause rapid state changes implement debouncing to prevent excessive rebuilds
 
 ## Job Creation Flow
 

@@ -7,6 +7,7 @@ This document provides an overview of the DocJet Mobile application architecture
 1. [Architectural Principles](#architectural-principles)
 2. [Layered Architecture](#layered-architecture)
 3. [Feature Architectures](#feature-architectures)
+4. [UI Theming System](#ui-theming-system)
 
 ## Architectural Principles
 
@@ -17,6 +18,7 @@ DocJet Mobile follows these key principles:
 3. **Repository Pattern** - Abstraction over data sources with consistent interfaces
 4. **Offline-First** - Local storage with remote synchronization
 5. **Reactive UI** - State management for reactive user interfaces
+6. **Theme-Driven UI** - Centralized theme system with semantic color tokens
 
 ## Layered Architecture
 
@@ -54,6 +56,7 @@ graph TD
         Auth[Authentication]
         Platform[Platform Abstractions]
         Utils[Utilities]
+        Theme[Theme System]
     end
     
     StateManagement --> UseCases
@@ -69,6 +72,7 @@ graph TD
     RepoImpl -.-> DI
     RemoteDS -.-> Auth
     LocalDS -.-> Platform
+    UI -.-> Theme
     
     classDef domain padding:15px;
     
@@ -76,7 +80,7 @@ graph TD
     class UseCases usecases;
     class Entities,Repositories,Failures domain;
     class RepoImpl,Services,RemoteDS,LocalDS,DTOs data;
-    class DI,Auth,Platform,Utils core;
+    class DI,Auth,Platform,Utils,Theme core;
 ```
 
 ### Presentation Layer
@@ -108,6 +112,7 @@ graph TD
 - Authentication
 - Platform abstraction (file system, network)
 - Shared utilities
+- Theme system and semantic color tokens
 
 ## Job Feature Architecture
 
@@ -195,6 +200,10 @@ graph TD
         SyncProc --> RemoteDS
     end
 
+    %% Integration with Auth Events
+    AuthNotifier[Auth Notifier] --> AuthEventBus[Auth Event Bus]
+    AuthEventBus --> SyncOrch
+
     %% Class Definitions
     class JobsUI,JobListCubit,JobDetailCubit presentation;
     class GetJobs,GetJobById,CreateJob,UpdateJob,DeleteJob,ResetFailedJob,WatchJobs,WatchJobById usecases;
@@ -210,6 +219,22 @@ Detailed architecture documentation for specific features:
 1. [Jobs Feature Architecture](./feature-job-dataflow.md) - Components and data flow for jobs
 2. [Jobs Feature: Presentation Layer](./feature-job-presentation.md) - State management and UI interaction
 3. [Authentication Architecture](./feature-auth-architecture.md) - Authentication components and flows
+4. [UI Theming Architecture](../features/feature-ui-theming.md) - Theming system and semantic color tokens
+
+## UI Theming System
+
+The application implements a centralized theming system built around Flutter's `ThemeExtension` mechanism:
+
+1. **Semantic Color Tokens** - `AppColorTokens` extension provides semantic colors 
+   (e.g., `dangerBg`, `warningFg`, `offlineBg`, `primaryActionBg`)
+2. **Light & Dark Themes** - Automatically adapts to platform brightness preferences using `ThemeMode.system`
+3. **Theme Access** - Components access tokens through `getAppColors(context)` utility in `app_theme.dart`
+4. **Widget-Specific Themes** - Components like `OfflineBannerTheme` use tokens for consistent styling
+5. **Theme Utils** - Utilities like `ThemeUtils.surfaceContainerHighestOrDefault()` for IDE discoverability
+
+This approach ensures visual consistency, simplifies theme changes, and supports native light/dark mode switching. Components use semantic tokens rather than hardcoded colors, making the UI adaptable and maintainable.
+
+For details, see the [UI Theming Architecture](../features/feature-ui-theming.md) document.
 
 ## Authentication
 
@@ -217,7 +242,7 @@ The application uses a domain-level authentication context approach, keeping use
 
 ### Authentication Components
 - **AuthCredentialsProvider**: Infrastructure-level provider managing secure storage and retrieval of authentication tokens and user identity with JWT validation capabilities
-- **AuthEventBus**: Centralized event system that notifies application components about authentication state changes (login, logout)
+- **AuthEventBus**: Centralized event system that notifies application components about authentication state changes (login, logout, offline/online transitions)
 - **JwtValidator**: Utility for validating tokens and extracting claims locally without requiring network calls
 - **AuthSessionProvider**: Domain-level interface that provides authentication context to components without exposing implementation details
   - **Methods**: `isAuthenticated()` → `Future<bool>`, `getCurrentUserId()` → `Future<String>`
@@ -225,6 +250,10 @@ The application uses a domain-level authentication context approach, keeping use
 - **SecureStorageAuthSessionProvider**: Implementation connecting the domain-level interface to infrastructure
 - **AuthService**: Higher-level service for user login, logout, profile retrieval, and session management
 - **AuthInterceptor**: HTTP interceptor with exponential backoff retry logic and centralized logout triggers
+- **IUserProfileCache**: Interface defining methods for caching user profile data locally
+  - **Methods**: `saveProfile()`, `getProfile()`, `clearProfile()`, `clearAllProfiles()`, `isProfileStale()`
+  - **Implementation**: `SharedPreferencesUserProfileCache` stores profiles with timestamps in SharedPreferences
+- **AuthNotifier**: State management for authentication state, detecting offline/online transitions and managing UI updates
 
 ### Authentication Context Flow
 This architecture avoids passing user IDs through UI and domain layers:
@@ -235,11 +264,24 @@ This architecture avoids passing user IDs through UI and domain layers:
 - Other components react to auth events via the `AuthEventBus` (e.g., clearing cached data on logout)
 
 ### Enhanced Auth Capabilities
-The authentication system now includes several advanced features:
+The authentication system includes several advanced features:
 
 1. **Real User Profile Retrieval**: Full user profile data is retrieved after login and token refresh
-2. **Offline Support**: JWT tokens are validated locally enabling offline operation when the network is unavailable
-3. **Comprehensive Exception Handling**: Specific exception types for different auth error scenarios
-4. **Centralized Event System**: Components across the app can react to auth state changes via `AuthEventBus`
-5. **Robust Token Refresh**: Automatic refresh with exponential backoff for network issues
-6. **Offline Status Indicators**: UI shows offline mode when operating without network connectivity
+2. **Offline Profile Caching**: User profiles are cached locally using `SharedPreferencesUserProfileCache` to allow offline operation
+   - Profiles are stored with timestamps in SharedPreferences
+   - Token validity is checked before using cached profiles
+   - Caches are cleared on logout or when both tokens are invalid
+   - `acceptOfflineProfile` parameter controls whether cached profiles are acceptable
+3. **Connectivity Events**: `AuthEventBus` broadcasts connectivity state changes:
+   - `AuthEvent.offlineDetected`: When network connectivity is lost
+   - `AuthEvent.onlineRestored`: When network connectivity is restored
+   - `AuthNotifier` detects and emits these events when state changes
+   - Components like `JobSyncOrchestratorService` react to events by pausing/resuming sync
+4. **Offline Authentication**: JWT tokens are validated locally enabling offline operation when the network is unavailable
+5. **Comprehensive Exception Handling**: Specific exception types for different auth error scenarios
+6. **Global Offline UI**: The `OfflineBanner` component automatically shows when offline
+   - Appears at the top of all screens via `AppShell` (applied using `MaterialApp.builder`)
+   - Uses theme-aware colors that adapt to light/dark mode via `OfflineBannerTheme`
+   - Provides accessibility support through `Semantics` widget
+   - Animated transitions with `AnimatedContainer` and `AnimatedOpacity`
+7. **Robust Token Refresh**: Automatic refresh with exponential backoff for network issues

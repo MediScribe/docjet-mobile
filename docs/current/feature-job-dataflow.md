@@ -744,7 +744,7 @@ The Job Sync system integrates with the AuthEventBus to respond to authenticatio
 
 1. **Auth Event Handling:** `JobSyncOrchestratorService` subscribes to the `AuthEventBus` to receive auth-related events:
    - `AuthEvent.offlineDetected`: Pauses sync operations by setting `_isOfflineFromAuth = true`
-   - `AuthEvent.onlineRestored`: Resumes sync operations and triggers an immediate sync to handle pending changes
+   - `AuthEvent.onlineRestored`: Resumes sync operations by setting `_isOfflineFromAuth = false` and triggers an immediate sync to handle pending changes 
    - `AuthEvent.loggedOut`: Prevents sync operations by setting `_isLoggedOut = true`
    - `AuthEvent.loggedIn`: Enables sync operations by setting `_isLoggedOut = false`
 
@@ -753,15 +753,24 @@ The Job Sync system integrates with the AuthEventBus to respond to authenticatio
    - Skip sync when `_isLoggedOut` is true (preventing sync with expired/invalid credentials)
    - These guards operate before any network checks or data retrieval, eliminating unnecessary operations
 
-3. **Resource Management:** The service properly manages its auth event subscription:
+3. **In-Flight Abort Protection:** During ongoing sync operations, the service:
+   - Checks the `_isOfflineFromAuth` and `_isLoggedOut` flags after processing each job
+   - Aborts further processing if either flag becomes true during execution
+   - Logs appropriate messages indicating why processing was stopped midway
+   - This prevents continuing sync operations after network or authentication state changes
+
+4. **Resource Management:** The service properly manages its auth event subscription:
    - Subscribes to auth events when initialized
+   - Stores the subscription in `_authEventSubscription` for later cancellation
    - Unsubscribes when `dispose()` is called to prevent memory leaks
+   - Logs subscription lifecycle events for debugging
 
 This integration provides several benefits:
 - Prevents unnecessary API calls when the app is offline or not authenticated
 - Automatically triggers sync when connectivity is restored
 - Cleanly separates authentication concerns from synchronization logic
 - Maintains a loose coupling between the auth and job systems through event-based communication
+- Protects against wasted resources by aborting operations when conditions change
 
 ## Background Processing Support
 
@@ -783,7 +792,19 @@ The job feature architecture is designed to work with background processing mech
 
 ## Remaining Improvements
 
-The detailed implementation plan, including outstanding tasks for error recovery, sync triggering, lifecycle management, concurrency protection, and logging, can be found in the [JobRepository Refactoring Plan](./jobrepo_refactor.md).
+The following improvements should be considered for future development:
+
+1. **Cubit Lifecycle Management**:
+   - Hoist BlocProvider instances to a higher level in the widget tree (e.g., in main.dart with MultiBlocProvider)
+   - Use BlocProvider.value in child widgets to prevent recreating cubits on every rebuild
+   - Ensure proper disposal at the appropriate lifecycle level to prevent memory leaks
+   - This pattern prevents performance issues caused by unnecessary cubit recreation during UI rebuilds
+
+2. **Background Sync Enhancement**:
+   - Implement platform-specific background workers for sync operations when app is backgrounded
+   - Add deeper offline queue capabilities with prioritization
+
+For the detailed implementation plan, including outstanding tasks for error recovery, sync triggering, lifecycle management, concurrency protection, and logging, see the [JobRepository Refactoring Plan](../archive/jobrepo_refactor.md).
 
 ## Synchronization Flow Diagrams
 

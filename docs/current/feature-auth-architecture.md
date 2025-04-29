@@ -190,7 +190,7 @@ The `AuthService` interface defines the following methods:
 - `Future<bool> refreshSession()` - Manually refreshes the authentication token (used on startup)
 - `Future<void> logout()` - Logs the user out by clearing stored tokens
 - `Future<bool> isAuthenticated({bool validateTokenLocally = false})` - Checks if stored credentials exist and optionally validates token expiry locally
-- `Future<User> getUserProfile()` - Retrieves the user profile information
+- `Future<User> getUserProfile({bool acceptOfflineProfile = true})` - Retrieves the user profile information, with option to accept cached profiles when offline
 - `Future<String> getCurrentUserId()` - Gets the current authenticated user ID
 
 The service also emits authentication events via `AuthEventBus` for app-wide state management:
@@ -227,6 +227,25 @@ Implements the `AuthService` interface, orchestrating the authentication flow:
 - Coordinates with both `AuthenticationApiClient` and `UserApiClient` for network operations
 - Emits events via `AuthEventBus` for logout and login
 - Gracefully handles offline scenarios with appropriate error propagation
+
+AuthServiceImpl includes offline profile caching capabilities:
+- Uses the `IUserProfileCache` dependency to store and retrieve user profiles
+- Saves profiles to cache with timestamps after successful network fetches
+- Falls back to cached profiles when network requests fail with offline errors
+- Validates tokens before using cached profiles (requires at least one valid token)
+- Clears cached profiles during logout or when both tokens are invalid
+- Accepts an `acceptOfflineProfile` parameter in `getUserProfile()` to control offline behavior
+
+The offline caching flow follows these steps:
+1. Attempt to fetch profile from network
+2. If network request succeeds, save to cache with current timestamp
+3. If network request fails with offline error and `acceptOfflineProfile` is true:
+   - Check token validity (access and refresh tokens)
+   - If both tokens are invalid, clear cache and throw authentication error
+   - If at least one token is valid, attempt to fetch profile from cache
+4. Return cached profile if available, or throw the original error if no cache exists
+
+This approach allows users to remain logged in during offline scenarios as long as they have valid tokens and a previously cached profile.
 
 #### AuthenticationApiClient
 Responsible for pre-authentication communication:
@@ -276,6 +295,25 @@ A utility class that provides:
 - Claims extraction from tokens
 - Proper error handling for malformed tokens
 
+#### IUserProfileCache Interface
+An interface that defines methods for caching user profile data locally:
+- `saveProfile(UserProfileDto profileDto, DateTime timestamp)` - Stores a profile with timestamp
+- `getProfile(String userId)` - Retrieves a cached profile by user ID
+- `clearProfile(String userId)` - Removes a specific user's profile from cache
+- `clearAllProfiles()` - Clears all cached profiles
+- `isProfileStale(String userId, {required bool isAccessTokenValid, required bool isRefreshTokenValid, Duration? maxAge})` - Determines if a cached profile should be considered stale based on token validity and optional time threshold
+
+#### SharedPreferencesUserProfileCache
+Concrete implementation of `IUserProfileCache` using `SharedPreferences`:
+- Uses JSON serialization to store `UserProfileDto` objects
+- Manages storage keys with consistent prefixing (`cached_profile_${userId}`)
+- Stores timestamps alongside profiles for staleness checking
+- Implements cache cleanup during logout
+- Considers profiles stale when both access and refresh tokens are invalid
+- Provides built-in error handling for storage and retrieval operations
+
+This cache implementation enables offline access to user profiles when network connectivity is unavailable, allowing the app to maintain functionality even when offline.
+
 ### Presentation Layer
 
 #### AuthState
@@ -309,6 +347,18 @@ A global wrapper component that ensures consistent UI elements across the app:
 
 The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed.
 
+#### Performance Considerations
+
+##### Provider/State Lifecycle Management
+- **Cubit/Bloc Hoisting**: When using state management solutions like Flutter Bloc:
+  - Create instances at the highest appropriate level in the widget tree (typically in `main.dart` using `MultiBlocProvider`)
+  - Access existing instances in child widgets with `BlocProvider.of<T>(context)` or `context.read<T>()`
+  - Use `BlocProvider.value()` when passing existing instances down the widget tree
+  - This prevents costly recreation of state management objects during rebuilds
+- **Lean Components**: Keep widgets focused on UI, delegating business logic to the appropriate layer
+- **Proper Disposal**: Ensure subscriptions and streams are properly disposed when no longer needed
+- **Widget Rebuilds**: Use granular state observation (e.g., `BlocSelector`) to limit rebuilds to only affected components
+
 ## Auth Event Bus
 
 The `AuthEventBus` provides a publish-subscribe mechanism for auth-related events:
@@ -328,7 +378,7 @@ The auth module includes UI components that leverage the application's theme sys
 2. **AppShell**: Wrapper component that provides the offline banner across all screens
 3. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
 
-All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../../features/feature-ui-theming.md).
+All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../features/feature-ui-theming.md).
 
 ## Dependency Injection Considerations
 
@@ -355,6 +405,43 @@ To avoid circular dependencies between `AuthenticationApiClient` and `AuthInterc
 3. **Clear API Responsibilities:** The API key injection is handled entirely by `DioFactory` via interceptors.
    Both `basicDio` and `authenticatedDio` instances include the API key interceptor to ensure
    all API requests have the correct authorization. The `AuthenticationApiClient` does not add the API key itself.
+
+### Caching Dependencies Registration
+
+The offline profile caching functionality requires proper registration of cache-related dependencies:
+
+1. **Register SharedPreferences:**
+   ```dart
+   // Asynchronous registration for SharedPreferences
+   getIt.registerSingletonAsync<SharedPreferences>(() async {
+     return await SharedPreferences.getInstance();
+   });
+   ```
+
+2. **Register UserProfileCache:**
+   ```dart
+   // Register the cache implementation after SharedPreferences is ready
+   getIt.registerLazySingleton<IUserProfileCache>(() {
+     return SharedPreferencesUserProfileCache(
+       getIt<SharedPreferences>(),
+       LoggerFactory.getLogger('SharedPreferencesUserProfileCache'),
+     );
+   });
+   ```
+
+3. **Update AuthService Registration:**
+   ```dart
+   // Include the cache in AuthServiceImpl instantiation
+   getIt.registerLazySingleton<AuthService>(() => AuthServiceImpl(
+     authenticationApiClient: getIt<AuthenticationApiClient>(),
+     userApiClient: getIt<UserApiClient>(),
+     credentialsProvider: getIt<AuthCredentialsProvider>(),
+     eventBus: getIt<AuthEventBus>(),
+     userProfileCache: getIt<IUserProfileCache>(), // Inject the cache
+   ));
+   ```
+
+This registration sequence ensures that the SharedPreferences instance is properly initialized before being used by the cache implementation, and that the cache is available when creating the AuthServiceImpl.
 
 ### Split Client Pattern for API Clients
 

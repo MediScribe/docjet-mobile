@@ -16,7 +16,7 @@ graph TD
     
     %% Normal Navigation Paths
     HomeScreen -->|"Logout (via AuthNotifier)"| LoginScreen
-    HomeScreen -->|"Go to Jobs List button"| JobListPage(JobListPage)
+    HomeScreen -->|"Go to Jobs List button<br>(Disabled when offline)"| JobListPage(JobListPage)
     
     %% Jobs Feature Navigation
     JobListPage -->|"Debug Mode<br>Only"| JobListPlayground(JobListPlayground)
@@ -24,6 +24,9 @@ graph TD
     
     %% Planned Future Navigation (WIP)
     HomeScreen -.->|"Future Nav (WIP)"| TranscriptionsPage(TranscriptionsPage)
+    
+    %% Global UI Components
+    AppShell[AppShell<br>Wraps All Screens] -.->|"Contains"| OfflineBanner[OfflineBanner<br>Shows when offline]
 ```
 
 ## Typical User Flow (Sequence)
@@ -36,6 +39,8 @@ sequenceDiagram
     participant HomeScreen
     participant JobListPage
     participant JobListPlayground
+    participant AppShell
+    participant OfflineBanner
 
     %% Login Flow
     User->>LoginScreen: Enters Credentials
@@ -52,6 +57,21 @@ sequenceDiagram
 
     %% Post-Login & Intended Navigation
     User->>HomeScreen: View Screen
+    
+    %% Offline Scenario
+    Note over User,OfflineBanner: Network becomes unavailable
+    AuthNotifier->>AuthNotifier: Detects offline state
+    AuthNotifier-->>AppShell: AuthState(isOffline: true)
+    AppShell->>OfflineBanner: Show offline banner
+    User->>OfflineBanner: Sees "You are offline" indicator
+    User->>HomeScreen: Notices "Go to Jobs List" button is disabled
+    
+    %% Online Scenario
+    Note over User,OfflineBanner: Network restored
+    AuthNotifier->>AuthNotifier: Detects online state
+    AuthNotifier-->>AppShell: AuthState(isOffline: false)
+    AppShell->>OfflineBanner: Hide offline banner
+    User->>HomeScreen: Notices "Go to Jobs List" button is enabled
     User->>HomeScreen: Tap "Go to Jobs List" button
     HomeScreen->>JobListPage: Navigate
 
@@ -69,6 +89,30 @@ sequenceDiagram
     Note over HomeScreen: Navigates back to LoginScreen
 ```
 
+## Global UI Components
+
+### AppShell
+- **Path**: `lib/core/auth/presentation/widgets/app_shell.dart`
+- **Purpose**: Provides consistent app-wide UI elements across all screens
+- **Current State**: Fully implemented and applied to all screens via `MaterialApp.builder`
+- **Key Features**:
+  - Wraps all screens in the application
+  - Positions the OfflineBanner at the top of each screen
+  - Ensures UI consistency regardless of how screens are navigated to (including pushed routes)
+  - Implemented as a Column with the OfflineBanner at the top and an Expanded child below
+
+### OfflineBanner
+- **Path**: `lib/core/auth/presentation/widgets/offline_banner.dart`
+- **Purpose**: Visually indicates when the app is in offline mode
+- **Current State**: Fully implemented with theme-aware styling
+- **Key Features**:
+  - Automatically shows/hides based on the app's offline state through authNotifierProvider
+  - Adapts to light/dark themes using the app's theming system
+  - Provides proper accessibility support through Semantics widget
+  - Animates height and opacity for smooth transitions
+  - Uses AnimatedContainer for height transitions and AnimatedOpacity for fade effects
+  - Consistently appears at the top of all screens via AppShell
+
 ## Authentication Screens
 
 ### LoginScreen
@@ -79,20 +123,21 @@ sequenceDiagram
   - Email and Password input fields (`CupertinoTextField`)
   - Login button triggering `AuthNotifier.login`
   - Displays specific error messages (`AuthErrorMessage`)
-  - Shows a loading indicator during login attempts (`AuthLoadingIndicator`)
-  - Displays an offline indicator when the `AuthNotifier` reports offline status
+  - Shows a loading indicator during login attempts (`CupertinoActivityIndicator`)
+  - Offline status is now displayed through the global OfflineBanner component
 
 ## Main Application Screens
 
 ### HomeScreen
 - **Path**: `lib/features/home/presentation/screens/home_screen.dart`
 - **Purpose**: Main screen shown after authentication, serves as an entry point to app features
-- **Current State**: Implemented with navigation to JobListPage
+- **Current State**: Implemented with navigation to JobListPage and offline-aware UI
 - **Key Features**:
   - Displays the authenticated user's ID
   - Contains a logout button in the app bar
   - Includes a "Go to Jobs List" button that navigates to the JobListPage
-  - Will incorporate navigation to other features in the future, including the planned `TranscriptionsPage`.
+  - The "Go to Jobs List" button is automatically disabled when offline by checking authState.isOffline
+  - Will incorporate navigation to other features in the future, including the planned `TranscriptionsPage`
 
 ### TranscriptionsPage [WIP]
 - **Path**: `lib/features/home/presentation/pages/transcriptions_page.dart`
@@ -108,21 +153,26 @@ sequenceDiagram
 ### JobListPage
 - **Path**: `lib/features/jobs/presentation/pages/job_list_page.dart`
 - **Purpose**: Displays a list of jobs (simpler view, potentially temporary before `TranscriptionsPage` is fully implemented).
-- **Current State**: Fully implemented with BLoC pattern.
+- **Current State**: Fully implemented with BLoC pattern and offline-aware UI.
 - **Key Features**:
   - Shows loading indicators during data fetching
   - Displays a list of JobListItem widgets for each job
   - Shows appropriate error messages when needed
   - Displays "No jobs yet" message when the list is empty
+  - Disables "Create Job" button when the app is offline
+  - Passes offline state to JobListItem components to disable interactions when offline
+  - Uses the shared JobListCubit instance from the app level (via BlocProvider.of) to prevent recreation
 
 ### JobListPlayground
 - **Path**: `lib/features/jobs/presentation/pages/job_list_playground.dart`
 - **Purpose**: Development sandbox for rapidly iterating on UI components (like `JobListItem`, `RecordButton`) intended for the `TranscriptionsPage`.
-- **Current State**: Fully implemented with experimental features and mock data.
+- **Current State**: Fully implemented with experimental features, mock data, and offline awareness.
 - **Key Features**:
-  - Shows the job list with mock data
+  - Shows the job list with actual data or falls back to mock data if needed
   - Contains buttons for testing job creation
   - Accessible via a debug button in JobListPage (only in debug builds)
+  - Includes offline-aware UI elements that disable actions when offline
+  - Uses BlocProvider.value to reuse the existing JobListCubit from the parent context
 
 ## Navigation and Routing
 
@@ -133,16 +183,20 @@ The application uses a simple routing approach:
    - If not authenticated: Shows `LoginScreen`
 
 2. **Manual Navigation**:
+   - From `HomeScreen` to `JobListPage` using `Navigator.push` with `CupertinoPageRoute`
    - From `JobListPage` to `JobListPlayground` using `Navigator.push` with `CupertinoPageRoute`
 
-3. **Future Navigation Needs**:
-   - Navigation from `HomeScreen` to `JobListPage` 
-   - Detailed job view navigation from `JobListPage`
+3. **Global UI Wrapper**:
+   - All screens are wrapped with `AppShell` via `MaterialApp.builder`
+   - This ensures consistent UI elements (such as the OfflineBanner) appear on all screens
+   - Works with both initial routes and screens navigated to with `Navigator.push`
 
 ## UI Widgets
 
 ### Record Buttons
-- `lib/features/home/presentation/widgets/record_button.dart` - Intended for use in the future `TranscriptionsPage`. Appears as a skeleton in the current `TranscriptionsPage`.
+- `lib/core/widgets/record_button.dart` - Central shared implementation
+- Re-exported by feature modules for backward compatibility
+- Uses theme-aware styling from the app's theming system with AppColorTokens
 
 ### JobListItem
 - **Path**: `lib/features/jobs/presentation/widgets/job_list_item.dart`
@@ -150,4 +204,30 @@ The application uses a simple routing approach:
 - **Key Features**:
   - Displays job title, sync status, and date
   - Shows warning icon for jobs with file issues
-  - Uses Cupertino styling for consistent iOS-like appearance 
+  - Uses Cupertino styling for consistent iOS-like appearance
+  - Adapts to the app's theme system for consistent colors
+  - Responds to offline state to disable interactions when appropriate
+
+## Offline Behavior
+
+The app implements a comprehensive offline-aware UI strategy:
+
+1. **Visibility**: The offline state is clearly communicated to users through:
+   - The global OfflineBanner at the top of all screens
+   - Disabled buttons and interactions throughout the app
+
+2. **Interaction Restrictions**: When offline:
+   - The "Go to Jobs List" button on HomeScreen is disabled
+   - The "Create Job" button on JobListPage is disabled
+   - The flask icon (debug mode) for accessing JobListPlayground is disabled
+   - Various action buttons in JobListPlayground are disabled
+   - JobListItem interactions may be restricted
+
+3. **Theme Integration**: The offline UI elements integrate with the app's theming system:
+   - The OfflineBanner uses theme-aware colors via OfflineBannerTheme
+   - Colors adapt to light/dark mode automatically
+   - Styling is consistent across the application
+
+4. **Accessibility**: Offline status is properly communicated to screen readers:
+   - The OfflineBanner includes appropriate Semantics wrapper with descriptive labels
+   - State changes are announced to assistive technologies

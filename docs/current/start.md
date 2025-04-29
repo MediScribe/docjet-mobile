@@ -16,10 +16,10 @@ This document serves as the central index for the project documentation.
 *   [Riverpod Guide](./architecture-riverpod-guide.md)
 *   [API Versioning](./architecture-api-versioning.md)
 *   [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
+*   [UI Theming System](../features/feature-ui-theming.md)
 
 ### Feature Deep Dive: Authentication
 *   [Authentication Architecture](./feature-auth-architecture.md)
-*   [Authentication Implementation Details](./feature-auth-implementation.md)
 *   [Authentication Testing Guide](./feature-auth-testing.md)
 
 ### Feature Deep Dive: Jobs
@@ -47,7 +47,7 @@ This document serves as the central index for the project documentation.
 
 ### Architecture & Core Concepts
 #### [Overall Architecture](./architecture-overview.md)
-*   **Description**: Outlines the Clean Architecture principles and layered structure (Presentation, Use Cases, Domain, Data, Core) of the DocJet Mobile application, including specific feature architecture links.
+*   **Description**: Outlines the Clean Architecture principles and layered structure (Presentation, Use Cases, Domain, Data, Core) of the DocJet Mobile application, including specific feature architectures, offline profile caching system, and the centralized theming system for consistent UI.
 
 #### [Riverpod Guide](./architecture-riverpod-guide.md)
 *   **Description**: Outlines the approach to using Riverpod with code generation (`@riverpod`) for state management, covering provider definition, generation, overrides (often with GetIt), and best practices.
@@ -58,26 +58,26 @@ This document serves as the central index for the project documentation.
 #### [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
 *   **Description**: Hard-won lessons and guidelines for handling audio playback complexities, reactive stream management (debouncing), state synchronization, and testing to avoid UI flickering and integration issues, based on past failures (`docs/old_system/audio_player_analysis.md`).
 
+#### [UI Theming System](../features/feature-ui-theming.md)
+*   **Description**: Documents the application's theming architecture based on Flutter's ThemeExtension mechanism, including semantic color tokens (like `dangerBg`, `offlineBg`, `primaryActionBg`), light/dark theme support, and theme-aware components that automatically adapt to system settings.
+
 ### Feature Deep Dive: Authentication
 #### [Authentication Architecture](./feature-auth-architecture.md)
-*   **Description**: Details the components (Services, Providers, Events, Interceptor, Validator) and flows (Login, Refresh, Offline, Logout) of the authentication system using diagrams and component descriptions.
-
-#### [Authentication Implementation Details](./feature-auth-implementation.md)
-*   **Description**: Provides a detailed TODO list and implementation status for enhancing the authentication system, covering exceptions, token validation, events, service interfaces, API client, interceptor, and presentation state.
+*   **Description**: Details the components (Services, Providers, Events, Interceptor, Validator, Profile Cache) and flows (Login, Refresh, Offline, Logout) of the authentication system, including offline profile caching with SharedPreferences and connectivity event handling via AuthEventBus.
 
 #### [Authentication Testing Guide](./feature-auth-testing.md)
 *   **Description**: Explains the testing strategy for authentication, covering unit, integration, and E2E tests (`test/e2e/auth_flow_test.dart`), including the E2E test architecture and key flows tested.
 
 ### Feature Deep Dive: Jobs
 #### [Job Data Flow](./feature-job-dataflow.md)
-*   **Description**: Details the offline-first, service-oriented data architecture for Jobs, including the dual-ID system, sync strategy (orchestrator/processor), local-first operations, error handling, and component breakdown.
+*   **Description**: Details the offline-first, service-oriented data architecture for Jobs, including the dual-ID system, sync strategy (orchestrator/processor), local-first operations, error handling, and integration with auth connectivity events (`offlineDetected`/`onlineRestored`).
 
 #### [Job Presentation Layer](./feature-job-presentation.md)
-*   **Description**: Describes the state management (Cubits, `JobState`), UI interaction patterns, and use case integration for the Job feature's presentation layer (list, details, actions).
+*   **Description**: Describes the state management (Cubits, `JobState`), UI interaction patterns, offline-aware components, and use case integration for the Job feature's presentation layer, including how components observe the authNotifierProvider to adapt to offline states.
 
 ### UI & Development Aids
 #### [UI Screens Overview](./ui-screens-overview.md)
-*   **Description**: Provides an overview of the mobile app's UI screens (Login, Home, Job List, Playground) with a navigation flow diagram, screen purposes, current states, and key widgets.
+*   **Description**: Provides an overview of the mobile app's UI screens (Login, Home, Job List, Playground) with navigation flow diagrams, screen purposes, comprehensive offline behavior, and the global OfflineBanner and AppShell components that provide consistent UI across the app.
 
 #### [Playground](./dev-ui-playground.md)
 *   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow.
@@ -92,12 +92,14 @@ The `docs/` directory contains detailed documentation on various aspects of the 
     *   `explicit-di-revisited.md`: Detailed plan and status for the migration to explicit dependency injection.
     *   `architecture-api-versioning.md`: Explanation of the centralized API versioning strategy.
     *   `setup-mock-server.md`: Information specifically about setting up and running the mock API server.
-    *   Various feature-specific documents (e.g., `feature-auth-implementation.md`).
+    *   Various feature-specific documents.
 *   **`docs/adr/`**: Architecture Decision Records, documenting significant technical choices.
+*   **`docs/features/`**: Feature-specific documentation such as the UI theming system and implementation details.
 
 Key guides to read first:
 - `setup-environment-config.md`: Understand how to run the app locally vs. for release.
 - `logging_guide.md`: Learn how to use the logging system effectively.
 - `explicit-di-revisited.md`: Grasp the dependency injection patterns.
+- `architecture-overview.md`: Understand the app's structure, including offline capabilities.
 
 For details on running the app with the mock server, testing integration, and common troubleshooting steps, refer primarily to `setup-environment-config.md` and `setup-mock-server.md`. 
