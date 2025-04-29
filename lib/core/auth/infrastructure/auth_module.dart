@@ -237,44 +237,61 @@ class AuthModule {
     // STEP 5: Register shared services
 
     // Register the User Profile Cache implementation
-    // Depends on SharedPreferences, so GetIt needs to ensure it's ready
+    // Depends on SharedPreferences, so it must be registered asynchronously.
     if (!getIt.isRegistered<IUserProfileCache>()) {
       _logger.d(
-        '$_tag Registering SharedPreferencesUserProfileCache as IUserProfileCache',
+        '$_tag Registering SharedPreferencesUserProfileCache as IUserProfileCache asynchronously',
       );
-      getIt.registerLazySingleton<IUserProfileCache>(() {
-        // Ensure SharedPreferences is ready before creating the cache
-        if (!getIt.isReadySync<SharedPreferences>()) {
-          _logger.w(
-            '$_tag SharedPreferences not ready synchronously when registering IUserProfileCache! Access might fail.',
-          );
-        }
-        // Provide SharedPreferences and a Logger instance using LoggerFactory
-        return SharedPreferencesUserProfileCache(
-          getIt<SharedPreferences>(),
-          LoggerFactory.getLogger(
+      // Use registerSingletonAsync because it depends on async SharedPreferences
+      getIt.registerSingletonAsync<IUserProfileCache>(
+        () async {
+          // Logger retrieval is safe
+          final cacheLogger = LoggerFactory.getLogger(
             'SharedPreferencesUserProfileCache',
-          ), // Correct: Use LoggerFactory from log_helpers
-        );
-      });
+          );
+
+          // Since dependsOn is used, SharedPreferences *should* be ready.
+          // A final check can remain if paranoia is high, but getIt manages the dependency wait.
+          final prefs = getIt<SharedPreferences>();
+
+          // Provide SharedPreferences and a Logger instance
+          return SharedPreferencesUserProfileCache(prefs, cacheLogger);
+        },
+        dependsOn: [SharedPreferences],
+      ); // <-- Use dependsOn with async registration
     } else {
       _logger.i(
         '$_tag IUserProfileCache already registered. Skipping registration.',
       );
     }
 
-    // Register the auth service implementation (depends on apiClient, provider, eventBus from instance fields AND the new cache)
+    // Register the auth service implementation
+    // Depends on IUserProfileCache (which is now async), so this must also be async.
     if (!getIt.isRegistered<AuthService>()) {
-      _logger.d('$_tag Registering AuthServiceImpl with cache dependency');
-      getIt.registerLazySingleton<AuthService>(
-        () => AuthServiceImpl(
-          authenticationApiClient: getIt<AuthenticationApiClient>(),
-          userApiClient: getIt<UserApiClient>(),
-          credentialsProvider:
-              finalCredentialsProvider, // Use instance field via variable
-          eventBus: finalAuthEventBus, // Use instance field via variable
-          userProfileCache: getIt<IUserProfileCache>(), // Inject the cache
-        ),
+      _logger.d('$_tag Registering AuthServiceImpl asynchronously');
+      // Use registerSingletonAsync because it depends on async IUserProfileCache
+      getIt.registerSingletonAsync<AuthService>(
+        () async {
+          // All synchronous dependencies can be resolved directly
+          final authApiClient = getIt<AuthenticationApiClient>();
+          final userApiClient = getIt<UserApiClient>();
+          final credProvider = finalCredentialsProvider;
+          final bus = finalAuthEventBus;
+
+          // Asynchronous dependency must be awaited if needed inside factory,
+          // but here we just need the instance passed to the constructor.
+          // getIt handles the wait via dependsOn.
+          final cache = getIt<IUserProfileCache>();
+
+          return AuthServiceImpl(
+            authenticationApiClient: authApiClient,
+            userApiClient: userApiClient,
+            credentialsProvider: credProvider,
+            eventBus: bus,
+            userProfileCache: cache, // Inject the cache instance
+          );
+        },
+        dependsOn: [IUserProfileCache], // <-- Wait for the cache to be ready
       );
     } else {
       _logger.i('$_tag AuthService already registered. Skipping registration.');

@@ -28,6 +28,10 @@ void main() async {
   // Initialize dependency injection
   await di.init();
 
+  // **** WAIT FOR ALL ASYNC SINGLETONS ****
+  // This ensures SharedPreferences, IUserProfileCache, and AuthService are ready
+  await getIt.allReady();
+
   // Initialize job sync service with proper DI
   // We're in main.dart so using service locator directly is allowed
   final syncService = getIt<JobSyncTriggerService>();
