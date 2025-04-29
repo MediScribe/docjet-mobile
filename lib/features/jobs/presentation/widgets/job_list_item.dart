@@ -1,5 +1,4 @@
 import 'package:docjet_mobile/core/theme/app_theme.dart';
-import 'package:docjet_mobile/core/theme/theme_utils.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -7,7 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 
-/// A Cupertino-styled list item for displaying job information.
+/// A Material list item for displaying job information with Cupertino iconography.
 class JobListItem extends StatelessWidget {
   final JobViewModel job;
   final bool isOffline;
@@ -42,22 +41,6 @@ class JobListItem extends StatelessWidget {
     }
   }
 
-  /// Get the status text to display based on sync status
-  static String _getStatusText(SyncStatus status) {
-    switch (status) {
-      case SyncStatus.pending:
-        return 'Pending sync';
-      case SyncStatus.pendingDeletion:
-        return 'Pending deletion';
-      case SyncStatus.synced:
-        return ''; // No message when synced (common case)
-      case SyncStatus.error:
-        return 'Sync error';
-      case SyncStatus.failed:
-        return 'Sync failed';
-    }
-  }
-
   /// Get the appropriate icon for the job item
   static IconData _getJobItemIcon(JobViewModel job) {
     // Show warning icon if there are file issues, regardless of sync status
@@ -86,78 +69,30 @@ class JobListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     // Get theme colors
     final colorScheme = Theme.of(context).colorScheme;
-
-    // Determine if we should show status
-    final statusText = _getStatusText(job.syncStatus);
-    final showStatus = statusText.isNotEmpty;
     final formattedDate = _formatDate(job.displayDate);
 
-    return CupertinoListTile(
-      leading: Icon(_getJobItemIcon(job), color: _getIconColor(context, job)),
-      title: Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (job.text.isNotEmpty)
-            Text(
-              job.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12.0,
-                color:
-                    colorScheme.onSurfaceVariant, // Use color scheme for text
-              ),
-            ),
-          Row(
-            children: [
-              // Date text
-              Text(
-                formattedDate,
-                style: TextStyle(
-                  fontSize: 12.0,
-                  color:
-                      colorScheme.onSurfaceVariant, // Use color scheme for text
-                ),
-              ),
-              // Sync status if present
-              if (showStatus) ...[
-                const SizedBox(width: 8.0),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6.0,
-                    vertical: 2.0,
-                  ),
-                  decoration: BoxDecoration(
-                    // Use the ThemeUtils helper to make the colorScheme property more discoverable
-                    color: ThemeUtils.surfaceContainerHighestOrDefault(
-                      colorScheme,
-                    ).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 10.0,
-                      color:
-                          colorScheme
-                              .onSurfaceVariant, // Use color scheme for text
-                    ),
-                  ),
-                ),
-              ],
-            ],
+    // WRAP ListTile with Material to provide context needed for ink splashes etc.
+    // Use MaterialType.transparency to avoid drawing a Material background.
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        leading: Icon(_getJobItemIcon(job), color: _getIconColor(context, job)),
+        title: Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          formattedDate,
+          style: TextStyle(
+            fontSize: 12.0,
+            color: colorScheme.onSurfaceVariant, // Use color scheme for text
           ),
-        ],
+        ),
+        onTap:
+            isOffline
+                ? null // Disable interaction when offline
+                : () {
+                  _logger.i('$_tag Tapped on job: ${job.localId}');
+                  // TODO: Navigate to job detail page or other action
+                },
       ),
-      trailing: const CupertinoListTileChevron(),
-      onTap:
-          isOffline
-              ? null // Disable interaction when offline
-              : () {
-                _logger.i('$_tag Tapped on job: ${job.localId}');
-                // TODO: Navigate to job detail page or other action
-              },
     );
   }
 }

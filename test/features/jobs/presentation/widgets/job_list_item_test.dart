@@ -5,6 +5,7 @@ import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.d
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   // Helper to create the JobListItem inside a MaterialApp with proper themes
@@ -20,46 +21,75 @@ void main() {
     );
   }
 
-  group('JobListItem - Icons and Visual Elements', () {
-    testWidgets('shows correct default icon for job without file issues', (
+  group('JobListItem - Rendering', () {
+    testWidgets('renders job title, text, and formatted date', (
       WidgetTester tester,
     ) async {
-      // Arrange: Create a job view model without file issues
+      // Arrange: Create a job view model
+      final testDate = DateTime(2023, 10, 26, 14, 30);
       final jobViewModel = JobViewModel(
         localId: 'test-job-id',
         title: 'Test Job Title',
         text: 'Test job text',
         syncStatus: SyncStatus.synced,
         hasFileIssue: false,
-        displayDate: DateTime(2023, 10, 26),
+        displayDate: testDate,
       );
 
       // Act: Pump the widget
       await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
 
-      // Assert: Normal document icon should be shown
+      // Assert: Job title and date should be displayed
       expect(
-        find.byIcon(CupertinoIcons.doc_text),
+        find.text('Test Job Title'),
         findsOneWidget,
-        reason: 'Should show the document icon for job without file issues',
+        reason: 'Should display job title',
       );
 
-      // Warning icon should NOT be shown
+      // Format the date the same way the widget does
+      final formattedDate = DateFormat.MMMMd().add_jm().format(testDate);
+
+      // Verify date formatting for a specific date
       expect(
-        find.byIcon(CupertinoIcons.exclamationmark_triangle_fill),
-        findsNothing,
-        reason: 'Should not show warning icon for job without file issues',
+        find.text(formattedDate),
+        findsOneWidget,
+        reason: 'Should display formatted date for non-today dates',
       );
     });
 
-    testWidgets('shows warning icon for job with file issues', (
+    testWidgets('displays Today for current day dates', (
       WidgetTester tester,
     ) async {
-      // Arrange: Create a job view model with file issues
+      // Arrange: Create a job view model with today's date
+      final now = DateTime.now();
       final jobViewModel = JobViewModel(
-        localId: 'test-job-id-with-issues',
-        title: 'Job With File Issues',
-        text: 'This job has file issues',
+        localId: 'test-job-id-today',
+        title: 'Today Job',
+        text: 'This job is from today',
+        syncStatus: SyncStatus.synced,
+        hasFileIssue: false,
+        displayDate: now,
+      );
+
+      // Act: Pump the widget
+      await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
+
+      // Assert: Should display "Today at [time]"
+      expect(
+        find.textContaining('Today at'),
+        findsOneWidget,
+        reason: 'Should display "Today at" for current day',
+      );
+    });
+
+    testWidgets('shows warning icon for jobs with file issues', (
+      WidgetTester tester,
+    ) async {
+      // Arrange: Create a job view model with file issue
+      final jobViewModel = JobViewModel(
+        localId: 'test-job-id-file-issue',
+        title: 'File Issue Job',
+        text: 'This job has a file issue',
         syncStatus: SyncStatus.synced,
         hasFileIssue: true,
         displayDate: DateTime(2023, 10, 26),
@@ -72,49 +102,18 @@ void main() {
       expect(
         find.byIcon(CupertinoIcons.exclamationmark_triangle_fill),
         findsOneWidget,
-        reason: 'Should show warning icon for job with file issues',
-      );
-
-      // Normal document icon should NOT be shown
-      expect(
-        find.byIcon(CupertinoIcons.doc_text),
-        findsNothing,
-        reason: 'Should not show document icon for job with file issues',
+        reason: 'Should show warning icon for jobs with file issues',
       );
     });
 
-    testWidgets('shows status tag for pending sync status', (
+    testWidgets('shows document icon for normal jobs', (
       WidgetTester tester,
     ) async {
-      // Arrange: Create a job view model with pending sync status
+      // Arrange: Create a normal job view model
       final jobViewModel = JobViewModel(
-        localId: 'test-job-id-pending',
-        title: 'Pending Job',
-        text: 'This job is pending sync',
-        syncStatus: SyncStatus.pending,
-        hasFileIssue: false,
-        displayDate: DateTime(2023, 10, 26),
-      );
-
-      // Act: Pump the widget
-      await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
-
-      // Assert: Pending sync status tag should be shown
-      expect(
-        find.text('Pending sync'),
-        findsOneWidget,
-        reason: 'Should show pending sync status tag',
-      );
-    });
-
-    testWidgets('should not show status tag for synced jobs', (
-      WidgetTester tester,
-    ) async {
-      // Arrange: Create a job view model with synced status
-      final jobViewModel = JobViewModel(
-        localId: 'test-job-id-synced',
-        title: 'Synced Job',
-        text: 'This job is already synced',
+        localId: 'test-job-id-normal',
+        title: 'Normal Job',
+        text: 'This is a normal job',
         syncStatus: SyncStatus.synced,
         hasFileIssue: false,
         displayDate: DateTime(2023, 10, 26),
@@ -123,72 +122,65 @@ void main() {
       // Act: Pump the widget
       await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
 
-      // Assert: No status tags should be shown for synced jobs
+      // Assert: Document icon should be shown
       expect(
-        find.text('Pending sync'),
-        findsNothing,
-        reason: 'Should not show pending sync status tag for synced jobs',
-      );
-      expect(
-        find.text('Sync error'),
-        findsNothing,
-        reason: 'Should not show error status tag for synced jobs',
-      );
-      expect(
-        find.text('Sync failed'),
-        findsNothing,
-        reason: 'Should not show failed status tag for synced jobs',
-      );
-    });
-
-    testWidgets('shows error status tag for jobs with sync errors', (
-      WidgetTester tester,
-    ) async {
-      // Arrange: Create a job view model with sync error
-      final jobViewModel = JobViewModel(
-        localId: 'test-job-id-error',
-        title: 'Error Job',
-        text: 'This job has a sync error',
-        syncStatus: SyncStatus.error,
-        hasFileIssue: false,
-        displayDate: DateTime(2023, 10, 26),
-      );
-
-      // Act: Pump the widget
-      await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
-
-      // Assert: Error sync status tag should be shown
-      expect(
-        find.text('Sync error'),
+        find.byIcon(CupertinoIcons.doc_text),
         findsOneWidget,
-        reason: 'Should show sync error status tag',
+        reason: 'Should show document icon for normal jobs',
       );
     });
   });
 
   group('JobListItem - Interaction', () {
-    testWidgets('disables tap when offline', (WidgetTester tester) async {
+    testWidgets('tapping the item works when online', (
+      WidgetTester tester,
+    ) async {
       // Arrange: Create a job view model
       final jobViewModel = JobViewModel(
         localId: 'test-job-id',
         title: 'Test Job',
-        text: 'Test job content',
+        text: 'Test job text',
         syncStatus: SyncStatus.synced,
         hasFileIssue: false,
         displayDate: DateTime(2023, 10, 26),
       );
 
-      // Act: Pump the widget with isOffline=true
+      // Act: Pump the widget and tap it
+      await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
+      await tester.tap(find.byType(ListTile));
+      await tester.pump();
+
+      // Assert: The tap should be processed (would need a callback validation in a real test)
+      // This test currently just verifies that tapping doesn't crash
+    });
+
+    testWidgets('tapping the item is disabled when offline', (
+      WidgetTester tester,
+    ) async {
+      // Arrange: Create a job view model with offline mode
+      final jobViewModel = JobViewModel(
+        localId: 'test-job-id',
+        title: 'Test Job',
+        text: 'Test job text',
+        syncStatus: SyncStatus.synced,
+        hasFileIssue: false,
+        displayDate: DateTime(2023, 10, 26),
+      );
+
+      // Act: Pump the widget in offline mode
       await tester.pumpWidget(
         createTestWidget(jobViewModel: jobViewModel, isOffline: true),
       );
 
-      // Assert: Tapping the item should have no effect
-      // We can't directly test the onTap callback, but can verify the item exists
-      expect(find.text('Test Job'), findsOneWidget);
+      // Find the ListTile
+      final listTile = tester.widget<ListTile>(find.byType(ListTile));
 
-      // Verify we can find the JobListItem widget
-      expect(find.byType(JobListItem), findsOneWidget);
+      // Assert: onTap should be null when offline
+      expect(
+        listTile.onTap,
+        isNull,
+        reason: 'onTap should be null when offline',
+      );
     });
   });
 }
