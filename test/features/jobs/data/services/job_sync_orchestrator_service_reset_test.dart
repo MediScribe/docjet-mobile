@@ -89,7 +89,9 @@ void main() {
     mockAuthEventBus = MockAuthEventBus();
 
     // Mock stream from auth event bus
-    when(mockAuthEventBus.stream).thenAnswer((_) => Stream<AuthEvent>.empty());
+    when(
+      mockAuthEventBus.stream,
+    ).thenAnswer((_) => const Stream<AuthEvent>.empty());
 
     service = JobSyncOrchestratorService(
       localDataSource: mockLocalDataSource,

@@ -26,7 +26,7 @@ class MockWatchJobsUseCase extends Mock implements WatchJobsUseCase {
       '$_tag MockWatchJobsUseCase.call() - returning empty stream with right value',
     );
     // Return an empty Right value stream to avoid errors
-    return Stream.value(Right<Failure, List<Job>>([]));
+    return Stream.value(const Right<Failure, List<Job>>([]));
   }
 }
 

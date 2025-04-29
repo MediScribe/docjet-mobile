@@ -90,7 +90,7 @@ void main() {
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
 
         // Arrange: Setup auth session provider (using mock from container)
-        final userId = 'test-user-id-creation-failure';
+        const userId = 'test-user-id-creation-failure';
         when(
           mockAuthSessionProvider.isAuthenticated(),
         ).thenAnswer((_) async => true);

@@ -831,7 +831,7 @@ void main() {
         );
         // Arrange
         final job = tJobPendingDeletionWithServerId;
-        final originalCacheFailure = CacheFailure('DB delete failed');
+        const originalCacheFailure = CacheFailure('DB delete failed');
         // UPDATE EXPECTED FAILURE TO MATCH WRAPPED MESSAGE
         final expectedFailure = CacheFailure(
           'Unexpected error deleting job ${job.localId} from DB: $originalCacheFailure',

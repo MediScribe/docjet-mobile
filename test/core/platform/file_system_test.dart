@@ -197,7 +197,7 @@ void main() {
     // Checks that path traversal (../) is handled as expected
     test('path traversal (../) is handled as expected', () async {
       // Arrange: Attempt to write outside the base dir
-      final relativePath = '../parent.txt';
+      const relativePath = '../parent.txt';
 
       // Act & Assert: fileExists should return false because the path resolves
       // outside the allowed directory and we didn't create it there.
@@ -239,7 +239,7 @@ void main() {
 
     // Test that writeFile prevents path traversal
     test('writeFile prevents path traversal', () async {
-      final relativePath = '../write_outside.txt';
+      const relativePath = '../write_outside.txt';
       final bytes = Uint8List.fromList([66, 6]); // Some dummy bytes
 
       // Act & Assert: Expect a FileSystemException when trying to write outside
@@ -281,7 +281,7 @@ void main() {
         }
       });
 
-      final relativePath = '../read_outside.txt';
+      const relativePath = '../read_outside.txt';
 
       // Act & Assert: Expect a FileSystemException when trying to read outside
       expect(
@@ -308,7 +308,7 @@ void main() {
         }
       });
 
-      final relativePath = '../delete_outside.txt';
+      const relativePath = '../delete_outside.txt';
 
       // Act & Assert: Expect a FileSystemException when trying to delete outside
       expect(
@@ -342,7 +342,7 @@ void main() {
         }
       });
 
-      final relativePath = '../stat_outside.txt';
+      const relativePath = '../stat_outside.txt';
 
       // Act & Assert: Expect a FileSystemException when trying to stat outside
       expect(
@@ -371,7 +371,7 @@ void main() {
         }
       });
 
-      final relativePath = '../list_outside_dir';
+      const relativePath = '../list_outside_dir';
 
       // Act & Assert: Expect a FileSystemException when trying to list outside
       expect(
@@ -387,7 +387,7 @@ void main() {
 
     // Test that createDirectory prevents path traversal
     test('createDirectory prevents path traversal', () async {
-      final relativePath = '../create_outside_dir';
+      const relativePath = '../create_outside_dir';
       final outsideDirPath = p.normalize(
         p.join(fakeDocumentsPath, relativePath),
       );
@@ -419,7 +419,7 @@ void main() {
     // Test that directoryExists prevents path traversal
     test('directoryExists prevents path traversal', () async {
       // Arrange: Create a directory OUTSIDE the sandbox directory
-      final relativePath = '../dir_exists_outside';
+      const relativePath = '../dir_exists_outside';
       final outsideDirPath = p.normalize(
         p.join(fakeDocumentsPath, relativePath),
       );
@@ -499,7 +499,7 @@ void main() {
       'resolvePath should replace backslashes and normalize ../ correctly',
       () async {
         // Arrange
-        final inputPath = 'relativemixed/../file.txt'; // Mixed separators
+        const inputPath = 'relativemixed/../file.txt'; // Mixed separators
         final expectedPath = p.context.normalize(
           p.context.join(Directory(fakeDocumentsPath).path, 'file.txt'),
         ); // Should resolve to <tempDir>/file.txt

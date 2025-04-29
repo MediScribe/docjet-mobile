@@ -9,6 +9,6 @@ PluginBase createPlugin() => _DocjetLintsPlugin();
 class _DocjetLintsPlugin extends PluginBase {
   @override
   List<LintRule> getLintRules(CustomLintConfigs configs) => [
-        NoSlInLogicLint(), // Instantiate and return the lint rule
+        const NoSlInLogicLint(), // Instantiate and return the lint rule
       ];
 }

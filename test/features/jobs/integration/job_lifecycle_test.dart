@@ -147,8 +147,8 @@ void main() {
     );
 
     // Domain and data objects
-    final JobUpdateDetails updateDetails = JobUpdateDetails(text: updatedText);
-    final JobUpdateData updateData = JobUpdateData(text: updatedText);
+    const JobUpdateDetails updateDetails = JobUpdateDetails(text: updatedText);
+    const JobUpdateData updateData = JobUpdateData(text: updatedText);
 
     setUp(() {
       // Set up auth session provider for all tests

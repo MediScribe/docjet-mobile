@@ -42,7 +42,7 @@ void main() {
     ) async {
       // Build our widget without provider dependencies
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: TestAppShell(isOffline: true, child: Text('Child Content')),
         ),
       );
@@ -61,7 +61,7 @@ void main() {
     ) async {
       // Build our widget without provider dependencies
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: TestAppShell(isOffline: false, child: Text('Child Content')),
         ),
       );

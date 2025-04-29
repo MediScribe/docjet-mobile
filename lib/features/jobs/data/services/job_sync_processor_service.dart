@@ -48,7 +48,7 @@ class JobSyncProcessorService {
           _logger.e(
             '$_tag Cannot create job without audio file path (localId: ${job.localId})',
           );
-          return Left(ValidationFailure('Audio file path is required'));
+          return const Left(ValidationFailure('Audio file path is required'));
         }
         remoteJob = await _remoteDataSource.createJob(
           audioFilePath: job.audioFilePath!,

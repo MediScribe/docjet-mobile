@@ -68,7 +68,7 @@ void main() {
       WidgetTester tester,
     ) async {
       // Arrange: Create an authenticated state with a mock user
-      final user = User(id: 'test-user-id');
+      const user = User(id: 'test-user-id');
       final authenticatedState = AuthState.authenticated(user);
 
       // Build our test widget with the authenticated state

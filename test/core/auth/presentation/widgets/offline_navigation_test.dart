@@ -67,7 +67,7 @@ void main() {
       WidgetTester tester,
     ) async {
       // Create an offline authenticated state with a mock user
-      final user = User(id: 'test-user-id');
+      const user = User(id: 'test-user-id');
       final offlineAuthenticatedState = AuthState.authenticated(
         user,
         isOffline: true,

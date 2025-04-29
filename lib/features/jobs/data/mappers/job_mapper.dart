@@ -15,7 +15,7 @@ class JobMapper {
   // Logger setup
   static final Logger _logger = LoggerFactory.getLogger(JobMapper);
   static final String _tag = logTag(JobMapper);
-  static final Uuid _uuid = const Uuid();
+  static const Uuid _uuid = Uuid();
 
   /// Maps a JobHiveModel to a JobEntity.
   static Job fromHiveModel(JobHiveModel model) {
@@ -136,7 +136,7 @@ class JobMapper {
   static Job fromApiDto(JobApiDTO dto, {String? localId}) {
     final jobStatus = stringToJobStatus(dto.jobStatus);
     // Data from API is considered the source of truth, hence synced.
-    final syncStatus = SyncStatus.synced;
+    const syncStatus = SyncStatus.synced;
     // Use provided localId, or generate a new one ONLY if needed (should be rare)
     final effectiveLocalId = localId ?? _uuid.v4();
     if (localId == null) {

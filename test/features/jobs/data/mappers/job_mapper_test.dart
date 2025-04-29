@@ -8,13 +8,13 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:uuid/uuid.dart';
 
 void main() {
-  final uuid = const Uuid();
+  const uuid = Uuid();
 
   group('JobMapper: API DTO <-> Entity', () {
     test('should map JobApiDTO to Job entity correctly (Server ID)', () {
       // Arrange: Create a sample JobApiDTO (represents data FROM server)
       final now = DateTime.now();
-      final serverId = 'server-job-123';
+      const serverId = 'server-job-123';
       final jobApiDto = JobApiDTO(
         id: serverId, // API DTO's id IS the serverId
         userId: 'user-456',
@@ -59,8 +59,8 @@ void main() {
       // Arrange: Create a list of sample JobApiDTOs
       final now1 = DateTime.now();
       final now2 = now1.add(const Duration(minutes: 1));
-      final serverId1 = 'server-job-1';
-      final serverId2 = 'server-job-2';
+      const serverId1 = 'server-job-1';
+      const serverId2 = 'server-job-2';
       final dtoList = [
         JobApiDTO(
           id: serverId1,
@@ -112,7 +112,7 @@ void main() {
         // Arrange: Create a sample Job entity that HAS been synced
         final now = DateTime.now();
         final localId = uuid.v4();
-        final serverId = 'server-job-789';
+        const serverId = 'server-job-789';
         final jobEntity = Job(
           localId: localId,
           serverId: serverId, // Has serverId
@@ -241,7 +241,7 @@ void main() {
       final now = DateTime.now();
       final lastSyncTime = now.subtract(const Duration(minutes: 5));
       final localId = uuid.v4();
-      final serverId = 'server-id-from-hive';
+      const serverId = 'server-id-from-hive';
       final hiveModel = JobHiveModel(
         localId: localId,
         serverId: serverId,
@@ -330,7 +330,7 @@ void main() {
       final now = DateTime.now();
       final lastSyncTime = now.subtract(const Duration(hours: 1));
       final localId = uuid.v4();
-      final serverId = 'server-id-to-hive';
+      const serverId = 'server-id-to-hive';
       final jobEntity = Job(
         localId: localId,
         serverId: serverId,
@@ -421,7 +421,7 @@ void main() {
       final now2 = now1.add(const Duration(minutes: 5));
       final lastSyncTime1 = now1.subtract(const Duration(days: 1));
       final localId1 = uuid.v4();
-      final serverId1 = 'server1';
+      const serverId1 = 'server1';
       final localId2 = uuid.v4(); // No serverId for second job
 
       final hiveList = [
@@ -493,7 +493,7 @@ void main() {
       final now2 = now1.add(const Duration(minutes: 5));
       final lastSyncTime1 = now1.subtract(const Duration(days: 1));
       final localId1 = uuid.v4();
-      final serverId1 = 'server1-to-hive';
+      const serverId1 = 'server1-to-hive';
       final localId2 = uuid.v4(); // No serverId for second job
 
       final entityList = [

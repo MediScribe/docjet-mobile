@@ -5,7 +5,7 @@ import 'package:docjet_mobile/core/auth/entities/user.dart'; // Corrected import
 
 void main() {
   group('AuthState', () {
-    final testUser = User(id: '1'); // Removed const
+    const testUser = User(id: '1'); // Removed const
 
     test('initial state should have correct defaults', () {
       final state = AuthState.initial(); // Removed const
@@ -37,7 +37,7 @@ void main() {
 
     test('unauthenticated state should have correct properties', () {
       // AuthState.initial() covers this, but let's keep it explicit
-      final state = AuthState(
+      const state = AuthState(
         status: AuthStatus.unauthenticated,
       ); // Removed const
       expect(state.status, AuthStatus.unauthenticated);
@@ -103,7 +103,7 @@ void main() {
       expect(updatedState.errorMessage, isNull);
 
       // Check retaining null
-      final stateNull = AuthState(status: AuthStatus.authenticated);
+      const stateNull = AuthState(status: AuthStatus.authenticated);
       final updatedStateNull = stateNull.copyWith(status: AuthStatus.loading);
       expect(updatedStateNull.errorMessage, isNull);
     });
@@ -114,7 +114,7 @@ void main() {
       expect(updatedState.user, isNull);
 
       // Check retaining null
-      final stateNull = AuthState(status: AuthStatus.unauthenticated);
+      const stateNull = AuthState(status: AuthStatus.unauthenticated);
       final updatedStateNull = stateNull.copyWith(status: AuthStatus.loading);
       expect(updatedStateNull.user, isNull);
     });

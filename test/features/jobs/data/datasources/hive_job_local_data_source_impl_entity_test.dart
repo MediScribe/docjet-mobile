@@ -114,7 +114,7 @@ void main() {
   });
 
   group('getJobById', () {
-    final tJobId = '1';
+    const tJobId = '1';
     final tJobHiveModel = job1HiveModel; // Reuse from setup
     final tExpectedJob = JobMapper.fromHiveModel(tJobHiveModel);
 
@@ -134,7 +134,7 @@ void main() {
 
     test('should throw CacheException when job not found', () async {
       // Arrange
-      final tNotFoundId = 'not-found-id';
+      const tNotFoundId = 'not-found-id';
       when(mockJobsBox.get(tNotFoundId)).thenReturn(null);
 
       // Act
@@ -147,7 +147,7 @@ void main() {
 
     test('should throw CacheException when Hive call fails', () async {
       // Arrange
-      final tErrorId = 'error-id';
+      const tErrorId = 'error-id';
       when(mockJobsBox.get(tErrorId)).thenThrow(Exception('Hive error'));
 
       // Act
@@ -201,7 +201,7 @@ void main() {
   });
 
   group('deleteJob', () {
-    final tJobId = 'job-to-delete';
+    const tJobId = 'job-to-delete';
 
     test(
       'should call deleteJobHiveModel with the correct id and return unit',
@@ -239,7 +239,7 @@ void main() {
   });
 
   group('getJobsByStatus', () {
-    final tPendingStatus = SyncStatus.pending;
+    const tPendingStatus = SyncStatus.pending;
 
     // Use existing models from setup
     final pendingJobModel = job1HiveModel;
@@ -306,7 +306,7 @@ void main() {
 
     test('should retrieve jobs with pending status', () async {
       // Arrange
-      final tPendingStatus = SyncStatus.pending;
+      const tPendingStatus = SyncStatus.pending;
       // Use existing models from setup
       final models = [
         job1HiveModel,
@@ -327,7 +327,7 @@ void main() {
 
     test('should retrieve jobs with synced status', () async {
       // Arrange
-      final tSyncedStatus = SyncStatus.synced;
+      const tSyncedStatus = SyncStatus.synced;
       // Use existing models from setup
       final models = [
         job1HiveModel,

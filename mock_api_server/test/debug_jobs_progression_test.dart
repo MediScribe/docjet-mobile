@@ -9,8 +9,8 @@ import 'package:test/test.dart';
 
 import 'test_helpers.dart'; // Import the helper
 
-final String testApiKey = 'test-api-key';
-final String dummyJwt = 'fake-jwt-token'; // For Authorization header
+const String testApiKey = 'test-api-key';
+const String dummyJwt = 'fake-jwt-token'; // For Authorization header
 
 // Helper function to create a job and return its ID
 Future<String> createTestJob(String baseUrl, String userId) async {
@@ -204,7 +204,7 @@ void main() {
     });
 
     test('POST /start with non-existent job ID should return 404', () async {
-      final nonExistentJobId = 'ghost-job-id';
+      const nonExistentJobId = 'ghost-job-id';
       final url =
           Uri.parse('$baseUrl/api/v1/debug/jobs/start?id=$nonExistentJobId');
       final headers = {
@@ -229,7 +229,7 @@ void main() {
     });
 
     test('POST /stop with non-existent job ID should return 404', () async {
-      final nonExistentJobId = 'ghost-job-id';
+      const nonExistentJobId = 'ghost-job-id';
       final url =
           Uri.parse('$baseUrl/api/v1/debug/jobs/stop?id=$nonExistentJobId');
       final headers = {
@@ -401,7 +401,7 @@ void main() {
     });
 
     test('POST /reset with non-existent job ID should return 404', () async {
-      final nonExistentJobId = 'ghost-job-id-reset';
+      const nonExistentJobId = 'ghost-job-id-reset';
       final url =
           Uri.parse('$baseUrl/api/v1/debug/jobs/reset?id=$nonExistentJobId');
       final headers = {

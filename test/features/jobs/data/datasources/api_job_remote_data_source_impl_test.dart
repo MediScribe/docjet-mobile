@@ -21,12 +21,12 @@ void main() {
   late MockFileSystem mockFileSystem;
 
   // Test data
-  final tApiKey = 'test-api-key';
-  final tAccessToken = 'test-access-token';
-  final tUserId = 'test-user-id';
-  final tAudioFilePath = '/path/to/audio.mp3';
-  final tResolvedAudioPath = '/resolved/path/to/audio.mp3';
-  final tText = 'Test job text';
+  const tApiKey = 'test-api-key';
+  const tAccessToken = 'test-access-token';
+  const tUserId = 'test-user-id';
+  const tAudioFilePath = '/path/to/audio.mp3';
+  const tResolvedAudioPath = '/resolved/path/to/audio.mp3';
+  const tText = 'Test job text';
 
   // Track calls to multipartFileCreator to verify the path passed
   String? capturedMultipartPath;

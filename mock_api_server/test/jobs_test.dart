@@ -8,8 +8,8 @@ import 'test_helpers.dart'; // Import the helper
 
 // No longer using a fixed baseUrl
 // final String baseUrl = 'http://localhost:8080';
-final String testApiKey = 'test-api-key';
-final String dummyJwt = 'fake-jwt-token'; // For Authorization header
+const String testApiKey = 'test-api-key';
+const String dummyJwt = 'fake-jwt-token'; // For Authorization header
 
 void main() {
   Process? mockServerProcess;
@@ -324,7 +324,7 @@ void main() {
 
     test('should return 404 Not Found if job ID does not exist', () async {
       // Arrange
-      final nonExistentJobId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+      const nonExistentJobId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
       final url = Uri.parse('$baseUrl/api/v1/jobs/$nonExistentJobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
@@ -420,7 +420,7 @@ void main() {
 
     test('should return 404 Not Found if job ID does not exist', () async {
       // Arrange
-      final nonExistentJobId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+      const nonExistentJobId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
       final url = Uri.parse('$baseUrl/api/v1/jobs/$nonExistentJobId/documents');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
@@ -504,7 +504,7 @@ void main() {
       });
 
       // Add a small delay to ensure updated_at timestamp is different
-      await Future.delayed(Duration(milliseconds: 10));
+      await Future.delayed(const Duration(milliseconds: 10));
 
       // Act
       final response = await http.patch(url, headers: headers, body: body);
@@ -554,7 +554,7 @@ void main() {
 
     test('should return 404 Not Found if job ID does not exist', () async {
       // Arrange
-      final nonExistentJobId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+      const nonExistentJobId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
       final url = Uri.parse('$baseUrl/api/v1/jobs/$nonExistentJobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
@@ -617,7 +617,7 @@ void main() {
         'X-API-Key': testApiKey,
         'Content-Type': 'text/plain', // Incorrect Content-Type
       };
-      final body = 'display_title=WrongFormat';
+      const body = 'display_title=WrongFormat';
 
       // Act
       final response = await http.patch(url, headers: headers, body: body);

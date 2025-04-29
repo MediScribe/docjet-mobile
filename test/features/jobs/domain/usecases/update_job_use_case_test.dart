@@ -37,7 +37,7 @@ void main() {
     lastSyncAttemptAt: null,
   );
 
-  final tParams = UpdateJobParams(localId: tLocalId, updates: tUpdateDetails);
+  const tParams = UpdateJobParams(localId: tLocalId, updates: tUpdateDetails);
 
   test(
     'should call repository to update job and return the updated job',

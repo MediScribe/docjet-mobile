@@ -26,7 +26,7 @@ const String _versionedApiPath = '$_apiPrefix/$_apiVersion';
 // Hardcoded API key for mock validation, matching the test
 const String _expectedApiKey = 'test-api-key';
 
-final Uuid _uuid = Uuid();
+const Uuid _uuid = Uuid();
 
 // Helper function to read MimeMultipart as string
 Future<String> readAsString(Stream<List<int>> stream) async {
@@ -182,7 +182,7 @@ Future<Response> _loginHandler(Request request) async {
       // For malformed request test, check for required fields
       if (!decodedBody.containsKey('email') ||
           !decodedBody.containsKey('password')) {
-        throw FormatException('Missing email or password fields');
+        throw const FormatException('Missing email or password fields');
       }
     } catch (e) {
       // If JSON parsing fails, return a 400 to pass the malformed body test
@@ -248,7 +248,7 @@ Future<Response> _refreshHandler(Request request) async {
       // Check for refresh_token
       if (!decodedBody.containsKey('refresh_token') ||
           decodedBody['refresh_token'] is! String) {
-        throw FormatException('Missing or invalid refresh_token field');
+        throw const FormatException('Missing or invalid refresh_token field');
       }
     } catch (e) {
       // If JSON parsing fails, return a 400 to pass the malformed body test
@@ -360,7 +360,7 @@ Future<Response> _createJobHandler(Request request) async {
     // First, ensure we have a multipart request
     final multipartRequest = request.multipart();
     if (multipartRequest == null) {
-      throw FormatException('Could not parse as multipart request');
+      throw const FormatException('Could not parse as multipart request');
     }
 
     // Initialize variables to store form data
@@ -437,10 +437,10 @@ Future<Response> _createJobHandler(Request request) async {
 
     // Validate required fields
     if (userId == null || userId.isEmpty) {
-      throw FormatException('Missing or empty user_id field');
+      throw const FormatException('Missing or empty user_id field');
     }
     if (!hasAudioFile) {
-      throw FormatException('Missing audio_file part');
+      throw const FormatException('Missing audio_file part');
     }
 
     // Create and store the job

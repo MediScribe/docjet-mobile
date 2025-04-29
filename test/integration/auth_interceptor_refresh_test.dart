@@ -38,7 +38,7 @@ void main() {
   const String testNewAccessToken = 'new-access-token';
   const String testNewRefreshToken = 'new-refresh-token';
   const String testUserId = 'test-user-id';
-  final String testApiEndpoint = '${ApiConfig.versionedApiPath}/test-endpoint';
+  const String testApiEndpoint = '${ApiConfig.versionedApiPath}/test-endpoint';
 
   /// Helper to create a DioException for 401 unauthorized
   DioException createUnauthorizedError() {
@@ -96,7 +96,7 @@ void main() {
     ).thenAnswer((_) async => {});
 
     when(mockApiClient.refreshToken(testRefreshToken)).thenAnswer(
-      (_) async => AuthResponseDto(
+      (_) async => const AuthResponseDto(
         accessToken: testNewAccessToken,
         refreshToken: testNewRefreshToken,
         userId: testUserId,
@@ -268,7 +268,7 @@ void main() {
             if (refreshAttempts < 3) {
               throw AuthException.networkError();
             }
-            return AuthResponseDto(
+            return const AuthResponseDto(
               accessToken: testNewAccessToken,
               refreshToken: testNewRefreshToken,
               userId: testUserId,

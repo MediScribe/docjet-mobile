@@ -41,14 +41,14 @@ void main() {
   const testUserId = 'test-user-id';
 
   // Sample auth response
-  final authResponse = AuthResponseDto(
+  const authResponse = AuthResponseDto(
     accessToken: testAccessToken,
     refreshToken: testRefreshToken,
     userId: testUserId,
   );
 
   // Sample user profile DTO
-  final userProfileDto = UserProfileDto(
+  const userProfileDto = UserProfileDto(
     id: testUserId,
     email: testEmail,
     name: 'Test User',

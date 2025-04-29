@@ -250,7 +250,7 @@ E2EDependencyContainer setupDependencies({
     ),
   );
   // dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
-  final uuid = const Uuid();
+  const uuid = Uuid();
   final hive = Hive; // Use the static Hive class instance
   final authEventBus = AuthEventBus(); // Instantiate real event bus
 

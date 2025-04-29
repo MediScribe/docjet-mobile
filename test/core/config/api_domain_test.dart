@@ -82,7 +82,7 @@ void main() {
       // Expected command structure:
       // flutter run --dart-define=API_KEY=mock-key --dart-define=API_DOMAIN=localhost:8080
 
-      final mockServerDomain = 'localhost:8080';
+      const mockServerDomain = 'localhost:8080';
       final expectedBaseUrl = ApiConfig.baseUrlFromDomain(mockServerDomain);
 
       expect(expectedBaseUrl, 'http://localhost:8080/api/v1/');

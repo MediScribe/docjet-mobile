@@ -17,7 +17,7 @@ void main() {
 
   const tLocalId = 'uuid-to-delete';
 
-  final tParams = DeleteJobParams(localId: tLocalId);
+  const tParams = DeleteJobParams(localId: tLocalId);
 
   test('should call repository to delete job (mark for deletion)', () async {
     // Arrange

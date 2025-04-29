@@ -93,7 +93,7 @@ void main() {
         when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
 
         // Arrange: Set up auth session provider
-        final userId = 'test-user-id-retry';
+        const userId = 'test-user-id-retry';
         when(
           mockAuthSessionProvider.isAuthenticated(),
         ).thenAnswer((_) async => true);
@@ -108,7 +108,7 @@ void main() {
         final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio for retry');
         final audioFilePath = dummyAudioFile.path;
-        final initialText = 'Job created before first failure';
+        const initialText = 'Job created before first failure';
         expect(await dummyAudioFile.exists(), isTrue);
 
         final createResult = await jobRepository.createJob(

@@ -6,10 +6,10 @@ void main() {
   group('Model Classes', () {
     test('FailedTest class should store test information correctly', () {
       // Given
-      final id = 1;
-      final name = 'Test Name';
-      final error = 'Error Message';
-      final stackTrace = 'Stack Trace';
+      const id = 1;
+      const name = 'Test Name';
+      const error = 'Error Message';
+      const stackTrace = 'Stack Trace';
       final testDoneEvent = {'result': 'failure'};
       final errorEvent = {'error': error};
 
@@ -97,10 +97,10 @@ void main() {
         },
         {'type': 'testDone', 'testID': 1, 'result': 'failure'},
       ];
-      final exitCode = 1;
+      const exitCode = 1;
       final testTargets = ['file1.dart'];
-      final totalTestsRun = 5;
-      final totalTestsFailed = 1;
+      const totalTestsRun = 5;
+      const totalTestsFailed = 1;
 
       // When
       final result = script.TestRunResult(

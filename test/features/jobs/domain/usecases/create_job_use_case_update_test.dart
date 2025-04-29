@@ -38,7 +38,7 @@ void main() {
   );
 
   // Note: userId is no longer required in params
-  final tParams = CreateJobParams(audioFilePath: tAudioFilePath, text: tText);
+  const tParams = CreateJobParams(audioFilePath: tAudioFilePath, text: tText);
 
   test(
     'should call repository to create job without userId parameter',

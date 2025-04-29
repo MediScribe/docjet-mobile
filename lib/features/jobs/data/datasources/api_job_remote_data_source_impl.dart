@@ -403,7 +403,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
     String? text,
     String? additionalText,
   }) async {
-    final urlPath = '/jobs';
+    const urlPath = '/jobs';
     _logger.d('$_tag Creating job with audio $audioFilePath at $urlPath');
 
     try {

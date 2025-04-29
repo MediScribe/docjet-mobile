@@ -30,7 +30,7 @@ void main() {
   late StreamController<Either<Failure, List<Job>>> streamController;
 
   // Test data
-  final tJobId1 = Uuid().v4();
+  final tJobId1 = const Uuid().v4();
   final tJob1 = Job(
     localId: tJobId1,
     userId: 'user-1',
@@ -49,7 +49,7 @@ void main() {
     displayDate: tJob1.updatedAt,
   );
 
-  final tJobId2 = Uuid().v4();
+  final tJobId2 = const Uuid().v4();
   final tJob2 = Job(
     localId: tJobId2,
     userId: 'user-1',
@@ -69,7 +69,7 @@ void main() {
     displayDate: tJob2.updatedAt,
   );
 
-  final tServerFailure = ServerFailure(message: 'Something went wrong');
+  const tServerFailure = ServerFailure(message: 'Something went wrong');
 
   setUp(() {
     mockWatchJobsUseCase = MockWatchJobsUseCase();
@@ -129,7 +129,7 @@ void main() {
     blocTest<JobListCubit, JobListState>(
       'emits [loading, loaded with empty list] when WatchJobsUseCase emits empty list',
       build: () => createCubit(),
-      act: (cubit) => streamController.add(Right([])),
+      act: (cubit) => streamController.add(const Right([])),
       expect:
           () => [
             isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', []),
@@ -143,7 +143,7 @@ void main() {
     blocTest<JobListCubit, JobListState>(
       'emits [loading, error] when WatchJobsUseCase emits failure',
       build: () => createCubit(),
-      act: (cubit) => streamController.add(Left(tServerFailure)),
+      act: (cubit) => streamController.add(const Left(tServerFailure)),
       expect:
           () => [
             isA<JobListError>().having(
@@ -196,7 +196,7 @@ void main() {
       build: () => createCubit(),
       act: (cubit) {
         streamController.add(Right([tJob1]));
-        streamController.add(Left(tServerFailure));
+        streamController.add(const Left(tServerFailure));
         streamController.add(Right([tJob2])); // Recover with new data
       },
       expect:

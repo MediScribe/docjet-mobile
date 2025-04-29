@@ -79,7 +79,7 @@ Widget createTestApp({
   final testAuthStateProvider = Provider<AuthState>((ref) => authState);
 
   return ProviderScope(
-    overrides: [
+    overrides: const [
       // Add our test provider to the scope
       // No need to override authNotifierProvider directly
     ],
@@ -97,12 +97,12 @@ Widget createTestApp({
 
 /// Creates a test offline state with a user
 AuthState createOfflineState() {
-  return AuthState.authenticated(User(id: 'test-user'), isOffline: true);
+  return AuthState.authenticated(const User(id: 'test-user'), isOffline: true);
 }
 
 /// Creates a test online state with a user
 AuthState createOnlineState() {
-  return AuthState.authenticated(User(id: 'test-user'), isOffline: false);
+  return AuthState.authenticated(const User(id: 'test-user'), isOffline: false);
 }
 
 /// Finds the offline banner text when it should be visible

@@ -26,7 +26,7 @@ void main() {
 
     test('should convert to JSON', () {
       // Arrange
-      final dto = AuthResponseDto(
+      const dto = AuthResponseDto(
         accessToken: testAccessToken,
         refreshToken: testRefreshToken,
         userId: testUserId,

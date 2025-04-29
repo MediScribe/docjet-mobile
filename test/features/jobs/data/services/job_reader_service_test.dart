@@ -224,7 +224,7 @@ void main() {
           final result = await service.getJobs();
 
           // Assert
-          expect(result, Left(CacheFailure('Failed to fetch jobs')));
+          expect(result, const Left(CacheFailure('Failed to fetch jobs')));
           verify(mockNetworkInfo.isConnected).called(1);
           // Verify the failing method was called
           verify(
@@ -265,7 +265,7 @@ void main() {
           // Assert the expected failure
           expect(
             result,
-            Left(ServerFailure(message: 'API Error', statusCode: 500)),
+            const Left(ServerFailure(message: 'API Error', statusCode: 500)),
           );
           // Verify other interactions
           verify(mockNetworkInfo.isConnected).called(1);

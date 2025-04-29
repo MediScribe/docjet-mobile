@@ -19,7 +19,7 @@ void main() {
   late StreamController<Either<Failure, Job?>> streamController;
 
   final tNow = DateTime.now();
-  final tLocalId = '1';
+  const tLocalId = '1';
 
   setUp(() {
     mockJobRepository = MockJobRepository();
@@ -48,7 +48,7 @@ void main() {
       when(mockJobRepository.watchJobById(tLocalId)).thenAnswer((_) => stream);
 
       // Act
-      final resultStream = useCase(WatchJobParams(localId: tLocalId));
+      final resultStream = useCase(const WatchJobParams(localId: tLocalId));
 
       // Assert
       expect(resultStream, isA<Stream<Either<Failure, Job?>>>());
@@ -67,7 +67,7 @@ void main() {
     ).thenAnswer((_) => streamController.stream);
 
     // Act
-    final resultStream = useCase(WatchJobParams(localId: tLocalId));
+    final resultStream = useCase(const WatchJobParams(localId: tLocalId));
 
     // Assert
     verify(mockJobRepository.watchJobById(tLocalId));
@@ -109,7 +109,7 @@ void main() {
     ).thenAnswer((_) => streamController.stream);
 
     // Act
-    final resultStream = useCase(WatchJobParams(localId: tLocalId));
+    final resultStream = useCase(const WatchJobParams(localId: tLocalId));
 
     // Assert
     // Set up expectation *before* adding data and closing

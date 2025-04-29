@@ -128,7 +128,7 @@ void main() {
       ).thenAnswer((_) async => testRefreshToken);
 
       when(mockApiClient.refreshToken(testRefreshToken)).thenAnswer(
-        (_) async => AuthResponseDto(
+        (_) async => const AuthResponseDto(
           accessToken: testNewAccessToken,
           refreshToken: testNewRefreshToken,
           userId: testUserId,
@@ -200,7 +200,7 @@ void main() {
           statusCode: 200,
           requestOptions: requestOptions,
         );
-        final authResponse = AuthResponseDto(
+        const authResponse = AuthResponseDto(
           accessToken: testNewAccessToken,
           refreshToken: testNewRefreshToken,
           userId: testUserId,

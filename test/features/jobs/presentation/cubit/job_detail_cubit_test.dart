@@ -20,7 +20,7 @@ void main() {
   late MockWatchJobByIdUseCase mockWatchJobByIdUseCase;
   const tJobId = 'test-job-id-123';
   const tUserId = 'test-user-id-abc'; // Added dummy userId
-  final tWatchParams = WatchJobParams(localId: tJobId);
+  const tWatchParams = WatchJobParams(localId: tJobId);
 
   setUp(() {
     mockWatchJobByIdUseCase = MockWatchJobByIdUseCase();
@@ -77,7 +77,7 @@ void main() {
       },
     );
 
-    final tNotFoundStream = Stream.value(Right<Failure, Job?>(null));
+    final tNotFoundStream = Stream.value(const Right<Failure, Job?>(null));
 
     blocTest<JobDetailCubit, JobDetailState>(
       'should emit [JobDetailLoading, JobDetailNotFound] when job is not found',
@@ -99,7 +99,7 @@ void main() {
 
     final tErrorStream = Stream.value(
       // Use a defined Failure type
-      Left<Failure, Job?>(const CacheFailure('Database error')),
+      const Left<Failure, Job?>(CacheFailure('Database error')),
     );
 
     blocTest<JobDetailCubit, JobDetailState>(

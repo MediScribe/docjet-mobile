@@ -302,7 +302,7 @@ void main() {
 
         // Act: Update the job locally
         _logger.i('$_tag Acting: Updating job text locally...');
-        final updateDetails = JobUpdateDetails(text: 'Updated test text');
+        const updateDetails = JobUpdateDetails(text: 'Updated test text');
         final updateResult = await jobRepository.updateJob(
           localId: localId,
           updates: updateDetails,

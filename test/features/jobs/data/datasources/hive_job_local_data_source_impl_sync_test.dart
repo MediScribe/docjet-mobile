@@ -136,9 +136,9 @@ void main() {
   });
 
   group('updateJobSyncStatus', () {
-    final tJobId = 'job-1';
-    final tInitialStatus = SyncStatus.pending;
-    final tTargetStatus = SyncStatus.synced;
+    const tJobId = 'job-1';
+    const tInitialStatus = SyncStatus.pending;
+    const tTargetStatus = SyncStatus.synced;
 
     // Mock HiveObject for save() method test
     final mockHiveObjectModel =

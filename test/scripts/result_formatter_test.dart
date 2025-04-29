@@ -53,7 +53,7 @@ void main() {
 
     test('printResults with failed tests shows summary and details', () async {
       // Given
-      final testId = 1;
+      const testId = 1;
       final startTime = DateTime.now().millisecondsSinceEpoch;
       final printTime1 = startTime + 50;
       final printTime2 = startTime + 60;
@@ -133,7 +133,7 @@ void main() {
       'printResults with exceptMode=true shows only exception details',
       () async {
         // Given
-        final testId = 1;
+        const testId = 1;
         final startTime = DateTime.now().millisecondsSinceEpoch;
         final printTime1 = startTime + 50;
         final printTime2 = startTime + 60;
@@ -207,7 +207,7 @@ void main() {
 
     test('printResults with debugMode shows console output and errors', () async {
       // Given
-      final testId = 1;
+      const testId = 1;
       final startTime = DateTime.now().millisecondsSinceEpoch;
       final printTime1 = startTime + 50;
       final printTime2 = startTime + 60;
@@ -275,8 +275,8 @@ void main() {
 
     test('printResults handles suppressDebugTests correctly', () async {
       // Given
-      final testId1 = 1;
-      final testId2 = 2;
+      const testId1 = 1;
+      const testId2 = 2;
       final startTime = DateTime.now().millisecondsSinceEpoch;
       final errorTime = startTime + 80;
       final endTime = startTime + 100;

@@ -93,7 +93,7 @@ class _FakeAuthenticationApiClient extends AuthenticationApiClient {
 
   @override
   Future<AuthResponseDto> refreshToken(String refreshToken) async {
-    return AuthResponseDto(
+    return const AuthResponseDto(
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
       userId: 'user-123',

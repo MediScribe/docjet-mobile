@@ -20,7 +20,7 @@ void main() {
   setUp(() {
     mockAuthService = MockAuthService();
     mockAuthEventBus = MockAuthEventBus();
-    when(mockAuthEventBus.stream).thenAnswer((_) => Stream.empty());
+    when(mockAuthEventBus.stream).thenAnswer((_) => const Stream.empty());
   });
 
   group('authServiceProvider overrides', () {

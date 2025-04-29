@@ -103,8 +103,8 @@ void main() {
         final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
         await dummyAudioFile.writeAsString('dummy audio for delete 5xx fail');
         final audioFilePath = dummyAudioFile.path;
-        final userId = 'test-user-id-delete-5xx';
-        final initialText = 'Job to fail deletion sync';
+        const userId = 'test-user-id-delete-5xx';
+        const initialText = 'Job to fail deletion sync';
         expect(await dummyAudioFile.exists(), isTrue);
 
         // Set up the mock auth session provider to return the test user ID

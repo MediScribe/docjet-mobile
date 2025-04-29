@@ -104,7 +104,7 @@ void main() {
           eventProcessor: mockProcessor,
           formatter: script.ResultFormatter(),
         );
-        final target = 'test/scripts/debug_test.dart';
+        const target = 'test/scripts/debug_test.dart';
 
         // When
         await runner.run([target], debugMode: false, exceptMode: false);
@@ -132,7 +132,7 @@ void main() {
           eventProcessor: mockProcessor,
           formatter: script.ResultFormatter(),
         );
-        final target = 'test/some_other_test.dart';
+        const target = 'test/some_other_test.dart';
 
         // When
         await runner.run([target], debugMode: false, exceptMode: false);

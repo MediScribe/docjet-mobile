@@ -270,7 +270,7 @@ void main() {
       );
       const tLocalId = 'job1-local-id';
       const tUpdatedText = 'Updated job text';
-      final tUpdateData = JobUpdateData(text: tUpdatedText);
+      const tUpdateData = JobUpdateData(text: tUpdatedText);
 
       test(
         'should apply updates, mark pending, save, and return job',

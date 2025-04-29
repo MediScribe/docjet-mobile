@@ -54,7 +54,7 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: createLightTheme(), // Use our light theme with tokens
-            home: Scaffold(body: Center(child: RecordButton())),
+            home: const Scaffold(body: Center(child: RecordButton())),
           ),
         ),
       );

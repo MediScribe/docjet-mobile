@@ -17,8 +17,8 @@ void main() {
 
   group('JobHiveModel', () {
     final tNow = DateTime.now();
-    final tLocalId = 'local-uuid-123';
-    final tUserId = 'user-uuid-789';
+    const tLocalId = 'local-uuid-123';
+    const tUserId = 'user-uuid-789';
 
     // Basic instantiation test - this will fail until fields are added
     test('should correctly instantiate with localId and nullable serverId', () {

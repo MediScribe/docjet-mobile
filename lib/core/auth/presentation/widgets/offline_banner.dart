@@ -42,7 +42,7 @@ class OfflineBanner extends ConsumerWidget {
                   color: OfflineBannerTheme.getForegroundColor(context),
                   size: OfflineBannerTheme.iconSize,
                 ),
-                SizedBox(width: OfflineBannerTheme.iconTextSpacing),
+                const SizedBox(width: OfflineBannerTheme.iconTextSpacing),
                 Text(
                   'You are offline',
                   style: OfflineBannerTheme.getTextStyle(context),

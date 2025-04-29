@@ -73,7 +73,7 @@ void main() {
 
   // --- Test Data Setup ---
   final now = DateTime.now();
-  final tBaseBackoff = const Duration(minutes: 1); // Example backoff
+  const tBaseBackoff = Duration(minutes: 1); // Example backoff
   const tMaxRetries = 3;
 
   // Helper function to calculate expected backoff time

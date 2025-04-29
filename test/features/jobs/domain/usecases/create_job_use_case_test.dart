@@ -37,7 +37,7 @@ void main() {
     lastSyncAttemptAt: null,
   );
 
-  final tParams = CreateJobParams(audioFilePath: tAudioFilePath, text: tText);
+  const tParams = CreateJobParams(audioFilePath: tAudioFilePath, text: tText);
 
   test(
     'should call repository to create job and return the created job',

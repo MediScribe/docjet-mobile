@@ -16,7 +16,7 @@ void main() {
   group('JobViewModelMapper', () {
     test('should map Job entity to JobViewModel correctly', () {
       // Arrange
-      final localId = Uuid().v4();
+      final localId = const Uuid().v4();
       final jobEntity = Job(
         localId: localId,
         userId: 'test-user-id',
@@ -54,7 +54,7 @@ void main() {
       'should set hasFileIssue to true when failedAudioDeletionAttempts > 0',
       () {
         // Arrange
-        final localId = Uuid().v4();
+        final localId = const Uuid().v4();
         final jobEntity = Job(
           localId: localId,
           userId: 'test-user-id-2',

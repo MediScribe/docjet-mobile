@@ -67,14 +67,14 @@ class JobWriterService {
         return Right(job);
       } on CacheException catch (e, st) {
         _logger.e('$_tag Error creating job', error: e, stackTrace: st);
-        return Left(CacheFailure());
+        return const Left(CacheFailure());
       } on Exception catch (e, st) {
         _logger.e(
           '$_tag Unexpected error creating job',
           error: e,
           stackTrace: st,
         );
-        return Left(CacheFailure());
+        return const Left(CacheFailure());
       }
     } catch (e, st) {
       // Handle authentication errors
@@ -124,14 +124,14 @@ class JobWriterService {
       return Right(updatedJob);
     } on CacheException catch (e, st) {
       _logger.e('$_tag Error updating job $localId', error: e, stackTrace: st);
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     } on Exception catch (e, st) {
       _logger.e(
         '$_tag Unexpected error updating job $localId',
         error: e,
         stackTrace: st,
       );
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -158,21 +158,21 @@ class JobWriterService {
       await _localDataSource.saveJob(updatedJob);
 
       // 4. Return success
-      return Right(unit);
+      return const Right(unit);
     } on CacheException catch (e, st) {
       _logger.e(
         '$_tag Error updating sync status for job $localId to $status',
         error: e,
         stackTrace: st,
       );
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     } on Exception catch (e, st) {
       _logger.e(
         '$_tag Unexpected error updating sync status for job $localId to $status',
         error: e,
         stackTrace: st,
       );
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 
@@ -218,14 +218,14 @@ class JobWriterService {
         error: e,
         stackTrace: st,
       );
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     } on Exception catch (e, st) {
       _logger.e(
         '$_tag Unexpected error resetting deletion failure counter for job $localId',
         error: e,
         stackTrace: st,
       );
-      return Left(CacheFailure());
+      return const Left(CacheFailure());
     }
   }
 }

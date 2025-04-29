@@ -155,7 +155,7 @@ void main() {
         );
         // Arrange
         final job = tJobPendingDeletionWithServerId;
-        final originalCacheFailure = CacheFailure('DB read failed');
+        const originalCacheFailure = CacheFailure('DB read failed');
         final expectedFailure = CacheFailure(
           'Unexpected error fetching job ${job.localId} details for deletion: $originalCacheFailure',
         );

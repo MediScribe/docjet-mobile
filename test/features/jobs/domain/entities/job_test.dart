@@ -10,8 +10,8 @@ void main() {
 
   group('Job Entity', () {
     final tNow = DateTime.now();
-    final tLocalId = 'local-uuid-123';
-    final tServerId = 'server-id-456';
+    const tLocalId = 'local-uuid-123';
+    const tServerId = 'server-id-456';
 
     // Base job for reference if needed in multiple tests
     // final baseJob = Job(...);

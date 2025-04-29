@@ -206,7 +206,7 @@ void main() {
       ).thenAnswer((_) async => 'invalid_token');
       when(
         mockJwtValidator.isTokenExpired('invalid_token'),
-      ).thenThrow(FormatException('bad token'));
+      ).thenThrow(const FormatException('bad token'));
       // ACT
       final result = await provider.isAccessTokenValid();
       // ASSERT

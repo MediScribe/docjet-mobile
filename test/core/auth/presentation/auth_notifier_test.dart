@@ -27,7 +27,7 @@ void main() {
   const testEmail = 'test@example.com';
   const testPassword = 'password123';
   const testUserId = 'test-user-id';
-  final userProfile = User(id: testUserId);
+  const userProfile = User(id: testUserId);
   final offlineException = AuthException.offlineOperationFailed();
   final profileFetchException = AuthException.userProfileFetchFailed();
 

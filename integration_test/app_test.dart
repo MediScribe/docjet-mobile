@@ -85,7 +85,7 @@ void main() {
     // No need to stub mockAuthService.authEventBus here
     when(
       mockAuthEventBus.stream,
-    ).thenAnswer((_) => Stream.empty()); // Stub the event bus stream
+    ).thenAnswer((_) => const Stream.empty()); // Stub the event bus stream
 
     // Arrange: Set up DI overrides BEFORE calling init()
     di.overrides = [

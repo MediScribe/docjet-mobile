@@ -300,7 +300,7 @@ void main() {
     late User testUser;
 
     setUp(() {
-      testUser = User(id: 'test-user-123');
+      testUser = const User(id: 'test-user-123');
     });
 
     testWidgets('Login - User can log in and navigate to home screen', (

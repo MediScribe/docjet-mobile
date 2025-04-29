@@ -119,7 +119,7 @@ void main() {
     // Default mock behaviors
     when(mockAuthService.login(any, any)).thenAnswer((_) async {
       authEventBus.add(AuthEvent.loggedIn);
-      return User(id: 'user-123');
+      return const User(id: 'user-123');
     });
 
     when(mockAuthService.logout()).thenAnswer((_) async {

@@ -41,7 +41,7 @@ void main() {
     test('should respect max backoff cap for high retry counts', () {
       // Test a retry count that would exceed the max backoff
       // 1min * 2^10 = 1,024 minutes, which is more than 1 hour (60 minutes)
-      final highRetryCount = 10;
+      const highRetryCount = 10;
       final calculatedBackoff = calculateRetryBackoff(highRetryCount);
 
       expect(

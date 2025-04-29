@@ -27,7 +27,7 @@ class AppConfig implements AppConfigInterface {
     const defaultApiDomain = 'staging.docjet.ai';
     const defaultApiKey = '';
 
-    return AppConfig._(
+    return const AppConfig._(
       apiDomain: String.fromEnvironment(
         apiDomainEnvKey,
         defaultValue: defaultApiDomain,

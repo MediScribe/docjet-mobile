@@ -50,7 +50,7 @@ void main() {
     ) async {
       // Build MockHomeScreen with offline state
       await tester.pumpWidget(
-        MaterialApp(home: MockHomeScreen(isOffline: true)),
+        const MaterialApp(home: MockHomeScreen(isOffline: true)),
       );
 
       // Allow all animations and async operations to complete
@@ -79,7 +79,7 @@ void main() {
     ) async {
       // Build MockHomeScreen with online state
       await tester.pumpWidget(
-        MaterialApp(home: MockHomeScreen(isOffline: false)),
+        const MaterialApp(home: MockHomeScreen(isOffline: false)),
       );
 
       // Allow all animations and async operations to complete

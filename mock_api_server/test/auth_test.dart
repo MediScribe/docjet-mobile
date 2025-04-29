@@ -8,8 +8,8 @@ import 'test_helpers.dart'; // Import the helper
 
 // No longer using a fixed baseUrl
 // final String baseUrl = 'http://localhost:8080';
-final String testApiKey = 'test-api-key';
-final String dummyJwt = 'fake-jwt-token'; // For Authorization header
+const String testApiKey = 'test-api-key';
+const String dummyJwt = 'fake-jwt-token'; // For Authorization header
 
 // Path to server executable (relative to mock_api_server directory)
 // const String _mockServerPath = 'bin/server.dart'; // Moved to helper
@@ -87,7 +87,7 @@ void main() {
         'Content-Type': 'application/json',
         'X-API-Key': testApiKey,
       };
-      final body = 'this is not json'; // Malformed body
+      const body = 'this is not json'; // Malformed body
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
@@ -153,7 +153,7 @@ void main() {
         'Content-Type': 'application/json',
         'X-API-Key': testApiKey,
       };
-      final body = 'this is not json'; // Malformed body
+      const body = 'this is not json'; // Malformed body
 
       // Act
       final response = await http.post(url, headers: headers, body: body);

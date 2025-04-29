@@ -99,8 +99,8 @@ void main() {
       final dummyAudioFile = File(p.join(_tempDir.path, dummyAudioFileName));
       await dummyAudioFile.writeAsString('dummy audio for server delete');
       final audioFilePath = dummyAudioFile.path;
-      final userId = 'test-user-id-server-delete';
-      final initialText = 'Job to be deleted by server';
+      const userId = 'test-user-id-server-delete';
+      const initialText = 'Job to be deleted by server';
       expect(await dummyAudioFile.exists(), isTrue);
 
       // Create job with synced status and serverId to simulate a previously synced job (using local DS from container)
