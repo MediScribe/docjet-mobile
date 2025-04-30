@@ -37,7 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _validateForm() {
-    final email = _emailController.text;
+    final email = _emailController.text.trim();
     final password = _passwordController.text;
     bool emailValid = true;
     bool passwordValid = true;
@@ -81,7 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Call the CORRECT method on the notifier
     ref
         .read(authNotifierProvider.notifier)
-        .login(_emailController.text, _passwordController.text);
+        .login(_emailController.text.trim(), _passwordController.text);
   }
 
   @override
@@ -102,106 +102,114 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                CupertinoTextField(
-                  controller: _emailController,
-                  placeholder: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  prefix: const Padding(
-                    padding: EdgeInsets.only(left: 8.0),
-                    child: Icon(CupertinoIcons.mail),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 8,
-                  ),
-                  clearButtonMode: OverlayVisibilityMode.editing,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color:
-                          _emailError != null
-                              ? appColors
-                                  .dangerFg // Use theme token for error
-                              : appColors
-                                  .outlineColor, // Use outline token for normal state
+            child: AutofillGroup(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CupertinoTextField(
+                    controller: _emailController,
+                    placeholder: 'Email',
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
+                    prefix: const Padding(
+                      padding: EdgeInsets.only(left: 8.0),
+                      child: Icon(CupertinoIcons.mail),
                     ),
-                    borderRadius: BorderRadius.circular(8.0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 8,
+                    ),
+                    clearButtonMode: OverlayVisibilityMode.editing,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color:
+                            _emailError != null
+                                ? appColors
+                                    .dangerFg // Use theme token for error
+                                : appColors
+                                    .outlineColor, // Use outline token for normal state
+                      ),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
                   ),
-                ),
-                if (_emailError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0, left: 8.0),
-                    child: Text(
-                      _emailError!,
-                      style: TextStyle(
-                        color: appColors.dangerFg, // Use theme token for error
-                        fontSize: 12,
+                  if (_emailError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                      child: Text(
+                        _emailError!,
+                        style: TextStyle(
+                          color:
+                              appColors.dangerFg, // Use theme token for error
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 12),
-                CupertinoTextField(
-                  controller: _passwordController,
-                  placeholder: 'Password',
-                  obscureText: true,
-                  prefix: const Padding(
-                    padding: EdgeInsets.only(left: 8.0),
-                    child: Icon(CupertinoIcons.lock),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 8,
-                  ),
-                  clearButtonMode: OverlayVisibilityMode.editing,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color:
-                          _passwordError != null
-                              ? appColors
-                                  .dangerFg // Use theme token for error
-                              : appColors
-                                  .outlineColor, // Use outline token for normal state
+                  const SizedBox(height: 12),
+                  CupertinoTextField(
+                    controller: _passwordController,
+                    placeholder: 'Password',
+                    obscureText: true,
+                    autofillHints: const [AutofillHints.password],
+                    textInputAction: TextInputAction.done,
+                    onEditingComplete: _handleLogin,
+                    prefix: const Padding(
+                      padding: EdgeInsets.only(left: 8.0),
+                      child: Icon(CupertinoIcons.lock),
                     ),
-                    borderRadius: BorderRadius.circular(8.0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 8,
+                    ),
+                    clearButtonMode: OverlayVisibilityMode.editing,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color:
+                            _passwordError != null
+                                ? appColors
+                                    .dangerFg // Use theme token for error
+                                : appColors
+                                    .outlineColor, // Use outline token for normal state
+                      ),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
                   ),
-                ),
-                if (_passwordError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0, left: 8.0),
-                    child: Text(
-                      _passwordError!,
-                      style: TextStyle(
-                        color: appColors.dangerFg, // Use theme token for error
-                        fontSize: 12,
+                  if (_passwordError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                      child: Text(
+                        _passwordError!,
+                        style: TextStyle(
+                          color:
+                              appColors.dangerFg, // Use theme token for error
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // Show server/auth error messages if present
-                if (authState.status == AuthStatus.error &&
-                    authState.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10.0),
-                    child: _buildErrorMessage(authState),
-                  ),
-
-                // Show loading indicator OR Login Button
-                isLoading
-                    ? const AuthLoadingIndicator()
-                    : CupertinoButton.filled(
-                      onPressed: isButtonDisabled ? null : _handleLogin,
-                      child: const Text('Login'),
+                  // Show server/auth error messages if present
+                  if (authState.status == AuthStatus.error &&
+                      authState.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: _buildErrorMessage(authState),
                     ),
 
-                // Conditionally display offline indicator
-                if (authState.isOffline) const SizedBox(height: 10),
-                if (authState.isOffline) AuthErrorMessage.offlineMode(),
-              ],
+                  // Show loading indicator OR Login Button
+                  isLoading
+                      ? const AuthLoadingIndicator()
+                      : CupertinoButton.filled(
+                        onPressed: isButtonDisabled ? null : _handleLogin,
+                        child: const Text('Login'),
+                      ),
+
+                  // Conditionally display offline indicator
+                  if (authState.isOffline) const SizedBox(height: 10),
+                  if (authState.isOffline) AuthErrorMessage.offlineMode(),
+                ],
+              ),
             ),
           ),
         ),
