@@ -101,9 +101,8 @@ class AuthNotifier extends _$AuthNotifier {
   void _setOffline(bool flag) {
     switch (state.status) {
       case AuthStatus.authenticated:
-        if (state.user != null) {
-          state = AuthState.authenticated(state.user!, isOffline: flag);
-        }
+        // Use copyWith to preserve other potential state attributes
+        state = state.copyWith(isOffline: flag);
         break;
 
       case AuthStatus.error:
