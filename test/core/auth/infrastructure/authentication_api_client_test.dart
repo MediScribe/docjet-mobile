@@ -2,7 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,7 +70,7 @@ void main() {
       );
 
       // Assert
-      expect(result, isA<AuthResponseDto>());
+      expect(result, isA<LoginResponseDto>());
       expect(result.accessToken, 'access-token-123');
       expect(result.refreshToken, 'refresh-token-123');
       expect(result.userId, 'user-123');
@@ -95,7 +96,6 @@ void main() {
           data: {
             'access_token': 'new-access-token',
             'refresh_token': 'new-refresh-token',
-            'user_id': 'user-123',
           },
           statusCode: 200,
           requestOptions: RequestOptions(path: ApiConfig.refreshEndpoint),
@@ -108,10 +108,9 @@ void main() {
       );
 
       // Assert
-      expect(result, isA<AuthResponseDto>());
+      expect(result, isA<RefreshResponseDto>());
       expect(result.accessToken, 'new-access-token');
       expect(result.refreshToken, 'new-refresh-token');
-      expect(result.userId, 'user-123');
 
       // Verify basicDio was used
       verify(

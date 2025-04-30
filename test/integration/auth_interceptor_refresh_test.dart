@@ -5,7 +5,7 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -37,7 +37,6 @@ void main() {
   const String testRefreshToken = 'test-refresh-token';
   const String testNewAccessToken = 'new-access-token';
   const String testNewRefreshToken = 'new-refresh-token';
-  const String testUserId = 'test-user-id';
   const String testApiEndpoint = '${ApiConfig.versionedApiPath}/test-endpoint';
 
   /// Helper to create a DioException for 401 unauthorized
@@ -96,10 +95,9 @@ void main() {
     ).thenAnswer((_) async => {});
 
     when(mockApiClient.refreshToken(testRefreshToken)).thenAnswer(
-      (_) async => const AuthResponseDto(
+      (_) async => const RefreshResponseDto(
         accessToken: testNewAccessToken,
         refreshToken: testNewRefreshToken,
-        userId: testUserId,
       ),
     );
   }
@@ -114,8 +112,7 @@ void main() {
 
     // Initialize the AuthInterceptor with mocks
     authInterceptor = AuthInterceptor(
-      refreshTokenFunction:
-          (refreshToken) => mockApiClient.refreshToken(refreshToken),
+      refreshTokenFunction: mockApiClient.refreshToken,
       credentialsProvider: mockCredentialsProvider,
       dio: mockDio,
       authEventBus: mockAuthEventBus,
@@ -268,10 +265,9 @@ void main() {
             if (refreshAttempts < 3) {
               throw AuthException.networkError();
             }
-            return const AuthResponseDto(
+            return const RefreshResponseDto(
               accessToken: testNewAccessToken,
               refreshToken: testNewRefreshToken,
-              userId: testUserId,
             );
           });
 

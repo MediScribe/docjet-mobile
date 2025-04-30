@@ -3,7 +3,7 @@ import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:dio/dio.dart';
 
 void main() {
@@ -92,11 +92,10 @@ class _FakeAuthenticationApiClient extends AuthenticationApiClient {
     : super(basicHttpClient: httpClient, credentialsProvider: provider);
 
   @override
-  Future<AuthResponseDto> refreshToken(String refreshToken) async {
-    return const AuthResponseDto(
+  Future<RefreshResponseDto> refreshToken(String refreshToken) async {
+    return const RefreshResponseDto(
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
-      userId: 'user-123',
     );
   }
 }

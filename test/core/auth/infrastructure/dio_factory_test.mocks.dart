@@ -3,19 +3,22 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i6;
+import 'dart:async' as _i7;
 
 import 'package:dio/dio.dart' as _i2;
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i3;
-import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i7;
-import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i8;
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i8;
+import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i9;
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart'
-    as _i5;
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart'
+    as _i6;
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart'
     as _i4;
-import 'package:docjet_mobile/core/interfaces/app_config_interface.dart' as _i9;
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart'
+    as _i5;
+import 'package:docjet_mobile/core/interfaces/app_config_interface.dart'
+    as _i10;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i10;
+import 'package:mockito/src/dummies.dart' as _i11;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -52,9 +55,20 @@ class _FakeAuthCredentialsProvider_1 extends _i1.SmartFake
         );
 }
 
-class _FakeAuthResponseDto_2 extends _i1.SmartFake
-    implements _i4.AuthResponseDto {
-  _FakeAuthResponseDto_2(
+class _FakeLoginResponseDto_2 extends _i1.SmartFake
+    implements _i4.LoginResponseDto {
+  _FakeLoginResponseDto_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeRefreshResponseDto_3 extends _i1.SmartFake
+    implements _i5.RefreshResponseDto {
+  _FakeRefreshResponseDto_3(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -67,7 +81,7 @@ class _FakeAuthResponseDto_2 extends _i1.SmartFake
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAuthenticationApiClient extends _i1.Mock
-    implements _i5.AuthenticationApiClient {
+    implements _i6.AuthenticationApiClient {
   MockAuthenticationApiClient() {
     _i1.throwOnMissingStub(this);
   }
@@ -91,7 +105,7 @@ class MockAuthenticationApiClient extends _i1.Mock
       ) as _i3.AuthCredentialsProvider);
 
   @override
-  _i6.Future<_i4.AuthResponseDto> login(
+  _i7.Future<_i4.LoginResponseDto> login(
     String? email,
     String? password,
   ) =>
@@ -104,7 +118,7 @@ class MockAuthenticationApiClient extends _i1.Mock
           ],
         ),
         returnValue:
-            _i6.Future<_i4.AuthResponseDto>.value(_FakeAuthResponseDto_2(
+            _i7.Future<_i4.LoginResponseDto>.value(_FakeLoginResponseDto_2(
           this,
           Invocation.method(
             #login,
@@ -114,24 +128,24 @@ class MockAuthenticationApiClient extends _i1.Mock
             ],
           ),
         )),
-      ) as _i6.Future<_i4.AuthResponseDto>);
+      ) as _i7.Future<_i4.LoginResponseDto>);
 
   @override
-  _i6.Future<_i4.AuthResponseDto> refreshToken(String? refreshToken) =>
+  _i7.Future<_i5.RefreshResponseDto> refreshToken(String? refreshToken) =>
       (super.noSuchMethod(
         Invocation.method(
           #refreshToken,
           [refreshToken],
         ),
         returnValue:
-            _i6.Future<_i4.AuthResponseDto>.value(_FakeAuthResponseDto_2(
+            _i7.Future<_i5.RefreshResponseDto>.value(_FakeRefreshResponseDto_3(
           this,
           Invocation.method(
             #refreshToken,
             [refreshToken],
           ),
         )),
-      ) as _i6.Future<_i4.AuthResponseDto>);
+      ) as _i7.Future<_i5.RefreshResponseDto>);
 
   @override
   void testHandleDioException(_i2.DioException? e) => super.noSuchMethod(
@@ -153,126 +167,126 @@ class MockAuthCredentialsProvider extends _i1.Mock
   }
 
   @override
-  _i6.Future<String?> getApiKey() => (super.noSuchMethod(
+  _i7.Future<String?> getApiKey() => (super.noSuchMethod(
         Invocation.method(
           #getApiKey,
           [],
         ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+        returnValue: _i7.Future<String?>.value(),
+      ) as _i7.Future<String?>);
 
   @override
-  _i6.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
+  _i7.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
         Invocation.method(
           #setAccessToken,
           [token],
         ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i6.Future<String?> getAccessToken() => (super.noSuchMethod(
+  _i7.Future<String?> getAccessToken() => (super.noSuchMethod(
         Invocation.method(
           #getAccessToken,
           [],
         ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+        returnValue: _i7.Future<String?>.value(),
+      ) as _i7.Future<String?>);
 
   @override
-  _i6.Future<void> deleteAccessToken() => (super.noSuchMethod(
+  _i7.Future<void> deleteAccessToken() => (super.noSuchMethod(
         Invocation.method(
           #deleteAccessToken,
           [],
         ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i6.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
+  _i7.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
         Invocation.method(
           #setRefreshToken,
           [token],
         ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i6.Future<String?> getRefreshToken() => (super.noSuchMethod(
+  _i7.Future<String?> getRefreshToken() => (super.noSuchMethod(
         Invocation.method(
           #getRefreshToken,
           [],
         ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+        returnValue: _i7.Future<String?>.value(),
+      ) as _i7.Future<String?>);
 
   @override
-  _i6.Future<void> deleteRefreshToken() => (super.noSuchMethod(
+  _i7.Future<void> deleteRefreshToken() => (super.noSuchMethod(
         Invocation.method(
           #deleteRefreshToken,
           [],
         ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i6.Future<void> setUserId(String? userId) => (super.noSuchMethod(
+  _i7.Future<void> setUserId(String? userId) => (super.noSuchMethod(
         Invocation.method(
           #setUserId,
           [userId],
         ),
-        returnValue: _i6.Future<void>.value(),
-        returnValueForMissingStub: _i6.Future<void>.value(),
-      ) as _i6.Future<void>);
+        returnValue: _i7.Future<void>.value(),
+        returnValueForMissingStub: _i7.Future<void>.value(),
+      ) as _i7.Future<void>);
 
   @override
-  _i6.Future<String?> getUserId() => (super.noSuchMethod(
+  _i7.Future<String?> getUserId() => (super.noSuchMethod(
         Invocation.method(
           #getUserId,
           [],
         ),
-        returnValue: _i6.Future<String?>.value(),
-      ) as _i6.Future<String?>);
+        returnValue: _i7.Future<String?>.value(),
+      ) as _i7.Future<String?>);
 
   @override
-  _i6.Future<bool> isAccessTokenValid() => (super.noSuchMethod(
+  _i7.Future<bool> isAccessTokenValid() => (super.noSuchMethod(
         Invocation.method(
           #isAccessTokenValid,
           [],
         ),
-        returnValue: _i6.Future<bool>.value(false),
-      ) as _i6.Future<bool>);
+        returnValue: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
 
   @override
-  _i6.Future<bool> isRefreshTokenValid() => (super.noSuchMethod(
+  _i7.Future<bool> isRefreshTokenValid() => (super.noSuchMethod(
         Invocation.method(
           #isRefreshTokenValid,
           [],
         ),
-        returnValue: _i6.Future<bool>.value(false),
-      ) as _i6.Future<bool>);
+        returnValue: _i7.Future<bool>.value(false),
+      ) as _i7.Future<bool>);
 }
 
 /// A class which mocks [AuthEventBus].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthEventBus extends _i1.Mock implements _i7.AuthEventBus {
+class MockAuthEventBus extends _i1.Mock implements _i8.AuthEventBus {
   MockAuthEventBus() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Stream<_i8.AuthEvent> get stream => (super.noSuchMethod(
+  _i7.Stream<_i9.AuthEvent> get stream => (super.noSuchMethod(
         Invocation.getter(#stream),
-        returnValue: _i6.Stream<_i8.AuthEvent>.empty(),
-      ) as _i6.Stream<_i8.AuthEvent>);
+        returnValue: _i7.Stream<_i9.AuthEvent>.empty(),
+      ) as _i7.Stream<_i9.AuthEvent>);
 
   @override
-  void add(_i8.AuthEvent? event) => super.noSuchMethod(
+  void add(_i9.AuthEvent? event) => super.noSuchMethod(
         Invocation.method(
           #add,
           [event],
@@ -294,7 +308,7 @@ class MockAuthEventBus extends _i1.Mock implements _i7.AuthEventBus {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAppConfigInterface extends _i1.Mock
-    implements _i9.AppConfigInterface {
+    implements _i10.AppConfigInterface {
   MockAppConfigInterface() {
     _i1.throwOnMissingStub(this);
   }
@@ -302,7 +316,7 @@ class MockAppConfigInterface extends _i1.Mock
   @override
   String get apiDomain => (super.noSuchMethod(
         Invocation.getter(#apiDomain),
-        returnValue: _i10.dummyValue<String>(
+        returnValue: _i11.dummyValue<String>(
           this,
           Invocation.getter(#apiDomain),
         ),
@@ -311,7 +325,7 @@ class MockAppConfigInterface extends _i1.Mock
   @override
   String get apiKey => (super.noSuchMethod(
         Invocation.getter(#apiKey),
-        returnValue: _i10.dummyValue<String>(
+        returnValue: _i11.dummyValue<String>(
           this,
           Invocation.getter(#apiKey),
         ),

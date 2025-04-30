@@ -46,7 +46,7 @@ final authEventBusProvider = Provider<AuthEventBus>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AuthEventBusRef = ProviderRef<AuthEventBus>;
-String _$authNotifierHash() => r'c93261858cfa254d21d51e47b3d582286cea7877';
+String _$authNotifierHash() => r'6b0437cb115bd69cdfeb72803b33ed85a35c02b7';
 
 /// Manages authentication state for the application
 ///

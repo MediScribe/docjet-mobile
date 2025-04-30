@@ -2,18 +2,19 @@ import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
-import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
+import 'package:docjet_mobile/core/auth/entities/user.dart';
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
 import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
 
 // Generate mocks for dependencies
 @GenerateMocks([
@@ -41,7 +42,7 @@ void main() {
   const testUserId = 'test-user-id';
 
   // Sample auth response
-  const authResponse = AuthResponseDto(
+  const authResponse = LoginResponseDto(
     accessToken: testAccessToken,
     refreshToken: testRefreshToken,
     userId: testUserId,
@@ -151,17 +152,18 @@ void main() {
         when(
           mockCredentialsProvider.getRefreshToken(),
         ).thenAnswer((_) async => testRefreshToken);
+        const correctRefreshResponse = RefreshResponseDto(
+          accessToken: testAccessToken,
+          refreshToken: testRefreshToken,
+        );
         when(
           mockAuthenticationApiClient.refreshToken(testRefreshToken),
-        ).thenAnswer((_) async => authResponse);
+        ).thenAnswer((_) async => correctRefreshResponse);
         when(
           mockCredentialsProvider.setAccessToken(testAccessToken),
         ).thenAnswer((_) async => {});
         when(
           mockCredentialsProvider.setRefreshToken(testRefreshToken),
-        ).thenAnswer((_) async => {});
-        when(
-          mockCredentialsProvider.setUserId(testUserId),
         ).thenAnswer((_) async => {});
 
         // Act
@@ -179,7 +181,7 @@ void main() {
         verify(
           mockCredentialsProvider.setRefreshToken(testRefreshToken),
         ).called(1);
-        verify(mockCredentialsProvider.setUserId(testUserId)).called(1);
+        verifyNever(mockCredentialsProvider.setUserId(any));
       },
     );
 
@@ -239,6 +241,52 @@ void main() {
         ),
       );
     });
+
+    test(
+      'refreshSession should return true and update tokens on success (using specific vars)',
+      () async {
+        // Arrange
+        const oldRefreshToken = 'old-refresh-token';
+        const newAccessToken = 'new-access-token';
+        const newRefreshToken = 'new-refresh-token';
+
+        // Use RefreshResponseDto for the refresh mock response
+        const refreshResponse = RefreshResponseDto(
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+        );
+
+        when(
+          mockCredentialsProvider.getRefreshToken(),
+        ).thenAnswer((_) async => oldRefreshToken);
+        when(
+          mockAuthenticationApiClient.refreshToken(oldRefreshToken),
+        ).thenAnswer((_) async => refreshResponse);
+        when(
+          mockCredentialsProvider.setAccessToken(newAccessToken),
+        ).thenAnswer((_) async => {});
+        when(
+          mockCredentialsProvider.setRefreshToken(newRefreshToken),
+        ).thenAnswer((_) async => {});
+
+        // Act
+        final result = await authService.refreshSession();
+
+        // Assert
+        expect(result, isTrue);
+        verify(mockCredentialsProvider.getRefreshToken()).called(1);
+        verify(
+          mockAuthenticationApiClient.refreshToken(oldRefreshToken),
+        ).called(1);
+        verify(
+          mockCredentialsProvider.setAccessToken(newAccessToken),
+        ).called(1);
+        verify(
+          mockCredentialsProvider.setRefreshToken(newRefreshToken),
+        ).called(1);
+        verifyNever(mockCredentialsProvider.setUserId(any));
+      },
+    );
   });
 
   group('logout', () {
@@ -492,15 +540,12 @@ void main() {
         when(
           mockUserApiClient.getUserProfile(),
         ).thenAnswer((_) async => userProfileDto);
-        // Mock cache save to succeed
         when(
           mockUserProfileCache.saveProfile(any, any),
         ).thenAnswer((_) async => {});
 
         // Act
-        final result = await authService.getUserProfile(
-          // acceptOfflineProfile doesn't matter here as API succeeds
-        );
+        final result = await authService.getUserProfile();
 
         // Assert
         expect(result, isA<User>());
@@ -535,23 +580,20 @@ void main() {
         when(
           mockCredentialsProvider.getUserId(),
         ).thenAnswer((_) async => testUserId);
-        // API client throws offline error
         when(mockUserApiClient.getUserProfile()).thenThrow(offlineException);
-        // Tokens are valid
         when(
           mockCredentialsProvider.isAccessTokenValid(),
         ).thenAnswer((_) async => true);
         when(
           mockCredentialsProvider.isRefreshTokenValid(),
         ).thenAnswer((_) async => true);
-        // Cache has the profile
         when(
           mockUserProfileCache.getProfile(testUserId),
         ).thenAnswer((_) async => userProfileDto);
 
         // Act
         final result = await authService.getUserProfile(
-          acceptOfflineProfile: true, // Explicitly allow offline cache
+          acceptOfflineProfile: true,
         );
 
         // Assert FIRST verify calls, THEN check result

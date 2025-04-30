@@ -88,7 +88,7 @@ class AuthServiceImpl implements AuthService {
       await credentialsProvider.setAccessToken(authResponse.accessToken);
       await credentialsProvider.setRefreshToken(authResponse.refreshToken);
       // Ensure userId is also stored/updated if necessary (depends on API response)
-      await credentialsProvider.setUserId(authResponse.userId);
+      // REMOVED: userId is not returned on refresh
 
       return true;
     } on AuthException catch (e) {

@@ -2,7 +2,7 @@
 ///
 /// Maps between the JSON response from the auth endpoints and
 /// a strongly-typed Dart object.
-class AuthResponseDto {
+class LoginResponseDto {
   /// JWT access token for authenticating API requests
   final String accessToken;
 
@@ -12,16 +12,16 @@ class AuthResponseDto {
   /// Unique identifier for the authenticated user
   final String userId;
 
-  /// Creates an [AuthResponseDto] with the required fields
-  const AuthResponseDto({
+  /// Creates an [LoginResponseDto] with the required fields
+  const LoginResponseDto({
     required this.accessToken,
     required this.refreshToken,
     required this.userId,
   });
 
-  /// Creates an [AuthResponseDto] from a JSON map
-  factory AuthResponseDto.fromJson(Map<String, dynamic> json) {
-    return AuthResponseDto(
+  /// Creates an [LoginResponseDto] from a JSON map
+  factory LoginResponseDto.fromJson(Map<String, dynamic> json) {
+    return LoginResponseDto(
       accessToken: json['access_token'] as String,
       refreshToken: json['refresh_token'] as String,
       userId: json['user_id'] as String,

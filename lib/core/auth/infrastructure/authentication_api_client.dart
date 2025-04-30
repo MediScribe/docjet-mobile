@@ -3,7 +3,8 @@ import 'dart:io'; // For SocketException
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter/foundation.dart';
 
@@ -29,35 +30,35 @@ class AuthenticationApiClient {
     required this.credentialsProvider,
   });
 
-  /// Authenticates a user with email and password
+  /// Logs in a user with the provided credentials.
   ///
-  /// Returns [AuthResponseDto] with tokens and user ID on success.
-  /// Throws [AuthException] if authentication fails.
-  Future<AuthResponseDto> login(String email, String password) async {
+  /// Returns [LoginResponseDto] with tokens and user ID on success.
+  /// Throws [AuthException] on failure.
+  Future<LoginResponseDto> login(String email, String password) async {
     try {
       final response = await basicHttpClient.post(
         ApiConfig.loginEndpoint,
         data: {'email': email, 'password': password},
       );
 
-      return AuthResponseDto.fromJson(response.data);
+      return LoginResponseDto.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
   }
 
-  /// Refreshes the authentication session using a refresh token
+  /// Refreshes the authentication session using a refresh token.
   ///
-  /// Returns [AuthResponseDto] with new tokens and user ID on success.
-  /// Throws [AuthException] if refresh fails.
-  Future<AuthResponseDto> refreshToken(String refreshToken) async {
+  /// Returns [RefreshResponseDto] with new tokens on success.
+  /// Throws [AuthException] on failure (e.g., invalid token, network error).
+  Future<RefreshResponseDto> refreshToken(String refreshToken) async {
     try {
       final response = await basicHttpClient.post(
         ApiConfig.refreshEndpoint,
         data: {'refresh_token': refreshToken},
       );
 
-      return AuthResponseDto.fromJson(response.data);
+      return RefreshResponseDto.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

@@ -9,7 +9,7 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart';
 import 'package:docjet_mobile/core/config/app_config.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -64,7 +64,7 @@ class AuthTestServer {
         );
       }
 
-      // Prepare valid auth response (matching what AuthResponseDto expects)
+      // Prepare valid auth response (matching what LoginResponseDto expects)
       final responseJson = {
         'access_token': 'test-access-token',
         'refresh_token': 'test-refresh-token',
@@ -190,7 +190,7 @@ void main() {
       final result = await authApiClient.login('test@example.com', 'password');
 
       // Verify it succeeded (server returns valid response)
-      expect(result, isA<AuthResponseDto>());
+      expect(result, isA<LoginResponseDto>());
       expect(result.accessToken, 'test-access-token');
 
       // Verify request
@@ -432,7 +432,7 @@ void main() {
           'test@example.com',
           'password',
         );
-        expect(result, isA<AuthResponseDto>());
+        expect(result, isA<LoginResponseDto>());
         expect(result.accessToken, 'test-access-token');
 
         final request = server.lastRequest;

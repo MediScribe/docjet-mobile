@@ -5,7 +5,7 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/dtos/auth_response_dto.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -40,7 +40,6 @@ void main() {
   const testRefreshToken = 'test-refresh-token';
   const testNewAccessToken = 'new-access-token';
   const testNewRefreshToken = 'new-refresh-token';
-  const testUserId = 'test-user-id';
 
   setUp(() {
     mockApiClient = MockAuthenticationApiClient();
@@ -128,10 +127,9 @@ void main() {
       ).thenAnswer((_) async => testRefreshToken);
 
       when(mockApiClient.refreshToken(testRefreshToken)).thenAnswer(
-        (_) async => const AuthResponseDto(
+        (_) async => const RefreshResponseDto(
           accessToken: testNewAccessToken,
           refreshToken: testNewRefreshToken,
-          userId: testUserId,
         ),
       );
 
@@ -200,10 +198,9 @@ void main() {
           statusCode: 200,
           requestOptions: requestOptions,
         );
-        const authResponse = AuthResponseDto(
+        const refreshResponse = RefreshResponseDto(
           accessToken: testNewAccessToken,
           refreshToken: testNewRefreshToken,
-          userId: testUserId,
         );
 
         when(
@@ -220,7 +217,7 @@ void main() {
           if (refreshCallCount < 3) {
             throw networkError;
           }
-          return authResponse;
+          return refreshResponse;
         });
 
         when(
