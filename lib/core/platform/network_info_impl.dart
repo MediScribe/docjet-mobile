@@ -25,6 +25,17 @@ class NetworkInfoImpl implements NetworkInfo {
   final StreamController<bool> _statusStreamController =
       StreamController<bool>.broadcast();
 
+  // --- TEMP DEBUG PROBE --------------------------------------------------
+  // Logs every raw event with a precise timestamp to hunt simulator-only
+  // NWPathMonitor glitches. Remove once the issue is understood.
+  // TODO(HARD-BOB): Delete _debugRawEvent before shipping to prod.
+  void _debugRawEvent(List<ConnectivityResult> results) {
+    if (!kDebugMode) return; // Only in debug mode
+    final stamp = DateTime.now().toIso8601String();
+    _logger.f('$_tag [TMP-RAW] $stamp -> $results');
+  }
+  // -----------------------------------------------------------------------
+
   /// Creates an instance of [NetworkInfoImpl].
   ///
   /// Requires a [Connectivity] instance and an [AuthEventBus].
@@ -50,6 +61,10 @@ class NetworkInfoImpl implements NetworkInfo {
       // Start listening to changes *after* the initial check
       _connectivitySubscription = connectivity.onConnectivityChanged.listen(
         (results) {
+          // --- HARDCORE DEBUG LOG ---
+          _debugRawEvent(results); // Temp probe (see method)
+          _logger.f('$_tag Raw connectivity event received: $results');
+          // --- END HARDCORE DEBUG LOG ---
           final currentStatus = results.any(
             (result) => result != ConnectivityResult.none,
           );
