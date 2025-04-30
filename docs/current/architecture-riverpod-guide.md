@@ -2,7 +2,17 @@
 
 ## Provider Generation Pattern
 
-In DocJet Mobile, we use Riverpod with code generation for state management. This document explains our approach to provider definitions, code generation, and provider overrides.
+### What is Riverpod?
+
+Riverpod is a reactive caching and data-binding framework that improves on Flutter's InheritedWidget pattern. Created by Remi Rousselet (who also created Provider), Riverpod offers several key advantages:
+
+1. **Compile-time safety**: Catches provider access errors at compile time rather than runtime
+2. **Simplified dependency management**: Providers can depend on other providers without complex nesting
+3. **Reactive rebuilding**: UI components only rebuild when their specific dependencies change
+4. **Testing support**: First-class testing capabilities with easy provider overrides
+5. **Code generation**: Reduces boilerplate through annotations
+
+In DocJet Mobile, we use Riverpod with code generation for state management. This document explains our approach to provider definitions, code generation, and provider overrides. 
 
 ### Code Generation Approach
 

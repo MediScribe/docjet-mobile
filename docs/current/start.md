@@ -16,7 +16,8 @@ This document serves as the central index for the project documentation.
 *   [Riverpod Guide](./architecture-riverpod-guide.md)
 *   [API Versioning](./architecture-api-versioning.md)
 *   [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
-*   [UI Theming System](../features/feature-ui-theming.md)
+*   [UI Theming System](./feature-ui-theming.md)
+*   [Offline Detection System](./feature-offline-detection.md)
 
 ### Feature Deep Dive: Authentication
 *   [Authentication Architecture](./feature-auth-architecture.md)
@@ -29,6 +30,17 @@ This document serves as the central index for the project documentation.
 ### UI & Development Aids
 *   [UI Screens Overview](./ui-screens-overview.md)
 *   [Playground](./dev-ui-playground.md)
+
+### Refactoring Efforts (Completed)
+*   [Offline Profile Cache TODO](./refactoring/offline-profile-cache-todo.md)
+*   [Job Data & Auth Alignment](./refactoring/job_data_auth_alignment_done.md)
+*   [API Client DI Refactor](./refactoring/api_client_di_refactor_done.md)
+*   [Auth Issues TODO](./refactoring/auth-issues-todo_done.md)
+*   [Feature Auth Implementation](./refactoring/feature-auth-implementation_done.md)
+*   [Explicit DI Revisited](./refactoring/explicit-di-revisited_done.md)
+
+### Research
+*   [Sync Frameworks](./research/sync_framworks.md)
 
 ---
 
@@ -50,7 +62,7 @@ This document serves as the central index for the project documentation.
 *   **Description**: Outlines the Clean Architecture principles and layered structure (Presentation, Use Cases, Domain, Data, Core) of the DocJet Mobile application, including specific feature architectures, offline profile caching system, and the centralized theming system for consistent UI.
 
 #### [Riverpod Guide](./architecture-riverpod-guide.md)
-*   **Description**: Outlines the approach to using Riverpod with code generation (`@riverpod`) for state management, covering provider definition, generation, overrides (often with GetIt), and best practices.
+*   **Description**: Outlines the approach to using Riverpod with code generation (`@riverpod`) for state management, covering provider definition, generation, the override pattern using GetIt for dependency injection, and best practices.
 
 #### [API Versioning](./architecture-api-versioning.md)
 *   **Description**: Describes the centralized API versioning strategy using `ApiConfig` and environment variables, ensuring consistency across the app and mock server.
@@ -58,8 +70,11 @@ This document serves as the central index for the project documentation.
 #### [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
 *   **Description**: Hard-won lessons and guidelines for handling audio playback complexities, reactive stream management (debouncing), state synchronization, and testing to avoid UI flickering and integration issues, based on past failures (`docs/old_system/audio_player_analysis.md`).
 
-#### [UI Theming System](../features/feature-ui-theming.md)
-*   **Description**: Documents the application's theming architecture based on Flutter's ThemeExtension mechanism, including semantic color tokens (like `dangerBg`, `offlineBg`, `primaryActionBg`), light/dark theme support, and theme-aware components that automatically adapt to system settings.
+#### [UI Theming System](./feature-ui-theming.md)
+*   **Description**: Documents the application's theming architecture based on Flutter's `ThemeExtension` mechanism, detailing `AppColorTokens`, `app_theme.dart`, semantic color usage, light/dark theme support, and how to add new theme tokens.
+
+#### [Offline Detection System](./feature-offline-detection.md)
+*   **Description**: Details the system for detecting network connectivity changes, integrating with the authentication state (`AuthNotifier`), and propagating `OfflineDetected` / `OnlineRestored` events via the `AuthEventBus` for components like the Job sync service to react accordingly.
 
 ### Feature Deep Dive: Authentication
 #### [Authentication Architecture](./feature-auth-architecture.md)
@@ -82,6 +97,29 @@ This document serves as the central index for the project documentation.
 #### [Playground](./dev-ui-playground.md)
 *   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow.
 
+### Refactoring Efforts (Completed)
+#### [Offline Profile Cache TODO](./refactoring/offline-profile-cache-todo.md)
+*   **Description**: Tracks the tasks and status for refactoring the offline profile caching mechanism. *(Note: This is likely a task list, not conceptual documentation)*
+
+#### [Job Data & Auth Alignment](./refactoring/job_data_auth_alignment_done.md)
+*   **Description**: Documents the completed refactoring effort to align Job data handling with authentication state and events. *(Note: Completed refactoring log)*
+
+#### [API Client DI Refactor](./refactoring/api_client_di_refactor_done.md)
+*   **Description**: Details the completed refactoring of the API client's dependency injection setup. *(Note: Completed refactoring log)*
+
+#### [Auth Issues TODO](./refactoring/auth-issues-todo_done.md)
+*   **Description**: Tracks the resolution of various authentication-related issues. *(Note: This is likely a task list, not conceptual documentation)*
+
+#### [Feature Auth Implementation](./refactoring/feature-auth-implementation_done.md)
+*   **Description**: Log of the implementation details and steps taken during the initial build or major refactor of the authentication feature. *(Note: Completed implementation/refactoring log)*
+
+#### [Explicit DI Revisited](./refactoring/explicit-di-revisited_done.md)
+*   **Description**: Documents the completed migration towards a more explicit dependency injection pattern throughout the application. *(Note: Completed refactoring log)*
+
+### Research
+#### [Sync Frameworks](./research/sync_framworks.md)
+*   **Description**: Contains research notes and comparisons of different synchronization frameworks considered for the project.
+
 ## Project Documentation
 
 The `docs/` directory contains detailed documentation on various aspects of the project:
@@ -89,7 +127,7 @@ The `docs/` directory contains detailed documentation on various aspects of the 
 *   **`docs/current/`**: Contains the most up-to-date guides for active development.
     *   `logging_guide.md`: Comprehensive details on the logging system and testing patterns.
     *   `setup-environment-config.md`: **Crucial guide** explaining how to configure the app for different environments (local dev, staging, prod) using runtime DI and `--dart-define`.
-    *   `explicit-di-revisited.md`: Detailed plan and status for the migration to explicit dependency injection.
+    *   `explicit-di-revisited_done.md`: Detailed plan and status for the migration to explicit dependency injection (Now under `refactoring/`).
     *   `architecture-api-versioning.md`: Explanation of the centralized API versioning strategy.
     *   `setup-mock-server.md`: Information specifically about setting up and running the mock API server.
     *   Various feature-specific documents.
@@ -98,8 +136,9 @@ The `docs/` directory contains detailed documentation on various aspects of the 
 
 Key guides to read first:
 - `setup-environment-config.md`: Understand how to run the app locally vs. for release.
-- `logging_guide.md`: Learn how to use the logging system effectively.
-- `explicit-di-revisited.md`: Grasp the dependency injection patterns.
 - `architecture-overview.md`: Understand the app's structure, including offline capabilities.
+- `feature-offline-detection.md`: Understand how connectivity changes are handled.
+- `feature-auth-architecture.md`: Grasp the authentication flow and offline caching.
+- `feature-job-dataflow.md`: Learn about the offline-first job data handling.
 
 For details on running the app with the mock server, testing integration, and common troubleshooting steps, refer primarily to `setup-environment-config.md` and `setup-mock-server.md`. 
