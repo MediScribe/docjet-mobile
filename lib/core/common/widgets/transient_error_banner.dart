@@ -72,54 +72,66 @@ class TransientErrorBannerState extends ConsumerState<TransientErrorBanner> {
 
   @override
   Widget build(BuildContext context) {
+    // We only apply SafeArea padding when the app is NOT offline. Otherwise the
+    // OfflineBanner already occupies the system-UI inset and adding another
+    // SafeArea would introduce an ugly gap between the two banners.
+
     final transientError = ref.watch(
       widget.authNotifierProvider.select((state) => state.transientError),
     );
+    final isOffline = ref.watch(
+      widget.authNotifierProvider.select((state) => state.isOffline),
+    );
 
-    // Return an empty SizedBox when there's no error to show
+    // Return empty widget when there's no error to show
     if (transientError == null) {
       return const SizedBox.shrink();
     }
 
-    // Reset the timer when the error changes or when no timer is running.
+    // (Re)start the auto-dismiss timer whenever we receive a *new* error or
+    // the timer was previously cancelled.
     if (_lastError != transientError || _dismissTimer == null) {
       _lastError = transientError;
       _setDismissTimer();
+    }
+
+    // The visual banner widget – extracted so we can optionally wrap it in a
+    // SafeArea depending on `isOffline`.
+    Widget banner = AnimatedContainer(
+      duration: _TransientErrorBannerTheme.animationDuration,
+      curve: Curves.easeInOut,
+      height: _TransientErrorBannerTheme.height,
+      width: double.infinity,
+      color: _TransientErrorBannerTheme.backgroundColor,
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              transientError.message,
+              style: _TransientErrorBannerTheme.messageStyle,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: _dismissBanner,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
+
+    if (!isOffline) {
+      banner = SafeArea(top: true, bottom: false, child: banner);
     }
 
     return Semantics(
       container: true,
       label: 'Error message: ${transientError.message}',
       liveRegion: true,
-      child: SafeArea(
-        top: true,
-        bottom: false,
-        child: AnimatedContainer(
-          duration: _TransientErrorBannerTheme.animationDuration,
-          curve: Curves.easeInOut,
-          height: _TransientErrorBannerTheme.height,
-          width: double.infinity,
-          color: _TransientErrorBannerTheme.backgroundColor,
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  transientError.message,
-                  style: _TransientErrorBannerTheme.messageStyle,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: _dismissBanner,
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-        ),
-      ),
+      child: banner,
     );
   }
 }

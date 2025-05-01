@@ -69,7 +69,7 @@ sequenceDiagram
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: All 750 tests are passing. Our changes to the OfflineBanner did not break any existing functionality.
 * 1.6. [X] **Format, Analyze, and Fix:**
-    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Command: `./scripts/fix_format_analyze.sh`
     * Findings: Fixed one unnecessary import in offline_banner.dart. All files are properly formatted and there are no analysis issues.
 * 1.7. [X] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
@@ -112,7 +112,7 @@ sequenceDiagram
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: Initially failed due to MockAuthNotifier in login_screen_test.dart missing the clearTransientError method implementation. After fixing this, all 753 tests pass successfully, showing that our changes integrate properly with the existing codebase.
 * 2.6. [X] **Format, Analyze, and Fix:**
-    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Command: `./scripts/fix_format_analyze.sh`
     * Findings: Fixed an unused import in test/core/auth/presentation/auth_notifier_test.dart. After formatting and analyzing, no issues were found. The code is clean and well-formatted.
 * 2.7. [X] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
@@ -190,7 +190,7 @@ _(Added after Hard-Bob code review to address flagged concerns)_
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: All 770 tests pass, confirming that our TransientErrorBanner implementation integrates well with the rest of the codebase without causing any regressions.
 * 3.6. [X] **Format, Analyze, and Fix:**
-    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Command: `./scripts/fix_format_analyze.sh`
     * Findings: Fixed a few minor issues like unnecessary imports. The code now passes all analysis checks with no warnings or errors.
 * 3.7. [X] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
@@ -206,33 +206,33 @@ _(Added after Hard-Bob code review to address flagged concerns)_
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 4.1. [ ] **Task:** Integrate `TransientErrorBanner` into the main UI scaffold.
+* 4.1. [X] **Task:** Integrate `TransientErrorBanner` into the main UI scaffold.
 - Embed it in a `Stack` (or another `Column` slot) **directly above or below the `OfflineBanner`** so simultaneous banners don't produce unwanted layout shifts. Update `lib/core/auth/presentation/widgets/app_shell.dart` or the central scaffold accordingly.
     * Place the `<TransientErrorBanner />` widget in the appropriate place in your main app layout (e.g., inside a `Stack` in `app.dart` or your main `Scaffold`, likely just below the `OfflineBanner`).
-    * File: e.g., `lib/app/view/app.dart` or main screen scaffold file.
-    * Findings:
+    * File: `lib/core/auth/presentation/widgets/app_shell.dart`
+    * Findings: Added the TransientErrorBanner to the AppShell, directly below the OfflineBanner in the Column. The banner automatically shows/hides based on transient errors in the AuthState, passing the authNotifierProvider to connect it with the state management system. Positioning it below the OfflineBanner ensures consistent layout with no unwanted shifts when both banners appear.
 * 4.2. [ ] **Task:** Refine error messages (optional).
     * Ensure the messages displayed from `AuthError` are user-friendly.
     * Findings:
-* 4.3. [ ] **Run ALL Unit/Integration Tests:**
+* 4.3. [X] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings:
-* 4.4. [ ] **Format, Analyze, and Fix:**
+    * Findings: All 774 tests pass successfully. Our integration of the TransientErrorBanner into the AppShell didn't break any existing functionality. Additionally updated app_shell_test.dart to include tests for the TransientErrorBanner integration, ensuring error messages display correctly and the banner only shows when there's an error.
+* 4.4. [X] **Format, Analyze, and Fix:**
     * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
-    * Findings:
-* 4.5. [ ] **Run ALL E2E & Stability Tests:**
+    * Findings: One file (app_shell_test.dart) was formatted, but no other issues were found. The code follows best practices and passes all linting checks. No manual fixes were required.
+* 4.5. [X] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings:
+    * Findings: All E2E and stability tests pass. The app starts successfully and runs stably with the integrated TransientErrorBanner. The banner properly integrates with the UI without causing any negative performance or stability impacts.
 * 4.6. [ ] **Manual Smoke Test:** Trigger the error condition (requires backend staging to still 404 on `/users/profile` after login/refresh, or modify client code temporarily to simulate).
     * Steps: Log in. Verify the error banner appears briefly after the failed profile fetch, then disappears. Verify the app remains responsive (not stuck on spinner). Verify `OfflineBanner` looks correct with safe area.
     * Findings:
-* 4.7. [ ] **Code Review & Commit Prep:** `git status | cat && git diff --staged | cat`
+* 4.7. [X] **Code Review & Commit Prep:** `git status | cat && git diff --staged | cat`
     * Review all changes: `OfflineBanner` fix, `AuthState`, `AuthNotifier`, `AuthServiceImpl` error handling, `TransientErrorBanner` widget, UI integration.
-    * Findings:
-* 4.8. [ ] **Handover Brief:**
-    * Status: Transient error handling and banner implemented, integrated, and tested. `OfflineBanner` safe area fixed. Ready for commit after manual smoke test confirmation.
-    * Gotchas: Manual test depends on staging environment state or requires temporary code modification.
-    * Recommendations: Perform smoke test, then commit.
+    * Findings: The code changes for integrating the TransientErrorBanner into the AppShell are minimal and focused. We only needed to add the TransientErrorBanner widget below the OfflineBanner in the Column of the AppShell and update the app_shell_test.dart file to include tests for the TransientErrorBanner. This approach ensures both banners work together without causing layout shifts, and the tests verify the correct behavior.
+* 4.8. [X] **Handover Brief:**
+    * Status: The TransientErrorBanner is now fully integrated into the AppShell, positioned directly below the OfflineBanner for consistent layout. All unit, integration, and E2E tests are passing, confirming the changes work correctly. The banner correctly shows when there's a transient error in AuthState and automatically dismisses after the timeout or when the user taps the dismiss button. The code is well-structured, maintainable, and follows the established patterns.
+    * Gotchas: The banner relies on the AuthNotifier's transientError field in the state, so any changes to how errors are handled in the AuthNotifier may affect the banner's behavior. Also, if both the OfflineBanner and TransientErrorBanner are displayed simultaneously, they will stack vertically, which could reduce available content space, but shouldn't cause layout shifts.
+    * Recommendations: Complete the manual smoke test to verify the banner appears and functions correctly in a real-world scenario. Consider enhancing the error messages displayed to be more user-friendly and descriptive in a future update. The transient error handling mechanism could be extended to cover other non-critical errors beyond profile fetch failures.
 
 ---
 

@@ -1,4 +1,6 @@
 import 'package:docjet_mobile/core/auth/presentation/widgets/offline_banner.dart';
+import 'package:docjet_mobile/core/common/widgets/transient_error_banner.dart';
+import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:flutter/material.dart';
 
 /// A shell wrapper for the application that provides common UI elements
@@ -22,6 +24,9 @@ class AppShell extends StatelessWidget {
       children: [
         // The offline banner automatically shows/hides based on connectivity
         const OfflineBanner(),
+
+        // The transient error banner shows/hides based on transient errors in auth state
+        TransientErrorBanner(authNotifierProvider: authNotifierProvider),
 
         // Flexible child to take remaining space
         Expanded(child: child),

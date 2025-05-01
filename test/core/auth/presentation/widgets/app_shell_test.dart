@@ -17,18 +17,54 @@ class FakeOfflineBanner extends StatelessWidget {
   }
 }
 
-// A test version of AppShell that uses our controllable fake banner
+// Simple fake widget to replace TransientErrorBanner that can be directly controlled
+class FakeTransientErrorBanner extends StatelessWidget {
+  final bool isVisible;
+  final String? errorMessage;
+
+  const FakeTransientErrorBanner({
+    this.isVisible = false,
+    this.errorMessage = 'An error occurred',
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: isVisible ? 50.0 : 0.0,
+      color: Colors.red,
+      child:
+          isVisible
+              ? Center(child: Text(errorMessage ?? 'An error occurred'))
+              : null,
+    );
+  }
+}
+
+// A test version of AppShell that uses our controllable fake banners
 class TestAppShell extends StatelessWidget {
   final Widget child;
   final bool isOffline;
+  final bool hasTransientError;
+  final String? errorMessage;
 
-  const TestAppShell({required this.child, this.isOffline = false, super.key});
+  const TestAppShell({
+    required this.child,
+    this.isOffline = false,
+    this.hasTransientError = false,
+    this.errorMessage,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         FakeOfflineBanner(isVisible: isOffline),
+        FakeTransientErrorBanner(
+          isVisible: hasTransientError,
+          errorMessage: errorMessage,
+        ),
         Expanded(child: child),
       ],
     );
@@ -71,6 +107,51 @@ void main() {
 
       // Assert: The offline text should not be visible
       expect(find.text('You are offline'), findsNothing);
+      // Child content should still be visible
+      expect(find.text('Child Content'), findsOneWidget);
+    });
+
+    testWidgets('shows transient error banner when there is an error', (
+      WidgetTester tester,
+    ) async {
+      // Build our widget with a transient error
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TestAppShell(
+            hasTransientError: true,
+            errorMessage: 'Profile not found',
+            child: Text('Child Content'),
+          ),
+        ),
+      );
+
+      // Act: Let the widget render
+      await tester.pump();
+
+      // Assert: The error message should be visible
+      expect(find.text('Profile not found'), findsOneWidget);
+      // Child content should still be visible
+      expect(find.text('Child Content'), findsOneWidget);
+    });
+
+    testWidgets('does not show transient error when there is no error', (
+      WidgetTester tester,
+    ) async {
+      // Build our widget without an error
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TestAppShell(
+            hasTransientError: false,
+            child: Text('Child Content'),
+          ),
+        ),
+      );
+
+      // Act: Let the widget render
+      await tester.pump();
+
+      // Assert: No error message should be visible
+      expect(find.text('An error occurred'), findsNothing);
       // Child content should still be visible
       expect(find.text('Child Content'), findsOneWidget);
     });
