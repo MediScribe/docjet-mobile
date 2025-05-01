@@ -9,6 +9,26 @@ import 'package:docjet_mobile/core/auth/auth_exception.dart';
 /// 2. String content matching (legacy fallback) with [getErrorTypeFromMessage]
 ///    This should only be used when dealing with raw error messages where
 ///    the original exception is not available.
+///
+/// ## Error Handling Policy
+///
+/// The application distinguishes between two types of auth errors:
+///
+/// 1. **Critical Errors (AuthStatus.error)**: Errors that prevent the app from functioning
+///    properly and require immediate user attention or intervention.
+///    - Examples: Invalid credentials, unauthorized access, expired tokens
+///    - Effect: Block the user flow, require user action to continue
+///
+/// 2. **Transient Errors (transientError in AuthState)**: Non-critical errors that
+///    should be displayed to the user but don't block app functionality.
+///    - Examples: Profile fetch failure (404), non-essential API failures
+///    - Effect: Display a temporary banner, allow user to continue using the app
+///
+/// ### Important Rules:
+/// - If an error results in AuthStatus.error, DO NOT also set transientError
+/// - Use transientError only when the app can continue functioning with reduced data
+/// - Transient errors should auto-dismiss after a short period
+/// - Prefer specific error messages for transient errors that explain what couldn't be loaded
 class AuthErrorMapper {
   /// Maps an [AuthException] to the corresponding [AuthErrorType]
   ///

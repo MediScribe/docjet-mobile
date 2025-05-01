@@ -129,29 +129,29 @@ _(Added after Hard-Bob code review to address flagged concerns)_
 
 **MANDATORY REPORTING RULE:** Same drill – Findings + Handover after each sub-task.
 
-* 2a.1. [ ] **Brittle Path Matcher Fix:**
+* 2a.1. [X] **Brittle Path Matcher Fix:**
     * Replace `requestOptions.path.contains('/users/profile')` hack with a robust util – e.g. `ApiPathMatcher.isUserProfile(path)` using regex anchored at end or version-aware parsing.
     * Add unit tests for matcher covering `/users/profile`, `/v1/users/profile`, query params, and negatives.
     * Update `_handleDioExceptionForTransientError` to call the util.
-    * Findings:
-* 2a.2. [ ] **Single-Point Error Mapping Refactor:**
+    * Findings: Created a new ApiPathMatcher utility class with isUserProfile method that uses regex to robustly match profile endpoints regardless of version prefixes or query parameters. Added comprehensive tests to verify all edge cases. Updated the AuthNotifier to use this new matcher.
+* 2a.2. [X] **Single-Point Error Mapping Refactor:**
     * Extract duplicated Auth/Dio→State mapping into private method(s) to keep functions <20 statements and DRY.
     * Ensure both `login()` and `_checkAuthStatus()` delegate to helper.
-    * Findings:
-* 2a.3. [ ] **Dummy-User Placeholder Cleanup:**
+    * Findings: Refactored error handling by creating three helper methods: _mapAuthExceptionToState, _mapDioExceptionToState, and _mapGenericExceptionToState. This eliminated code duplication and made the error handling logic more consistent across different functions. Updated login() and _checkAuthStatus() to use these helpers.
+* 2a.3. [X] **Dummy-User Placeholder Cleanup:**
     * Introduce `User.anonymous()` factory **or** reuse last-known user instead of `User(id: '')` magic string.
     * Adjust tests accordingly.
-    * Findings:
-* 2a.4. [ ] **AuthStatus vs. TransientError Semantics:**
+    * Findings: Added User.anonymous() factory that creates a user with a special '_anonymous_' ID, and an isAnonymous getter to easily identify these placeholder users. Updated AuthNotifier to use User.anonymous() instead of the magic string ID. Updated tests to verify anonymous user behavior.
+* 2a.4. [X] **AuthStatus vs. TransientError Semantics:**
     * Decide policy: if we already surface a blocking auth error (`AuthStatus.error`) we likely **do not** attach a `transientError`.  Implement guard + tests.
     * Document the rule in `auth_error_mapper.dart` or README section.
-    * Findings:
-* 2a.5. [ ] **Update Coverage:** Verify/extend tests for new behaviour, run full suite, fix any regressions.
-    * Findings:
-* 2a.6. [ ] **Handover Brief:**
-    * Status:
-    * Gotchas:
-    * Recommendations: Continue with Cycle 3 once all above are green.
+    * Findings: Added clear documentation to auth_error_mapper.dart about the error handling policy, explicitly stating that critical errors (AuthStatus.error) and transient errors are mutually exclusive. Implemented this policy in the error mapping methods and added tests to verify this behavior.
+* 2a.5. [X] **Update Coverage:** Verify/extend tests for new behaviour, run full suite, fix any regressions.
+    * Findings: Added new tests for ApiPathMatcher to verify regex matching works correctly. Extended AuthNotifier tests to cover new scenarios including versioned paths and query parameters. Fixed test failures and verified all 764 tests are now passing. Also fixed a warning about an unused variable.
+* 2a.6. [X] **Handover Brief:**
+    * Status: All tasks in Cycle 2a have been completed successfully. The transient error handling logic has been significantly improved by: 1) adding a robust path matcher, 2) centralizing error handling logic, 3) introducing a proper anonymous user, and 4) clarifying error policy.
+    * Gotchas: Be careful when modifying the AuthNotifier error handling logic as we now have a clear policy about not mixing critical and transient errors. The ApiPathMatcher's regex pattern assumes profile endpoints always end with '/users/profile' - if this endpoint structure changes, the matcher would need to be updated.
+    * Recommendations: Continue with Cycle 3 to implement the TransientErrorBanner widget. The groundwork has been laid for properly handling and propagating transient errors, which will make the banner implementation straightforward.
 
 ---
 

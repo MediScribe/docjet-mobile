@@ -36,6 +36,25 @@ final otherDioException = DioException(
   type: DioExceptionType.badResponse,
 );
 
+// Additional specialized DioExceptions for testing path matcher
+final profile404DioExceptionWithVersion = DioException(
+  requestOptions: RequestOptions(path: '/v1/users/profile'),
+  response: Response(
+    requestOptions: RequestOptions(path: '/v1/users/profile'),
+    statusCode: 404,
+  ),
+  type: DioExceptionType.badResponse,
+);
+
+final profile404DioExceptionWithQuery = DioException(
+  requestOptions: RequestOptions(path: '/users/profile?param=value'),
+  response: Response(
+    requestOptions: RequestOptions(path: '/users/profile?param=value'),
+    statusCode: 404,
+  ),
+  type: DioExceptionType.badResponse,
+);
+
 void main() {
   late MockAuthService mockAuthService;
   late MockAuthEventBus mockAuthEventBus;
@@ -468,6 +487,47 @@ void main() {
         state.transientError?.message,
         contains('Unable to fetch your profile'),
       );
+      // Verify we're using anonymous user
+      expect(state.user, isNotNull);
+      expect(state.user!.isAnonymous, isTrue);
+    });
+
+    test('should handle versioned profile paths', () async {
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: false),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAuthService.getUserProfile(),
+      ).thenThrow(profile404DioExceptionWithVersion);
+
+      readNotifier();
+      await pumpEventQueue();
+
+      final state = readState();
+      expect(state.status, equals(AuthStatus.authenticated));
+      expect(state.transientError, isNotNull);
+      // Verify we're using anonymous user
+      expect(state.user, isNotNull);
+      expect(state.user!.isAnonymous, isTrue);
+    });
+
+    test('should handle profile paths with query parameters', () async {
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: false),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAuthService.getUserProfile(),
+      ).thenThrow(profile404DioExceptionWithQuery);
+
+      readNotifier();
+      await pumpEventQueue();
+
+      final state = readState();
+      expect(state.status, equals(AuthStatus.authenticated));
+      expect(state.transientError, isNotNull);
+      // Verify we're using anonymous user
+      expect(state.user, isNotNull);
+      expect(state.user!.isAnonymous, isTrue);
     });
 
     test('should not set transientError for other DioExceptions', () async {
@@ -483,6 +543,44 @@ void main() {
       expect(state.status, equals(AuthStatus.error));
       expect(state.transientError, isNull);
     });
+
+    test(
+      'should never have both AuthStatus.error and transientError',
+      () async {
+        // Create a normal authenticated state first
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: false),
+        ).thenAnswer((_) async => true);
+        when(
+          mockAuthService.getUserProfile(),
+        ).thenAnswer((_) async => userProfile);
+
+        readNotifier();
+        await pumpEventQueue();
+
+        // Verify we have authenticated status with no errors
+        final initialState = readState();
+        expect(initialState.status, equals(AuthStatus.authenticated));
+        expect(initialState.transientError, isNull);
+        expect(initialState.errorMessage, isNull);
+
+        // Try logging in with an error to trigger AuthStatus.error
+        reset(mockAuthService);
+        when(
+          mockAuthService.login(any, any),
+        ).thenThrow(AuthException.invalidCredentials());
+
+        // Attempt login which should fail with critical error
+        await readNotifier().login('test@example.com', 'wrong-password');
+        await pumpEventQueue();
+
+        // Verify we now have error status but still no transient error
+        final errorState = readState();
+        expect(errorState.status, equals(AuthStatus.error));
+        expect(errorState.transientError, isNull);
+        expect(errorState.errorMessage, isNotNull);
+      },
+    );
 
     test('clearTransientError should remove the transientError', () async {
       // Set up state with a transient error
@@ -504,6 +602,19 @@ void main() {
       expect(readState().transientError, isNull);
       // But we're still authenticated
       expect(readState().status, equals(AuthStatus.authenticated));
+    });
+  });
+
+  // Test for User.anonymous()
+  group('User.anonymous()', () {
+    test('isAnonymous should be true for anonymous users', () {
+      final anonymousUser = User.anonymous();
+      expect(anonymousUser.isAnonymous, isTrue);
+    });
+
+    test('isAnonymous should be false for real users', () {
+      final realUser = User(id: 'real-user-id');
+      expect(realUser.isAnonymous, isFalse);
     });
   });
 }
