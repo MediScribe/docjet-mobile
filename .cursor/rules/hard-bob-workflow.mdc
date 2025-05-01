@@ -24,7 +24,7 @@ Follow these steps religiously, or face the fucking consequences.
     *   `--debug` to see the console output *from failed tests*.
     **NEVER** use `flutter test`. Period.
 8.  **Check It Off**: If you are working against a todo, check it off, update the file. Be proud.
-9.  **Formatting**: Before committing, run `./scripts/format.sh` to fix all the usual formatting shit.
+9.  **Formatting**: Before committing, run `./scripts/fix_format_analyze.sh` to fix all the usual formatting shit, run dart fix, and analyze the code in one go.
 10. **Code Review**: Code Review Time: **Thoroughly** review the *staged* changes. Go deep, be very thorough, dive into the code, don't believe everything. Pay attention to architecture! Use git status | cat; then git diff --staged | cat. In the end, run analyze and `./scripts/list_failed_tests.dart`!
 11. **Commit**: Use the "Hard Bob Commit" guidelines (stage everything relevant).
 12. **Apply Model**: Don't bitch about the apply model being stupid. Verify the fucking file yourself *before* complaining. Chances are, it did exactly what you asked.

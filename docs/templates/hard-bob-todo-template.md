@@ -85,7 +85,7 @@ sequenceDiagram
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
 * 1.7. [ ] **Format, Analyze, and Fix:**
-    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Command: `./scripts/fix_format_analyze.sh`
     * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
 * 1.8. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
@@ -117,7 +117,7 @@ sequenceDiagram
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
 * 2.7. [ ] **Format, Analyze, and Fix:**
-    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Command: `./scripts/fix_format_analyze.sh`
     * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
 * 2.8. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
@@ -145,7 +145,7 @@ sequenceDiagram
     * Command: `./scripts/list_failed_tests.dart --except`
     * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
 * N.4. [ ] **Format, Analyze, and Fix:**
-    * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
+    * Command: `./scripts/fix_format_analyze.sh`
     * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
 * N.5. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
