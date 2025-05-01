@@ -4,10 +4,13 @@ import 'package:docjet_mobile/core/auth/auth_error_mapper.dart';
 import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
+import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/auth/transient_error.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -143,6 +146,34 @@ class AuthNotifier extends _$AuthNotifier {
     });
   }
 
+  /// Clears the transient error from the state
+  void clearTransientError() {
+    _logger.d('$_tag Clearing transient error');
+    state = state.copyWith(transientError: () => null);
+  }
+
+  /// Handles DioException by extracting relevant information and setting
+  /// transient error when appropriate
+  TransientError? _handleDioExceptionForTransientError(
+    DioException e, {
+    String context = 'API request',
+  }) {
+    final statusCode = e.response?.statusCode;
+    _logger.d('$_tag DioException in $context, status: $statusCode');
+
+    // Handle 404 on /users/profile specially as a transient error
+    final isProfileEndpoint = e.requestOptions.path.contains('/users/profile');
+    if (statusCode == 404 && isProfileEndpoint) {
+      return TransientError(
+        message: 'Unable to fetch your profile. Please try again later.',
+        type: AuthErrorType.userProfileFetchFailed,
+      );
+    }
+
+    // Add other transient error cases here as needed
+    return null;
+  }
+
   /// Attempts to log in with email and password
   Future<void> login(String email, String password) async {
     if (state.status == AuthStatus.loading) {
@@ -178,7 +209,20 @@ class AuthNotifier extends _$AuthNotifier {
         isOffline: isOffline,
         errorType: errorType,
       );
-      // We no longer check connectivity transitions here
+    } on DioException catch (e, s) {
+      _logger.e(
+        '$_tag Login failed - DioException: ${e.message}',
+        error: e,
+        stackTrace: s,
+      );
+      final transientError = _handleDioExceptionForTransientError(
+        e,
+        context: 'login flow',
+      );
+      state = AuthState.error(
+        'Login failed. Please try again.',
+        transientError: transientError,
+      );
     } catch (e, s) {
       _logger.e(
         '$_tag Login failed - Unexpected error',
@@ -235,37 +279,92 @@ class AuthNotifier extends _$AuthNotifier {
       if (isAuthenticated) {
         _logger.d('$_tag Attempting to fetch user profile...');
         // If basic check passes, try getting profile (which implies token validity)
-        final userProfile = await _authService.getUserProfile();
-        _logger.i(
-          '$_tag Profile fetched successfully for ID: ${userProfile.id}',
-        );
-        state = AuthState.authenticated(userProfile);
-        // We no longer check connectivity transitions here
+        try {
+          final userProfile = await _authService.getUserProfile();
+          _logger.i(
+            '$_tag Profile fetched successfully for ID: ${userProfile.id}',
+          );
+          state = AuthState.authenticated(userProfile);
+        } on DioException catch (e, s) {
+          _logger.w(
+            '$_tag Profile fetch failed with DioException: ${e.message}',
+            error: e,
+            stackTrace: s,
+          );
+          // If it's a 404 on profile endpoint, set a transient error but don't halt auth flow
+          final transientError = _handleDioExceptionForTransientError(
+            e,
+            context: 'initial profile fetch',
+          );
+          if (transientError != null) {
+            // The user is still authenticated, just missing profile data
+            state = AuthState.authenticated(
+              // Create a minimal user object with just the ID
+              const User(id: ''),
+              transientError: transientError,
+            );
+          } else {
+            // For other errors, treat as auth failed
+            _handleProfileFetchFailed(e, s);
+          }
+        }
       } else {
         _logger.i('$_tag Not authenticated locally.');
         state = AuthState.initial();
       }
     } on AuthException catch (e, s) {
-      final isOffline = e.type == AuthErrorType.offlineOperation;
-      final errorType = AuthErrorMapper.getErrorTypeFromException(e);
-      _logger.w(
-        '$_tag Auth check failed - AuthException, offline: $isOffline, type: $errorType',
-        error: e,
-        stackTrace: s,
-      );
-      // If check fails (e.g., token invalid, profile fetch fail), treat as unauthenticated
-      // but potentially flag offline status.
-      state = AuthState.error(
-        e.message,
-        isOffline: isOffline,
-        errorType: errorType,
-      );
-      // We no longer check connectivity transitions here
+      _handleProfileFetchFailed(e, s);
     } catch (e, s) {
       _logger.e(
         '$_tag Auth check failed - Unexpected error',
         error: e,
         stackTrace: s,
+      );
+      state = AuthState.error(
+        'An unexpected error occurred checking auth status',
+      );
+    }
+  }
+
+  void _handleProfileFetchFailed(Object error, StackTrace stackTrace) {
+    if (error is AuthException) {
+      final isOffline = error.type == AuthErrorType.offlineOperation;
+      final errorType = AuthErrorMapper.getErrorTypeFromException(error);
+      _logger.w(
+        '$_tag Auth check failed - AuthException, offline: $isOffline, type: $errorType',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      state = AuthState.error(
+        error.message,
+        isOffline: isOffline,
+        errorType: errorType,
+      );
+    } else if (error is DioException) {
+      final transientError = _handleDioExceptionForTransientError(
+        error,
+        context: 'profile fetch',
+      );
+      _logger.w(
+        '$_tag Auth check failed - DioException, transient: ${transientError != null}',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      if (transientError != null) {
+        // For transient errors, we can still mark as authenticated but with the error
+        state = state.copyWith(transientError: () => transientError);
+      } else {
+        // For other DioExceptions, mark as error state
+        state = AuthState.error(
+          'Failed to fetch profile. Please try again later.',
+        );
+      }
+    } else {
+      _logger.e(
+        '$_tag Auth check failed - Unexpected error',
+        error: error,
+        stackTrace: stackTrace,
       );
       state = AuthState.error(
         'An unexpected error occurred checking auth status',

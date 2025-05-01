@@ -34,6 +34,9 @@ class MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   @override
   Future<void> logout() async {}
 
+  @override
+  void clearTransientError() {}
+
   // Need to implement the generated methods/properties if using _$AuthNotifier
   // For simplicity here, we assume direct implementation is sufficient if
   // the AuthNotifier interface doesn't rely on ref/internals for basic state reading.

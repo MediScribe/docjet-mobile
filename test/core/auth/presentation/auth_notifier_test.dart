@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
@@ -15,6 +16,25 @@ import 'package:mockito/mockito.dart';
 
 @GenerateMocks([AuthService, AuthEventBus])
 import 'auth_notifier_test.mocks.dart';
+
+// Additional DioExceptions for testing
+final profile404DioException = DioException(
+  requestOptions: RequestOptions(path: '/users/profile'),
+  response: Response(
+    requestOptions: RequestOptions(path: '/users/profile'),
+    statusCode: 404,
+  ),
+  type: DioExceptionType.badResponse,
+);
+
+final otherDioException = DioException(
+  requestOptions: RequestOptions(path: '/some/other/path'),
+  response: Response(
+    requestOptions: RequestOptions(path: '/some/other/path'),
+    statusCode: 500,
+  ),
+  type: DioExceptionType.badResponse,
+);
 
 void main() {
   late MockAuthService mockAuthService;
@@ -424,6 +444,66 @@ void main() {
 
       // Verify there are no active listeners
       expect(eventBusController.hasListener, isFalse);
+    });
+  });
+
+  group('transient error handling', () {
+    test('should set transientError for 404 on profile endpoint', () async {
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: false),
+      ).thenAnswer((_) async => true);
+      when(mockAuthService.getUserProfile()).thenThrow(profile404DioException);
+
+      readNotifier();
+      await pumpEventQueue();
+
+      final state = readState();
+      expect(state.status, equals(AuthStatus.authenticated));
+      expect(state.transientError, isNotNull);
+      expect(
+        state.transientError?.type,
+        equals(AuthErrorType.userProfileFetchFailed),
+      );
+      expect(
+        state.transientError?.message,
+        contains('Unable to fetch your profile'),
+      );
+    });
+
+    test('should not set transientError for other DioExceptions', () async {
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: false),
+      ).thenAnswer((_) async => true);
+      when(mockAuthService.getUserProfile()).thenThrow(otherDioException);
+
+      readNotifier();
+      await pumpEventQueue();
+
+      final state = readState();
+      expect(state.status, equals(AuthStatus.error));
+      expect(state.transientError, isNull);
+    });
+
+    test('clearTransientError should remove the transientError', () async {
+      // Set up state with a transient error
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: false),
+      ).thenAnswer((_) async => true);
+      when(mockAuthService.getUserProfile()).thenThrow(profile404DioException);
+
+      readNotifier();
+      await pumpEventQueue();
+
+      // Verify we have a transient error
+      expect(readState().transientError, isNotNull);
+
+      // Clear the error
+      readNotifier().clearTransientError();
+
+      // Verify the error is gone
+      expect(readState().transientError, isNull);
+      // But we're still authenticated
+      expect(readState().status, equals(AuthStatus.authenticated));
     });
   });
 }
