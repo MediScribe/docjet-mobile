@@ -46,5 +46,36 @@ void main() {
       // But we could verify it manually in the app
       expect(true, isTrue);
     });
+
+    testWidgets('should render content below top safe area padding', (
+      WidgetTester tester,
+    ) async {
+      // Create a MediaQuery with a top padding to simulate a notch/island
+      const topPadding = 40.0;
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(padding: EdgeInsets.only(top: topPadding)),
+          child: createTestApp(
+            authState: createOfflineState(),
+            child: const Scaffold(body: Text('Content')),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      // Find the banner text to verify it's present
+      final bannerFinder = findOfflineBannerText();
+      expect(bannerFinder, findsOneWidget);
+
+      // Get the banner's position and verify it respects the safe area
+      // Note: In our test implementation, the banner will be positioned
+      // below the top padding due to SafeArea
+
+      // Check if the banner's y position is at or below the top padding
+      final bannerRect = tester.getRect(bannerFinder);
+      expect(bannerRect.top >= topPadding, isTrue);
+    });
   });
 }

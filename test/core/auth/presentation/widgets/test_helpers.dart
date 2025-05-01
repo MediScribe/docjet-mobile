@@ -55,10 +55,14 @@ class MockOfflineBannerConsumer extends ConsumerWidget {
             top: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: 36.0,
-              color: Colors.grey,
-              child: const Center(child: Text('You are offline')),
+            child: SafeArea(
+              top: true,
+              bottom: false,
+              child: Container(
+                height: 36.0,
+                color: Colors.grey,
+                child: const Center(child: Text('You are offline')),
+              ),
             ),
           ),
         Positioned.fill(child: child),

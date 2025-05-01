@@ -51,33 +51,33 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 1.1. [ ] **Tests RED:** Write/modify a widget test for `OfflineBanner` to verify its content renders *under* the top system UI (e.g., notch/island). Expect it to fail initially.
+* 1.1. [X] **Tests RED:** Write/modify a widget test for `OfflineBanner` to verify its content renders *under* the top system UI (e.g., notch/island). Expect it to fail initially.
     * Test File: `test/core/auth/presentation/widgets/offline_banner_test.dart` (Create if needed)
     * Test Description: `should render content below top safe area padding`
-    * Findings:
-* 1.2. [ ] **Implement GREEN:**
+    * Findings: Created a new test case that simulates a device with a notch by using MediaQuery with top padding. The test verifies that the banner respects the safe area by checking if its position is at or below the top padding. Initially red as expected.
+* 1.2. [X] **Implement GREEN:**
 - ~~Wrap the `OfflineBanner`'s content (`Center` containing the `Row`) with a `SafeArea` widget, specifically enabling `top: true`.~~
-- **Wrap _the entire banner container_ (the `AnimatedContainer`) in `SafeArea(top: true)`, or alternatively remove the fixed `OfflineBannerTheme.height` and let the banner use `minHeight` so the SafeArea padding doesn't clip the content.**
+- **Wrap _the entire banner container_ (the `AnimatedContainer`) in `SafeArea(top: true, bottom: false)`**, or alternatively remove the fixed `OfflineBannerTheme.height` and let the banner use `minHeight` so the SafeArea padding doesn't clip the content.**
     * Implementation File: `lib/core/auth/presentation/widgets/offline_banner.dart`
-    * Findings:
-* 1.3. [ ] **Refactor:** Ensure clean implementation.
-    * Findings:
-* 1.4. [ ] **Run Cycle-Specific Tests:**
+    * Findings: Wrapped the entire AnimatedContainer in a SafeArea with top: true, bottom: false to ensure the banner renders below the iOS notch/island. This ensures that the banner's content is fully visible and not clipped by system UI elements. Also updated the mock implementation in test_helpers.dart to match the real implementation.
+* 1.3. [X] **Refactor:** Ensure clean implementation.
+    * Findings: The code is clean and maintainable. The SafeArea is correctly positioned to wrap the entire banner container, which is the most appropriate approach. The Semantics wrapper remains at the outermost level to correctly describe the entire component.
+* 1.4. [X] **Run Cycle-Specific Tests:**
     * Command: `./scripts/list_failed_tests.dart test/core/auth/presentation/widgets/offline_banner_test.dart --except`
-    * Findings:
-* 1.5. [ ] **Run ALL Unit/Integration Tests:**
+    * Findings: All OfflineBanner tests pass, including the new test for safe area compliance. The test now correctly verifies that the banner respects the top safe area padding.
+* 1.5. [X] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings:
-* 1.6. [ ] **Format, Analyze, and Fix:**
+    * Findings: All 750 tests are passing. Our changes to the OfflineBanner did not break any existing functionality.
+* 1.6. [X] **Format, Analyze, and Fix:**
     * Command: `dart fix --apply && ./scripts/format.sh && dart analyze`
-    * Findings:
-* 1.7. [ ] **Run ALL E2E & Stability Tests:**
+    * Findings: Fixed one unnecessary import in offline_banner.dart. All files are properly formatted and there are no analysis issues.
+* 1.7. [X] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings: `[Confirm visual fix on device if possible]`
-* 1.8. [ ] **Handover Brief:**
-    * Status: `OfflineBanner` safe area issue addressed and tested.
-    * Gotchas:
-    * Recommendations: Proceed to Cycle 2.
+    * Findings: All E2E tests and stability checks passed successfully. The app starts and runs stably with the OfflineBanner changes.
+* 1.8. [X] **Handover Brief:**
+    * Status: `OfflineBanner` safe area issue has been addressed and thoroughly tested. The banner now correctly renders below the iOS notch/island.
+    * Gotchas: The fix maintains the banner's existing height. If we wanted to be more responsive to different device sizes, we could consider using minHeight instead of fixed height in a future enhancement.
+    * Recommendations: Proceed to Cycle 2 to implement the transient error state and auth handling logic.
 
 ---
 

@@ -119,9 +119,10 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       infoFg: colorScheme.onPrimaryContainer,
 
       // Offline status colors - make noticeably different
-      offlineBg: colorScheme.errorContainer.withAlpha((255 * 0.8).round()),
-      offlineFg: colorScheme.onErrorContainer,
-
+      offlineBg: colorScheme.error.withAlpha(
+        (0.92 * 255).round(),
+      ), // Match iOS system bar opacity
+      offlineFg: Colors.white, // White for maximum contrast
       // Primary action button colors (was record button colors)
       primaryActionBg: colorScheme.errorContainer,
       primaryActionFg: colorScheme.onErrorContainer,
