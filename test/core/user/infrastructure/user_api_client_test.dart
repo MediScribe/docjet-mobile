@@ -13,10 +13,14 @@ void main() {
   late UserApiClient userApiClient;
   late MockDio authenticatedDio;
   late MockAuthCredentialsProvider credentialsProvider;
+  final mockUserId = 'user-123'; // Test user ID
 
   setUp(() {
     authenticatedDio = MockDio();
     credentialsProvider = MockAuthCredentialsProvider();
+
+    // Mock getUserId to return a consistent ID for tests
+    when(credentialsProvider.getUserId()).thenAnswer((_) async => mockUserId);
 
     userApiClient = UserApiClient(
       authenticatedHttpClient: authenticatedDio,
@@ -38,18 +42,27 @@ void main() {
       when(mockResponse.statusCode).thenReturn(200);
       when(mockResponse.data).thenReturn(mockProfileResponse);
 
-      when(authenticatedDio.get(any)).thenAnswer((_) async => mockResponse);
+      // TODO: Remove this workaround test logic when HACK_profile_endpoint_workaround is removed.
+      // Calculate the expected endpoint after the hack transformation
+      final expectedEndpoint = 'users/$mockUserId';
+
+      // Mock the specific transformed endpoint
+      when(
+        authenticatedDio.get(expectedEndpoint),
+      ).thenAnswer((_) async => mockResponse);
+      // We still need the getAccessToken mock for the JWT decoding part of the hack
       when(
         credentialsProvider.getAccessToken(),
-      ).thenAnswer((_) async => 'mock-jwt-token');
+      ).thenAnswer((_) async => 'mock-jwt-token-with-sub-$mockUserId');
 
       // Act
       final result = await userApiClient.getUserProfile();
 
-      // Assert
-      verify(authenticatedDio.get(ApiConfig.userProfileEndpoint)).called(1);
+      // Assert - Verify the EXACT transformed endpoint was called
+      // TODO: Change verification back to ApiConfig.userProfileEndpoint when hack is removed.
+      verify(authenticatedDio.get(expectedEndpoint)).called(1);
       expect(result, isA<UserProfileDto>());
-      expect(result.id, equals('user-123'));
+      expect(result.id, equals(mockUserId));
       expect(result.email, equals('test@example.com'));
     });
 

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/user/infrastructure/HACK_profile_endpoint_workaround.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
@@ -51,15 +52,14 @@ class UserApiClient {
   ///
   /// @returns UserProfileDto containing the user's profile information
   Future<UserProfileDto> getUserProfile() async {
-    _logger.d(
-      '$_tag Getting user profile from ${ApiConfig.userProfileEndpoint}',
-    );
+    // Get the endpoint path once, either default or from workaround
+    final endpointPath = await _resolveProfileEndpoint();
+
+    _logger.d('$_tag Getting user profile from $endpointPath');
 
     try {
       _logger.d('$_tag Making request with authenticatedHttpClient');
-      final response = await authenticatedHttpClient.get(
-        ApiConfig.userProfileEndpoint,
-      );
+      final response = await authenticatedHttpClient.get(endpointPath);
 
       if (response.statusCode == 200) {
         _logger.d('$_tag Received 200 response, parsing user profile data');
@@ -74,7 +74,7 @@ class UserApiClient {
         } catch (e) {
           _logger.e('$_tag Data conversion error: ${e.toString()}');
           throw DioException(
-            requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+            requestOptions: RequestOptions(path: endpointPath),
             error:
                 'Failed to parse user profile data: ${e.toString()}. '
                 'Expected JSON map with keys "id", "email", etc.',
@@ -85,7 +85,7 @@ class UserApiClient {
 
       _logger.w('$_tag Received non-200 status code: ${response.statusCode}');
       throw DioException(
-        requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+        requestOptions: RequestOptions(path: endpointPath),
         error: 'Failed to get user profile. Status: ${response.statusCode}',
         type: DioExceptionType.badResponse,
         response: response,
@@ -120,10 +120,27 @@ class UserApiClient {
       // Wrap other exceptions in a DioException with clear context
       _logger.e('$_tag Unexpected error: ${e.toString()}');
       throw DioException(
-        requestOptions: RequestOptions(path: ApiConfig.userProfileEndpoint),
+        requestOptions: RequestOptions(path: endpointPath),
         error: 'Unexpected error getting user profile: ${e.toString()}',
         type: DioExceptionType.unknown,
       );
     }
+  }
+
+  /// ⚠️ TEMPORARY HACK: Resolves the profile endpoint
+  ///
+  /// Either returns the standard endpoint from ApiConfig or uses the workaround
+  /// to get a user-specific endpoint. Tests will still work because they mock
+  /// the HTTP call, not this internal method.
+  Future<String> _resolveProfileEndpoint() async {
+    // HACK: This is a temporary workaround for the missing /users/profile endpoint
+    // TODO: Remove this workaround once the proper endpoint is implemented
+    return ProfileEndpointWorkaround.transformProfileEndpoint(
+      ApiConfig.userProfileEndpoint,
+      credentialsProvider,
+    );
+
+    // Standard endpoint - uncomment this and remove the above when API is fixed:
+    // return ApiConfig.userProfileEndpoint;
   }
 }
