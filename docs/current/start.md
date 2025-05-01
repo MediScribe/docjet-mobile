@@ -92,7 +92,7 @@ This document serves as the central index for the project documentation.
 
 ### UI & Development Aids
 #### [UI Screens Overview](./ui-screens-overview.md)
-*   **Description**: Provides an overview of the mobile app's UI screens (Login, Home, Job List, Playground) with navigation flow diagrams, screen purposes, comprehensive offline behavior, and the global OfflineBanner and AppShell components that provide consistent UI across the app.
+*   **Description**: Provides an overview of the mobile app's UI screens (Login, Home, Job List, Playground) with navigation flow diagrams, screen purposes, comprehensive offline behavior, and the global OfflineBanner and TransientErrorBanner components that provide consistent UI across the app.
 
 #### [Playground](./dev-ui-playground.md)
 *   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow.

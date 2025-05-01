@@ -196,6 +196,10 @@ The `AuthService` interface defines the following methods:
 The service also emits authentication events via `AuthEventBus` for app-wide state management:
 - `AuthEvent.loggedIn` - Emitted when a user successfully logs in
 - `AuthEvent.loggedOut` - Emitted when a user logs out
+- `offlineDetected`: When the app transitions from online to offline state, detected by NetworkInfoImpl
+- `onlineRestored`: When the app transitions from offline back to online state, detected by NetworkInfoImpl
+
+These events provide a consistent, centralized way for different app components to react to authentication and connectivity state changes without creating direct dependencies.
 
 #### AuthEventBus
 A central event bus that broadcasts authentication events to interested components. It:
@@ -207,10 +211,10 @@ A central event bus that broadcasts authentication events to interested componen
 The events are emitted in the following circumstances:
 - `loggedIn`: When a user successfully authenticates using login credentials
 - `loggedOut`: When a user explicitly logs out or when token refresh irrecoverably fails
-- `offlineDetected`: When the app transitions from online to offline state, detected by NetworkInfoImpl
-- `onlineRestored`: When the app transitions from offline back to online state, detected by NetworkInfoImpl
+- `offlineDetected`: When the app transitions to offline mode
+- `onlineRestored`: When the app comes back online after being offline
 
-These events provide a consistent, centralized way for different app components to react to authentication and connectivity state changes without creating direct dependencies.
+These events allow different components to react to auth state changes without tight coupling.
 
 #### AuthCredentialsProvider Interface
 Manages secure storage and retrieval of authentication credentials:
@@ -322,6 +326,9 @@ Immutable state object representing the current authentication state:
 - `status` - Current status (authenticated, unauthenticated, loading, error)
 - `errorMessage` - Error message if authentication failed
 - `isOffline` - Flag indicating if the app is operating in offline mode
+- `transientError` - Optional object containing information about non-critical errors (e.g., profile fetch failures) that shouldn't halt the app
+
+The `transientError` field is specifically designed to handle non-blocking errors like 404 on profile endpoint, allowing the app to continue functioning while still informing the user about the issue.
 
 #### AuthNotifier
 State management for authentication, connecting UI to domain services:
@@ -330,6 +337,20 @@ State management for authentication, connecting UI to domain services:
 - Listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
 - Handles connectivity transitions by updating the `isOffline` flag in all states (authenticated, error, unauthenticated, loading) when receiving `offlineDetected` and `onlineRestored` events.
 - Automatically refreshes user profile when the app comes back online through the `_refreshProfileAfterOnlineRestored()` helper.
+- Provides a `clearTransientError()` method to dismiss transient errors from the state.
+
+#### TransientError
+A lightweight model that represents non-critical errors:
+- `message` - User-friendly error message to display
+- `type` - The type of error (e.g., `AuthErrorType.transientProfileError`)
+
+The TransientError model serves several important purposes:
+- Allows the app to continue functioning despite non-critical errors
+- Keeps user informed about issues without blocking the UI
+- Separates critical errors (that should block the app) from non-critical ones (that should just inform)
+- Works with the TransientErrorBanner to provide a consistent error display mechanism
+
+When a 404 error is encountered on the profile endpoint or similar non-critical errors occur, the AuthNotifier sets a TransientError in the state rather than transitioning to an error state, allowing the app to remain responsive while still informing the user about the issue.
 
 #### UI Components
 
@@ -341,10 +362,13 @@ A theme-aware banner that automatically displays when the app is in offline mode
 - Provides accessibility support through `Semantics` labels
 - Consistently displays across all screens through the AppShell
 
+##### TransientErrorBanner
+A theme-aware banner that automatically displays when non-critical errors occur, with auto-dismiss functionality
+
 ##### AppShell
 A global wrapper component that ensures consistent UI elements across the app:
 - Applied via `MaterialApp.builder` to automatically wrap all screens
-- Handles displaying the offline banner at the top of each screen
+- Handles displaying the offline and transient error banners at the top of each screen
 - Preserves navigation and screen structure while adding app-wide UI elements
 
 The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed.
@@ -377,8 +401,9 @@ These events allow different components to react to auth state changes without t
 The auth module includes UI components that leverage the application's theme system:
 
 1. **OfflineBanner**: Banner shown when the app is in offline mode
-2. **AppShell**: Wrapper component that provides the offline banner across all screens
-3. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
+2. **TransientErrorBanner**: Banner shown when non-critical errors occur, with auto-dismiss functionality
+3. **AppShell**: Wrapper component that provides the offline and transient error banners across all screens
+4. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
 
 All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../../features/feature-ui-theming.md).
 
@@ -569,6 +594,7 @@ The system can now detect and report these specific authentication issues:
 | `offlineOperation` | Operation failed due to being offline | No network connectivity available |
 | `missingApiKey` | The API key header is missing from the request | DI setup incorrectly using `basicDio` instead of `authenticatedDio`, or API key not provided at build time |
 | `malformedUrl` | The request URL is incorrectly formed | Missing slash in path joining or incorrect endpoint configuration |
+| `transientProfileError` | Non-critical error fetching user profile | 404 on profile endpoint, doesn't block app functionality but shows a dismissible banner |
 | `unknown` | Unclassified error | Check error details for more information |
 
 ### Enhanced Error Context
