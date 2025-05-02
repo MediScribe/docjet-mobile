@@ -19,16 +19,15 @@ import 'package:docjet_mobile/core/auth/auth_exception.dart';
 ///    - Examples: Invalid credentials, unauthorized access, expired tokens
 ///    - Effect: Block the user flow, require user action to continue
 ///
-/// 2. **Transient Errors (transientError in AuthState)**: Non-critical errors that
-///    should be displayed to the user but don't block app functionality.
+/// 2. **Non-Critical Errors**: Non-critical errors that should be displayed
+///    to the user but don't block app functionality.
 ///    - Examples: Profile fetch failure (404), non-essential API failures
-///    - Effect: Display a temporary banner, allow user to continue using the app
+///    - Effect: Display a temporary banner via AppNotifierService, allow user to continue using the app
 ///
 /// ### Important Rules:
-/// - If an error results in AuthStatus.error, DO NOT also set transientError
-/// - Use transientError only when the app can continue functioning with reduced data
-/// - Transient errors should auto-dismiss after a short period
-/// - Prefer specific error messages for transient errors that explain what couldn't be loaded
+/// - For non-critical errors, use AppNotifierService to show a temporary message
+/// - Non-critical errors should auto-dismiss after a short period
+/// - Prefer specific error messages that explain what couldn't be loaded
 class AuthErrorMapper {
   /// Maps an [AuthException] to the corresponding [AuthErrorType]
   ///

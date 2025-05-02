@@ -35,7 +35,7 @@ class AppNotifierService extends _$AppNotifierService {
   /// - [type]: The type of notification (info, success, warning, error).
   /// - [duration]: Optional duration after which the message auto-dismisses.
   ///   If null, the message requires manual dismissal via [dismiss].
-  ///   Non-positive durations are logged as a warning and treated like null.
+  ///   If <= 0, throws ArgumentError.
   /// - [id]: Optional unique ID for the message. If null, a UUID is generated.
   void show({
     required String message,
@@ -45,6 +45,14 @@ class AppNotifierService extends _$AppNotifierService {
   }) {
     // Cancel any existing timer as a new message is about to be shown.
     _dismissTimer?.cancel();
+
+    // Validate duration if provided
+    if (duration != null && duration.inMilliseconds <= 0) {
+      final errorMsg =
+          'Invalid duration: $duration. Duration must be positive or null.';
+      _logger.e('$_tag $errorMsg');
+      throw ArgumentError(errorMsg);
+    }
 
     final AppMessage newMessage = AppMessage(
       id: id, // Will be generated if null
@@ -58,14 +66,9 @@ class AppNotifierService extends _$AppNotifierService {
     // Update the state to display the new message.
     state = newMessage;
 
-    // If a positive duration is provided, schedule auto-dismissal.
-    if (duration != null && duration.inMilliseconds > 0) {
+    // If a duration is provided, schedule auto-dismissal.
+    if (duration != null) {
       _dismissTimer = Timer(duration, dismiss);
-    } else if (duration != null) {
-      // Log non-positive durations properly
-      _logger.w(
-        '$_tag Received non-positive duration ($duration) for message. It will require manual dismissal.',
-      );
     }
   }
 

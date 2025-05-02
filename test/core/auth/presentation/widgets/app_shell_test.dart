@@ -17,12 +17,12 @@ class FakeOfflineBanner extends StatelessWidget {
   }
 }
 
-// Simple fake widget to replace TransientErrorBanner that can be directly controlled
-class FakeTransientErrorBanner extends StatelessWidget {
+// Simple fake widget to replace the transient banner for notifications
+class FakeTransientBanner extends StatelessWidget {
   final bool isVisible;
   final String? errorMessage;
 
-  const FakeTransientErrorBanner({
+  const FakeTransientBanner({
     this.isVisible = false,
     this.errorMessage = 'An error occurred',
     super.key,
@@ -61,7 +61,7 @@ class TestAppShell extends StatelessWidget {
     return Column(
       children: [
         FakeOfflineBanner(isVisible: isOffline),
-        FakeTransientErrorBanner(
+        FakeTransientBanner(
           isVisible: hasTransientError,
           errorMessage: errorMessage,
         ),

@@ -1,7 +1,6 @@
 import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_status.dart';
-import 'package:docjet_mobile/core/auth/transient_error.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart'; // Import ValueGetter
 
@@ -27,10 +26,6 @@ class AuthState extends Equatable {
   /// Indicates if the current state was determined while offline
   final bool isOffline;
 
-  /// Non-critical error that should be displayed to the user
-  /// without blocking app functionality
-  final TransientError? transientError;
-
   /// Creates an [AuthState] with the provided values
   const AuthState({
     this.user,
@@ -38,7 +33,6 @@ class AuthState extends Equatable {
     this.errorMessage,
     this.errorType,
     this.isOffline = false, // Default to false
-    this.transientError,
   });
 
   /// Initial unauthenticated state
@@ -52,16 +46,11 @@ class AuthState extends Equatable {
   }
 
   /// Successfully authenticated state with user
-  factory AuthState.authenticated(
-    User user, {
-    bool isOffline = false,
-    TransientError? transientError,
-  }) {
+  factory AuthState.authenticated(User user, {bool isOffline = false}) {
     return AuthState(
       user: user,
       status: AuthStatus.authenticated,
       isOffline: isOffline, // Pass along offline status
-      transientError: transientError,
     );
   }
 
@@ -70,14 +59,12 @@ class AuthState extends Equatable {
     String message, {
     bool isOffline = false,
     AuthErrorType errorType = AuthErrorType.unknown,
-    TransientError? transientError,
   }) {
     return AuthState(
       status: AuthStatus.error,
       errorMessage: message,
       errorType: errorType,
       isOffline: isOffline, // Pass along offline status
-      transientError: transientError,
     );
   }
 
@@ -89,7 +76,6 @@ class AuthState extends Equatable {
     ValueGetter<String?>? errorMessage,
     ValueGetter<AuthErrorType?>? errorType,
     bool? isOffline,
-    ValueGetter<TransientError?>? transientError,
   }) {
     return AuthState(
       user: user != null ? user() : this.user,
@@ -97,18 +83,9 @@ class AuthState extends Equatable {
       errorMessage: errorMessage != null ? errorMessage() : this.errorMessage,
       errorType: errorType != null ? errorType() : this.errorType,
       isOffline: isOffline ?? this.isOffline,
-      transientError:
-          transientError != null ? transientError() : this.transientError,
     );
   }
 
   @override
-  List<Object?> get props => [
-    user,
-    status,
-    errorMessage,
-    errorType,
-    isOffline,
-    transientError,
-  ];
+  List<Object?> get props => [user, status, errorMessage, errorType, isOffline];
 }

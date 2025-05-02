@@ -7,7 +7,7 @@ part of 'app_notifier_service.dart';
 // **************************************************************************
 
 String _$appNotifierServiceHash() =>
-    r'edc9e7e68af43d5771becfb2c08950c5974a3366';
+    r'e3660c741bcc2df1fe3ca49846bd97bd819dd8d5';
 
 /// Notifier service for managing and displaying application-wide transient messages.
 ///

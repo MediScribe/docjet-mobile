@@ -8,8 +8,9 @@ import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
-import 'package:docjet_mobile/core/auth/transient_error.dart';
 import 'package:docjet_mobile/core/auth/utils/api_path_matcher.dart';
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart'; // Add AppNotifierService import
+import 'package:docjet_mobile/core/common/models/app_message.dart'; // <-- Import AppMessage
 import 'package:docjet_mobile/core/services/autofill_service.dart'; // Import AutofillService
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
 import 'package:dio/dio.dart';
@@ -29,10 +30,16 @@ class AuthNotifier extends _$AuthNotifier {
   static final String _tag = logTag(AuthNotifier);
   final Logger _logger = LoggerFactory.getLogger(AuthNotifier);
 
+  /// Standard error message for profile fetch failures
+  static const String _profileFetchErrorMessage =
+      'Unable to fetch your profile. Please try again later.';
+
   /// The authentication service used to perform authentication operations
   late final AuthService _authService;
   late final AuthEventBus _authEventBus;
   late final AutofillService _autofillService; // Add AutofillService
+  late final AppNotifierService
+  _appNotifierService; // Add AppNotifierService field
   StreamSubscription? _eventSubscription;
 
   @override
@@ -42,6 +49,9 @@ class AuthNotifier extends _$AuthNotifier {
     _authService = ref.read(authServiceProvider);
     _authEventBus = ref.read(authEventBusProvider); // Read event bus
     _autofillService = ref.read(autofillServiceProvider); // Get AutofillService
+    _appNotifierService = ref.read(
+      appNotifierServiceProvider.notifier,
+    ); // Initialize AppNotifierService
 
     // Listen to auth events
     _listenToAuthEvents();
@@ -151,36 +161,6 @@ class AuthNotifier extends _$AuthNotifier {
     });
   }
 
-  /// Clears the transient error from the state
-  void clearTransientError() {
-    _logger.d('$_tag Clearing transient error');
-    state = state.copyWith(transientError: () => null);
-  }
-
-  /// Handles DioException by extracting relevant information and setting
-  /// transient error when appropriate
-  TransientError? _handleDioExceptionForTransientError(
-    DioException e, {
-    String context = 'API request',
-  }) {
-    final statusCode = e.response?.statusCode;
-    _logger.d('$_tag DioException in $context, status: $statusCode');
-
-    // Handle 404 on /users/profile specially as a transient error
-    final isProfileEndpoint = ApiPathMatcher.isUserProfile(
-      e.requestOptions.path,
-    );
-    if (statusCode == 404 && isProfileEndpoint) {
-      return TransientError(
-        message: 'Unable to fetch your profile. Please try again later.',
-        type: AuthErrorType.userProfileFetchFailed,
-      );
-    }
-
-    // Add other transient error cases here as needed
-    return null;
-  }
-
   /// Maps an authentication exception to the appropriate auth state
   AuthState _mapAuthExceptionToState(
     AuthException e,
@@ -209,28 +189,35 @@ class AuthNotifier extends _$AuthNotifier {
     StackTrace s, {
     String context = 'API request',
   }) {
-    // First check if this can be handled as a transient error
-    final transientError = _handleDioExceptionForTransientError(
-      e,
-      context: context,
+    // First check if this is a transient profile fetch error
+    final statusCode = e.response?.statusCode;
+    final isProfileEndpoint = ApiPathMatcher.isUserProfile(
+      e.requestOptions.path,
     );
 
     _logger.e(
-      '$_tag $context failed - DioException: ${e.message}, transient: ${transientError != null}',
+      '$_tag $context failed - DioException: ${e.message}',
       error: e,
       stackTrace: s,
     );
 
-    if (transientError != null) {
-      // For transient errors on profile fetch, we can still mark as authenticated
-      // but with a placeholder user and the error
-      return AuthState.authenticated(
-        // Use anonymous user instead of magic string
-        User.anonymous(),
-        transientError: transientError,
+    if (statusCode == 404 && isProfileEndpoint) {
+      _logger.w('$_tag Handling profile fetch 404 as transient error.');
+      // Show transient message using the app notifier service
+      _appNotifierService.show(
+        message: _profileFetchErrorMessage,
+        type: MessageType.error,
+        // Optional: Add a duration if desired
+        // duration: const Duration(seconds: 5),
       );
+      // Return authenticated state but with anonymous user (profile failed)
+      // DO NOT set transientError here anymore
+      return AuthState.authenticated(User.anonymous());
     } else {
       // For other DioExceptions, mark as error state
+      // Potentially show a generic error message via notifier as well?
+      // _appNotifierService.show(message: 'Network request failed.', type: MessageType.error);
+      // For now, just return the error state as before.
       return AuthState.error(
         'Failed to complete request. Please try again later.',
         errorType: AuthErrorType.network,
