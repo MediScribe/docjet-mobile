@@ -1,3 +1,4 @@
+import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/widgets/offline_banner.dart';
 import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
 import 'package:docjet_mobile/core/common/widgets/configurable_transient_banner.dart';
@@ -23,13 +24,11 @@ class AppShell extends ConsumerWidget {
     // Watch the app notifier for messages
     final appNotifier = ref.watch(appNotifierServiceProvider.notifier);
     final appMessage = ref.watch(appNotifierServiceProvider);
-    // TODO(Elias): Fix bug: isOffline is not used!
-    // final isOffline = ref.watch(
-    //   authNotifierProvider.select((state) => state.maybeWhen(
-    //     offline: (_) => true, // Consider offline if in explicit offline state
-    //     orElse: () => false, // Otherwise online
-    //   )),
-    // );
+
+    // Check if we're offline - needed to conditionally apply SafeArea
+    final isOffline = ref.watch(
+      authNotifierProvider.select((state) => state.isOffline),
+    );
 
     return Column(
       children: [
@@ -51,15 +50,16 @@ class AppShell extends ConsumerWidget {
           child:
               appMessage != null
                   ? Container(
+                    // Key should be on the immediate child of AnimatedSwitcher
+                    key: ValueKey(appMessage.id),
                     color:
                         Theme.of(
                           context,
                         ).scaffoldBackgroundColor, // Match app background
+                    // Apply SafeArea conditionally: ONLY if OFFLINE banner is NOT visible
                     child: SafeArea(
-                      key: ValueKey(
-                        appMessage.id,
-                      ), // Important for AnimatedSwitcher
-                      top: true,
+                      top:
+                          !isOffline, // Apply top padding ONLY when not offline
                       bottom: false, // Don't consume bottom safe area
                       child: ConfigurableTransientBanner(
                         message: appMessage,
