@@ -92,7 +92,9 @@ sequenceDiagram
 
     %% Debug Playground Navigation (Optional)
     User->>JobListPage: (Debug Build) Tap Flask Icon
-    JobListPage->>JobListPlayground: Navigate
+    JobListPage->>PlaygroundHome: Navigate
+    PlaygroundHome->>JobListPlayground: User selects "Job List Playground"
+    PlaygroundHome->>NotifierPlaygroundScreen: User selects "Notification System Playground"
 
     %% Logout Flow
     User->>HomeScreen: Tap Logout Button
@@ -195,14 +197,36 @@ sequenceDiagram
 
 ### JobListPlayground
 - **Path**: `lib/features/jobs/presentation/pages/job_list_playground.dart`
-- **Purpose**: Development sandbox for rapidly iterating on UI components (like `JobListItem`, `RecordButton`) intended for the `TranscriptionsPage`.
+- **Purpose**: Development sandbox for rapidly iterating on job list UI components.
 - **Current State**: Fully implemented with experimental features, mock data, and offline awareness.
 - **Key Features**:
   - Shows the job list with actual data or falls back to mock data if needed
   - Contains buttons for testing job creation
-  - Accessible via a debug button in JobListPage (only in debug builds)
+  - Accessible via the central Playground Home
   - Includes offline-aware UI elements that disable actions when offline
   - Uses BlocProvider.value to reuse the existing JobListCubit from the parent context
+
+### NotifierPlaygroundScreen
+- **Path**: `lib/features/playground/notifier_playground.dart`
+- **Purpose**: Development sandbox for testing the app-wide notification system.
+- **Current State**: Fully implemented with controls for all notification types and durations.
+- **Key Features**:
+  - Contains buttons to trigger notifications of all types (info, success, warning, error)
+  - Allows testing both auto-dismiss and manual dismiss behaviors
+  - Includes test for rapid sequential notifications
+  - Displays notifications using the ConfigurableTransientBanner component
+  - Accessible via the central Playground Home
+
+### PlaygroundHome
+- **Path**: `lib/features/playground/playground_home.dart`
+- **Purpose**: Central hub for accessing all UI playground screens.
+- **Current State**: Fully implemented with navigation to all available playgrounds.
+- **Key Features**:
+  - Provides a list of all available playground screens
+  - Each playground has a descriptive tile with icon and description
+  - Accessible via a debug button in JobListPage (only in debug builds)
+  - Serves as the single entry point to all UI experimentation areas
+  - Easily extensible to add new playground screens as needed
 
 ## Navigation and Routing
 
@@ -214,7 +238,8 @@ The application uses a simple routing approach:
 
 2. **Manual Navigation**:
    - From `HomeScreen` to `JobListPage` using `Navigator.push` with `CupertinoPageRoute`
-   - From `JobListPage` to `JobListPlayground` using `Navigator.push` with `CupertinoPageRoute`
+   - From `JobListPage` to `PlaygroundHome` using `Navigator.push` with `MaterialPageRoute`
+   - From `PlaygroundHome` to specific playground screens using `Navigator.push` with `MaterialPageRoute`
 
 3. **Global UI Wrapper**:
    - All screens are wrapped with `AppShell` via `MaterialApp.builder`

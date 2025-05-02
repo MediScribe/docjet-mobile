@@ -1,11 +1,12 @@
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
-import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_playground.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
+import 'package:docjet_mobile/features/playground/playground_home.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,10 +21,10 @@ class JobListPage extends ConsumerWidget {
 
   // Function to navigate to the playground
   void _navigateToPlayground(BuildContext context) {
-    _logger.d('$_tag Navigating to JobListPlayground...');
+    _logger.d('$_tag Navigating to PlaygroundHome...');
     Navigator.of(
       context,
-    ).push(CupertinoPageRoute(builder: (_) => const JobListPlayground()));
+    ).push(MaterialPageRoute(builder: (_) => const PlaygroundHome()));
   }
 
   @override

@@ -102,7 +102,7 @@ This document serves as the central index for the project documentation.
 *   **Description**: Provides an overview of the mobile app's UI screens (Login, Home, Job List, Playground) with navigation flow diagrams, screen purposes, comprehensive offline behavior, and the global OfflineBanner and TransientErrorBanner components that provide consistent UI across the app.
 
 #### [Playground](./dev-ui-playground.md)
-*   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow.
+*   **Description**: Describes the UI Playground system, a centralized hub providing access to multiple sandboxed environments for rapidly iterating on UI components with mock data, separate from the main application flow. Currently includes job list and notification system playgrounds.
 
 ### TODOs
 #### [iOS Password AutoFill Setup](./todos/ios-autofill-setup-todo.md)

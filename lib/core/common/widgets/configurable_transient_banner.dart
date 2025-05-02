@@ -7,10 +7,10 @@ import 'package:docjet_mobile/core/theme/app_theme.dart'; // For getAppColors
 /// A configurable banner widget to display transient application messages.
 ///
 /// Uses [AppMessage] to determine content, style (color, icon), and behavior.
+/// Mimics the appearance of an iOS-style notification.
 ///
 /// This widget handles styling based on message type and provides semantic
-/// accessibility through proper labeling and live region support. It uses
-/// AnimatedSize for smooth transitions when showing/hiding.
+/// accessibility through proper labeling and live region support.
 class ConfigurableTransientBanner extends StatelessWidget {
   /// The message data to display.
   final AppMessage message;
@@ -26,13 +26,17 @@ class ConfigurableTransientBanner extends StatelessWidget {
   });
 
   /// Styling constants for the banner.
-  ///
-  /// Height is fixed to ensure consistent appearance across the app.
-  /// Animation duration and curve provide a smooth entrance/exit.
-  // TODO: Consider making banner height configurable or responsive if design requirements change
-  static const double _bannerHeight = 50.0;
-  static const Duration _animationDuration = Duration(milliseconds: 350);
-  static const Curve _animationCurve = Curves.easeOutCubic;
+  static const double _borderRadius =
+      0.0; // No border radius for a full-width iOS-like banner
+  static const double _elevation = 1.0; // Subtle elevation
+  static const EdgeInsets _outerPadding = EdgeInsets.symmetric(
+    horizontal: 0.0, // No horizontal padding - full width
+    vertical: 0.0, // No vertical padding for iOS-style
+  );
+  static const EdgeInsets _innerPadding = EdgeInsets.symmetric(
+    horizontal: 16.0,
+    vertical: 14.0, // Slightly more vertical padding inside
+  );
 
   /// Icons to use for each message type
   static const Map<MessageType, IconData> _typeIcons = {
@@ -83,48 +87,73 @@ class ConfigurableTransientBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = _getStyle(context, message.type);
     final foregroundColor = style.foreground;
-    final textStyle = TextStyle(
+    final textStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
       color: foregroundColor,
-      fontWeight: FontWeight.bold,
+      fontWeight: FontWeight.w500, // Slightly less bold
     );
 
-    final bannerContent = Container(
-      height: _bannerHeight,
-      width: double.infinity,
-      color: style.background,
-      child: Semantics(
-        liveRegion: true, // Announce changes to screen readers
-        label: '${message.type.name}: ${message.message}',
-        container: true, // Mark this as a semantic container
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            Icon(style.icon, color: foregroundColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message.message,
-                style: textStyle,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
+    // Add padding around the entire banner
+    return Padding(
+      padding: _outerPadding,
+      // Use Material for elevation/shadow
+      child: Material(
+        elevation: _elevation,
+        borderRadius: BorderRadius.circular(_borderRadius),
+        color: style.background, // Set background color on Material
+        // Clip content to rounded corners
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(_borderRadius),
+          child: Semantics(
+            liveRegion: true, // Announce changes to screen readers
+            label: '${message.type.name}: ${message.message}',
+            container: true, // Mark this as a semantic container
+            child: Padding(
+              // Add padding inside the banner content
+              padding: _innerPadding,
+              child: Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.center, // Center items vertically
+                children: [
+                  Icon(
+                    style.icon,
+                    color: foregroundColor,
+                    size: 20,
+                  ), // Slightly smaller icon
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message.message,
+                      style: textStyle,
+                      // Allow more lines if needed, up to a limit
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8), // Space before close button
+                  // Replace IconButton with GestureDetector to avoid tooltip/overlay issues
+                  Semantics(
+                    button: true,
+                    label: 'Close notification',
+                    excludeSemantics:
+                        true, // Prevents child from providing semantics
+                    child: GestureDetector(
+                      onTap: onDismiss,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Icon(
+                          Icons.close,
+                          color: foregroundColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.close, color: foregroundColor),
-              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-              onPressed: onDismiss,
-            ),
-            const SizedBox(width: 8),
-          ],
+          ),
         ),
       ),
-    );
-
-    // Use AnimatedSize for smooth entrance/exit transitions
-    return AnimatedSize(
-      duration: _animationDuration,
-      curve: _animationCurve,
-      child: bannerContent,
     );
   }
 }

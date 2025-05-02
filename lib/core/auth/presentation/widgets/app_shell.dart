@@ -1,6 +1,4 @@
 import 'package:docjet_mobile/core/auth/presentation/widgets/offline_banner.dart';
-import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
-import 'package:docjet_mobile/core/common/models/app_message.dart';
 import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
 import 'package:docjet_mobile/core/common/widgets/configurable_transient_banner.dart';
 import 'package:flutter/material.dart';
@@ -22,14 +20,16 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Listen to the app notifier service for messages
-    final AppMessage? appMessage = ref.watch(appNotifierServiceProvider);
-    final appNotifier = ref.read(appNotifierServiceProvider.notifier);
-
-    // Check if we're offline
-    final isOffline = ref.watch(
-      authNotifierProvider.select((state) => state.isOffline),
-    );
+    // Watch the app notifier for messages
+    final appNotifier = ref.watch(appNotifierServiceProvider.notifier);
+    final appMessage = ref.watch(appNotifierServiceProvider);
+    // TODO(Elias): Fix bug: isOffline is not used!
+    // final isOffline = ref.watch(
+    //   authNotifierProvider.select((state) => state.maybeWhen(
+    //     offline: (_) => true, // Consider offline if in explicit offline state
+    //     orElse: () => false, // Otherwise online
+    //   )),
+    // );
 
     return Column(
       children: [
@@ -37,22 +37,38 @@ class AppShell extends ConsumerWidget {
         const OfflineBanner(),
 
         // Display the configurable banner if there's a message
-        if (appMessage != null)
-          // Only wrap with SafeArea when we're NOT offline
-          // This prevents gaps between stacked banners
-          isOffline
-              ? ConfigurableTransientBanner(
-                message: appMessage,
-                onDismiss: appNotifier.dismiss,
-              )
-              : SafeArea(
-                top: true,
-                bottom: false,
-                child: ConfigurableTransientBanner(
-                  message: appMessage,
-                  onDismiss: appNotifier.dismiss,
-                ),
-              ),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return SizeTransition(
+              sizeFactor: animation,
+              axisAlignment: -1.0, // Top alignment
+              child: child,
+            );
+          },
+          child:
+              appMessage != null
+                  ? Container(
+                    color:
+                        Theme.of(
+                          context,
+                        ).scaffoldBackgroundColor, // Match app background
+                    child: SafeArea(
+                      key: ValueKey(
+                        appMessage.id,
+                      ), // Important for AnimatedSwitcher
+                      top: true,
+                      bottom: false, // Don't consume bottom safe area
+                      child: ConfigurableTransientBanner(
+                        message: appMessage,
+                        onDismiss: appNotifier.dismiss,
+                      ),
+                    ),
+                  )
+                  : const SizedBox.shrink(), // Empty widget when no message
+        ),
 
         // Flexible child to take remaining space
         Expanded(child: child),

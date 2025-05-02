@@ -12,51 +12,29 @@ class NotifierPlaygroundScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentMessage = ref.watch(appNotifierServiceProvider);
-    final notifier = ref.read(appNotifierServiceProvider.notifier);
+    final notifier = ref.watch(appNotifierServiceProvider.notifier);
 
     // Button helper
     Widget buildButton(String label, VoidCallback onPressed) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4.0),
-        child: ElevatedButton(onPressed: onPressed, child: Text(label)),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notifier Playground')),
+      // No need for extra Material wrapper since we're using MaterialApp at the root
       body: Column(
         children: [
-          // --- Temporary Banner Display Area ---
-          // Use AnimatedSwitcher for smooth transitions when message appears/disappears
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              // Use a slide transition from the top
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, -1), // Start off-screen top
-                  end: Offset.zero, // End at normal position
-                ).animate(animation),
-                child: child,
-              );
-            },
-            // Show banner if message exists, otherwise an empty SizedBox
-            child:
-                currentMessage != null
-                    ? ConfigurableTransientBanner(
-                      key: ValueKey(
-                        currentMessage.id,
-                      ), // Important for AnimatedSwitcher
-                      message: currentMessage,
-                      onDismiss:
-                          notifier
-                              .dismiss, // Use the dismiss method from the notifier
-                    )
-                    : const SizedBox.shrink(), // Empty space when no message
-          ),
-
-          // --- End Temporary Banner Display Area ---
+          // --- Banner Display Area REMOVED ---
+          // The global banner mechanism should handle display.
+          // This playground screen is only for triggering the notifier.
+          // Removed AnimatedSize and ConfigurableTransientBanner from here.
+          // --- End Banner Display Area ---
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16.0),

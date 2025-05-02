@@ -286,3 +286,36 @@ This refactoring significantly improves the modularity of the codebase by breaki
 **Documentation:**
 - Architecture, implementation, and testing details captured in this feature document
 - Follow-up task needed to update `ui-screens-overview.md` referencing the new notification component
+
+## Best Practices for Using the Notification System
+
+### Architectural Considerations
+
+1. **Access Control**:
+   - The notification system is designed to be app-wide but should be accessed thoughtfully
+   - Not every screen or component should directly interact with `AppNotifierService`
+   - Domain-specific errors should be handled by domain services which then trigger notifications
+
+2. **Who Should Trigger Notifications**:
+   - **✅ Services and Use Cases**: These should be the primary triggers for notifications (e.g., `AuthNotifier`)
+   - **✅ Error Handlers**: Global error handlers can show notifications for unexpected errors
+   - **✅ Background Processes**: Services operating in the background (sync, data processing) 
+   - **❌ UI Components**: Widgets should generally not directly call the notification service
+   - **❌ Random Utilities**: Utility classes should not have notification responsibility
+
+3. **Layering Guidelines**:
+   - Maintain clean architecture by having domain/data layers communicate errors through result objects
+   - Let service or presentation layer decide whether to show notifications
+   - Avoid creating cyclic dependencies by injecting the notification service where needed
+
+4. **Testing**:
+   - Use dependency injection to mock `AppNotifierService` in tests
+   - Verify that appropriate notifications are triggered based on specific conditions
+   - The dedicated `NotifierPlaygroundScreen` should be used for visual testing of notifications
+
+5. **Playground Usage**:
+   - The notification playground is intended for developers to test notification styling and behavior
+   - It's not intended as a reference for how to architect application code
+   - Remember that the playground directly accesses the notifier, which is appropriate for testing but not for production code
+
+By following these guidelines, we maintain a clean separation of concerns while still providing a flexible, app-wide notification system.
