@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/core/widgets/record_button.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
@@ -72,17 +73,11 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     ),
   ];
 
-  bool _isLoading = false;
-
   Future<void> _createLoremIpsumJob() async {
     if (widget.isOffline) {
       _logger.i('$_tag Job creation skipped because offline');
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
 
     try {
       // Get FileSystem instance
@@ -100,7 +95,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
       final params = CreateJobParams(
         audioFilePath: tempFilename, // Pass the valid relative path
         text:
-            'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+            'Job: $timestamp: Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.', // Formatted as requested
       );
 
       // Check if the widget is still mounted before using context
@@ -115,13 +110,6 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     } catch (e) {
       _logger.e('$_tag Error creating job: $e');
       // Optionally show an error message to the user
-    } finally {
-      // Check if the widget is still mounted before calling setState
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -149,14 +137,6 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     } catch (e) {
       _logger.e('$_tag Error during manual sync: $e');
     }
-  }
-
-  // Helper to handle view toggle
-  void _handleViewToggle(String viewType) {
-    _logger.d('$_tag Showing $viewType');
-    setState(() {
-      // Toggle view mode
-    });
   }
 
   @override
@@ -188,105 +168,91 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
           ],
         ),
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Wrap(
-                spacing: 8.0,
-                children: [
-                  CupertinoButton(
-                    onPressed:
-                        isOffline ? null : () => _handleViewToggle('list view'),
-                    child: const Text('List View'),
-                  ),
-                  CupertinoButton(
-                    onPressed:
-                        isOffline ? null : () => _handleViewToggle('grid view'),
-                    child: const Text('Grid View'),
-                  ),
-                  CupertinoButton(
-                    onPressed:
-                        (isOffline || _isLoading) ? null : _createLoremIpsumJob,
-                    child:
-                        _isLoading
-                            ? const CupertinoActivityIndicator()
-                            : const Text('Add Lorem Ipsum Job'),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: BlocBuilder<JobListCubit, JobListState>(
-                builder: (context, state) {
-                  if (state is JobListLoading) {
-                    return const Center(child: CupertinoActivityIndicator());
-                  }
-
-                  if (state is JobListLoaded) {
-                    final jobs = state.jobs;
-
-                    if (jobs.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('No jobs available'),
-                            const SizedBox(height: 16),
-                            CupertinoButton(
-                              onPressed:
-                                  isOffline ? null : _createLoremIpsumJob,
-                              child: const Text('Create First Job'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      itemCount: jobs.length,
-                      itemBuilder: (context, index) {
-                        return JobListItem(
-                          job: jobs[index],
-                          isOffline: isOffline,
+      child: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: BlocBuilder<JobListCubit, JobListState>(
+                    builder: (context, state) {
+                      if (state is JobListLoading) {
+                        return const Center(
+                          child: CupertinoActivityIndicator(),
                         );
-                      },
-                    );
-                  }
+                      }
 
-                  if (state is JobListError) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Error: ${state.message}'),
-                          const SizedBox(height: 16),
-                          CupertinoButton(
-                            onPressed: isOffline ? null : _handleRefresh,
-                            child: const Text('Retry'),
+                      if (state is JobListLoaded) {
+                        final jobs = state.jobs;
+
+                        if (jobs.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('No jobs available'),
+                                const SizedBox(height: 16),
+                                CupertinoButton(
+                                  onPressed:
+                                      isOffline ? null : _createLoremIpsumJob,
+                                  child: const Text('Create First Job'),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 120.0),
+                          itemCount: jobs.length,
+                          itemBuilder: (context, index) {
+                            return JobListItem(
+                              job: jobs[index],
+                              isOffline: isOffline,
+                            );
+                          },
+                        );
+                      }
+
+                      if (state is JobListError) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Error: ${state.message}'),
+                              const SizedBox(height: 16),
+                              CupertinoButton(
+                                onPressed: isOffline ? null : _handleRefresh,
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }
+                        );
+                      }
 
-                  // Fallback to mock data if we hit some edge case
-                  return ListView.builder(
-                    itemCount: _mockJobs.length,
-                    itemBuilder: (context, index) {
-                      return JobListItem(
-                        job: _mockJobs[index],
-                        isOffline: isOffline,
+                      // Fallback to mock data if we hit some edge case
+                      return ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 120.0),
+                        itemCount: _mockJobs.length,
+                        itemBuilder: (context, index) {
+                          return JobListItem(
+                            job: _mockJobs[index],
+                            isOffline: isOffline,
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: RecordButton(onTap: isOffline ? null : _createLoremIpsumJob),
+          ),
+        ],
       ),
     );
   }
