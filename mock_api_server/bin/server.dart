@@ -134,8 +134,9 @@ final _router = Router()
   ..post('/$_versionedApiPath/auth/login', _loginHandler)
   ..post('/$_versionedApiPath/auth/refresh-session', _refreshHandler)
 
-  // User profile endpoint (prefixed)
+  // User profile endpoints (prefixed)
   ..get('/$_versionedApiPath/users/profile', _getUserProfileHandler)
+  ..get('/$_versionedApiPath/users/<userId>', _getUserByIdHandler)
 
   // Job endpoints (prefixed)
   ..post('/$_versionedApiPath/jobs', _createJobHandler)
@@ -302,6 +303,40 @@ Future<Response> _getUserProfileHandler(Request request) async {
       'notifications_enabled': true,
     },
     // Add any other fields the app might expect
+  });
+
+  return Response.ok(
+    responseBody,
+    headers: {'content-type': 'application/json'},
+  );
+}
+
+// Get User By ID handler logic
+Future<Response> _getUserByIdHandler(Request request, String userId) async {
+  if (verboseLoggingEnabled) {
+    print('DEBUG: Get User By ID handler called for userId: $userId');
+  }
+
+  // Note: Header validation (API Key, Auth) is done by the middleware
+
+  // Validate userId
+  if (userId.isEmpty) {
+    return Response(
+      HttpStatus.badRequest,
+      body: jsonEncode({'error': 'User ID cannot be empty'}),
+      headers: {'content-type': 'application/json'},
+    );
+  }
+
+  // Use the userId from the path in the response
+  final responseBody = jsonEncode({
+    'id': userId, // Use the ID from the URL path
+    'name': 'Mock User (ID: $userId)', // Add ID to name for clarity
+    'email': 'mock.user.$userId@example.com', // Make email unique too
+    'settings': {
+      'theme': 'light', // Slightly different settings for testing
+      'notifications_enabled': false,
+    },
   });
 
   return Response.ok(
