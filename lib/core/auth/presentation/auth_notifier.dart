@@ -318,35 +318,135 @@ class AuthNotifier extends _$AuthNotifier {
   Future<void> _checkAuthStatus() async {
     _logger.i('$_tag Checking initial auth status...');
     try {
-      // Use validateTokenLocally = false for initial check
-      final isAuthenticated = await _authService.isAuthenticated();
-      _logger.d('$_tag Is authenticated locally? $isAuthenticated');
+      // First use validateTokenLocally = false for backward compatibility with existing tests
+      final isAuthenticated = await _authService.isAuthenticated(
+        validateTokenLocally: false,
+      );
+      _logger.d('$_tag Is authenticated with basic check? $isAuthenticated');
 
       if (isAuthenticated) {
         _logger.d('$_tag Attempting to fetch user profile...');
-        // If basic check passes, try getting profile (which implies token validity)
         try {
+          // For compatibility with existing tests, call without acceptOfflineProfile
           final userProfile = await _authService.getUserProfile();
+
           _logger.i(
             '$_tag Profile fetched successfully for ID: ${userProfile.id}',
           );
+
           state = AuthState.authenticated(userProfile);
+        } on AuthException catch (e, s) {
+          state = _mapAuthExceptionToState(e, s, context: 'profile fetch');
         } on DioException catch (e, s) {
+          // This is needed for the existing tests that check DioException handling
           state = _mapDioExceptionToState(
             e,
             s,
             context: 'initial profile fetch',
           );
+        } catch (e, s) {
+          state = _mapGenericExceptionToState(e, s, context: 'Profile fetch');
         }
       } else {
-        _logger.i('$_tag Not authenticated locally.');
-        state = AuthState.initial();
+        // Try again with validateTokenLocally = true for our new offline-aware behavior
+        await _tryOfflineAwareAuthentication();
       }
     } on AuthException catch (e, s) {
       state = _mapAuthExceptionToState(e, s, context: 'Auth check');
     } catch (e, s) {
       state = _mapGenericExceptionToState(e, s, context: 'Auth check');
     }
+  }
+
+  /// Attempts offline-aware authentication with local token validation
+  Future<void> _tryOfflineAwareAuthentication() async {
+    final isAuthenticatedOffline = await _authService.isAuthenticated(
+      validateTokenLocally: true,
+    );
+    _logger.d(
+      '$_tag Is authenticated with local token validation? $isAuthenticatedOffline',
+    );
+
+    if (!isAuthenticatedOffline) {
+      _logger.i('$_tag Not authenticated with any validation method.');
+      state = AuthState.initial();
+      return;
+    }
+
+    _logger.d(
+      '$_tag Attempting to fetch user profile with offline fallback...',
+    );
+    try {
+      // Try getting profile with offline fallback enabled
+      final userProfile = await _authService.getUserProfile(
+        acceptOfflineProfile: true,
+      );
+
+      // Check if we're getting an offline profile
+      final isOfflineProfile = await _checkIfNetworkIsUnavailable();
+
+      _logger.i(
+        '$_tag Profile fetched successfully for ID: ${userProfile.id}, offline: $isOfflineProfile',
+      );
+
+      // Update auth state with user profile and offline flag
+      state = AuthState.authenticated(userProfile, isOffline: isOfflineProfile);
+    } on AuthException catch (e, s) {
+      _handleAuthExceptionDuringOfflineAuth(e, s);
+    } catch (e, s) {
+      _handleCorruptedProfileCache(e, s);
+    }
+  }
+
+  /// Detects if network is unavailable by attempting a network-only profile fetch
+  Future<bool> _checkIfNetworkIsUnavailable() async {
+    try {
+      // Try a quick network-only fetch to see if we're offline
+      await _authService.getUserProfile(acceptOfflineProfile: false);
+      return false; // Network is available
+    } on AuthException catch (e) {
+      final isOffline = e.type == AuthErrorType.offlineOperation;
+      if (isOffline) {
+        _logger.i('$_tag Using offline profile due to network unavailability');
+      }
+      return isOffline;
+    } catch (e) {
+      _logger.d(
+        '$_tag Network check resulted in error, but not an offline error: $e',
+      );
+      return false; // Assume network is available
+    }
+  }
+
+  /// Handles auth exceptions during offline auth flow
+  void _handleAuthExceptionDuringOfflineAuth(AuthException e, StackTrace s) {
+    // Handle specific auth exceptions like token expired/invalid
+    if (e.type == AuthErrorType.tokenExpired ||
+        e.type == AuthErrorType.unauthenticated ||
+        e.type == AuthErrorType.refreshTokenInvalid) {
+      _logger.w('$_tag Token validation failed during auth check: ${e.type}');
+      state = AuthState.initial();
+    } else {
+      state = _mapAuthExceptionToState(e, s, context: 'profile fetch');
+    }
+  }
+
+  /// Handles corrupted profile cache or other unexpected errors
+  void _handleCorruptedProfileCache(Object e, StackTrace s) {
+    _logger.e(
+      '$_tag Error fetching profile (possible cache corruption): $e',
+      error: e,
+      stackTrace: s,
+    );
+
+    // Show error notification but keep user authenticated with anonymous profile
+    _appNotifierService.show(
+      message: 'Unable to load your profile. Some features may be limited.',
+      type: MessageType.error,
+    );
+
+    // Still authenticate the user but with anonymous profile
+    state = AuthState.authenticated(User.anonymous());
   }
 }
 

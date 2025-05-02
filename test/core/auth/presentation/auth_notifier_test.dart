@@ -248,4 +248,105 @@ void main() {
       expect(realUser.isAnonymous, isFalse);
     });
   });
+
+  // Tests for offline auth caching behavior
+  group('offline authentication', () {
+    test(
+      'should authenticate with valid local credentials when offline',
+      () async {
+        // Set up auth service to use local validation and simulate offline condition
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: true),
+        ).thenAnswer((_) async => true);
+
+        // Simulate network error when trying to get profile online
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: false),
+        ).thenThrow(AuthException.offlineOperationFailed());
+
+        // But succeed with cached profile when accepting offline profile
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: true),
+        ).thenAnswer((_) async => userProfile);
+
+        // Create a new notifier with our enhanced offline-first behavior
+        readNotifier();
+        await pumpEventQueue();
+
+        // Verify we end up authenticated with the offline profile
+        final state = readState();
+        expect(state.status, equals(AuthStatus.authenticated));
+        expect(state.user, equals(userProfile));
+        expect(state.isOffline, isTrue);
+
+        // Verify we called the right methods with right parameters
+        verify(mockAuthService.isAuthenticated(validateTokenLocally: true));
+        verify(mockAuthService.getUserProfile(acceptOfflineProfile: true));
+      },
+    );
+
+    test(
+      'should reject if server invalidates locally valid token when online',
+      () async {
+        // Local validation passes
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: true),
+        ).thenAnswer((_) async => true);
+
+        // But server rejects when we try to use the token
+        when(
+          mockAuthService.getUserProfile(
+            acceptOfflineProfile: anyNamed('acceptOfflineProfile'),
+          ),
+        ).thenThrow(AuthException.tokenExpired());
+
+        readNotifier();
+        await pumpEventQueue();
+
+        // Verify we end up in unauthenticated state
+        final state = readState();
+        expect(state.status, equals(AuthStatus.unauthenticated));
+
+        // Verify correct method calls
+        verify(mockAuthService.isAuthenticated(validateTokenLocally: true));
+      },
+    );
+
+    test('should handle corrupted profile cache gracefully', () async {
+      // Auth is valid locally
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: true),
+      ).thenAnswer((_) async => true);
+
+      // But profile fetch fails with cache corruption error
+      when(
+        mockAuthService.getUserProfile(acceptOfflineProfile: true),
+      ).thenThrow(Exception('Corrupted profile cache'));
+
+      // Override app notifier service to verify error messages
+      final fakeAppNotifier = FakeAppNotifierService();
+      container = ProviderContainer(
+        overrides: [
+          authServiceProvider.overrideWithValue(mockAuthService),
+          authEventBusProvider.overrideWithValue(mockAuthEventBus),
+          autofillServiceProvider.overrideWithValue(mockAutofillService),
+          appNotifierServiceProvider.overrideWith(() => fakeAppNotifier),
+        ],
+      );
+
+      readNotifier();
+      await pumpEventQueue();
+
+      // Should still be authenticated but with anonymous user
+      final state = readState();
+      expect(state.status, equals(AuthStatus.authenticated));
+      expect(state.user, isNotNull);
+      expect(state.user!.isAnonymous, isTrue);
+
+      // Should have shown an error notification
+      expect(fakeAppNotifier.showCalls.length, 1);
+      expect(fakeAppNotifier.showCalls.first.type, equals(MessageType.error));
+      expect(fakeAppNotifier.showCalls.first.message, contains('profile'));
+    });
+  });
 }
