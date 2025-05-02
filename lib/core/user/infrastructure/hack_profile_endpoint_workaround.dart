@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
-/// ⚠️ TEMPORARY HACK: Profile Endpoint Workaround ⚠️
+/// ⚠️ TEMPORARY HACK-TODO: Profile Endpoint Workaround ⚠️
 ///
 /// This is a TEMPORARY solution to work around the missing /users/profile endpoint
 /// on staging. This code will be REMOVED once the proper endpoint is implemented.

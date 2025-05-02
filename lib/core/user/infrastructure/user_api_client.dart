@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
-import 'package:docjet_mobile/core/user/infrastructure/HACK_profile_endpoint_workaround.dart';
+import 'package:docjet_mobile/core/user/infrastructure/hack_profile_endpoint_workaround.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
@@ -127,13 +127,13 @@ class UserApiClient {
     }
   }
 
-  /// ⚠️ TEMPORARY HACK: Resolves the profile endpoint
+  /// ⚠️ TEMPORARY HACK-TODO: Resolves the profile endpoint
   ///
   /// Either returns the standard endpoint from ApiConfig or uses the workaround
   /// to get a user-specific endpoint. Tests will still work because they mock
   /// the HTTP call, not this internal method.
   Future<String> _resolveProfileEndpoint() async {
-    // HACK: This is a temporary workaround for the missing /users/profile endpoint
+    // HACK-TODO: This is a temporary workaround for the missing /users/profile endpoint
     // TODO: Remove this workaround once the proper endpoint is implemented
     return ProfileEndpointWorkaround.transformProfileEndpoint(
       ApiConfig.userProfileEndpoint,
