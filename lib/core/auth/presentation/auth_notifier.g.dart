@@ -67,7 +67,7 @@ final autofillServiceProvider = Provider<AutofillService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AutofillServiceRef = ProviderRef<AutofillService>;
-String _$authNotifierHash() => r'ab4e3a386895d4f2c82cac74b4c06a55228a2153';
+String _$authNotifierHash() => r'16bd2ef60aaef5043585db1eaab9fe1187d91e24';
 
 /// Manages authentication state for the application
 ///

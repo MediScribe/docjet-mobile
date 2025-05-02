@@ -215,4 +215,147 @@ void main() {
       );
     }),
   );
+
+  test('throws ArgumentError when duration is non-positive', () {
+    // Arrange
+    const message = 'Invalid Duration Test';
+    const type = MessageType.error;
+    final invalidDuration = Duration(seconds: -5);
+
+    // Act & Assert
+    expect(
+      () => notifier.show(
+        message: message,
+        type: type,
+        duration: invalidDuration,
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('show() accepts custom message ID', () {
+    // Arrange
+    const message = 'Custom ID Test';
+    const type = MessageType.info;
+    const customId = 'my-custom-id-123';
+
+    // Act
+    notifier.show(message: message, type: type, id: customId);
+
+    // Assert
+    final state = container.read(appNotifierServiceProvider);
+    expect(state, isNotNull);
+    expect(state?.id, customId);
+  });
+
+  test('identical messages with different IDs are considered unique', () {
+    // Arrange
+    const message = 'Same Message';
+    const type = MessageType.warning;
+    final firstId = 'first-id';
+    final secondId = 'second-id';
+
+    // Act - show two identical messages with different IDs
+    notifier.show(message: message, type: type, id: firstId);
+    final firstState = container.read(appNotifierServiceProvider);
+
+    notifier.show(message: message, type: type, id: secondId);
+    final secondState = container.read(appNotifierServiceProvider);
+
+    // Assert
+    expect(firstState, isNotNull);
+    expect(secondState, isNotNull);
+    expect(
+      firstState != secondState,
+      isTrue,
+      reason: 'Messages with different IDs should be treated as different',
+    );
+    expect(firstState?.id, firstId);
+    expect(secondState?.id, secondId);
+  });
+
+  test('sequential messages with different types are handled correctly', () {
+    // Arrange
+    const baseMessage = 'Type Test';
+
+    // Act - show messages with all different types
+    notifier.show(message: '$baseMessage - Info', type: MessageType.info);
+    final infoState = container.read(appNotifierServiceProvider);
+
+    notifier.show(message: '$baseMessage - Success', type: MessageType.success);
+    final successState = container.read(appNotifierServiceProvider);
+
+    notifier.show(message: '$baseMessage - Warning', type: MessageType.warning);
+    final warningState = container.read(appNotifierServiceProvider);
+
+    notifier.show(message: '$baseMessage - Error', type: MessageType.error);
+    final errorState = container.read(appNotifierServiceProvider);
+
+    // Assert
+    expect(infoState?.type, MessageType.info);
+    expect(successState?.type, MessageType.success);
+    expect(warningState?.type, MessageType.warning);
+    expect(errorState?.type, MessageType.error);
+
+    // Last message shown should be current state
+    expect(
+      container.read(appNotifierServiceProvider)?.message,
+      '$baseMessage - Error',
+    );
+  });
+
+  test('dismiss() on empty state has no effect', () {
+    // Arrange - ensure state is null
+    notifier.dismiss(); // Just to be certain
+    expect(container.read(appNotifierServiceProvider), isNull);
+
+    // Act - call dismiss on empty state
+    // This should not throw exceptions
+    notifier.dismiss();
+
+    // Assert
+    expect(container.read(appNotifierServiceProvider), isNull);
+  });
+
+  test(
+    'reusing the same ID with different message content works correctly',
+    () => fakeAsync((async) {
+      // Arrange
+      const id = 'reused-id';
+      const firstMessage = 'First message with ID';
+      const secondMessage = 'Second message with same ID';
+      const duration = Duration(seconds: 5);
+
+      // Act 1 - Show first message with ID and duration
+      notifier.show(
+        message: firstMessage,
+        type: MessageType.info,
+        id: id,
+        duration: duration,
+      );
+      final firstState = container.read(appNotifierServiceProvider);
+
+      // Advance time but not enough to dismiss
+      async.elapse(const Duration(seconds: 2));
+
+      // Act 2 - Show second message with same ID but different content
+      notifier.show(message: secondMessage, type: MessageType.warning, id: id);
+      final secondState = container.read(appNotifierServiceProvider);
+
+      // Assert
+      expect(firstState?.id, id);
+      expect(secondState?.id, id);
+      expect(secondState?.message, secondMessage);
+      expect(secondState?.type, MessageType.warning);
+
+      // The timer from the first message should be cancelled
+      // The second message has no duration, so it should remain
+      async.elapse(duration * 2);
+      expect(container.read(appNotifierServiceProvider), isNotNull);
+      expect(
+        container.read(appNotifierServiceProvider)?.message,
+        secondMessage,
+      );
+    }),
+  );
 }

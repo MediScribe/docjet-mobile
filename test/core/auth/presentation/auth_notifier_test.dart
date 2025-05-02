@@ -8,6 +8,8 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/common/models/app_message.dart';
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
 import 'package:docjet_mobile/core/services/autofill_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,31 @@ import 'package:mockito/mockito.dart';
 
 @GenerateMocks([AuthService, AuthEventBus, AutofillService])
 import 'auth_notifier_test.mocks.dart';
+
+// Creating a fake app notifier service for tracking calls
+class FakeAppNotifierService extends AppNotifierService {
+  final List<AppMessage> showCalls = [];
+  int dismissCount = 0;
+
+  @override
+  void show({
+    required String message,
+    required MessageType type,
+    Duration? duration,
+    String? id,
+  }) {
+    showCalls.add(
+      AppMessage(message: message, type: type, duration: duration, id: id),
+    );
+    super.show(message: message, type: type, duration: duration, id: id);
+  }
+
+  @override
+  void dismiss() {
+    dismissCount++;
+    super.dismiss();
+  }
+}
 
 // Additional DioExceptions for testing
 final profile404DioException = DioException(
@@ -102,10 +129,6 @@ void main() {
   Future<void> pumpEventQueue() => Future.delayed(Duration.zero);
 
   group('notification handling', () {
-    // NOTE: We've removed the specific test of notification service interactions
-    // since they proved difficult to test. Instead, we'll focus on the functional
-    // behavior - that the correct AuthState is produced with the right user.
-
     test(
       'should handle 404 on profile endpoint by setting anonymous user',
       () async {

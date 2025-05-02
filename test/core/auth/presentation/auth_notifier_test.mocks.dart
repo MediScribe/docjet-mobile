@@ -3,15 +3,19 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
-import 'package:docjet_mobile/core/auth/auth_service.dart' as _i3;
+import 'package:docjet_mobile/core/auth/auth_service.dart' as _i4;
 import 'package:docjet_mobile/core/auth/entities/user.dart' as _i2;
-import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i6;
-import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i7;
-import 'package:docjet_mobile/core/services/autofill_service.dart' as _i8;
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i7;
+import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i8;
+import 'package:docjet_mobile/core/common/models/app_message.dart' as _i11;
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart'
+    as _i10;
+import 'package:docjet_mobile/core/services/autofill_service.dart' as _i9;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i5;
+import 'package:mockito/src/dummies.dart' as _i6;
+import 'package:riverpod_annotation/riverpod_annotation.dart' as _i3;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -37,16 +41,27 @@ class _FakeUser_0 extends _i1.SmartFake implements _i2.User {
         );
 }
 
+class _FakeAutoDisposeNotifierProviderRef_1<T> extends _i1.SmartFake
+    implements _i3.AutoDisposeNotifierProviderRef<T> {
+  _FakeAutoDisposeNotifierProviderRef_1(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
 /// A class which mocks [AuthService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthService extends _i1.Mock implements _i3.AuthService {
+class MockAuthService extends _i1.Mock implements _i4.AuthService {
   MockAuthService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<_i2.User> login(
+  _i5.Future<_i2.User> login(
     String? email,
     String? password,
   ) =>
@@ -58,7 +73,7 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
             password,
           ],
         ),
-        returnValue: _i4.Future<_i2.User>.value(_FakeUser_0(
+        returnValue: _i5.Future<_i2.User>.value(_FakeUser_0(
           this,
           Invocation.method(
             #login,
@@ -68,62 +83,62 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
             ],
           ),
         )),
-      ) as _i4.Future<_i2.User>);
+      ) as _i5.Future<_i2.User>);
 
   @override
-  _i4.Future<bool> refreshSession() => (super.noSuchMethod(
+  _i5.Future<bool> refreshSession() => (super.noSuchMethod(
         Invocation.method(
           #refreshSession,
           [],
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
 
   @override
-  _i4.Future<void> logout() => (super.noSuchMethod(
+  _i5.Future<void> logout() => (super.noSuchMethod(
         Invocation.method(
           #logout,
           [],
         ),
-        returnValue: _i4.Future<void>.value(),
-        returnValueForMissingStub: _i4.Future<void>.value(),
-      ) as _i4.Future<void>);
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
 
   @override
-  _i4.Future<bool> isAuthenticated({bool? validateTokenLocally = false}) =>
+  _i5.Future<bool> isAuthenticated({bool? validateTokenLocally = false}) =>
       (super.noSuchMethod(
         Invocation.method(
           #isAuthenticated,
           [],
           {#validateTokenLocally: validateTokenLocally},
         ),
-        returnValue: _i4.Future<bool>.value(false),
-      ) as _i4.Future<bool>);
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
 
   @override
-  _i4.Future<String> getCurrentUserId() => (super.noSuchMethod(
+  _i5.Future<String> getCurrentUserId() => (super.noSuchMethod(
         Invocation.method(
           #getCurrentUserId,
           [],
         ),
-        returnValue: _i4.Future<String>.value(_i5.dummyValue<String>(
+        returnValue: _i5.Future<String>.value(_i6.dummyValue<String>(
           this,
           Invocation.method(
             #getCurrentUserId,
             [],
           ),
         )),
-      ) as _i4.Future<String>);
+      ) as _i5.Future<String>);
 
   @override
-  _i4.Future<_i2.User> getUserProfile({bool? acceptOfflineProfile = true}) =>
+  _i5.Future<_i2.User> getUserProfile({bool? acceptOfflineProfile = true}) =>
       (super.noSuchMethod(
         Invocation.method(
           #getUserProfile,
           [],
           {#acceptOfflineProfile: acceptOfflineProfile},
         ),
-        returnValue: _i4.Future<_i2.User>.value(_FakeUser_0(
+        returnValue: _i5.Future<_i2.User>.value(_FakeUser_0(
           this,
           Invocation.method(
             #getUserProfile,
@@ -131,25 +146,25 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
             {#acceptOfflineProfile: acceptOfflineProfile},
           ),
         )),
-      ) as _i4.Future<_i2.User>);
+      ) as _i5.Future<_i2.User>);
 }
 
 /// A class which mocks [AuthEventBus].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthEventBus extends _i1.Mock implements _i6.AuthEventBus {
+class MockAuthEventBus extends _i1.Mock implements _i7.AuthEventBus {
   MockAuthEventBus() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Stream<_i7.AuthEvent> get stream => (super.noSuchMethod(
+  _i5.Stream<_i8.AuthEvent> get stream => (super.noSuchMethod(
         Invocation.getter(#stream),
-        returnValue: _i4.Stream<_i7.AuthEvent>.empty(),
-      ) as _i4.Stream<_i7.AuthEvent>);
+        returnValue: _i5.Stream<_i8.AuthEvent>.empty(),
+      ) as _i5.Stream<_i8.AuthEvent>);
 
   @override
-  void add(_i7.AuthEvent? event) => super.noSuchMethod(
+  void add(_i8.AuthEvent? event) => super.noSuchMethod(
         Invocation.method(
           #add,
           [event],
@@ -170,7 +185,7 @@ class MockAuthEventBus extends _i1.Mock implements _i6.AuthEventBus {
 /// A class which mocks [AutofillService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAutofillService extends _i1.Mock implements _i8.AutofillService {
+class MockAutofillService extends _i1.Mock implements _i9.AutofillService {
   MockAutofillService() {
     _i1.throwOnMissingStub(this);
   }
@@ -184,4 +199,99 @@ class MockAutofillService extends _i1.Mock implements _i8.AutofillService {
         ),
         returnValueForMissingStub: null,
       );
+}
+
+/// A class which mocks [AppNotifierService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAppNotifierService extends _i1.Mock
+    implements _i10.AppNotifierService {
+  MockAppNotifierService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.AutoDisposeNotifierProviderRef<_i11.AppMessage?> get ref =>
+      (super.noSuchMethod(
+        Invocation.getter(#ref),
+        returnValue: _FakeAutoDisposeNotifierProviderRef_1<_i11.AppMessage?>(
+          this,
+          Invocation.getter(#ref),
+        ),
+      ) as _i3.AutoDisposeNotifierProviderRef<_i11.AppMessage?>);
+
+  @override
+  set state(_i11.AppMessage? value) => super.noSuchMethod(
+        Invocation.setter(
+          #state,
+          value,
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void show({
+    required String? message,
+    required _i11.MessageType? type,
+    Duration? duration,
+    String? id,
+  }) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #show,
+          [],
+          {
+            #message: message,
+            #type: type,
+            #duration: duration,
+            #id: id,
+          },
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void dismiss() => super.noSuchMethod(
+        Invocation.method(
+          #dismiss,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void listenSelf(
+    void Function(
+      _i11.AppMessage?,
+      _i11.AppMessage?,
+    )? listener, {
+    void Function(
+      Object,
+      StackTrace,
+    )? onError,
+  }) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #listenSelf,
+          [listener],
+          {#onError: onError},
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  bool updateShouldNotify(
+    _i11.AppMessage? previous,
+    _i11.AppMessage? next,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateShouldNotify,
+          [
+            previous,
+            next,
+          ],
+        ),
+        returnValue: false,
+      ) as bool);
 }
