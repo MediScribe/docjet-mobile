@@ -39,6 +39,9 @@ This document serves as the central index for the project documentation.
 *   [Feature Auth Implementation](./refactoring/feature-auth-implementation_done.md)
 *   [Explicit DI Revisited](./refactoring/explicit-di-revisited_done.md)
 
+### TODOs
+*   [iOS Password AutoFill Setup](./todos/ios-autofill-setup-todo.md)
+
 ### Research
 *   [Sync Frameworks](./research/sync_framworks.md)
 
@@ -96,6 +99,10 @@ This document serves as the central index for the project documentation.
 
 #### [Playground](./dev-ui-playground.md)
 *   **Description**: Describes the UI Playground concept, a sandboxed screen (`job_list_playground.dart`) for rapidly iterating on UI components with mock data, separate from the main application flow.
+
+### TODOs
+#### [iOS Password AutoFill Setup](./todos/ios-autofill-setup-todo.md)
+*   **Description**: Detailed guide for configuring iOS Password AutoFill functionality, including Associated Domains setup, Apple Developer Portal configuration, and required server-side implementation of the apple-app-site-association file.
 
 ### Refactoring Efforts (Completed)
 #### [Offline Profile Cache TODO](./refactoring/offline-profile-cache-todo.md)

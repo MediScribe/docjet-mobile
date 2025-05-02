@@ -9,12 +9,13 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/services/autofill_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
-@GenerateMocks([AuthService, AuthEventBus])
+@GenerateMocks([AuthService, AuthEventBus, AutofillService])
 import 'auth_notifier_test.mocks.dart';
 
 // Additional DioExceptions for testing
@@ -58,6 +59,7 @@ final profile404DioExceptionWithQuery = DioException(
 void main() {
   late MockAuthService mockAuthService;
   late MockAuthEventBus mockAuthEventBus;
+  late MockAutofillService mockAutofillService;
   late StreamController<AuthEvent> eventBusController;
   late ProviderContainer container;
   late User testUser;
@@ -72,6 +74,7 @@ void main() {
   setUp(() {
     mockAuthService = MockAuthService();
     mockAuthEventBus = MockAuthEventBus();
+    mockAutofillService = MockAutofillService();
     eventBusController = StreamController<AuthEvent>.broadcast();
 
     when(mockAuthEventBus.stream).thenAnswer((_) => eventBusController.stream);
@@ -80,6 +83,7 @@ void main() {
       overrides: [
         authServiceProvider.overrideWithValue(mockAuthService),
         authEventBusProvider.overrideWithValue(mockAuthEventBus),
+        autofillServiceProvider.overrideWithValue(mockAutofillService),
       ],
     );
 
@@ -260,6 +264,55 @@ void main() {
         expect(state.status, AuthStatus.error);
         expect(state.errorMessage, equals(offlineException.message));
         expect(state.isOffline, true);
+      },
+    );
+
+    test('should call AutofillService after successful login', () async {
+      when(
+        mockAuthService.login(testEmail, testPassword),
+      ).thenAnswer((_) async => testUser);
+
+      await readNotifier().login(testEmail, testPassword);
+      await pumpEventQueue();
+
+      verify(mockAuthService.login(testEmail, testPassword)).called(1);
+      verify(mockAuthService.getUserProfile()).called(1);
+      verify(
+        mockAutofillService.completeAutofillContext(shouldSave: true),
+      ).called(1);
+      expect(readState(), equals(AuthState.authenticated(userProfile)));
+    });
+
+    test('should not call AutofillService when login fails', () async {
+      final exception = AuthException.invalidCredentials();
+      when(mockAuthService.login(testEmail, testPassword)).thenThrow(exception);
+
+      await readNotifier().login(testEmail, testPassword);
+      await pumpEventQueue();
+
+      verify(mockAuthService.login(testEmail, testPassword)).called(1);
+      verifyNever(mockAuthService.getUserProfile());
+      verifyNever(
+        mockAutofillService.completeAutofillContext(shouldSave: true),
+      );
+    });
+
+    test(
+      'should not call AutofillService when profile fetch fails after login',
+      () async {
+        when(
+          mockAuthService.login(testEmail, testPassword),
+        ).thenAnswer((_) async => testUser);
+        when(mockAuthService.getUserProfile()).thenThrow(profileFetchException);
+
+        await readNotifier().login(testEmail, testPassword);
+        await pumpEventQueue();
+
+        verify(mockAuthService.login(testEmail, testPassword)).called(1);
+        verify(mockAuthService.getUserProfile()).called(1);
+        verifyNever(
+          mockAutofillService.completeAutofillContext(shouldSave: true),
+        );
       },
     );
   });

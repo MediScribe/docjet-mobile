@@ -9,6 +9,7 @@ import 'package:docjet_mobile/core/auth/auth_service.dart' as _i3;
 import 'package:docjet_mobile/core/auth/entities/user.dart' as _i2;
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i6;
 import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i7;
+import 'package:docjet_mobile/core/services/autofill_service.dart' as _i8;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
 
@@ -161,6 +162,25 @@ class MockAuthEventBus extends _i1.Mock implements _i6.AuthEventBus {
         Invocation.method(
           #dispose,
           [],
+        ),
+        returnValueForMissingStub: null,
+      );
+}
+
+/// A class which mocks [AutofillService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAutofillService extends _i1.Mock implements _i8.AutofillService {
+  MockAutofillService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  void completeAutofillContext({bool? shouldSave = true}) => super.noSuchMethod(
+        Invocation.method(
+          #completeAutofillContext,
+          [],
+          {#shouldSave: shouldSave},
         ),
         returnValueForMissingStub: null,
       );

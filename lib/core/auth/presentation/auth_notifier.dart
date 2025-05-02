@@ -10,10 +10,12 @@ import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/auth/transient_error.dart';
 import 'package:docjet_mobile/core/auth/utils/api_path_matcher.dart';
+import 'package:docjet_mobile/core/services/autofill_service.dart'; // Import AutofillService
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+// Import for TextInput
 
 part 'auth_notifier.g.dart';
 
@@ -30,6 +32,7 @@ class AuthNotifier extends _$AuthNotifier {
   /// The authentication service used to perform authentication operations
   late final AuthService _authService;
   late final AuthEventBus _authEventBus;
+  late final AutofillService _autofillService; // Add AutofillService
   StreamSubscription? _eventSubscription;
 
   @override
@@ -38,6 +41,7 @@ class AuthNotifier extends _$AuthNotifier {
     // Get the auth service from the container
     _authService = ref.read(authServiceProvider);
     _authEventBus = ref.read(authEventBusProvider); // Read event bus
+    _autofillService = ref.read(autofillServiceProvider); // Get AutofillService
 
     // Listen to auth events
     _listenToAuthEvents();
@@ -269,6 +273,12 @@ class AuthNotifier extends _$AuthNotifier {
       _logger.d('$_tag Login successful, fetching user profile...');
       // Fetch full profile after successful login
       final userProfile = await _authService.getUserProfile();
+
+      // Signal autofill context completion upon successful login
+      // This tells iOS/Password Managers that the entered credentials were valid
+      // and can now be saved or updated.
+      _autofillService.completeAutofillContext(shouldSave: true);
+
       state = AuthState.authenticated(userProfile);
       _logger.i(
         '$_tag Login successful, user profile fetched for ID: ${userProfile.id}',
@@ -373,4 +383,15 @@ AuthEventBus authEventBus(Ref ref) {
     'authEventBusProvider has not been overridden. '
     'Make sure to override this in your main.dart with an implementation.',
   );
+}
+
+/// Provider for the AutofillService
+///
+/// This should be overridden in the widget tree with the actual implementation.
+@Riverpod(keepAlive: true)
+AutofillService autofillService(Ref ref) {
+  // Provide a default implementation to avoid the need for overriding in
+  // every test. Production code can still override this provider to inject a
+  // platform-specific instance if needed.
+  return AutofillServiceImpl();
 }

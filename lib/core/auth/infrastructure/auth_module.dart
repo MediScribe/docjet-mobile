@@ -8,6 +8,7 @@ import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client
 import 'package:docjet_mobile/core/auth/infrastructure/dio_factory.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/services/autofill_service.dart';
 import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -333,8 +334,11 @@ class AuthModule {
   /// Configures Riverpod providers for auth state management
   static List<Override> providerOverrides(GetIt getIt) {
     return [
-      // Override the auth service provider with the implementation from GetIt
-      authServiceProvider.overrideWithValue(getIt<AuthService>()),
+      // Override service provider with concrete instances from GetIt
+      authServiceProvider.overrideWith((ref) => getIt<AuthService>()),
+      authEventBusProvider.overrideWith((ref) => getIt<AuthEventBus>()),
+      // Add the new autofillServiceProvider override
+      autofillServiceProvider.overrideWith((ref) => getIt<AutofillService>()),
     ];
   }
 }

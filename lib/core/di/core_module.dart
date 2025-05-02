@@ -1,6 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:docjet_mobile/core/auth/secure_storage_auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
+import 'package:docjet_mobile/core/services/autofill_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
@@ -100,6 +101,12 @@ class CoreModule {
         ),
       );
       logger.d('$tag Registered AuthCredentialsProvider');
+    }
+
+    // Register AutofillService for platform-specific autofill operations
+    if (!getIt.isRegistered<AutofillService>()) {
+      getIt.registerLazySingleton<AutofillService>(() => AutofillServiceImpl());
+      logger.d('$tag Registered AutofillService');
     }
   }
 }

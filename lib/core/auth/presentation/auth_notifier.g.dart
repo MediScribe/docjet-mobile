@@ -46,7 +46,28 @@ final authEventBusProvider = Provider<AuthEventBus>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AuthEventBusRef = ProviderRef<AuthEventBus>;
-String _$authNotifierHash() => r'6b0437cb115bd69cdfeb72803b33ed85a35c02b7';
+String _$autofillServiceHash() => r'd92c3f55b4400b9593a0e8ce15bcdda0ae22e4dc';
+
+/// Provider for the AutofillService
+///
+/// This should be overridden in the widget tree with the actual implementation.
+///
+/// Copied from [autofillService].
+@ProviderFor(autofillService)
+final autofillServiceProvider = Provider<AutofillService>.internal(
+  autofillService,
+  name: r'autofillServiceProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$autofillServiceHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef AutofillServiceRef = ProviderRef<AutofillService>;
+String _$authNotifierHash() => r'c695a3c89c1a42a111d6172404601a6cc61081bc';
 
 /// Manages authentication state for the application
 ///
