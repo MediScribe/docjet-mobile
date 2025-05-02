@@ -61,6 +61,34 @@ Engrave these on your fucking soul.
     });
     ```
 
+*   **Test Streams Without Races**: Use a broadcast `StreamController` to stub your source, hand-shake with a `Completer` in your production code to await the first event, and schedule emissions in tests via `Future.microtask` so no event is dropped or raced. Then assert with `emitsInOrder` or `blocTest` for deterministic state sequences:
+
+    ```dart
+    // In your Cubit or service:
+    Future<void> loadData() {
+      final firstEvent = Completer<void>();
+      _subscription = source.stream.listen((data) {
+        emit(DataLoaded(data));
+        if (!firstEvent.isCompleted) firstEvent.complete();
+      });
+      return firstEvent.future;
+    }
+
+    // In tests:
+    final ctrl = StreamController<Either<Failure,List<Item>>>.broadcast();
+    when(mockSource.stream).thenAnswer((_) => ctrl.stream);
+
+    blocTest<MyCubit, MyState>(
+      build: () => MyCubit(source: mockSource),
+      act: (cubit) {
+        final f = cubit.loadData();
+        Future.microtask(() => ctrl.add(Right(testItems)));
+        return f;
+      },
+      expect: () => [isA<DataLoading>(), isA<DataLoaded>()],
+    );
+    ```
+
 ### III. Thou Shalt Not Trust Blindly
 
 *   **Know Thy Library**: Read the fucking docs. Understand the state machine of your audio library. When does `play()` actually result in a `playing` state? Are there intermediate `loading` or `buffering` states? What happens on errors? What happens when seeking before loading? Ignorance here *will* bite you in the ass. The `just_audio` `play()` behavior was our "I'm not uncertain" moment that turned out to be pure bullshit.

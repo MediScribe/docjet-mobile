@@ -29,7 +29,7 @@ class JobListCubit extends Cubit<JobListState> {
        super(const JobListInitial()) {
     _logger.d('$_tag: Initializing...');
     // Start loading immediately and subscribe to the stream
-    _subscribeToJobStream();
+    refreshJobs();
   }
 
   /// Loads and starts watching the job list.
@@ -98,12 +98,18 @@ class JobListCubit extends Cubit<JobListState> {
     }
   }
 
-  void _subscribeToJobStream() {
+  /// Refreshes the job list by re-subscribing to the data stream.
+  Future<void> refreshJobs() async {
     // Emit loading state right before subscribing
     emit(const JobListLoading());
     _logger.d('$_tag: Subscribing to job stream...');
 
-    _jobSubscription?.cancel(); // Ensure no lingering subscription
+    // Cancel previous subscription
+    _jobSubscription?.cancel();
+
+    // Completer that completes on first data or error event
+    final firstEventCompleter = Completer<void>();
+
     _jobSubscription = _watchJobsUseCase
         .call(NoParams())
         .listen(
@@ -119,6 +125,9 @@ class JobListCubit extends Cubit<JobListState> {
                 emit(JobListLoaded(viewModels));
               },
             );
+            if (!firstEventCompleter.isCompleted) {
+              firstEventCompleter.complete();
+            }
           },
           onError: (error) {
             // Handle potential stream errors if the Either doesn't catch them
@@ -126,8 +135,14 @@ class JobListCubit extends Cubit<JobListState> {
             emit(
               JobListError('JobListCubit stream error: ${error.toString()}'),
             );
+            if (!firstEventCompleter.isCompleted) {
+              firstEventCompleter.complete();
+            }
           },
         );
+
+    // Wait until the first event arrives before completing
+    return firstEventCompleter.future;
   }
 
   @override

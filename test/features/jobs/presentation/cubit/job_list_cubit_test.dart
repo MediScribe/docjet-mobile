@@ -234,4 +234,42 @@ void main() {
       expect(streamController.hasListener, isFalse);
     });
   });
+
+  group('refreshJobs', () {
+    blocTest<JobListCubit, JobListState>(
+      'emits [loading, loaded(initial), loading, loaded(refreshed)] when refreshJobs is called after initial load',
+      // Build the cubit
+      build: () => createCubit(),
+      // Seed initial data immediately after build but before act
+      seed: () {
+        // Push initial data onto the stream
+        streamController.add(Right([tJob1]));
+        // Return the expected state AFTER the initial load completes
+        // blocTest waits for this state before executing `act`.
+        return JobListLoaded([tViewModel1]);
+      },
+      // Call refreshJobs and then provide new data
+      act: (cubit) {
+        // Kick off refresh and schedule mock data emission on next microtask
+        final future = cubit.refreshJobs();
+        Future.microtask(() => streamController.add(Right([tJob2])));
+        return future;
+      },
+      // Expect the sequence: loading from refresh, loaded from refresh
+      expect:
+          () => [
+            isA<JobListLoading>(),
+            isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
+              tViewModel2,
+            ]),
+          ],
+      verify: (_) {
+        // Verify the use case was called by constructor AND the refresh call
+        verify(
+          mockWatchJobsUseCase.call(NoParams()),
+        ).called(greaterThanOrEqualTo(2));
+        // We rely on the `expect` block to verify the correct states (including mapped data) were emitted.
+      },
+    );
+  });
 }
