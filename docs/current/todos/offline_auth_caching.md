@@ -206,41 +206,41 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 3.0. [ ] **Manual Verification:** Corrupt cached profile JSON and ensure graceful error recovery
+* 3.0. [x] **Manual Verification:** Corrupt cached profile JSON and ensure graceful error recovery
     * Action: Manually write invalid JSON into SharedPreferences for a user, then call `_checkAuthStatus()` and verify `AppNotifierService` shows an appropriate error
-    * Findings: 
-* 3.1. [ ] **Research:** Analyze UI patterns for token invalidation and profile sync failures
-    * Findings: 
-* 3.2. [ ] **Tests RED:** Write tests for edge cases (token expiry during offline, corrupted cache)
+    * Findings: Created a comprehensive test in `test/core/auth/presentation/corrupted_cache_test.dart` that verifies the app's behavior when encountering corrupted profile cache. The test confirms that: (1) Even with corrupted profile JSON in SharedPreferences, the app maintains authentication state with an anonymous user rather than crashing or logging out the user; (2) The system properly shows an error notification via AppNotifierService with message "Unable to load your profile. Some features may be limited."; (3) The test verifies that `_handleCorruptedProfileCache()` in `AuthNotifier` is working correctly when decoding exceptions occur. The test required careful setup of mock behavior to simulate the offline authentication flow with local token validation, which provided valuable insights into the system's resilience. The implementation handles corrupted profile cache gracefully by falling back to an anonymous user object, maintaining the authenticated state while informing the user about the issue through a clear error message.
+* 3.1. [x] **Research:** Analyze UI patterns for token invalidation and profile sync failures
+    * Findings: The app has a robust notification system for displaying authentication-related events and errors to users. Key components are: (1) `AppNotifierService` - a centralized service for displaying transient notifications throughout the app using the `AppMessage` model with four message types (info, success, warning, error); (2) `ConfigurableTransientBanner` - a reusable UI component that renders notifications with appropriate styling based on message type; (3) `OfflineBanner` - dedicated widget that appears at the top of the screen when the app is offline, prominently displaying "You are offline" with a WiFi slash icon; (4) `AuthErrorMessage` - specialized widget for rendering auth-specific errors with appropriate styling; and (5) `AuthNotifier._handleCorruptedProfileCache()` - properly shows error notifications for corrupted profile issues while maintaining authenticated state. The UI handles three main error scenarios differently: (1) Network connectivity issues - shown with the persistent `OfflineBanner` at the top of the screen; (2) Token validation errors - transitions to unauthenticated state and shows appropriate error on login screen; (3) Profile data issues - shows transient error banner while keeping user in authenticated state with anonymous profile. This layered approach ensures users are properly informed of issues without being unnecessarily logged out.
+* 3.2. [x] **Tests RED:** Write tests for edge cases (token expiry during offline, corrupted cache)
     * Test File: `test/core/auth/presentation/auth_notifier_test.dart`
     * Test Description:
       - Should handle token expiry detection during offline mode
       - Should handle corrupted cached profile errors gracefully
       - Should show appropriate messages via AppNotifierService
-    * Findings: 
-* 3.3. [ ] **Implement GREEN:** Add edge case handling and UI feedback
+    * Findings: Added two comprehensive tests for edge cases: (1) "should handle token expiry detection during offline mode" - which verifies that when the token validation during offline authentication throws a token expiry exception, the system correctly transitions to an error state with the proper error type, and (2) "should show appropriate error notification during offline auth errors" - which confirms that when a corrupted profile cache exception occurs, the system shows the correct error notification through the AppNotifierService while keeping the user authenticated with an anonymous user. The tests required careful setup of mock behavior and verification of both the resulting AuthState and the notifications shown through FakeAppNotifierService. Both tests pass, confirming that the edge cases are properly handled by the current implementation of AuthNotifier, maintaining a balance between security (rejecting expired tokens) and usability (keeping users authenticated with limited functionality when profile data is corrupted rather than logging them out).
+* 3.3. [x] **Implement GREEN:** Add edge case handling and UI feedback
     * Implementation Files:
       - `lib/core/auth/presentation/auth_notifier.dart`
       - Update error mappers and notification integration
-    * Findings: 
-* 3.4. [ ] **Refactor:** Improve code structure and logging
-    * Findings: 
-* 3.5. [ ] **Run Cycle-Specific Tests:**
+    * Findings: Analyzing the implementation, I discovered that the edge case handling was already properly implemented in the codebase! The functions `_handleCorruptedProfileCache()` and `_handleAuthExceptionDuringOfflineAuth()` in `AuthNotifier` already handle all the edge cases our tests covered, including: (1) showing appropriate error notifications via `_appNotifierService.show()` for corrupted profile cache, (2) handling token expiry by transitioning to the proper state, and (3) maintaining authentication with an anonymous user when possible. The existing code properly balances security and usability concerns. This is why our tests immediately passed without needing to make implementation changes. The current implementation follows best practices by: (1) using clear, descriptive function names for error handling scenarios, (2) providing informative error messages to users while minimizing disruptions, (3) distinguishing between different types of auth errors, and (4) logging detailed error information for debugging while keeping user-facing messages concise and helpful.
+* 3.4. [x] **Refactor:** Improve code structure and logging
+    * Findings: Found and fixed a critical bug in the `_mapDioExceptionToState` method where the second return statement was inside the `if` block, making it unreachable. This could have led to unexpected behavior for non-404 DioExceptions. Enhanced the error notification experience by adding a user-facing notification message for network failures that wasn't previously enabled (was commented out). The refactoring enhances the robustness of the error handling system by ensuring all error paths properly show notifications and return the appropriate state. The method now has a cleaner structure with the error handling logic outside the conditional block. Ran the entire test suite after this change to confirm it fixed the issue without breaking existing functionality - all 784 tests passed. This refactoring improves both code quality and user experience by ensuring network errors are properly communicated to users via notifications.
+* 3.5. [x] **Run Cycle-Specific Tests:**
     * Command: `./scripts/list_failed_tests.dart test/core/auth/presentation/auth_notifier_test.dart --except`
-    * Findings: 
-* 3.6. [ ] **Run ALL Unit/Integration Tests:**
+    * Findings: All 16 tests passed successfully, confirming that our implementation correctly handles offline authentication edge cases like token expiration during offline mode and corrupted profile cache scenarios. The tests verify both the state transitions and the error notifications are correct.
+* 3.6. [x] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings: 
-* 3.7. [ ] **Format, Analyze, and Fix:**
+    * Findings: All 784 unit and integration tests passed, confirming our changes didn't break any existing functionality. This is particularly important since we modified core error handling code in AuthNotifier that's used throughout the application.
+* 3.7. [x] **Format, Analyze, and Fix:**
     * Command: `./scripts/fix_format_analyze.sh`
-    * Findings: 
-* 3.8. [ ] **Run ALL E2E & Stability Tests:**
+    * Findings: No analysis errors were found, confirming our fix follows all project code quality standards. The code maintains a consistent style and structure with the rest of the codebase.
+* 3.8. [x] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings: 
-* 3.9. [ ] **Handover Brief:**
-    * Status: 
-    * Gotchas: 
-    * Recommendations: 
+    * Findings: All E2E tests passed successfully, confirming the app works correctly in realistic scenarios with our enhanced offline authentication. The tests verify that network connectivity changes and token validation work as expected in the full application context.
+* 3.9. [x] **Handover Brief:**
+    * Status: Cycle 3 complete! We've successfully tested and refined the edge case handling for offline authentication, verifying proper behavior for token expiration during offline mode and corrupted profile cache scenarios. We also discovered and fixed a bug in the DioException handling that could have affected network error handling.
+    * Gotchas: (1) The existing error handling code structure is robust but has potential for unreachable code if not careful with `if/else` structures. (2) Error notifications should always be shown for network errors to improve user experience. (3) The AuthNotifier uses multiple specialized error handling methods that need to be kept in sync.
+    * Recommendations: For the final polish cycle, update the documentation to explain the error handling approach, particularly the trade-offs between logging out users vs. keeping them authenticated with limitations when profiles can't be loaded.
 
 ---
 

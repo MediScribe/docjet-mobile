@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/auth_service.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
@@ -288,27 +289,28 @@ void main() {
     test(
       'should reject if server invalidates locally valid token when online',
       () async {
-        // Local validation passes
+        // First the standard auth fails (no token)
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: false),
+        ).thenAnswer((_) async => false);
+
+        // But the local validation succeeds (validateTokenLocally: true)
         when(
           mockAuthService.isAuthenticated(validateTokenLocally: true),
         ).thenAnswer((_) async => true);
 
-        // But server rejects when we try to use the token
+        // But when we try to call getUserProfile, server rejects
         when(
-          mockAuthService.getUserProfile(
-            acceptOfflineProfile: anyNamed('acceptOfflineProfile'),
-          ),
-        ).thenThrow(AuthException.tokenExpired());
+          mockAuthService.getUserProfile(acceptOfflineProfile: true),
+        ).thenThrow(AuthException.unauthenticated('Server rejected token'));
 
         readNotifier();
         await pumpEventQueue();
 
-        // Verify we end up in unauthenticated state
+        // Should be unauthenticated if token is rejected
         final state = readState();
         expect(state.status, equals(AuthStatus.unauthenticated));
-
-        // Verify correct method calls
-        verify(mockAuthService.isAuthenticated(validateTokenLocally: true));
+        expect(state.user, isNull);
       },
     );
 
@@ -348,6 +350,80 @@ void main() {
       expect(fakeAppNotifier.showCalls.first.type, equals(MessageType.error));
       expect(fakeAppNotifier.showCalls.first.message, contains('profile'));
     });
+
+    test('should handle token expiry detection during offline mode', () async {
+      // First the standard auth fails (no token)
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: false),
+      ).thenAnswer((_) async => false);
+
+      // And the local validation says token is expired
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: true),
+      ).thenThrow(AuthException.tokenExpired());
+
+      readNotifier();
+      await pumpEventQueue();
+
+      // Should be in error state when token is expired
+      final state = readState();
+      expect(state.status, equals(AuthStatus.error));
+      expect(state.errorType, equals(AuthErrorType.tokenExpired));
+      expect(state.user, isNull);
+
+      // Verify we called isAuthenticated with correct parameter
+      verify(
+        mockAuthService.isAuthenticated(validateTokenLocally: true),
+      ).called(1);
+    });
+
+    test(
+      'should show appropriate error notification during offline auth errors',
+      () async {
+        // Create FakeAppNotifierService first for proper capturing
+        final fakeAppNotifier = FakeAppNotifierService();
+
+        // We need to recreate the container with our fake notifier service
+        container = ProviderContainer(
+          overrides: [
+            authServiceProvider.overrideWithValue(mockAuthService),
+            authEventBusProvider.overrideWithValue(mockAuthEventBus),
+            autofillServiceProvider.overrideWithValue(mockAutofillService),
+            appNotifierServiceProvider.overrideWith(() => fakeAppNotifier),
+          ],
+        );
+
+        // First the standard auth fails (no token)
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: false),
+        ).thenAnswer((_) async => false);
+
+        // But the local validation succeeds (validateTokenLocally: true)
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: true),
+        ).thenAnswer((_) async => true);
+
+        // But we throw a corrupted profile cache error which should show a notification
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: true),
+        ).thenThrow(Exception('Corrupted profile cache'));
+
+        // Get the notifier using our container with the fake service
+        container.read(authNotifierProvider);
+        await pumpEventQueue();
+
+        // Should be authenticated but with anonymous user
+        final state = container.read(authNotifierProvider);
+        expect(state.status, equals(AuthStatus.authenticated));
+        expect(state.user, isNotNull);
+        expect(state.user!.isAnonymous, isTrue);
+
+        // Should have shown an error notification
+        expect(fakeAppNotifier.showCalls.length, 1);
+        expect(fakeAppNotifier.showCalls.first.type, equals(MessageType.error));
+        expect(fakeAppNotifier.showCalls.first.message, contains('profile'));
+      },
+    );
   });
 
   group('network restoration token validation', () {

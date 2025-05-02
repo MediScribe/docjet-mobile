@@ -307,16 +307,19 @@ class AuthNotifier extends _$AuthNotifier {
       // Return authenticated state but with anonymous user (profile failed)
       // DO NOT set transientError here anymore
       return AuthState.authenticated(User.anonymous());
-    } else {
-      // For other DioExceptions, mark as error state
-      // Potentially show a generic error message via notifier as well?
-      // _appNotifierService.show(message: 'Network request failed.', type: MessageType.error);
-      // For now, just return the error state as before.
-      return AuthState.error(
-        'Failed to complete request. Please try again later.',
-        errorType: AuthErrorType.network,
-      );
     }
+
+    // For other DioExceptions, mark as error state
+    // Potentially show a generic error message via notifier as well?
+    _appNotifierService.show(
+      message: 'Network request failed. Please try again later.',
+      type: MessageType.error,
+    );
+
+    return AuthState.error(
+      'Failed to complete request. Please try again later.',
+      errorType: AuthErrorType.network,
+    );
   }
 
   /// Maps a generic exception to an auth state
