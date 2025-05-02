@@ -326,9 +326,6 @@ Immutable state object representing the current authentication state:
 - `status` - Current status (authenticated, unauthenticated, loading, error)
 - `errorMessage` - Error message if authentication failed
 - `isOffline` - Flag indicating if the app is operating in offline mode
-- `transientError` - Optional object containing information about non-critical errors (e.g., profile fetch failures) that shouldn't halt the app
-
-The `transientError` field is specifically designed to handle non-blocking errors like 404 on profile endpoint, allowing the app to continue functioning while still informing the user about the issue.
 
 #### AuthNotifier
 State management for authentication, connecting UI to domain services:
@@ -337,20 +334,16 @@ State management for authentication, connecting UI to domain services:
 - Listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
 - Handles connectivity transitions by updating the `isOffline` flag in all states (authenticated, error, unauthenticated, loading) when receiving `offlineDetected` and `onlineRestored` events.
 - Automatically refreshes user profile when the app comes back online through the `_refreshProfileAfterOnlineRestored()` helper.
-- Provides a `clearTransientError()` method to dismiss transient errors from the state.
+- Integrates with the `AppNotifierService` to display non-critical errors (e.g., 404 on profile endpoint) without blocking the app.
 
-#### TransientError
-A lightweight model that represents non-critical errors:
-- `message` - User-friendly error message to display
-- `type` - The type of error (e.g., `AuthErrorType.transientProfileError`)
+#### AppNotifierService
+A centralized notification service that manages application-wide messages:
+- Provides app-wide transient notifications (info, success, warning, error)
+- Manages a single message state with auto-dismiss capability
+- Used by `AuthNotifier` to show non-critical errors like profile fetch failures
+- Decouples UI notifications from domain-specific state
 
-The TransientError model serves several important purposes:
-- Allows the app to continue functioning despite non-critical errors
-- Keeps user informed about issues without blocking the UI
-- Separates critical errors (that should block the app) from non-critical ones (that should just inform)
-- Works with the TransientErrorBanner to provide a consistent error display mechanism
-
-When a 404 error is encountered on the profile endpoint or similar non-critical errors occur, the AuthNotifier sets a TransientError in the state rather than transitioning to an error state, allowing the app to remain responsive while still informing the user about the issue.
+The `AppNotifierService` allows any component to trigger notifications without maintaining its own state for transient messages, creating a more flexible and maintainable architecture.
 
 #### UI Components
 
@@ -362,16 +355,22 @@ A theme-aware banner that automatically displays when the app is in offline mode
 - Provides accessibility support through `Semantics` labels
 - Consistently displays across all screens through the AppShell
 
-##### TransientErrorBanner
-A theme-aware banner that automatically displays when non-critical errors occur, with auto-dismiss functionality
+##### ConfigurableTransientBanner
+A theme-aware banner that automatically displays transient messages from anywhere in the app:
+- Supports multiple message types (info, success, warning, error) with appropriate styling
+- Automatically dismisses based on configurable duration parameter
+- Includes manual dismiss button for user control
+- Provides accessibility support through Semantics with liveRegion
+- Adapts styling based on message type using AppColorTokens
 
 ##### AppShell
 A global wrapper component that ensures consistent UI elements across the app:
 - Applied via `MaterialApp.builder` to automatically wrap all screens
-- Handles displaying the offline and transient error banners at the top of each screen
+- Handles displaying the offline banner and transient notification banner at the top of each screen
+- Listens to `appNotifierServiceProvider` to show/hide notifications
 - Preserves navigation and screen structure while adding app-wide UI elements
 
-The UI components observe the `AuthNotifier` state to render the appropriate screens based on authentication status and display offline indicators when needed.
+The UI components observe the appropriate state providers to render UI elements based on authentication status, connectivity, and notification state.
 
 #### Performance Considerations
 
@@ -401,8 +400,8 @@ These events allow different components to react to auth state changes without t
 The auth module includes UI components that leverage the application's theme system:
 
 1. **OfflineBanner**: Banner shown when the app is in offline mode
-2. **TransientErrorBanner**: Banner shown when non-critical errors occur, with auto-dismiss functionality
-3. **AppShell**: Wrapper component that provides the offline and transient error banners across all screens
+2. **ConfigurableTransientBanner**: Banner shown when transient messages occur, with auto-dismiss functionality
+3. **AppShell**: Wrapper component that provides the offline and transient notification banners across all screens
 4. **AuthErrorMessage**: Displays auth-related error messages with theme-aware styling
 
 All these components adapt to the app's theme (light/dark) automatically by using semantic color tokens from `AppColorTokens`. For more details on the theming system, see [UI Theming Architecture](../../features/feature-ui-theming.md).

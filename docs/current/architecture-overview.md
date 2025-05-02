@@ -285,10 +285,11 @@ The authentication system includes several advanced features:
    - Provides accessibility support through `Semantics` widget
    - Animated transitions with `AnimatedContainer` and `AnimatedOpacity`
 7. **Robust Token Refresh**: Automatic refresh with exponential backoff for network issues
-8. **Transient Error Handling**: The `TransientErrorBanner` component displays non-critical errors without halting app functionality
-   - Shows dismissible banner for transient errors (like 404 on profile endpoint)
-   - Auto-dismisses after configurable timeout (default: 5 seconds)
-   - Includes manual dismiss button
-   - Uses `AuthState.transientError` to communicate error details from service layer to UI
-   - Prevents app from becoming unresponsive during non-critical API errors
-   - Maintains separation between critical errors (auth state) and non-critical errors (transient error state)
+8. **Centralized Notification System**: The app uses a flexible notification system for displaying transient messages
+   - `AppNotifierService` manages application-wide transient messages (info, success, warning, error)
+   - `ConfigurableTransientBanner` displays messages with appropriate styling based on type
+   - Auto-dismisses based on configurable duration parameter or stays until manually dismissed
+   - Provides enhanced accessibility through Semantics and liveRegion support
+   - Can be triggered from anywhere in the app (including AuthNotifier for profile fetch errors)
+   - Decouples UI notifications from domain-specific state for greater flexibility
+   - Uses theme-aware styling that adapts to light/dark mode

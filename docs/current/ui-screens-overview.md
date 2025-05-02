@@ -27,7 +27,7 @@ graph TD
     
     %% Global UI Components
     AppShell[AppShell<br>Wraps All Screens] -.->|"Contains"| OfflineBanner[OfflineBanner<br>Shows when offline]
-    AppShell -.->|"Contains"| TransientErrorBanner[TransientErrorBanner<br>Shows transient errors]
+    AppShell -.->|"Contains"| ConfigurableTransientBanner[ConfigurableTransientBanner<br>Shows transient messages]
 ```
 
 ## Typical User Flow (Sequence)
@@ -42,7 +42,8 @@ sequenceDiagram
     participant JobListPlayground
     participant AppShell
     participant OfflineBanner
-    participant TransientErrorBanner
+    participant AppNotifierService
+    participant ConfigurableTransientBanner
 
     %% Login Flow
     User->>LoginScreen: Enters Credentials
@@ -61,16 +62,16 @@ sequenceDiagram
     User->>HomeScreen: View Screen
     
     %% Transient Error Scenario
-    Note over User,TransientErrorBanner: Auth successful but profile fetch fails (404)
-    AuthNotifier->>AuthNotifier: Sets transientError in state
-    AuthNotifier-->>AppShell: AuthState(transientError: "Profile not found")
-    AppShell->>TransientErrorBanner: Show error banner
-    User->>TransientErrorBanner: Sees error message
-    Note over TransientErrorBanner: Starts auto-dismiss timer (5s)
-    TransientErrorBanner->>AuthNotifier: After timeout: clearTransientError()
-    AuthNotifier->>AuthNotifier: Updates state (transientError = null)
-    AuthNotifier-->>AppShell: AuthState(transientError: null)
-    AppShell->>TransientErrorBanner: Hide error banner
+    Note over User,ConfigurableTransientBanner: Auth successful but profile fetch fails (404)
+    AuthNotifier->>AppNotifierService: show("Profile not found", MessageType.error)
+    AppNotifierService-->>AppShell: Updates state with AppMessage
+    AppShell->>ConfigurableTransientBanner: Show error banner
+    User->>ConfigurableTransientBanner: Sees error message
+    Note over ConfigurableTransientBanner: Starts auto-dismiss timer (if configured)
+    ConfigurableTransientBanner->>AppNotifierService: User clicks dismiss or timer expires
+    AppNotifierService->>AppNotifierService: Updates state (message = null)
+    AppNotifierService-->>AppShell: Updates state with null message
+    AppShell->>ConfigurableTransientBanner: Hide banner
     
     %% Offline Scenario
     Note over User,OfflineBanner: Network becomes unavailable
@@ -127,19 +128,20 @@ sequenceDiagram
   - Uses AnimatedContainer for height transitions and AnimatedOpacity for fade effects
   - Consistently appears at the top of all screens via AppShell
 
-### TransientErrorBanner
-- **Path**: `lib/core/common/widgets/transient_error_banner.dart`
-- **Purpose**: Displays transient non-critical errors without halting app functionality
-- **Current State**: Fully implemented with auto-dismiss functionality
+### ConfigurableTransientBanner
+- **Path**: `lib/core/common/widgets/configurable_transient_banner.dart`
+- **Purpose**: Displays transient messages (info, success, warning, error) without halting app functionality
+- **Current State**: Fully implemented with flexible configuration options
 - **Key Features**:
-  - Displays non-critical errors (like 404 on profile endpoint) as a dismissible banner
-  - Automatically dismisses after a configurable timeout (default: 5 seconds)
+  - Supports multiple message types: info, success, warning, error with appropriate styling
+  - Automatically dismisses based on configurable duration parameter (or stays until manually dismissed)
   - Includes manual dismiss button for user control
   - Respects safe area to ensure visibility below device notches/islands
-  - Uses AnimatedContainer for smooth height transitions
-  - Adapts content based on error message from AuthState.transientError
-  - Appears directly below the OfflineBanner in the AppShell
-  - Prevents app from becoming unresponsive during non-critical API errors
+  - Uses AnimatedSize with easeOutCubic curve for smooth height transitions
+  - Adapts styling based on message type using AppColorTokens notification colors
+  - Appears when AppNotifierService has a message to show
+  - Enhanced accessibility with Semantics and liveRegion support
+  - Can be triggered from anywhere in the app through the AppNotifierService
 
 ## Authentication Screens
 
