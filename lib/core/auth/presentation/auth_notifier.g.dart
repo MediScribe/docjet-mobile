@@ -46,7 +46,7 @@ final authEventBusProvider = Provider<AuthEventBus>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AuthEventBusRef = ProviderRef<AuthEventBus>;
-String _$autofillServiceHash() => r'd92c3f55b4400b9593a0e8ce15bcdda0ae22e4dc';
+String _$autofillServiceHash() => r'b2fab5c61774e709f4ecfaca8f7150f54902ae07';
 
 /// Provider for the AutofillService
 ///

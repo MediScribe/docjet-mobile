@@ -15,14 +15,12 @@ The primary goal of the UI Playground is to provide a sandboxed environment wher
 
 -   **Playground Screen:** A dedicated screen (`lib/features/jobs/presentation/pages/job_list_playground.dart`) that hosts the UI components under development.
 -   **Mock Data:** The playground screen uses hardcoded mock data (`JobViewModel` instances inside `_JobListPlaygroundState`) to simulate various scenarios.
--   **UI Variant Controls:** Buttons or other controls within the playground allow switching between different experimental layouts or component states (e.g., 'List View' vs 'Grid View' buttons).
 -   **Debug Access Trigger:** A non-production mechanism (e.g., a swipe gesture) on the *real* screen (`lib/features/jobs/presentation/pages/job_list_page.dart`) to navigate to the playground.
 
 ## Setup TODO
 
 -   [X] Create the core playground screen (`lib/features/jobs/presentation/pages/job_list_playground.dart`).
 -   [X] Populate the playground with representative mock data.
--   [X] Add basic UI variant controls (e.g., buttons) to the playground.
 -   [X] Refactor playground screen to use Cupertino widgets (`CupertinoPageScaffold`, etc.).
 -   [X] Add a debug **button** to the production screen (`lib/features/jobs/presentation/pages/job_list_page.dart`) to trigger navigation.
 -   [X] Implement navigation from the production screen to the playground screen using `CupertinoPageRoute`.
@@ -31,12 +29,11 @@ The primary goal of the UI Playground is to provide a sandboxed environment wher
 
 ## Workflow
 
-1.  Use the debug gesture on the relevant production screen (e.g., Job List) to open the playground.
-2.  Use the controls within the playground to switch between UI variants or test different data.
-3.  Modify the code within `job_list_playground.dart` and/or the specific widgets (like `lib/features/jobs/presentation/widgets/job_list_item.dart`) being tested.
-4.  Use hot reload/restart to see changes instantly.
-5.  Once a design is finalized, transfer the necessary code changes from the playground/widgets back into the production widgets/pages.
-6.  Ensure the final production code is covered by appropriate tests (ViewModel tests, Cubit tests, potentially Golden tests for stable UI).
+1.  Use the debug trigger on the relevant production screen (e.g., Job List) to open the playground.
+2.  Modify the code within `job_list_playground.dart` and/or the specific widgets (like `lib/features/jobs/presentation/widgets/job_list_item.dart`) being tested.
+3.  Use hot reload/restart to see changes instantly.
+4.  Once a design is finalized, transfer the necessary code changes from the playground/widgets back into the production widgets/pages.
+5.  Ensure the final production code is covered by appropriate tests (ViewModel tests, Cubit tests, potentially Golden tests for stable UI).
 
 ## Testing Features
 
