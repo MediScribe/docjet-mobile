@@ -349,4 +349,168 @@ void main() {
       expect(fakeAppNotifier.showCalls.first.message, contains('profile'));
     });
   });
+
+  group('network restoration token validation', () {
+    test(
+      'should validate token with server when transitioning from offline to online',
+      () async {
+        // Set up initial offline authentication state
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: true),
+        ).thenAnswer((_) async => true);
+
+        // Simulate network error when trying to get profile online
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: false),
+        ).thenThrow(AuthException.offlineOperationFailed());
+
+        // But succeed with cached profile when accepting offline profile
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: true),
+        ).thenAnswer((_) async => userProfile);
+
+        // Create the notifier and verify we get offline authenticated state
+        readNotifier();
+        await pumpEventQueue();
+
+        // Verify initial state is offline but authenticated
+        final initialState = readState();
+        expect(initialState.status, equals(AuthStatus.authenticated));
+        expect(initialState.isOffline, isTrue);
+
+        // Clear interactions to prepare for online transition
+        clearInteractions(mockAuthService);
+
+        // Now simulate coming back online
+        when(mockAuthService.refreshSession()).thenAnswer((_) async => true);
+        when(
+          mockAuthService.getUserProfile(),
+        ).thenAnswer((_) async => userProfile);
+
+        // Trigger online restored event
+        eventBusController.add(AuthEvent.onlineRestored);
+        await pumpEventQueue();
+
+        // Need additional delay for the debounce timer
+        await Future.delayed(const Duration(seconds: 2));
+
+        // Verify token was validated with server through refreshSession
+        verify(mockAuthService.refreshSession()).called(1);
+        verify(mockAuthService.getUserProfile()).called(1);
+
+        // Verify we're now authenticated and online
+        final finalState = readState();
+        expect(finalState.status, equals(AuthStatus.authenticated));
+        expect(finalState.user, equals(userProfile));
+        expect(finalState.isOffline, isFalse);
+      },
+    );
+
+    test(
+      'should reset to unauthenticated when server rejects token during network restoration',
+      () async {
+        // Set up initial offline authentication state
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: true),
+        ).thenAnswer((_) async => true);
+
+        // Simulate offline profile fetch
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: false),
+        ).thenThrow(AuthException.offlineOperationFailed());
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: true),
+        ).thenAnswer((_) async => userProfile);
+
+        // Create the notifier and verify we get offline authenticated state
+        readNotifier();
+        await pumpEventQueue();
+
+        // Verify initial state is offline but authenticated
+        final initialState = readState();
+        expect(initialState.status, equals(AuthStatus.authenticated));
+        expect(initialState.isOffline, isTrue);
+
+        // Clear interactions to prepare for online transition
+        clearInteractions(mockAuthService);
+
+        // Now simulate coming back online but with invalid token
+        when(mockAuthService.refreshSession()).thenAnswer((_) async => false);
+
+        // Trigger online restored event
+        eventBusController.add(AuthEvent.onlineRestored);
+        await pumpEventQueue();
+
+        // Need additional delay for the debounce timer
+        await Future.delayed(const Duration(seconds: 2));
+
+        // Verify token was validated with server
+        verify(mockAuthService.refreshSession()).called(1);
+
+        // Verify we should not attempt to get profile as token was invalid
+        verifyNever(mockAuthService.getUserProfile());
+
+        // Verify we're now unauthenticated
+        final finalState = readState();
+        expect(finalState.status, equals(AuthStatus.unauthenticated));
+        expect(finalState.isOffline, isFalse);
+      },
+    );
+
+    test('should update cached profile when coming back online', () async {
+      // Set up initial offline authentication state
+      when(
+        mockAuthService.isAuthenticated(validateTokenLocally: true),
+      ).thenAnswer((_) async => true);
+
+      // Simulate offline profile fetch
+      when(
+        mockAuthService.getUserProfile(acceptOfflineProfile: false),
+      ).thenThrow(AuthException.offlineOperationFailed());
+
+      // Return an "offline" profile first
+      final offlineProfile = User(id: 'offline-user-id');
+      when(
+        mockAuthService.getUserProfile(acceptOfflineProfile: true),
+      ).thenAnswer((_) async => offlineProfile);
+
+      // Create the notifier and verify we get offline authenticated state
+      readNotifier();
+      await pumpEventQueue();
+
+      // Verify initial state has the offline profile
+      final initialState = readState();
+      expect(initialState.user, equals(offlineProfile));
+      expect(initialState.isOffline, isTrue);
+
+      // Clear interactions to prepare for online transition
+      clearInteractions(mockAuthService);
+
+      // Now simulate coming back online with fresh profile data
+      when(mockAuthService.refreshSession()).thenAnswer((_) async => true);
+
+      // Return updated profile when online
+      final onlineProfile = User(id: 'online-fresh-id');
+      when(
+        mockAuthService.getUserProfile(),
+      ).thenAnswer((_) async => onlineProfile);
+
+      // Trigger online restored event
+      eventBusController.add(AuthEvent.onlineRestored);
+      await pumpEventQueue();
+
+      // Need additional delay for the debounce timer
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Verify we fetched fresh profile data
+      verify(mockAuthService.refreshSession()).called(1);
+      verify(mockAuthService.getUserProfile()).called(1);
+
+      // Verify state has been updated with fresh profile
+      final finalState = readState();
+      expect(finalState.status, equals(AuthStatus.authenticated));
+      expect(finalState.user, equals(onlineProfile));
+      expect(finalState.isOffline, isFalse);
+    });
+  });
 }

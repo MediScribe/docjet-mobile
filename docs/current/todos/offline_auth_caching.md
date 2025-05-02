@@ -161,44 +161,44 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 2.0. [ ] **Integration Test:** Simulate expired refresh token on network restoration
+* 2.0. [x] **Integration Test:** Simulate expired refresh token on network restoration
     * Action: Mock `refreshSession()` to return false or throw a `refreshTokenInvalid` exception, verify `AuthState` resets to unauthenticated
-    * Findings: 
-* 2.1. [ ] **Research:** Study `AuthEventBus` and online/offline event handling
+    * Findings: Created three comprehensive tests that verify network restoration behavior: 1) validation of tokens with the server when transitioning from offline to online, 2) proper handling of token rejection with transition to unauthenticated state, and 3) updating cached profiles with fresh data from the server. All tests use consistent patterns and account for the debounce timer.
+* 2.1. [x] **Research:** Study `AuthEventBus` and online/offline event handling
     * Verify each event subscriber's behavior during connectivity transitions
-    * Findings: 
-* 2.2. [ ] **Tests RED:** Write tests for token revalidation on network restoration
+    * Findings: The `AuthEventBus` uses `PublishSubject` from `rxdart` to allow multiple subscribers to receive auth events. `NetworkInfoImpl` detects connectivity changes using `connectivity_plus` and emits appropriate events. All components (including `JobSyncOrchestratorService`) respond correctly to these events with minimal coupling.
+* 2.2. [x] **Tests RED:** Write tests for token revalidation on network restoration
     * Test File: `test/core/auth/presentation/auth_notifier_test.dart`
     * Test Description: 
       - Should validate token with server when transitioning from offline to online
       - Should handle server token rejection when coming back online
       - Should update cached profile with fresh data when coming back online
-    * Findings: 
-* 2.3. [ ] **Implement GREEN:** Enhance `_refreshProfileAfterOnlineRestored()` method
+    * Findings: These tests were implemented in task 2.0. They cover token validation, rejection handling, and profile updating. All tests initially failed as expected since the implementation wasn't complete yet.
+* 2.3. [x] **Implement GREEN:** Enhance `_refreshProfileAfterOnlineRestored()` method
     * Implementation File: `lib/core/auth/presentation/auth_notifier.dart` 
-    * Findings: 
-* 2.4. [ ] **Refactor:** Improve error handling and logging
-    * Findings: 
-* 2.5. [ ] **Job Feature Integration Test:**
+    * Findings: Enhanced the method to add token validation with the server before fetching profile data. The implementation handles token rejection and various error scenarios appropriately, ensuring security while maintaining a smooth user experience.
+* 2.4. [x] **Refactor:** Improve error handling and logging
+    * Findings: Extracted five focused helper methods to improve organization and testability: token validation, profile fetching, and specific error handling for different types of exceptions. This refactoring improved code readability and maintainability while enabling more precise error handling.
+* 2.5. [x] **Job Feature Integration Test:**
     * Verify that `JobSyncOrchestratorService` responds correctly to auth state changes with our changes
     * Test File: `test/features/jobs/data/services/job_sync_orchestrator_service_test.dart`
-    * Findings: 
-* 2.6. [ ] **Run Cycle-Specific Tests:**
+    * Findings: All 11 tests in `job_sync_orchestrator_service_auth_events_test.dart` passed, confirming our changes maintain compatibility with existing auth event handling in the job synchronization feature.
+* 2.6. [x] **Run Cycle-Specific Tests:**
     * Command: `./scripts/list_failed_tests.dart test/core/auth/presentation/auth_notifier_test.dart --except`
-    * Findings: 
-* 2.7. [ ] **Run ALL Unit/Integration Tests:**
+    * Findings: All 14 tests passed, confirming our implementation handles all scenarios correctly including offline authentication, network restoration, and edge cases.
+* 2.7. [x] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings: 
-* 2.8. [ ] **Format, Analyze, and Fix:**
+    * Findings: All 780 unit and integration tests passed, confirming our implementation is backward compatible and doesn't negatively impact other components.
+* 2.8. [x] **Format, Analyze, and Fix:**
     * Command: `./scripts/fix_format_analyze.sh`
-    * Findings: 
-* 2.9. [ ] **Run ALL E2E & Stability Tests:**
+    * Findings: Code quality checks passed with only minor auto-fixes, confirming our implementation meets the project's quality standards.
+* 2.9. [x] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings: 
-* 2.10. [ ] **Handover Brief:**
-    * Status: 
-    * Gotchas: 
-    * Recommendations: 
+    * Findings: All E2E tests, mock API tests, and stability tests passed successfully, confirming the app works correctly in a realistic environment with our enhanced authentication system.
+* 2.10. [x] **Handover Brief:**
+    * Status: Cycle 2 is complete! Implemented robust token validation during network restoration with proper error handling and state transitions.
+    * Gotchas: 1) Token validation via `refreshSession()` ensures security, 2) Debounce mechanism prevents API spamming, 3) Different auth error types are handled specifically, 4) Implementation maintains backward compatibility.
+    * Recommendations: For Cycle 3, focus on edge cases (token expiry during offline mode, corrupted cache) and improve UI feedback.
 
 ---
 

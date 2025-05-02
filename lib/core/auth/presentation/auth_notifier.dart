@@ -9,10 +9,10 @@ import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/core/auth/utils/api_path_matcher.dart';
-import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart'; // Add AppNotifierService import
-import 'package:docjet_mobile/core/common/models/app_message.dart'; // <-- Import AppMessage
-import 'package:docjet_mobile/core/services/autofill_service.dart'; // Import AutofillService
-import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logger
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
+import 'package:docjet_mobile/core/common/models/app_message.dart';
+import 'package:docjet_mobile/core/services/autofill_service.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -47,11 +47,9 @@ class AuthNotifier extends _$AuthNotifier {
     _logger.d('$_tag Building AuthNotifier...');
     // Get the auth service from the container
     _authService = ref.read(authServiceProvider);
-    _authEventBus = ref.read(authEventBusProvider); // Read event bus
-    _autofillService = ref.read(autofillServiceProvider); // Get AutofillService
-    _appNotifierService = ref.read(
-      appNotifierServiceProvider.notifier,
-    ); // Initialize AppNotifierService
+    _authEventBus = ref.read(authEventBusProvider);
+    _autofillService = ref.read(autofillServiceProvider);
+    _appNotifierService = ref.read(appNotifierServiceProvider.notifier);
 
     // Listen to auth events
     _listenToAuthEvents();
@@ -64,8 +62,7 @@ class AuthNotifier extends _$AuthNotifier {
       _logger.d('$_tag Disposing AuthNotifier, cancelling subscription.');
       _eventSubscription?.cancel();
       // Cancel any pending profile refresh timers to avoid leaks.
-      _profileRefreshTimer?.cancel();
-      _profileRefreshTimer = null;
+      _cancelProfileRefreshTimer();
     });
 
     // Return initial state
@@ -140,25 +137,122 @@ class AuthNotifier extends _$AuthNotifier {
   Timer? _profileRefreshTimer;
   void _refreshProfileAfterOnlineRestored() {
     // Cancel any pending refresh
-    _profileRefreshTimer?.cancel();
+    _cancelProfileRefreshTimer();
 
     // Schedule a new refresh after a short delay
     _logger.d('$_tag Scheduling profile refresh after online restored');
     _profileRefreshTimer = Timer(const Duration(seconds: 1), () async {
-      // Try to refresh profile regardless of current state
-      // This covers cases where we're in ERROR state due to offline but
-      // still have valid auth credentials
-      _logger.i('$_tag Refreshing profile after coming back online');
-      try {
-        final userProfile = await _authService.getUserProfile();
-        // Always transition to authenticated state with the fresh profile
-        state = AuthState.authenticated(userProfile, isOffline: false);
-        _logger.i('$_tag Profile refresh successful after online restored');
-      } catch (e) {
-        _logger.w('$_tag Profile refresh after online restore failed: $e');
-        // Don't change state on failure, we've already transitioned to online
-      }
+      await _executeProfileRefreshAfterOnlineRestored();
+      _cancelProfileRefreshTimer();
     });
+  }
+
+  /// Cancels the profile refresh timer if active and nulls the reference
+  void _cancelProfileRefreshTimer() {
+    _profileRefreshTimer?.cancel();
+    _profileRefreshTimer = null;
+  }
+
+  /// Executes the profile refresh process after online connection is restored
+  /// Separated from the timer callback for better testability and code organization
+  Future<void> _executeProfileRefreshAfterOnlineRestored() async {
+    _logger.i('$_tag Refreshing profile after coming back online');
+    try {
+      // First validate token with the server
+      if (!await _validateTokenWithServer()) {
+        return; // Already handled state transition
+      }
+
+      // Token is valid, fetch fresh profile
+      await _fetchAndUpdateProfileAfterOnlineRestored();
+    } on AuthException catch (e, s) {
+      _handleAuthExceptionDuringOnlineRestoration(e, s);
+    } catch (e, s) {
+      _handleGeneralExceptionDuringOnlineRestoration(e, s);
+    }
+  }
+
+  /// Validates the authentication token with the server
+  /// Returns true if token is valid, false otherwise
+  /// Updates state to unauthenticated if token is invalid
+  Future<bool> _validateTokenWithServer() async {
+    _logger.d('$_tag Validating token with server via refreshSession()');
+    try {
+      final tokenValid = await _authService.refreshSession();
+
+      if (!tokenValid) {
+        _logger.w('$_tag Token rejected by server during online restoration');
+        state = AuthState.initial();
+        return false;
+      }
+
+      _logger.d('$_tag Token validated successfully by server');
+      return true;
+    } on AuthException catch (e) {
+      if (e.type == AuthErrorType.tokenExpired ||
+          e.type == AuthErrorType.unauthenticated ||
+          e.type == AuthErrorType.refreshTokenInvalid) {
+        _logger.w('$_tag Server rejected token during validation: ${e.type}');
+        state = AuthState.initial();
+        return false;
+      }
+
+      // For other auth exceptions (like network issues), rethrow to be handled upstream
+      rethrow;
+    }
+  }
+
+  /// Fetches a fresh profile from the server and updates state
+  Future<void> _fetchAndUpdateProfileAfterOnlineRestored() async {
+    _logger.d('$_tag Fetching fresh profile from server');
+    final userProfile = await _authService.getUserProfile();
+
+    // Always transition to authenticated state with the fresh profile
+    state = AuthState.authenticated(userProfile, isOffline: false);
+    _logger.i('$_tag Profile refresh successful after online restored');
+  }
+
+  /// Handles authentication exceptions during online restoration
+  void _handleAuthExceptionDuringOnlineRestoration(
+    AuthException e,
+    StackTrace s,
+  ) {
+    _logger.w('$_tag Online restoration failed with AuthException: $e');
+
+    if (e.type == AuthErrorType.tokenExpired ||
+        e.type == AuthErrorType.unauthenticated ||
+        e.type == AuthErrorType.refreshTokenInvalid) {
+      // Token is invalid or expired, reset to unauthenticated state
+      _logger.w(
+        '$_tag Token validation failed: ${e.type}, resetting to unauthenticated',
+      );
+      state = AuthState.initial();
+    } else {
+      // Handle other auth errors (like network issues)
+      state = _mapAuthExceptionToState(e, s, context: 'online profile refresh');
+    }
+  }
+
+  /// Handles general exceptions during online restoration
+  void _handleGeneralExceptionDuringOnlineRestoration(Object e, StackTrace s) {
+    _logger.w('$_tag Online restoration failed with general exception: $e');
+
+    if (e is DioException) {
+      state = _mapDioExceptionToState(e, s, context: 'online profile refresh');
+    } else {
+      // For other exceptions, just log and keep current state
+      _logger.e(
+        '$_tag Unexpected error during online profile refresh',
+        error: e,
+        stackTrace: s,
+      );
+
+      // Show an error notification but don't change auth state
+      _appNotifierService.show(
+        message: 'Unable to refresh your profile. Please try again later.',
+        type: MessageType.error,
+      );
+    }
   }
 
   /// Maps an authentication exception to the appropriate auth state
