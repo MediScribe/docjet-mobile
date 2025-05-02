@@ -2,6 +2,17 @@
 
 This document details the authentication system architecture for DocJet Mobile.
 
+## Table of Contents
+
+- [Authentication Component Overview](#authentication-component-overview)
+- [Authentication Flow](#authentication-flow)
+- [Authentication Components](#authentication-components)
+- [Auth Event Bus](#auth-event-bus)
+- [Theming & UI Components](#theming--ui-components)
+- [Dependency Injection Considerations](#dependency-injection-considerations)
+- [Troubleshooting Authentication Issues](#troubleshooting-authentication-issues)
+- [Offline Authentication Flow](#offline-authentication-flow)
+
 ## Authentication Component Overview
 
 This diagram illustrates the components and their relationships for the authentication system.
@@ -705,3 +716,214 @@ To verify authentication is working correctly after changes:
    - Missing API key
    - Circular dependency issues
    - Error message clarity
+
+## Offline Authentication Flow
+
+The DocJet Mobile app implements a robust offline-first authentication system that allows users to remain authenticated and access critical functionality even when network connectivity is unavailable. This section details the enhanced offline authentication capabilities.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AuthNotifier
+    participant AuthService
+    participant LocalCache
+    participant Server
+    
+    Note over AuthNotifier,Server: App Startup with Offline-First Auth
+    AuthNotifier->>AuthService: _checkAuthStatus()
+    
+    alt Standard Online Auth (First Attempt)
+        AuthService->>Server: refreshSession()
+        alt Server Available
+            Server-->>AuthService: 200 OK
+            AuthService->>Server: getUserProfile()
+            Server-->>AuthService: freshProfile
+            AuthService->>LocalCache: Update cached profile
+            AuthService-->>AuthNotifier: AuthState.authenticated(freshProfile)
+        else Network Unavailable
+            Server-->>AuthService: NetworkError
+            
+            Note over AuthService,LocalCache: Fallback to Offline Authentication
+            AuthService->>LocalCache: isAuthenticated(validateTokenLocally: true)
+            LocalCache-->>AuthService: hasValidLocalToken (true/false)
+            
+            alt Has Valid Local Token
+                AuthService->>LocalCache: getUserProfile(acceptOfflineProfile: true)
+                LocalCache-->>AuthService: cachedProfile
+                AuthService-->>AuthNotifier: AuthState.authenticated(cachedProfile, isOffline: true)
+            else Invalid/Expired Local Token
+                LocalCache-->>AuthService: false
+                AuthService-->>AuthNotifier: AuthState.unauthenticated()
+            end
+        end
+    end
+    
+    Note over AuthNotifier,Server: Network Restoration Flow
+    User->>AuthNotifier: Network connectivity restored
+    AuthNotifier->>AuthService: _refreshProfileAfterOnlineRestored()
+    AuthService->>Server: refreshSession()
+    
+    alt Token Still Valid
+        Server-->>AuthService: 200 OK
+        AuthService->>Server: getUserProfile()
+        Server-->>AuthService: freshProfile
+        AuthService->>LocalCache: Update cached profile
+        AuthService-->>AuthNotifier: AuthState.authenticated(freshProfile, isOffline: false)
+    else Token Invalid/Expired
+        Server-->>AuthService: 401 Unauthorized
+        AuthService-->>AuthNotifier: AuthState.unauthenticated()
+    end
+    
+    Note over AuthNotifier,Server: Edge Case: Corrupted Profile Cache
+    AuthNotifier->>AuthService: _checkAuthStatus()
+    AuthService->>LocalCache: getUserProfile(acceptOfflineProfile: true)
+    LocalCache-->>AuthService: DecodingError
+    AuthService-->>AuthNotifier: Error
+    AuthNotifier->>AuthNotifier: _handleCorruptedProfileCache()
+    AuthNotifier-->>User: Shows error notification
+    Note right of AuthNotifier: User remains authenticated with anonymous profile
+```
+
+### Offline-First Authentication Components
+
+The enhanced offline authentication system introduces several key enhancements:
+
+#### AuthNotifier Enhancements
+
+1. **Two-Stage Authentication Check**: `_checkAuthStatus()` first attempts standard online authentication, then falls back to local token validation if network is unavailable:
+   ```dart
+   Future<void> _checkAuthStatus() async {
+     try {
+       // First try standard online authentication
+       final isAuthenticated = await _authService.isAuthenticated(validateTokenLocally: false);
+       if (isAuthenticated) {
+         await _authenticateWithValidToken();
+         return;
+       }
+     } catch (e) {
+       // Fall back to offline-aware authentication with local token validation
+       await _tryOfflineAwareAuthentication();
+     }
+   }
+   ```
+
+2. **Offline-Aware Authentication**: Uses local token validation to authenticate users when offline:
+   ```dart
+   Future<void> _tryOfflineAwareAuthentication() async {
+     try {
+       final isValidLocally = await _authService.isAuthenticated(validateTokenLocally: true);
+       if (isValidLocally) {
+         final user = await _authService.getUserProfile(acceptOfflineProfile: true);
+         final isOffline = await _checkIfNetworkIsUnavailable();
+         state = state.authenticated(user: user, isOffline: isOffline);
+       } else {
+         state = state.unauthenticated();
+       }
+     } catch (e) {
+       // Handle auth exceptions and corrupted profile cache
+     }
+   }
+   ```
+
+3. **Network Restoration Handling**: `_refreshProfileAfterOnlineRestored()` validates tokens with the server when network is restored:
+   ```dart
+   Future<void> _refreshProfileAfterOnlineRestored() async {
+     if (state.status != AuthStatus.authenticated) return;
+     
+     try {
+       // Validate token with server first
+       final isTokenValid = await _authService.refreshSession();
+       if (!isTokenValid) {
+         state = state.unauthenticated();
+         return;
+       }
+       
+       // Fetch fresh profile data
+       final user = await _authService.getUserProfile(acceptOfflineProfile: false);
+       state = state.authenticated(user: user, isOffline: false);
+     } catch (e) {
+       // Handle various error types appropriately
+     }
+   }
+   ```
+
+4. **Edge Case Handling**: Specific error handlers for different scenarios:
+   - `_handleAuthExceptionDuringOfflineAuth()`: Handles token validation errors during offline mode
+   - `_handleCorruptedProfileCache()`: Keeps the user authenticated with an anonymous profile when cache is corrupted
+
+#### IUserProfileCache Interface
+
+A dedicated interface for caching user profiles with timestamp validation:
+
+```dart
+abstract class IUserProfileCache {
+  Future<void> saveProfile(UserProfileDto profileDto, DateTime timestamp);
+  Future<UserProfileDto?> getProfile(String userId);
+  Future<void> clearProfile(String userId);
+  Future<void> clearAllProfiles();
+  bool isProfileStale(String userId, {
+    required bool isAccessTokenValid,
+    required bool isRefreshTokenValid,
+  });
+}
+```
+
+### User Experience During Connectivity Changes
+
+The offline authentication system ensures the following experiences for users:
+
+1. **Seamless Offline Transition**: Users already authenticated remain authenticated when connectivity is lost. They see a non-disruptive offline banner at the top of the screen.
+
+2. **Online Restoration**: When connectivity is restored, the app automatically validates the user's authentication with the server in the background without requiring user intervention.
+
+3. **Error Handling**:
+   - **Token Expired During Offline Mode**: User is logged out with a clear message explaining token expiration
+   - **Corrupted Profile Data**: User stays authenticated with a temporary anonymous profile and a notification about limited functionality
+   - **Failed Network Validation**: If the server rejects a locally valid token upon coming online, the user is logged out with an appropriate message
+
+4. **Security Balancing**: The system balances security requirements (invalidating expired tokens) with usability (keeping users authenticated with cached data when appropriate).
+
+### Compatibility with Other Features
+
+The offline authentication system seamlessly integrates with other offline-capable features like Jobs:
+
+1. **Auth Event Responsiveness**: Features like `JobSyncOrchestratorService` listen to auth events (`offlineDetected`, `onlineRestored`, `loggedIn`, `loggedOut`) to adapt their behavior to connectivity changes.
+
+2. **In-flight Cancellation**: Operations started before connectivity changes are handled gracefully (e.g., syncing jobs in progress when network becomes unavailable).
+
+3. **State Persistence**: Components maintain correct state during connectivity transitions without requiring explicit user intervention.
+
+### Performance Considerations for Offline Authentication
+
+The offline authentication caching mechanism is designed for optimal performance:
+
+1. **Minimal Storage Footprint**: 
+   - Profile data is stored as compact JSON in SharedPreferences
+   - Only essential profile fields are cached to minimize storage requirements
+   - Old cache entries are automatically cleaned during logout and token invalidation
+
+2. **Cache Access Efficiency**:
+   - Direct key-based access using userId for O(1) lookup complexity
+   - JSON parsing is done on-demand only when cache is accessed
+   - Timestamps stored alongside data to enable efficient staleness checks without loading full profile 
+
+3. **Memory Management**:
+   - No in-memory caching layer to avoid duplicate storage
+   - Objects are created on-demand and garbage collected when no longer needed
+   - SharedPreferences implements its own memory-efficient caching
+
+4. **Battery Considerations**:
+   - Local token validation requires minimal CPU usage
+   - Network operations are skipped when offline, preserving battery
+   - Background token refresh operations respect app lifecycle state
+
+5. **Edge Case Optimizations**:
+   - Failed operations avoid expensive retries when offline
+   - Corrupted cache recovery provides degraded functionality without crashes
+   - Token validation errors short-circuit the authentication flow early
+
+These optimizations ensure that the offline authentication system provides a responsive user experience even on resource-constrained devices or in low-battery situations.
+
+### Testing Offline Authentication
+
+For details on testing the offline authentication system, see [Authentication Testing Guide](./feature-auth-testing.md).
