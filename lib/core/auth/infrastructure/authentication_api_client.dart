@@ -6,6 +6,8 @@ import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/network/connectivity_error.dart';
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:flutter/foundation.dart';
 
 /// Client responsible for authentication-specific API operations.
@@ -86,13 +88,17 @@ class AuthenticationApiClient {
       );
     }
 
+    // Check for connectivity errors using the shared utility
+    if (isNetworkConnectivityError(e.type)) {
+      // Log the original error message for easier debugging
+      LoggerFactory.getLogger(
+        'AuthenticationApiClient',
+      ).i('Network connectivity error during auth operation: ${e.message}');
+      return AuthException.offlineOperationFailed(stackTrace);
+    }
+
     // Handle non-response errors (network, timeout, etc.)
     switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return AuthException.networkError(requestPath, stackTrace);
-
       case DioExceptionType.connectionError:
       case DioExceptionType.unknown:
         if (e.error is SocketException) {
@@ -112,6 +118,9 @@ class AuthenticationApiClient {
         // This case should ideally be handled by the status code checks above,
         // but can act as a fallback.
         return AuthException.serverError(0, requestPath, stackTrace);
+
+      default:
+        return AuthException.networkError(requestPath, stackTrace);
     }
   }
 

@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
+import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
+import 'package:docjet_mobile/core/network/connectivity_error.dart';
 import 'package:docjet_mobile/core/user/infrastructure/hack_profile_endpoint_workaround.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -39,6 +41,14 @@ class UserApiClient {
     required this.credentialsProvider,
   });
 
+  /// Checks if a specific DioException type represents a network connectivity issue
+  ///
+  /// Returns true for connection errors and timeouts that typically occur when
+  /// the device is offline or the server is unreachable.
+  bool _isConnectivityError(DioExceptionType type) {
+    return isNetworkConnectivityError(type);
+  }
+
   /// Fetches the authenticated user's profile
   ///
   /// This is an authenticated endpoint that requires a valid JWT token.
@@ -49,6 +59,7 @@ class UserApiClient {
   ///   - DioExceptionType.badResponse - For HTTP errors (401, 403, etc)
   ///   - DioExceptionType.connectionError - For network connectivity issues
   ///   - DioExceptionType.unknown - For unexpected errors
+  /// @throws AuthException.offlineOperationFailed for connectivity issues
   ///
   /// @returns UserProfileDto containing the user's profile information
   Future<UserProfileDto> getUserProfile() async {
@@ -91,15 +102,14 @@ class UserApiClient {
         response: response,
       );
     } on DioException catch (e) {
-      // Add more context to Dio exceptions before rethrowing
-      if (e.type == DioExceptionType.connectionError) {
-        _logger.e('$_tag Network error: ${e.message}');
-        throw DioException(
-          requestOptions: e.requestOptions,
-          error: 'Network error while fetching user profile: ${e.message}',
-          type: e.type,
-          response: e.response,
-        );
+      // Classify connectivity errors as offline operations
+      if (_isConnectivityError(e.type)) {
+        _logger.w('$_tag Network connectivity error: ${e.type} - ${e.message}');
+        // Use custom message with context but with the offlineOperation error type
+        final exception = AuthException.offlineOperationFailed(e.stackTrace);
+        // Log the original message for debugging purposes
+        _logger.i('$_tag Original error message: ${e.message}');
+        throw exception;
       }
 
       // Handle authentication-specific errors

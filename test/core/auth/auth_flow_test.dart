@@ -1,14 +1,16 @@
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
-import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
+import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
+import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
+import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/src/mock.dart';
-import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
 
 @GenerateMocks([AuthCredentialsProvider, Dio, AuthEventBus, IUserProfileCache])
 import 'auth_flow_test.mocks.dart';
@@ -389,6 +391,7 @@ void main() {
         expect(loginResult.id, equals('test-user-id'));
 
         // Verify profile result has expected data
+        expect(profileResult, isA<User>());
         expect(profileResult.id, equals('test-user-id'));
 
         // Verify token was properly stored after login
@@ -507,14 +510,13 @@ void main() {
       // ACT & ASSERT - Login should succeed but profile should fail correctly
       await testAuthService.login('test@example.com', 'password');
 
-      await expectLater(
-        () => testAuthService.getUserProfile(),
-        throwsA(
-          predicate(
-            (e) => e.toString().contains('Failed to fetch user profile'),
-          ),
-        ),
-      );
+      // Try to get profile, expect failure due to 401
+      try {
+        await testAuthService.getUserProfile();
+        fail('Should have thrown an exception');
+      } catch (e) {
+        expect(e.toString(), contains('Failed to fetch user profile'));
+      }
 
       // Verify authenticatedDio was used for profile despite the error
       verify(
@@ -535,18 +537,24 @@ void main() {
         ),
       );
 
-      // ASSERT - Profile should fail with network error
-      await expectLater(
-        () => testAuthService.getUserProfile(),
-        throwsA(
-          predicate(
-            (e) =>
-                e.toString().contains('network') ||
-                e.toString().contains('connection') ||
-                e.toString().contains('Failed to fetch'),
-          ),
-        ),
+      // Add stubs for token validation during offline check
+      when(
+        mockCredentialsProvider.isAccessTokenValid(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockCredentialsProvider.isRefreshTokenValid(),
+      ).thenAnswer((_) async => true);
+
+      // Setup cached profile for offline fallback
+      when(mockUserProfileCache.getProfile('test-user-id')).thenAnswer(
+        (_) async =>
+            UserProfileDto(id: 'test-user-id', email: 'test@example.com'),
       );
+
+      // ASSERT - Profile should now succeed with cached profile in offline mode
+      final offlineProfileResult = await testAuthService.getUserProfile();
+      expect(offlineProfileResult, isA<User>());
+      expect(offlineProfileResult.id, equals('test-user-id'));
     });
   });
 }

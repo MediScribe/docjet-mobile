@@ -9,6 +9,8 @@ import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client
 import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/auth/auth_error_type.dart';
+import 'package:dio/dio.dart';
+import 'package:docjet_mobile/core/network/connectivity_error.dart';
 
 /// Implementation of the AuthService interface
 ///
@@ -210,6 +212,30 @@ class AuthServiceImpl implements AuthService {
         userId!,
         e,
       ); // Pass original exception
+    } on DioException catch (e) {
+      // Classify network-related DioExceptions as offline operations
+      _logger.w('$_tag DioException during profile fetch: ${e.type}');
+
+      if (_isConnectivityError(e.type)) {
+        _logger.w('$_tag Classifying as offline operation: ${e.message}');
+        final offlineException = AuthException.offlineOperationFailed(
+          e.stackTrace,
+        );
+
+        // If offline profiles not accepted, just throw the offline error
+        if (!acceptOfflineProfile) {
+          throw offlineException;
+        }
+
+        // Otherwise try the cache
+        return await _fetchProfileFromCacheOrThrow(userId!, offlineException);
+      }
+
+      // For other DioExceptions, throw a profile fetch failed error
+      _logger.e(
+        '$_tag Non-connectivity DioException: ${e.type} - ${e.message}',
+      );
+      throw AuthException.userProfileFetchFailed(e.stackTrace);
     } catch (e) {
       _logger.e('$_tag Unexpected error fetching profile for user $userId: $e');
       throw AuthException.userProfileFetchFailed();
@@ -317,5 +343,13 @@ class AuthServiceImpl implements AuthService {
     // Note: The provider itself should handle token parsing if that's the source.
     // This service layer method simply retrieves the stored/derived ID.
     // Offline exceptions are expected to be thrown by the provider if applicable.
+  }
+
+  /// Checks if a DioException type represents a network connectivity issue
+  ///
+  /// Returns true for connection errors and timeouts that typically indicate
+  /// offline or unreachable server conditions.
+  bool _isConnectivityError(DioExceptionType type) {
+    return isNetworkConnectivityError(type);
   }
 }

@@ -533,7 +533,7 @@ void main() {
         ).thenAnswer((_) async => userProfile);
 
         // Create the notifier and wait for async operations to complete
-        final notifier = readNotifier();
+        readNotifier();
 
         // Wait for the async operations to complete
         await pumpEventQueue();

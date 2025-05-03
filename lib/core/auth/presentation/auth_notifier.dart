@@ -16,6 +16,7 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:docjet_mobile/core/network/connectivity_error.dart';
 // Import for TextInput
 
 part 'auth_notifier.g.dart';
@@ -417,10 +418,7 @@ class AuthNotifier extends _$AuthNotifier {
   /// Returns true for connection errors and timeouts that typically occur when
   /// the device is offline or the server is unreachable.
   bool _isNetworkConnectivityError(DioExceptionType type) {
-    return type == DioExceptionType.connectionError ||
-        type == DioExceptionType.sendTimeout ||
-        type == DioExceptionType.receiveTimeout ||
-        type == DioExceptionType.connectionTimeout;
+    return isNetworkConnectivityError(type);
   }
 
   /// Checks the current authentication status

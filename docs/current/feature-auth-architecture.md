@@ -887,16 +887,23 @@ The authentication system includes comprehensive network error detection and han
    }
    ```
 
-3. **Two-Stage Authentication Process**:
+3. **Service Layer Error Classification**: Both `UserApiClient` and `AuthServiceImpl` properly classify network connectivity errors:
+   - When any `DioException` with a connectivity-related type occurs, it's converted to `AuthException.offlineOperationFailed()`
+   - This consistent classification ensures the AuthNotifier can properly trigger the offline fallback path
+   - Proper error classification flows:
+     * `DioException(connectionError)` → `AuthException.offlineOperationFailed()` → offline authentication path
+     * Auth error (like 401 Unauthorized) → `AuthException.userProfileFetchFailed()` → error state
+
+4. **Two-Stage Authentication Process**:
    - **Stage 1**: Basic online authentication check without token validation
    - **Stage 2**: If Stage 1 passes but profile fetch fails due to network errors, fall back to offline auth
 
-4. **Error Type Differentiation**:
+5. **Error Type Differentiation**:
    - Network connectivity errors trigger offline authentication
    - Non-network API errors (e.g., 500 server errors) transition to error state
    - Authentication errors (e.g., 401 unauthorized) trigger appropriate auth flows
 
-5. **Logging and Debugging**:
+6. **Logging and Debugging**:
    - Comprehensive logging throughout the error handling flow
    - Clear identification of error types and fallback paths
    - Verification of offline state transitions
