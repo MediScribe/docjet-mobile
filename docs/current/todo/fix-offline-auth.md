@@ -129,19 +129,19 @@ The offline fallback is triggered **only** for network-type `DioException`s or `
 
 ## Cycle 0: Baseline Verification & Safety Net
 
-* 0.1. [ ] **Task:** Replicate bug on-device
+* 0.1. [x] **Task:** Replicate bug on-device
     * Action: Run `./scripts/run_with_mock.sh`, login, kill server, restart app.
-    * Findings:
-* 0.2. [ ] **Task:** Snapshot current `AuthNotifier.checkAuthStatus()`
+    * Findings: Bug verified via the log file offline_restart.log. The connection error during profile fetch is wrapped as `AuthException.userProfileFetchFailed` rather than `AuthException.offlineOperation`, preventing offline fallback.
+* 0.2. [x] **Task:** Snapshot current `AuthNotifier.checkAuthStatus()`
     * Action: Read `lib/core/auth/presentation/auth_notifier.dart` lines around the try/catch.
-    * Findings:
-* 0.3. [ ] **Task:** Ensure test infra ready
-    * Action: Locate / create `test/core/auth/presentation/auth_notifier_test.dart` with mock helpers.
-    * Findings:
-* 0.4. [ ] **Handover Brief:**
-    * Status: …
-    * Gotchas: …
-    * Recommendations: …
+    * Findings: `AuthNotifier.checkAuthStatus()` does include proper handling for both `DioException` network errors and `AuthException.offlineOperation`. The issue isn't in the Notifier but in the upstream service layer, where `UserApiClient` doesn't convert connectivity `DioException`s into `AuthException.offlineOperation`.
+* 0.3. [x] **Task:** Ensure test infra ready
+    * Action: Locate / create `test/core/auth/infrastructure/auth_service_offline_test.dart` with mock helpers.
+    * Findings: No existing `auth_service_offline_test.dart` file exists yet. Need to create it for Cycle 1. We can reuse mock helpers from the existing `auth_service_impl_test.dart`.
+* 0.4. [x] **Handover Brief:**
+    * Status: Cycle 0 complete. Issue verified exactly as described in the "Root Cause Analysis" section.
+    * Gotchas: The issue is NOT in the AuthNotifier (which correctly handles connectivity errors and offline operations), but in the service layer, which is wrapping connectivity errors as regular errors.
+    * Recommendations: Proceed with Cycle 1 - create RED tests confirming that `UserApiClient` converts connectivity errors to `AuthException.offlineOperation`.
 
 ---
 
