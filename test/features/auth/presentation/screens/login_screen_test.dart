@@ -26,6 +26,7 @@ class MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 
   // Keep other methods as no-op as they are not called in this specific test
   // (since we only care about the initial state provided)
+  @override
   Future<void> checkAuthStatus() async {}
 
   @override
