@@ -412,6 +412,17 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
+  /// Checks if a specific DioException type represents a network connectivity issue
+  ///
+  /// Returns true for connection errors and timeouts that typically occur when
+  /// the device is offline or the server is unreachable.
+  bool _isNetworkConnectivityError(DioExceptionType type) {
+    return type == DioExceptionType.connectionError ||
+        type == DioExceptionType.sendTimeout ||
+        type == DioExceptionType.receiveTimeout ||
+        type == DioExceptionType.connectionTimeout;
+  }
+
   /// Checks the current authentication status
   ///
   /// Performs a two-stage offline-aware authentication check:
@@ -437,15 +448,16 @@ class AuthNotifier extends _$AuthNotifier {
           state = AuthState.authenticated(userProfile);
         } on DioException catch (e, s) {
           // On network-related errors, fall back to offline auth
-          if (e.type == DioExceptionType.connectionError ||
-              e.type == DioExceptionType.sendTimeout ||
-              e.type == DioExceptionType.receiveTimeout ||
-              e.type == DioExceptionType.connectionTimeout) {
+          _logger.w(
+            '$_tag Caught DioException during profile fetch: ${e.type}',
+          );
+          if (_isNetworkConnectivityError(e.type)) {
             _logger.w(
-              '$_tag Network error during initial profile fetch, falling back to offline auth',
+              '$_tag Network error (${e.type}) during initial profile fetch, falling back to offline auth',
             );
             await _tryOfflineAwareAuthentication();
           } else {
+            _logger.w('$_tag Non-network DioException, mapping to error state');
             state = _mapDioExceptionToState(
               e,
               s,
@@ -453,6 +465,9 @@ class AuthNotifier extends _$AuthNotifier {
             );
           }
         } on AuthException catch (e, s) {
+          _logger.w(
+            '$_tag Caught AuthException during profile fetch: ${e.type}',
+          );
           // On offline operation errors, fall back to offline auth
           if (e.type == AuthErrorType.offlineOperation) {
             _logger.w(
@@ -460,6 +475,9 @@ class AuthNotifier extends _$AuthNotifier {
             );
             await _tryOfflineAwareAuthentication();
           } else {
+            _logger.w(
+              '$_tag Non-offline AuthException, mapping to error state',
+            );
             state = _mapAuthExceptionToState(
               e,
               s,
@@ -467,6 +485,7 @@ class AuthNotifier extends _$AuthNotifier {
             );
           }
         } catch (e, s) {
+          _logger.e('$_tag Unexpected error during profile fetch: $e');
           state = _mapGenericExceptionToState(
             e,
             s,
@@ -486,6 +505,10 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// Attempts offline-aware authentication with local token validation
   Future<void> _tryOfflineAwareAuthentication() async {
+    _logger.i(
+      '$_tag Attempting offline-aware authentication with local token validation',
+    );
+
     final isAuthenticatedOffline = await _authService.isAuthenticated(
       validateTokenLocally: true,
     );
@@ -510,10 +533,15 @@ class AuthNotifier extends _$AuthNotifier {
 
       // Offline authentication successful, use cached profile
       _logger.i(
-        '$_tag Profile fetched successfully for ID: ${userProfile.id}, offline: true',
+        '$_tag Profile fetched successfully for ID: ${userProfile.id}, explicitly setting offline=true',
       );
       // Update auth state with user profile and offline flag
       state = AuthState.authenticated(userProfile, isOffline: true);
+
+      // Verify state is set correctly
+      _logger.d(
+        '$_tag Verified final state - isOffline flag: ${state.isOffline}',
+      );
     } on AuthException catch (e, s) {
       _handleAuthExceptionDuringOfflineAuth(e, s);
     } catch (e, s) {

@@ -730,7 +730,7 @@ sequenceDiagram
     participant Server
     
     Note over AuthNotifier,Server: App Startup with Offline-First Auth
-    AuthNotifier->>AuthService: _checkAuthStatus()
+    AuthNotifier->>AuthService: checkAuthStatus()
     
     alt Standard Online Auth (First Attempt)
         AuthService->>Server: refreshSession()
@@ -775,7 +775,7 @@ sequenceDiagram
     end
     
     Note over AuthNotifier,Server: Edge Case: Corrupted Profile Cache
-    AuthNotifier->>AuthService: _checkAuthStatus()
+    AuthNotifier->>AuthService: checkAuthStatus()
     AuthService->>LocalCache: getUserProfile(acceptOfflineProfile: true)
     LocalCache-->>AuthService: DecodingError
     AuthService-->>AuthNotifier: Error
@@ -790,9 +790,9 @@ The enhanced offline authentication system introduces several key enhancements:
 
 #### AuthNotifier Enhancements
 
-1. **Two-Stage Authentication Check**: `_checkAuthStatus()` first attempts standard online authentication, then falls back to local token validation if network is unavailable:
+1. **Two-Stage Authentication Check**: `checkAuthStatus()` first attempts standard online authentication, then falls back to local token validation if network is unavailable:
    ```dart
-   Future<void> _checkAuthStatus() async {
+   Future<void> checkAuthStatus() async {
      try {
        // First try standard online authentication
        final isAuthenticated = await _authService.isAuthenticated(validateTokenLocally: false);
@@ -814,8 +814,7 @@ The enhanced offline authentication system introduces several key enhancements:
        final isValidLocally = await _authService.isAuthenticated(validateTokenLocally: true);
        if (isValidLocally) {
          final user = await _authService.getUserProfile(acceptOfflineProfile: true);
-         final isOffline = await _checkIfNetworkIsUnavailable();
-         state = state.authenticated(user: user, isOffline: isOffline);
+         state = state.authenticated(user: user, isOffline: true);
        } else {
          state = state.unauthenticated();
        }
@@ -867,6 +866,42 @@ abstract class IUserProfileCache {
   });
 }
 ```
+
+### Network Error Handling
+
+The authentication system includes comprehensive network error detection and handling:
+
+1. **Network Error Types**: The system specifically detects these types of connectivity issues:
+   - `DioExceptionType.connectionError`: Basic connection failures
+   - `DioExceptionType.sendTimeout`: Timeouts during request sending
+   - `DioExceptionType.receiveTimeout`: Timeouts waiting for responses
+   - `DioExceptionType.connectionTimeout`: Timeouts establishing connection
+
+2. **Helper Method**: The `_isNetworkConnectivityError` utility method centralizes network error detection:
+   ```dart
+   bool _isNetworkConnectivityError(DioExceptionType type) {
+     return type == DioExceptionType.connectionError ||
+            type == DioExceptionType.sendTimeout ||
+            type == DioExceptionType.receiveTimeout ||
+            type == DioExceptionType.connectionTimeout;
+   }
+   ```
+
+3. **Two-Stage Authentication Process**:
+   - **Stage 1**: Basic online authentication check without token validation
+   - **Stage 2**: If Stage 1 passes but profile fetch fails due to network errors, fall back to offline auth
+
+4. **Error Type Differentiation**:
+   - Network connectivity errors trigger offline authentication
+   - Non-network API errors (e.g., 500 server errors) transition to error state
+   - Authentication errors (e.g., 401 unauthorized) trigger appropriate auth flows
+
+5. **Logging and Debugging**:
+   - Comprehensive logging throughout the error handling flow
+   - Clear identification of error types and fallback paths
+   - Verification of offline state transitions
+
+This implementation allows users with valid cached credentials to remain authenticated even when the server is completely unreachable during startup, providing seamless offline access to cached data.
 
 ### User Experience During Connectivity Changes
 

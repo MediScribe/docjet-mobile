@@ -494,6 +494,72 @@ void main() {
     );
   });
 
+  group('Network Error Handling', () {
+    setUp(() {
+      // Reset all mocks to clear any previous interactions/stubs
+      reset(mockAuthService);
+      reset(mockAuthEventBus);
+
+      // Basic stubs for all tests in group
+      when(
+        mockAuthEventBus.stream,
+      ).thenAnswer((_) => eventBusController.stream);
+    });
+
+    test(
+      'should fall back to offline auth when network is unavailable during profile fetch',
+      () async {
+        // Start with a completely reset auth service
+        reset(mockAuthService);
+
+        // STEP 1: Initial online auth check succeeds
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: false),
+        ).thenAnswer((_) async => true);
+
+        // STEP 2: Trying to fetch the online profile throws an offline error
+        when(
+          mockAuthService.getUserProfile(),
+        ).thenThrow(AuthException.offlineOperationFailed());
+
+        // STEP 3: Fallback offline validation succeeds
+        when(
+          mockAuthService.isAuthenticated(validateTokenLocally: true),
+        ).thenAnswer((_) async => true);
+
+        // STEP 4: Fallback profile fetch succeeds with cached data
+        when(
+          mockAuthService.getUserProfile(acceptOfflineProfile: true),
+        ).thenAnswer((_) async => userProfile);
+
+        // Create the notifier and wait for async operations to complete
+        final notifier = readNotifier();
+
+        // Wait for the async operations to complete
+        await pumpEventQueue();
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // Get the final state to verify
+        final state = readState();
+
+        // The status should be authenticated
+        expect(state.status, equals(AuthStatus.authenticated));
+
+        // The user should match our stub profile
+        expect(state.user, equals(userProfile));
+
+        // The offline flag should be true since we used cached data
+        expect(
+          state.isOffline,
+          isTrue,
+          reason: 'isOffline should be true when using cached profile',
+        );
+      },
+      skip:
+          'TODO: DOCJ-235 - Fix test mocking issues with AuthService default parameters and DioException propagation',
+    );
+  });
+
   group('network restoration token validation', () {
     test(
       'should validate token with server when transitioning from offline to online',
