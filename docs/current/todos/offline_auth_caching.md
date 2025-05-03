@@ -309,53 +309,228 @@ After implementing and thoroughly testing the offline authentication system via 
 
 3. **Restart Authentication Issues**:
    - **Problem**: When restarting the app in offline mode, it would go to the login screen instead of using cached credentials
-   - **Root Cause**: Auth validation wasn't fully offline-aware and required network to validate tokens
+   - **Root Cause**: Auth validation wasn't fully offline-aware and required network to validate tokens (**Note:** Initial report incorrectly cited `SecureStorageAuthSessionProvider`; the relevant provider is `SecureStorageAuthCredentialsProvider`, which *does* have local validation, but the startup flow prevents it from being used correctly - see Issue 4).
    - **Impact**: Poor UX for users with intermittent connectivity who closed/reopened the app
 
-### What We Learned
+4. **Flawed Startup Logic with Dead Server/Network Error**:
+    - **Problem**: When restarting the app with a valid cached token BUT the backend server is unreachable (e.g., mock server killed, transient network error), the app incorrectly navigates to the login screen with a "failed to fetch profile" error, instead of using the cached credentials via offline validation.
+    - **Root Cause**: The `AuthNotifier._checkAuthStatus()` method has flawed logic for this specific scenario. It first checks if a token *exists* (`isAuthenticated(validateTokenLocally: false)`). If `true`, it immediately attempts to fetch the user profile via a network call (`_authService.getUserProfile()`). When the server is dead/unreachable, this network call throws a `DioException` (e.g., `connectionError`). This exception is caught, mapped to an error state (`AuthState.error` or `AuthState.initial`), and crucially, the code **never reaches the `else` block** where the offline-aware authentication (`_tryOfflineAwareAuthentication()` using `validateTokenLocally: true`) is supposed to run. The system fails to recognize that an existing token + network error should trigger the offline fallback.
+    - **Impact**: Users are incorrectly logged out during startup if the network has a temporary blip or if the backend is momentarily unavailable, defeating the purpose of offline caching for startup resilience.
 
-1. **Architectural Insights**:
-   - Authentication is a cross-cutting concern that affects multiple subsystems beyond just the auth module
-   - Need for consistent offline validation across all auth-dependent systems
-   - Split Client pattern creates complexity for offline validation that requires careful handling
+    ```mermaid
+    sequenceDiagram
+        participant User
+        participant AuthNotifier
+        participant AuthService
+        participant AuthCredentialsProvider
+        participant UserApiClient
+        participant Server
 
-2. **Testing Methodology Weaknesses**:
-   - Automated tests with mocked network conditions don't fully represent real-world behavior
-   - Need better integration testing with actual connectivity changes
-   - Test harness couldn't detect issues with app restart scenarios
+        Note over AuthNotifier,Server: App Startup (Token exists, Server DEAD)
+        AuthNotifier->>AuthService: isAuthenticated(validateTokenLocally: false)
+        AuthService->>AuthCredentialsProvider: getAccessToken()
+        AuthCredentialsProvider-->>AuthService: tokenString (exists)
+        AuthService-->>AuthNotifier: true
 
-3. **DI Challenges**:
-   - Different network info and auth checking strategies across components led to inconsistent behavior
-   - Network information needs to be consistently available to all components that make auth decisions
+        AuthNotifier->>AuthService: getUserProfile()
+        AuthService->>UserApiClient: getUserProfile()
+        UserApiClient->>Server: GET /api/v1/users/me (or similar)
+        Server-->>UserApiClient: Connection Error (throws DioException)
+        UserApiClient-->>AuthService: throws DioException
+        AuthService-->>AuthNotifier: throws DioException
 
-### Applied Fixes
+        Note over AuthNotifier: Catches DioException
+        AuthNotifier->>AuthNotifier: _mapDioExceptionToState(e, s)
+        AuthNotifier-->>User: AuthState.error("failed to fetch profile") / AuthState.initial()
+        Note over AuthNotifier: Offline path (_tryOfflineAwareAuthentication) is SKIPPED!
+    ```
 
-1. **Offline-Aware Job Creation**:
-   - Modified `JobRepositoryImpl.createJob()` to bypass authentication checks when offline
-   - Implemented direct dependency on `NetworkInfo` to get accurate offline state
-   - This enables job creation to work seamlessly in offline mode
+### Code Verification Findings
 
-2. **Debug Tools for Offline Testing**:
-   - Added mock network implementation with persistent state in SharedPreferences
-   - Created an offline toggle UI widget in debug builds to simulate network changes
-   - These tools allow developers to better test offline behavior
+After examining the actual code implementation, I can confirm that Issue #4's analysis is 100% accurate. The problem lies in the control flow of `_checkAuthStatus()` in `AuthNotifier`:
 
-3. **Authentication Service Improvements**:
-   - Enhanced `SecureStorageAuthSessionProvider.isAuthenticated()` to check token validity, not just presence
-   - This ensures consistent offline authentication behavior across the app
+1. The method first calls `_authService.isAuthenticated(validateTokenLocally: false)` which only checks if a token exists in storage without validating its content.
 
-### Recommendations for Future Work
+2. If a token exists, it immediately attempts to fetch the user profile with `_authService.getUserProfile()`, which makes a network call by default.
 
-1. **Consistent Offline Architecture**:
-   - Create a consistent pattern for offline-aware operations that all services should follow
-   - Use dependency injection to provide the same NetworkInfo instance to all components
+3. When the server is unreachable, this network call throws a `DioException` that gets caught and handled by `_mapDioExceptionToState()`.
 
-2. **Enhanced Offline Testing**:
-   - Develop better integration tests that can simulate app restart in offline mode
-   - Create automated test scenarios for all critical offline workflows
+4. This method returns an error state (`AuthState.error` with message "Failed to complete request" or "failed to fetch profile"), and crucially, **the execution never reaches the `else` block** where offline-aware authentication is attempted.
 
-3. **Offline Analytics**:
-   - Add analytics to track offline behavior patterns in production
-   - Monitor frequency and duration of offline states to prioritize future improvements
+5. The offline authentication path via `_tryOfflineAwareAuthentication()` is only executed if the initial token existence check returns `false`, not when network errors occur.
 
-As Wendy Rhoades would say, "If you want people to think you've fixed something, you better make damn sure it actually works." This testing exposed gaps between our theoretical implementation and real-world usage that need to be addressed for a truly robust offline experience. 
+6. The `_tryOfflineAwareAuthentication()` method would correctly handle offline scenarios by:
+   - Checking token validity locally with `isAuthenticated(validateTokenLocally: true)`
+   - Fetching profile with `getUserProfile(acceptOfflineProfile: true)`
+   - Detecting offline state with `_checkIfNetworkIsUnavailable()`
+   - Setting the `isOffline` flag appropriately
+
+But this path is completely bypassed when a token exists but network is unavailable.
+
+The implementation maintains backward compatibility with existing tests but fails to handle the real-world scenario of network unavailability during startup with valid cached credentials.
+
+### Recommended Fix
+
+To fix this issue, the `_checkAuthStatus()` method needs to be restructured to try the offline-aware authentication path when network errors are encountered during the initial profile fetch, rather than immediately falling into an error state.
+
+### Proposed Solution Implementation
+
+The fix requires a targeted modification to the exception handling in `_checkAuthStatus()` while maintaining our TDD approach and architectural patterns:
+
+#### 1. Test First Approach (RED)
+
+Create new tests in `auth_notifier_test.dart` that specifically target this scenario:
+
+```dart
+test('should attempt offline authentication when network is unavailable during profile fetch', () async {
+  // Setup: Valid token exists but network is unavailable for profile fetch
+  when(mockAuthService.isAuthenticated(validateTokenLocally: false))
+      .thenAnswer((_) async => true);
+  when(mockAuthService.getUserProfile())
+      .thenThrow(DioException(
+        requestOptions: RequestOptions(path: '/api/v1/users/me'),
+        type: DioExceptionType.connectionError,
+      ));
+  when(mockAuthService.isAuthenticated(validateTokenLocally: true))
+      .thenAnswer((_) async => true);
+  when(mockAuthService.getUserProfile(acceptOfflineProfile: true))
+      .thenAnswer((_) async => User(id: 'test-user-id'));
+  
+  // Action: Call checkAuthStatus (public method)
+  await notifier.checkAuthStatus();
+  
+  // Assert: Should end up authenticated using offline profile
+  expect(notifier.state.status, equals(AuthStatus.authenticated));
+  expect(notifier.state.isOffline, isTrue);
+  verify(mockAuthService.isAuthenticated(validateTokenLocally: true)).called(1);
+});
+
+test('should attempt offline authentication when AuthException.offlineOperation occurs during profile fetch', () async {
+  // Setup: Valid token exists but offline operation exception occurs
+  when(mockAuthService.isAuthenticated(validateTokenLocally: false))
+      .thenAnswer((_) async => true);
+  when(mockAuthService.getUserProfile())
+      .thenThrow(AuthException.offlineOperation('Network unavailable'));
+  when(mockAuthService.isAuthenticated(validateTokenLocally: true))
+      .thenAnswer((_) async => true);
+  when(mockAuthService.getUserProfile(acceptOfflineProfile: true))
+      .thenAnswer((_) async => User(id: 'test-user-id'));
+  
+  // Action: Call checkAuthStatus (public method)
+  await notifier.checkAuthStatus();
+  
+  // Assert: Should end up authenticated using offline profile
+  expect(notifier.state.status, equals(AuthStatus.authenticated));
+  expect(notifier.state.isOffline, isTrue);
+  verify(mockAuthService.isAuthenticated(validateTokenLocally: true)).called(1);
+});
+```
+
+#### 2. Implementation Changes (GREEN)
+
+Modify the `_checkAuthStatus()` method to attempt offline authentication on network failures:
+
+```dart
+Future<void> _checkAuthStatus() async {
+  _logger.i('$_tag Checking initial auth status...');
+  try {
+    // First use validateTokenLocally = false for backward compatibility with existing tests
+    final isAuthenticated = await _authService.isAuthenticated(
+      validateTokenLocally: false,
+    );
+    _logger.d('$_tag Is authenticated with basic check? $isAuthenticated');
+
+    if (isAuthenticated) {
+      _logger.d('$_tag Attempting to fetch user profile...');
+      try {
+        // For compatibility with existing tests, call without acceptOfflineProfile
+        final userProfile = await _authService.getUserProfile();
+        _logger.i('$_tag Profile fetched successfully for ID: ${userProfile.id}');
+        state = AuthState.authenticated(userProfile);
+      } on DioException catch (e, s) {
+        // CHANGE: For network-related connection errors only, try offline authentication
+        // instead of immediately returning error state
+        if (e.type == DioExceptionType.connectionError || 
+            e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout) {
+          _logger.w('$_tag Network connection error during profile fetch, trying offline authentication');
+          await _tryOfflineAwareAuthentication();
+        } else {
+          // For other Dio errors (like server errors), use existing error mapping
+          state = _mapDioExceptionToState(e, s, context: 'profile fetch');
+        }
+      } on AuthException catch (e, s) {
+        if (e.type == AuthErrorType.offlineOperation) {
+          // CHANGE: For offline errors, try offline authentication path
+          _logger.w('$_tag Offline error during profile fetch, trying offline authentication');
+          await _tryOfflineAwareAuthentication();
+        } else {
+          state = _mapAuthExceptionToState(e, s, context: 'profile fetch');
+        }
+      } catch (e, s) {
+        state = _mapGenericExceptionToState(e, s, context: 'Profile fetch');
+      }
+    } else {
+      // Try again with validateTokenLocally = true for our new offline-aware behavior
+      await _tryOfflineAwareAuthentication();
+    }
+  } on AuthException catch (e, s) {
+    state = _mapAuthExceptionToState(e, s, context: 'Auth check');
+  } catch (e, s) {
+    state = _mapGenericExceptionToState(e, s, context: 'Auth check');
+  }
+}
+```
+
+#### 3. Architecture and Code Design Integrity
+
+This solution:
+- Follows existing architectural patterns using established helper methods
+- Adds no new dependencies or components
+- Maintains backward compatibility with existing tests
+- Preserves separation of concerns between components
+- Uses the offline-aware paths already developed during implementation
+
+#### 4. Sequence Diagram After Fix
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AuthNotifier
+    participant AuthService
+    participant AuthCredentialsProvider  
+    participant UserApiClient
+    participant Server
+
+    Note over AuthNotifier,Server: App Startup (Token exists, Server DEAD)
+    AuthNotifier->>AuthService: isAuthenticated(validateTokenLocally: false)
+    AuthService->>AuthCredentialsProvider: getAccessToken()
+    AuthCredentialsProvider-->>AuthService: tokenString (exists)
+    AuthService-->>AuthNotifier: true
+
+    AuthNotifier->>AuthService: getUserProfile()
+    AuthService->>UserApiClient: getUserProfile()
+    UserApiClient->>Server: GET /api/v1/users/me
+    Server-->>UserApiClient: Connection Error (throws DioException)
+    UserApiClient-->>AuthService: throws DioException
+    AuthService-->>AuthNotifier: throws DioException
+
+    Note over AuthNotifier: Catches DioException
+    Note over AuthNotifier: NEW BEHAVIOR: Try offline authentication
+    AuthNotifier->>AuthNotifier: _tryOfflineAwareAuthentication()
+    AuthNotifier->>AuthService: isAuthenticated(validateTokenLocally: true)
+    AuthService->>AuthCredentialsProvider: isAccessTokenValid()
+    AuthCredentialsProvider->>AuthCredentialsProvider: _jwtValidator.isTokenExpired()
+    AuthCredentialsProvider-->>AuthService: true (token valid)
+    AuthService-->>AuthNotifier: true
+
+    AuthNotifier->>AuthService: getUserProfile(acceptOfflineProfile: true)
+    AuthService->>AuthService: _fetchProfileFromCacheOrThrow()
+    AuthService-->>AuthNotifier: cachedProfile
+    
+    AuthNotifier->>AuthNotifier: _checkIfNetworkIsUnavailable()
+    AuthNotifier-->>User: AuthState.authenticated(cachedProfile, isOffline: true)
+```
+
+The key change is directing network errors from the initial profile fetch into the offline authentication flow rather than immediately returning an error state. This maintains all the offline capabilities we built while fixing the specific edge case that prevented them from being utilized during startup with network unavailability.
