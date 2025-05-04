@@ -552,4 +552,29 @@ void main() {
       expect(response.body, contains('Invalid token')); // Or specific message
     });
   });
+
+  // Add tests for health endpoint authentication behavior
+  group('GET /api/v1/health', () {
+    test('should return 200 OK without requiring x-api-key header', () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/health');
+      // Act - Send request without any auth headers
+      final response = await http.get(url);
+      // Assert
+      expect(response.statusCode, equals(HttpStatus.ok));
+      expect(response.body, equals('OK'));
+    });
+
+    test('should still return 200 OK when x-api-key header is provided',
+        () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/health');
+      final headers = {'x-api-key': testApiKey};
+      // Act
+      final response = await http.get(url, headers: headers);
+      // Assert
+      expect(response.statusCode, equals(HttpStatus.ok));
+      expect(response.body, equals('OK'));
+    });
+  });
 }

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart'; // Keep JWT
 

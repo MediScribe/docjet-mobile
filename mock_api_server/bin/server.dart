@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, curly_braces_in_flow_control_structures
 
 import 'dart:async'; // Make sure Timer is imported
 import 'dart:convert';
@@ -769,6 +769,13 @@ Middleware _authMiddleware() {
   return (innerHandler) {
     return (request) {
       final path = request.requestedUri.path;
+      // Skip API key check for health endpoint to allow unauthenticated health probes
+      if (path == '/$_versionedApiPath/health') {
+        if (verboseLoggingEnabled) {
+          print('DEBUG AUTH MIDDLEWARE: Skipping auth for health endpoint');
+        }
+        return innerHandler(request);
+      }
       // Always check API key unless it's a specific public path (none defined yet)
       // Example: if (path == '/public/status') return innerHandler(request);
 
