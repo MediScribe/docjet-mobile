@@ -243,4 +243,47 @@ sequenceDiagram
 
 * N.1. [ ] **Task:** Run Client App with Modified Mock Server
     * Action: Execute the original test scenario:
-        1. Start mock server: `
+        1. Start mock server: `./scripts/run_with_mock.sh`
+        2. Wait for the app to fully load and authenticate online.
+        3. Stop the script (Ctrl+C, which also stops the mock server).
+        4. Relaunch the client app (simulating an offline restart).
+    * **Findings (Investigation):**
+        * **Online Flow:** The initial run with the mock server (`./scripts/run_with_mock.sh`) worked correctly. The app launched, authenticated online, fetched the user profile successfully (hitting `GET /api/v1/users/fake-user-id-123` via the workaround), and cached the profile. This confirms the mock server is generating valid JWTs and the client can use them for authenticated requests while online.
+        * **Offline Restart Failure:** Upon stopping the script/mock server and relaunching the app, the offline authentication **failed**. The app incorrectly ended up in an `unauthenticated` state instead of `authenticated(isOffline: true)`.
+        * **Log Analysis (`offline_restart.log` with added logging):**
+            * The app correctly detected the network failure (`DioException [connection error]`) when trying to fetch the profile online during the offline restart.
+            * It correctly entered the offline cache check logic (`_fetchProfileFromCacheOrThrow`).
+            * It successfully retrieved the previously stored access and refresh tokens (`Raw Access Token: PRESENT`, `Raw Refresh Token: PRESENT`).
+            * **CRITICAL ISSUE:** The `JwtValidator` (using `jwt_decoder`) reported **both** the access token AND the refresh token as expired.
+                ```log
+                flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Validating Access Token...
+                flutter: [JwtValidator] Attempting to validate token: eyJ[...]
+                flutter: [JwtValidator] Validation result: Token IS expired (via jwt_decoder).
+                flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Access Token validation result: false
+                flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Validating Refresh Token...
+                flutter: [JwtValidator] Attempting to validate token: eyJ[...]
+                flutter: [JwtValidator] Validation result: Token IS expired (via jwt_decoder).
+                flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Refresh Token validation result: false
+                ```
+            * The access token being expired is expected (10s lifetime). However, the **refresh token should still be valid** (5min lifetime). This incorrect validation is the root cause.
+            * Because both tokens were deemed invalid, the `AuthServiceImpl` cleared the user profile cache and threw an `AuthException.unauthenticated`, leading to the incorrect final state.
+            ```log
+            flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Both tokens invalid for user fake-user-id-123 during offline check. Clearing cache and throwing.
+            flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Cleared cached profile for user fake-user-id-123
+            flutter: [AuthServiceImpl] [_fetchProfileFromCacheOrThrow] Throwing AuthException.unauthenticated as fallback.
+            flutter: [AuthNotifier] Caught AuthException during profile fetch: AuthErrorType.unauthenticated
+            ```
+        * **Conclusion:** The core problem lies in the client-side validation of the refresh token during the offline check. The `jwt_decoder` library's `isExpired` function is incorrectly determining the refresh token (which should have minutes left) to be expired immediately after an app restart. Potential causes include clock skew sensitivity or a subtle bug/edge case in the `jwt_decoder` library.
+* N.2. [ ] **Task:** Analyze `jwt_decoder` Behavior / Fix Validation
+    * Action: Investigate why `jwt_decoder.isExpired` fails for the refresh token. Consider alternatives like `dart_jsonwebtoken` for validation or adding clock skew tolerance.
+    * Findings: [TODO]
+* N.3. [ ] **Task:** Re-run Client App Test
+    * Action: Repeat step N.1 after implementing the fix from N.2.
+    * Findings: [TODO]
+* N.4. [ ] **Task:** Cleanup & Final Review
+    * Action: Remove diagnostic logging added during investigation. Review all changes related to mock server JWT generation and client validation.
+    * Findings: [TODO]
+* N.5. [ ] **Handover Brief:**
+    * Status: [TODO]
+    * Gotchas: [TODO]
+    * Recommendations: [TODO]
