@@ -42,6 +42,8 @@ sequenceDiagram
 
 ## Cycle 0: Setup & Prerequisite Checks (If Applicable)
 
+**Goal** [Clearly articulate the goal of this specific cycle. WHAT & WHY!]
+
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
 [Use this cycle for initial setup, dependency additions, or crucial research *before* the main TDD loops begin.]
@@ -62,6 +64,8 @@ sequenceDiagram
 ---
 
 ## Cycle 1: [Implement Core Feature X via TDD]
+
+**Goal** [Clearly articulate the goal of this specific cycle. WHAT & WHY!]
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
@@ -99,6 +103,8 @@ sequenceDiagram
 
 ## Cycle 2: [Integrate Feature X with Feature Y / Implement Next Piece]
 
+**Goal** [Clearly articulate the goal of this specific cycle. WHAT & WHY!]
+
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
 [Repeat the TDD cycle structure. Focus on integration or the next logical step.]
@@ -130,6 +136,8 @@ sequenceDiagram
 ---
 
 ## Cycle N: Final Polish, Documentation & Cleanup
+
+**Goal** [Clearly articulate the goal of this specific cycle. WHAT & WHY, especially any gotchas and things to watch out for.]
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
