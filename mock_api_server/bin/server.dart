@@ -258,6 +258,7 @@ Future<Response> _loginHandler(Request request) async {
 // Refresh handler logic
 Future<Response> _refreshHandler(Request request) async {
   if (verboseLoggingEnabled) print('DEBUG: Refresh handler called');
+
   // Content-Type check
   if (request.headers['content-type']
           ?.toLowerCase()
@@ -271,54 +272,79 @@ Future<Response> _refreshHandler(Request request) async {
     );
   }
 
+  String? requestBody;
+  Map<String, dynamic>? decodedBody;
   try {
-    // For validation, try to get a string copy of the body
-    String? body;
-    try {
-      body = await request.readAsString();
-      // Try to parse the JSON to validate it
-      final decodedBody = jsonDecode(body) as Map<String, dynamic>;
+    requestBody = await request.readAsString();
+    decodedBody = jsonDecode(requestBody) as Map<String, dynamic>;
 
-      // Check for refresh_token
-      if (!decodedBody.containsKey('refresh_token') ||
-          decodedBody['refresh_token'] is! String) {
-        throw const FormatException('Missing or invalid refresh_token field');
-      }
-    } catch (e) {
-      // If JSON parsing fails, return a 400 to pass the malformed body test
-      if (verboseLoggingEnabled) print('DEBUG: JSON parsing failed: $e');
+    // Check if refresh_token field exists
+    if (!decodedBody.containsKey('refresh_token')) {
+      if (verboseLoggingEnabled) print('DEBUG: Missing refresh_token field');
       return Response(
         HttpStatus.badRequest, // 400
-        body: jsonEncode(
-            {'error': 'Malformed JSON or missing refresh_token: $e'}),
+        body: jsonEncode({'error': 'Missing refresh_token field'}),
         headers: {'content-type': 'application/json'},
       );
     }
 
-    // Return new fake tokens
-    final responseBody = jsonEncode({
-      'access_token':
-          'new-fake-access-token-${DateTime.now().millisecondsSinceEpoch}',
-      'refresh_token':
-          'new-fake-refresh-token-${DateTime.now().millisecondsSinceEpoch}',
-    });
-
-    return Response.ok(
-      responseBody,
-      headers: {'content-type': 'application/json'},
-    );
+    // We don't actually validate the incoming token in the mock
+    // final String incomingRefreshToken = decodedBody['refresh_token'] as String;
+    // if (verboseLoggingEnabled) print('DEBUG: Incoming refresh token: $incomingRefreshToken');
   } catch (e) {
-    // Log any unexpected errors
-    if (verboseLoggingEnabled) {
-      print('DEBUG REFRESH: Error processing refresh: $e');
-    }
+    // Handle JSON parsing errors or other issues reading the body
+    if (verboseLoggingEnabled)
+      print('DEBUG: Error processing refresh request body: $e');
     return Response(
       HttpStatus.badRequest, // 400
-      body: jsonEncode(
-          {'error': 'Error processing refresh request: ${e.toString()}'}),
+      body: jsonEncode({'error': 'Malformed JSON or error reading body: $e'}),
       headers: {'content-type': 'application/json'},
     );
   }
+
+  // Generate new JWTs
+  final now = DateTime.now();
+  final nowEpochSeconds = now.millisecondsSinceEpoch ~/ 1000;
+  const userId = 'fake-user-id-123'; // Use the same hardcoded ID
+
+  // Create Access Token
+  final accessJwt = JWT(
+    {
+      'sub': userId,
+      'iat': nowEpochSeconds,
+      'exp': nowEpochSeconds + _accessTokenDuration.inSeconds,
+      // Add any other claims if needed for testing
+    },
+    // Use a standard JWT header if needed, default is HS256
+    // header: {'alg': 'HS256', 'typ': 'JWT'},
+  );
+  final newAccessToken = accessJwt.sign(SecretKey(_mockJwtSecret));
+
+  // Create Refresh Token
+  final refreshJwt = JWT(
+    {
+      'sub': userId,
+      'iat': nowEpochSeconds,
+      'exp': nowEpochSeconds + _refreshTokenDuration.inSeconds,
+    },
+  );
+  final newRefreshToken = refreshJwt.sign(SecretKey(_mockJwtSecret));
+
+  if (verboseLoggingEnabled) {
+    print('DEBUG: Generated new access token: $newAccessToken');
+    print('DEBUG: Generated new refresh token: $newRefreshToken');
+  }
+
+  // Return the new tokens
+  return Response.ok(
+    jsonEncode({
+      'access_token': newAccessToken,
+      'refresh_token': newRefreshToken,
+    }),
+    headers: {
+      'content-type': 'application/json',
+    },
+  );
 }
 
 // Get User Profile handler logic
