@@ -18,7 +18,7 @@ Future<String> createTestJob(String baseUrl, String userId) async {
   final createRequest = http.MultipartRequest('POST', createUrl)
     ..headers.addAll({
       'Authorization': 'Bearer $dummyJwt',
-      'X-API-Key': testApiKey,
+      'x-api-key': testApiKey,
     })
     ..fields['user_id'] = userId
     ..files.add(http.MultipartFile.fromBytes('audio_file', [],
@@ -36,7 +36,7 @@ Future<Map<String, dynamic>> getJob(String baseUrl, String jobId) async {
   final getUrl = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
   final getResponse = await http.get(getUrl, headers: {
     'Authorization': 'Bearer $dummyJwt',
-    'X-API-Key': testApiKey,
+    'x-api-key': testApiKey,
   });
   expect(getResponse.statusCode, 200, reason: 'Failed to get job $jobId');
   return jsonDecode(getResponse.body)['data'] as Map<String, dynamic>;
@@ -78,7 +78,7 @@ void main() {
       final deleteUrl = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       // Don't strictly need to check response, but good practice
       try {
@@ -99,7 +99,7 @@ void main() {
           '$baseUrl/api/v1/debug/jobs/start?id=$jobId&fast_test_mode=true');
       final headers = {
         'Authorization': 'Bearer $dummyJwt', // Assuming debug needs auth
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
 
       // Act: Start the progression
@@ -130,7 +130,7 @@ void main() {
       final stopUrl = Uri.parse('$baseUrl/api/v1/debug/jobs/stop?id=$jobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
 
       // Act: Start progression
@@ -172,7 +172,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/start'); // No id
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 400);
@@ -184,7 +184,7 @@ void main() {
           '$baseUrl/api/v1/debug/jobs/start?id=$jobId&interval_seconds=invalid');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 400);
@@ -196,7 +196,7 @@ void main() {
           '$baseUrl/api/v1/debug/jobs/start?id=$jobId&interval_seconds=0');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 400);
@@ -209,7 +209,7 @@ void main() {
           Uri.parse('$baseUrl/api/v1/debug/jobs/start?id=$nonExistentJobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 404);
@@ -221,7 +221,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/stop'); // No id
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 400);
@@ -234,7 +234,7 @@ void main() {
           Uri.parse('$baseUrl/api/v1/debug/jobs/stop?id=$nonExistentJobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode,
@@ -249,7 +249,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/stop?id=$jobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 200);
@@ -264,7 +264,7 @@ void main() {
           '$baseUrl/api/v1/debug/jobs/start?id=$jobId&interval_seconds=10');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final startResponseSlow = await http.post(startUrlSlow, headers: headers);
       expect(startResponseSlow.statusCode, 200,
@@ -309,7 +309,7 @@ void main() {
       final resetUrl = Uri.parse('$baseUrl/api/v1/debug/jobs/reset?id=$jobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey
+        'x-api-key': testApiKey
       };
       final startResponse = await http.post(startUrl, headers: headers);
       expect(startResponse.statusCode, 200,
@@ -344,7 +344,7 @@ void main() {
       final resetUrl = Uri.parse('$baseUrl/api/v1/debug/jobs/reset?id=$jobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey
+        'x-api-key': testApiKey
       };
       final startResponse = await http.post(startUrl, headers: headers);
       expect(startResponse.statusCode, 200,
@@ -371,7 +371,7 @@ void main() {
       final resetUrl = Uri.parse('$baseUrl/api/v1/debug/jobs/reset?id=$jobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey
+        'x-api-key': testApiKey
       };
       var jobBeforeReset = await getJob(baseUrl, jobId);
       expect(jobBeforeReset['job_status'], 'submitted',
@@ -393,7 +393,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/reset'); // No id
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey
+        'x-api-key': testApiKey
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 400);
@@ -406,7 +406,7 @@ void main() {
           Uri.parse('$baseUrl/api/v1/debug/jobs/reset?id=$nonExistentJobId');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'X-API-Key': testApiKey
+        'x-api-key': testApiKey
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 404);

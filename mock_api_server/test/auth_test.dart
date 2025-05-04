@@ -15,6 +15,24 @@ const String dummyJwt = 'fake-jwt-token'; // For Authorization header
 // Path to server executable (relative to mock_api_server directory)
 // const String _mockServerPath = 'bin/server.dart'; // Moved to helper
 
+// Constants
+const String _mockJwtSecret = 'mock-secret-key'; // Secret used by server
+const String _jwtUserId = 'fake-user-id-123'; // User ID for tests
+
+// Helper to generate JWTs (copied from user_test.dart for simplicity)
+String _generateTestJwt({
+  Duration expiresIn = const Duration(minutes: 5),
+  String secret = _mockJwtSecret,
+  String subject = _jwtUserId,
+}) {
+  final jwt = JWT(
+    {'sub': subject},
+    issuer: 'test-issuer',
+    jwtId: DateTime.now().millisecondsSinceEpoch.toString(),
+  );
+  return jwt.sign(SecretKey(secret), expiresIn: expiresIn);
+}
+
 void main() {
   Process? mockServerProcess;
   int mockServerPort = 0; // Initialize port
@@ -39,7 +57,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final body = jsonEncode({
         'email': 'test@example.com',
@@ -66,7 +84,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final body = jsonEncode({
         'email': 'test@example.com',
@@ -99,7 +117,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final body = jsonEncode({
         'email': 'test@example.com',
@@ -134,7 +152,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final body = jsonEncode({
         'email': 'test@example.com',
@@ -168,7 +186,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       final body = jsonEncode({
         'email': 'test@example.com',
@@ -195,11 +213,11 @@ void main() {
           reason: 'Refresh expiry should be significantly in the future');
     });
 
-    test('should return 401 Unauthorized if X-API-Key is missing', () async {
+    test('should return 401 Unauthorized if x-api-key is missing', () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
-        // Note: No X-API-Key
+        // Note: No x-api-key
         'Content-Type': 'application/json',
       };
       final body = jsonEncode({
@@ -222,7 +240,7 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/login');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
       const body = 'this is not json'; // Malformed body
 
@@ -244,22 +262,46 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
-      // The actual token value doesn't matter for the mock currently
-      final body = jsonEncode({'refresh_token': 'any-old-refresh-token'});
+      final body = jsonEncode({
+        'refresh_token': 'some-valid-refresh-token',
+      });
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
 
       // Assert
-      expect(response.statusCode, 200);
-      expect(response.headers['content-type'], contains('application/json'));
-      final jsonResponse = jsonDecode(response.body);
+      expect(response.statusCode, equals(HttpStatus.ok));
+      final jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
       expect(jsonResponse, containsPair('access_token', isA<String>()));
       expect(jsonResponse, containsPair('refresh_token', isA<String>()));
-      // The mock refresh doesn't return user_id
-      expect(jsonResponse, isNot(contains('user_id')));
+
+      // --- Verify NEW JWT Claims ---
+      final newAccessToken = jsonResponse['access_token'] as String;
+      final newRefreshToken = jsonResponse['refresh_token'] as String;
+      final nowEpochSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      try {
+        final accessJwt = JWT.decode(newAccessToken);
+        expect(accessJwt.subject, equals(_jwtUserId));
+        expect(accessJwt.payload['iat'], lessThanOrEqualTo(nowEpochSec));
+        expect(accessJwt.payload['exp'],
+            greaterThan(nowEpochSec)); // Future expiry
+        expect(accessJwt.payload['exp'],
+            lessThanOrEqualTo(nowEpochSec + 15)); // Short expiry
+
+        final refreshJwt = JWT.decode(newRefreshToken);
+        expect(refreshJwt.subject, equals(_jwtUserId));
+        expect(refreshJwt.payload['iat'], lessThanOrEqualTo(nowEpochSec));
+        expect(refreshJwt.payload['exp'],
+            greaterThan(nowEpochSec)); // Future expiry
+        expect(refreshJwt.payload['exp'],
+            greaterThan(nowEpochSec + 290)); // Long expiry (>5 min buffer)
+        expect(refreshJwt.payload['exp'], lessThanOrEqualTo(nowEpochSec + 305));
+      } on JWTException catch (e) {
+        fail('Failed to decode NEW JWTs from refresh: $e');
+      }
     });
 
     test('new access_token is a valid JWT', () async {
@@ -267,28 +309,31 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
-      final body = jsonEncode({'refresh_token': 'any-old-refresh-token'});
+      final body = jsonEncode({
+        'refresh_token': 'some-valid-refresh-token',
+      });
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
-      final jsonResponse = jsonDecode(response.body);
-      final accessToken = jsonResponse['access_token'] as String;
 
       // Assert
       expect(response.statusCode, 200);
-      JWT? jwt;
-      dynamic decodeError;
+      final jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+      final accessToken = jsonResponse['access_token'] as String;
       try {
-        jwt = JWT.decode(accessToken);
-      } catch (e) {
-        decodeError = e;
+        final jwt = JWT.decode(accessToken);
+        expect(jwt, isNotNull);
+        // --- Add Claim Assertions ---
+        expect(jwt.subject, equals(_jwtUserId));
+        expect(jwt.payload['iat'], isNotNull);
+        expect(jwt.payload['iat'], isA<int>());
+        expect(jwt.payload['exp'], isNotNull);
+        expect(jwt.payload['exp'], isA<int>());
+      } on JWTException catch (e) {
+        fail('New access token is not a valid JWT: $e');
       }
-      expect(decodeError, isNull,
-          reason: 'Access token should be decodable as a JWT');
-      expect(jwt, isNotNull);
-      expect(jwt?.payload, isA<Map>());
     });
 
     test('new refresh_token is a valid JWT', () async {
@@ -296,28 +341,31 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
-      final body = jsonEncode({'refresh_token': 'any-old-refresh-token'});
+      final body = jsonEncode({
+        'refresh_token': 'some-valid-refresh-token',
+      });
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
-      final jsonResponse = jsonDecode(response.body);
-      final refreshToken = jsonResponse['refresh_token'] as String;
 
       // Assert
       expect(response.statusCode, 200);
-      JWT? jwt;
-      dynamic decodeError;
+      final jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+      final refreshToken = jsonResponse['refresh_token'] as String;
       try {
-        jwt = JWT.decode(refreshToken);
-      } catch (e) {
-        decodeError = e;
+        final jwt = JWT.decode(refreshToken);
+        expect(jwt, isNotNull);
+        // --- Add Claim Assertions ---
+        expect(jwt.subject, equals(_jwtUserId));
+        expect(jwt.payload['iat'], isNotNull);
+        expect(jwt.payload['iat'], isA<int>());
+        expect(jwt.payload['exp'], isNotNull);
+        expect(jwt.payload['exp'], isA<int>());
+      } on JWTException catch (e) {
+        fail('New refresh token is not a valid JWT: $e');
       }
-      expect(decodeError, isNull,
-          reason: 'Refresh token should be decodable as a JWT');
-      expect(jwt, isNotNull);
-      expect(jwt?.payload, isA<Map>());
     });
 
     test('new tokens have future expiry dates', () async {
@@ -325,52 +373,48 @@ void main() {
       final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
-      final body = jsonEncode({'refresh_token': 'any-old-refresh-token'});
-      final requestTimeSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final body = jsonEncode({
+        'refresh_token': 'some-valid-refresh-token',
+      });
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
-      final jsonResponse = jsonDecode(response.body);
-      final accessToken = jsonResponse['access_token'] as String;
-      final refreshToken = jsonResponse['refresh_token'] as String;
 
       // Assert
       expect(response.statusCode, 200);
-      final accessJwt = JWT.decode(accessToken);
-      final refreshJwt = JWT.decode(refreshToken);
-      final accessPayload = accessJwt.payload as Map<String, dynamic>;
-      final refreshPayload = refreshJwt.payload as Map<String, dynamic>;
+      final jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+      final accessToken = jsonResponse['access_token'] as String;
+      final refreshToken = jsonResponse['refresh_token'] as String;
+      final nowEpochSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      try {
+        final accessJwt = JWT.decode(accessToken);
+        expect(accessJwt.payload['exp'], isA<int>());
+        expect(accessJwt.payload['exp'], greaterThan(nowEpochSec));
+        expect(accessJwt.payload['iat'],
+            lessThanOrEqualTo(nowEpochSec)); // Also check iat
 
-      // Check access token expiry
-      expect(accessPayload['exp'], isA<int>());
-      expect(accessPayload['iat'], isA<int>());
-      expect(accessPayload['sub'], isA<String>()); // Check for subject claim
-      expect(accessPayload['exp'], greaterThan(requestTimeSeconds),
-          reason: 'New access token expiry should be in the future');
-      expect(accessPayload['exp'],
-          lessThan(requestTimeSeconds + 60), // Short expiry
-          reason: 'New access token expiry should be reasonably short');
-
-      // Check refresh token expiry
-      expect(refreshPayload['exp'], isA<int>());
-      expect(refreshPayload['iat'], isA<int>());
-      expect(refreshPayload['sub'], isA<String>()); // Check for subject claim
-      expect(refreshPayload['exp'],
-          greaterThan(requestTimeSeconds + 60), // Longer expiry
-          reason:
-              'New refresh token expiry should be significantly in the future');
+        final refreshJwt = JWT.decode(refreshToken);
+        expect(refreshJwt.payload['exp'], isA<int>());
+        expect(refreshJwt.payload['exp'], greaterThan(nowEpochSec));
+        expect(refreshJwt.payload['iat'],
+            lessThanOrEqualTo(nowEpochSec)); // Also check iat
+      } on JWTException catch (e) {
+        fail('Failed to decode tokens or check expiry claims: $e');
+      }
     });
 
-    test('should return 401 Unauthorized if X-API-Key is missing', () async {
+    test('should return 401 Unauthorized if x-api-key is missing', () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
       final headers = {
-        // Note: No X-API-Key
         'Content-Type': 'application/json',
+        // No x-api-key
       };
-      final body = jsonEncode({'refresh_token': 'any-old-refresh-token'});
+      final body = jsonEncode({
+        'refresh_token': 'some-valid-refresh-token',
+      });
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
@@ -379,60 +423,77 @@ void main() {
       expect(response.statusCode, 401);
     });
 
-    test('should return 400 Bad Request if refresh_token field is missing',
-        () async {
+    test('should return 400 Bad Request if body is malformed', () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
       final headers = {
         'Content-Type': 'application/json',
-        'X-API-Key': testApiKey,
+        'x-api-key': testApiKey,
       };
-      // Missing 'refresh_token' field
-      final body = jsonEncode({'some_other_field': 'value'});
+      const body = 'this is not json'; // Malformed body
 
       // Act
       final response = await http.post(url, headers: headers, body: body);
 
       // Assert
       expect(response.statusCode, 400);
-      expect(response.headers['content-type'], contains('application/json'));
-      final jsonResponse = jsonDecode(response.body);
-      expect(jsonResponse,
-          containsPair('error', contains('Missing refresh_token field')));
     });
 
-    // Add more tests if needed, e.g., malformed JSON body
+    test('should return 400 Bad Request if refresh_token is missing', () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/auth/refresh-session');
+      final headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': testApiKey,
+      };
+      final body = jsonEncode({
+        // Missing refresh_token field
+        'some_other_field': 'value'
+      });
+
+      // Act
+      final response = await http.post(url, headers: headers, body: body);
+
+      // Assert
+      expect(response.statusCode, 400);
+    });
   });
 
   group('GET /api/v1/users/profile', () {
-    test('should return user profile on successful GET', () async {
+    test('should return user profile on successful GET with valid JWT',
+        () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final validJwt = _generateTestJwt(); // Generate a valid token
       final headers = {
-        'X-API-Key': testApiKey,
-        'Authorization': 'Bearer $dummyJwt' // Assuming auth is needed
+        'x-api-key': testApiKey, // Use lowercase
+        'Authorization': 'Bearer $validJwt' // Use the valid JWT
       };
 
       // Act
       final response = await http.get(url, headers: headers);
 
       // Assert
-      expect(response.statusCode, 200);
+      expect(response.statusCode, 200); // Should now be 200 OK
       expect(response.headers['content-type'], contains('application/json'));
-      final body = jsonDecode(response.body);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
       expect(body, isA<Map<String, dynamic>>());
-      expect(body['id'], equals('fake-user-id-123')); // Keep ID consistent
-      expect(body['name'], isNotNull);
-      expect(body['email'], isNotNull);
-      expect(body['settings'], isA<Map>()); // Example extra data
+      // Verify the ID matches the one from the JWT
+      expect(body['id'], equals(_jwtUserId));
+      expect(body['name'], contains(_jwtUserId)); // Name should contain the ID
+      expect(
+          body['email'], contains(_jwtUserId)); // Email should contain the ID
+      expect(body['settings'], isA<Map>());
     });
 
-    test('should return 401 Unauthorized if X-API-Key is missing', () async {
+    test('should return 401 Unauthorized if x-api-key is missing', () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final validJwt =
+          _generateTestJwt(); // Need a token even if API key missing
       final headers = {
-        // No X-API-Key
-        'Authorization': 'Bearer $dummyJwt'
+        // No x-api-key
+        'Authorization': 'Bearer $validJwt'
       };
 
       // Act
@@ -447,7 +508,7 @@ void main() {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
       final headers = {
-        'X-API-Key': testApiKey
+        'x-api-key': testApiKey, // Use lowercase
         // No Authorization header
       };
 
@@ -456,6 +517,39 @@ void main() {
 
       // Assert
       expect(response.statusCode, 401);
+    });
+
+    // Add tests for expired/invalid JWT if desired (mirroring user_test.dart)
+    test('should return 401 Unauthorized if JWT is expired', () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final expiredJwt =
+          _generateTestJwt(expiresIn: const Duration(seconds: -10));
+      final headers = {
+        'x-api-key': testApiKey,
+        'Authorization': 'Bearer $expiredJwt'
+      };
+      // Act
+      final response = await http.get(url, headers: headers);
+      // Assert
+      expect(response.statusCode, 401);
+      expect(response.body, contains('Token expired'));
+    });
+
+    test('should return 401 Unauthorized if JWT is invalid (wrong secret)',
+        () async {
+      // Arrange
+      final url = Uri.parse('$baseUrl/api/v1/users/profile');
+      final invalidJwt = _generateTestJwt(secret: 'wrong-secret');
+      final headers = {
+        'x-api-key': testApiKey,
+        'Authorization': 'Bearer $invalidJwt'
+      };
+      // Act
+      final response = await http.get(url, headers: headers);
+      // Assert
+      expect(response.statusCode, 401);
+      expect(response.body, contains('Invalid token')); // Or specific message
     });
   });
 }

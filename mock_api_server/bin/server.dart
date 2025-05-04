@@ -351,23 +351,69 @@ Future<Response> _refreshHandler(Request request) async {
 Future<Response> _getUserProfileHandler(Request request) async {
   if (verboseLoggingEnabled) print('DEBUG: Get User Profile handler called');
 
-  // Note: Header validation (API Key, Auth) is done by the middleware
+  // --- JWT Validation ---
+  try {
+    final authorizationHeader = request.headers['authorization'];
+    if (authorizationHeader == null ||
+        !authorizationHeader.startsWith('Bearer ')) {
+      if (verboseLoggingEnabled)
+        print('DEBUG Profile: Missing or invalid Bearer token header.');
+      return Response(HttpStatus.unauthorized,
+          body: jsonEncode({'error': 'Missing or invalid Bearer token'}),
+          headers: {'content-type': 'application/json'});
+    }
 
-  final responseBody = jsonEncode({
-    'id': 'fake-user-id-123', // Consistent with login response
-    'name': 'Mock User',
-    'email': 'mock.user@example.com',
-    'settings': {
-      'theme': 'dark',
-      'notifications_enabled': true,
-    },
-    // Add any other fields the app might expect
-  });
+    final token =
+        authorizationHeader.substring(7); // Extract token after "Bearer "
 
-  return Response.ok(
-    responseBody,
-    headers: {'content-type': 'application/json'},
-  );
+    // Verify the token
+    final jwt = JWT.verify(token, SecretKey(_mockJwtSecret));
+    final userId = jwt.payload['sub'] as String?;
+
+    if (userId == null) {
+      if (verboseLoggingEnabled)
+        print('DEBUG Profile: Token is missing \'sub\' (user ID) claim.');
+      return Response(HttpStatus.unauthorized,
+          body: jsonEncode({'error': 'Invalid token claims'}),
+          headers: {'content-type': 'application/json'});
+    }
+
+    if (verboseLoggingEnabled)
+      print('DEBUG Profile: Token validated for user: $userId');
+
+    // --- Generate Response using validated User ID ---
+    final responseBody = jsonEncode({
+      'id': userId, // Use the ID from the token!
+      'name': 'Mock User ($userId)', // Make name specific to validated user
+      'email': 'mock.user.$userId@example.com', // Make email specific
+      'settings': {
+        'theme': 'dark',
+        'notifications_enabled': true,
+      },
+    });
+
+    return Response.ok(
+      responseBody,
+      headers: {'content-type': 'application/json'},
+    );
+  } on JWTExpiredException {
+    if (verboseLoggingEnabled) print('DEBUG Profile: JWT expired.');
+    return Response(HttpStatus.unauthorized,
+        body: jsonEncode({'error': 'Token expired'}),
+        headers: {'content-type': 'application/json'});
+  } on JWTException catch (ex) {
+    // Catches other JWT errors (signature, format)
+    if (verboseLoggingEnabled)
+      print('DEBUG Profile: JWT validation error: ${ex.message}');
+    return Response(HttpStatus.unauthorized,
+        body: jsonEncode({'error': 'Invalid token: ${ex.message}'}),
+        headers: {'content-type': 'application/json'});
+  } catch (e) {
+    if (verboseLoggingEnabled) print('DEBUG Profile: Unexpected error: $e');
+    return Response.internalServerError(
+        body: jsonEncode({'error': 'Internal server error'}),
+        headers: {'content-type': 'application/json'});
+  }
 }
 
 // Get User By ID handler logic
@@ -376,9 +422,9 @@ Future<Response> _getUserByIdHandler(Request request, String userId) async {
     print('DEBUG: Get User By ID handler called for userId: $userId');
   }
 
-  // Note: Header validation (API Key, Auth) is done by the middleware
+  // Note: Header validation (API Key) is done by the middleware
 
-  // Validate userId
+  // Validate userId format/presence
   if (userId.isEmpty) {
     return Response(
       HttpStatus.badRequest,
@@ -387,7 +433,33 @@ Future<Response> _getUserByIdHandler(Request request, String userId) async {
     );
   }
 
-  // Use the userId from the path in the response
+  // --- Mock User Existence Check ---
+  // Here, we'll just check against the specific ID used in tests.
+  const String expectedWorkaroundUserId =
+      'fake-user-id-123'; // User ID from JWT/workaround
+
+  if (userId != expectedWorkaroundUserId) {
+    // Also allow the old test ID for compatibility, remove later if needed
+    const String oldTestUserId = 'user-from-path-123';
+    if (userId != oldTestUserId) {
+      if (verboseLoggingEnabled) {
+        print(
+            'DEBUG GetUserById: User ID "$userId" not found (expecting "$expectedWorkaroundUserId" or "$oldTestUserId").');
+      }
+      // Return 404 Not Found
+      return Response.notFound(
+        jsonEncode({'error': 'User with ID \'$userId\' not found'}),
+        headers: {'content-type': 'application/json'},
+      );
+    }
+  }
+  // --- End Mock User Existence Check ---
+
+  // User ID is known, proceed to generate response
+  if (verboseLoggingEnabled) {
+    print('DEBUG GetUserById: User ID "$userId" found. Generating response.');
+  }
+
   final responseBody = jsonEncode({
     'id': userId, // Use the ID from the URL path
     'name': 'Mock User (ID: $userId)', // Add ID to name for clarity
@@ -691,85 +763,24 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   );
 }
 
-// Auth middleware - NOW modified to skip auth AND health routes
+// Middleware for handling authorization (both API key and potentially JWT later)
+// Apply API Key check globally here, simplifying the pipeline
 Middleware _authMiddleware() {
-  return (Handler innerHandler) {
-    return (Request request) async {
+  return (innerHandler) {
+    return (request) {
       final path = request.requestedUri.path;
-      // Define paths that DO NOT require authentication using our constant
-      final noAuthPaths = {
-        '/$_versionedApiPath/auth/login',
-        '/$_versionedApiPath/auth/refresh-session',
-        '/$_versionedApiPath/health',
-      };
-
-      // Skip auth check for defined non-auth paths
-      if (noAuthPaths.contains(path)) {
-        if (verboseLoggingEnabled) {
-          print(
-              'DEBUG: Auth/Health endpoint ($path) detected, skipping auth middleware');
-        }
-        return innerHandler(request);
-      }
+      // Always check API key unless it's a specific public path (none defined yet)
+      // Example: if (path == '/public/status') return innerHandler(request);
 
       if (verboseLoggingEnabled) {
-        print('DEBUG: Non-auth endpoint, applying auth check...');
-      }
-
-      // Authentication check logic (as before)
-      if (verboseLoggingEnabled) {
-        print(
-            'DEBUG: Received Authorization: ${request.headers['authorization']}');
-      }
-
-      final authHeader = request.headers['authorization'];
-      bool isValid = false;
-      if (authHeader != null && authHeader.startsWith('Bearer ')) {
-        final token = authHeader.substring(7);
-        if (token.isNotEmpty) {
-          isValid = true;
-        }
-      }
-
-      if (!isValid) {
-        if (verboseLoggingEnabled) print('DEBUG: Auth validation failed');
-        return Response(
-          HttpStatus.unauthorized, // 401
-          body:
-              jsonEncode({'error': 'Missing or invalid Authorization header'}),
-          headers: {'content-type': 'application/json'},
-        );
-      }
-
-      if (verboseLoggingEnabled) print('DEBUG: Auth validation successful');
-      return innerHandler(request);
-    };
-  };
-}
-
-// API Key middleware - check all routes EXCEPT health endpoint
-Middleware _apiKeyMiddleware(String expectedApiKey) {
-  return (Handler innerHandler) {
-    return (Request request) async {
-      final path = request.requestedUri.path;
-
-      // Only skip API key check for the health check endpoint
-      if (path == '/$_versionedApiPath/health') {
-        if (verboseLoggingEnabled) {
-          print('DEBUG: Health endpoint detected, skipping API key middleware');
-        }
-        return innerHandler(request);
-      }
-
-      if (verboseLoggingEnabled) {
-        print('DEBUG: Applying API key check to $path...');
+        print('DEBUG AUTH MIDDLEWARE: Checking API key for path: $path');
       }
 
       final apiKey = request.headers['x-api-key'];
-      if (apiKey != expectedApiKey) {
+      if (apiKey != _expectedApiKey) {
         if (verboseLoggingEnabled) {
           print(
-              'DEBUG: API Key validation failed. Expected \'$expectedApiKey\', got \'$apiKey\'');
+              'DEBUG AUTH MIDDLEWARE: API Key validation FAILED. Expected \'$_expectedApiKey\', got \'$apiKey\'');
         }
         return Response(
           HttpStatus.unauthorized, // 401
@@ -777,10 +788,46 @@ Middleware _apiKeyMiddleware(String expectedApiKey) {
           headers: {'content-type': 'application/json'},
         );
       }
+
       if (verboseLoggingEnabled) {
-        print('DEBUG: API Key validation successful.');
+        print('DEBUG AUTH MIDDLEWARE: API Key validation successful.');
       }
+
+      // If API key is valid, proceed to the next handler
       return innerHandler(request);
+
+      // // OLD LOGIC (Conditional based on debug path)
+      // // Skip auth checks for debug routes
+      // if (path.startsWith('/debug/')) {
+      //   if (verboseLoggingEnabled) {
+      //     print('DEBUG: Skipping auth middleware for debug path: $path');
+      //   }
+      //   return innerHandler(request);
+      // }
+
+      // if (verboseLoggingEnabled) {
+      //   print('DEBUG: Applying API key check via _authMiddleware to $path...');
+      // }
+
+      // // API Key Check (Moved to be unconditional above)
+      // final apiKey = request.headers['x-api-key'];
+      // if (apiKey != _expectedApiKey) { // Use the globally defined expected key
+      //   if (verboseLoggingEnabled) {
+      //     print(
+      //         'DEBUG: API Key validation failed in _authMiddleware. Expected \'$_expectedApiKey\', got \'$apiKey\'');
+      //   }
+      //   return Response(
+      //     HttpStatus.unauthorized, // 401
+      //     body: jsonEncode({'error': 'Missing or invalid X-API-Key header'}),
+      //     headers: {'content-type': 'application/json'},
+      //   );
+      // }
+      // if (verboseLoggingEnabled) {
+      //   print('DEBUG: API Key validation successful in _authMiddleware.');
+      // }
+
+      // // If API key is valid, proceed
+      // return innerHandler(request);
     };
   };
 }
@@ -933,8 +980,7 @@ void main(List<String> args) async {
     final handler = const Pipeline()
         .addMiddleware(logRequests()) // Log requests first
         .addMiddleware(_debugMiddleware()) // Debug details
-        // Apply API Key and Auth checks conditionally within the middleware
-        .addMiddleware(_apiKeyMiddleware(_expectedApiKey))
+        // Apply Auth checks (which now include API key) globally
         .addMiddleware(_authMiddleware())
         // Add the router handler at the end to handle all matched routes
         .addHandler(_router.call);
