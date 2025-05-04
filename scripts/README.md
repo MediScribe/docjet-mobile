@@ -13,6 +13,7 @@ This directory contains utility scripts for the project.
 - [run_e2e_tests.sh](#run_e2e_testssh)
 - [run_on_device_staging.sh](#run_on_device_stagingsh)
 - [run_with_mock.sh](#run_with_mocksh)
+- [toggle_mock_server.sh](#toggle_mock_serversh)
 
 ## Scripts Overview
 
@@ -165,4 +166,20 @@ Starts the mock API server (`mock_api_server/bin/server.dart`) in the background
 ./scripts/run_with_mock.sh
 ```
 
-**Note:** This script runs `flutter run` interactively in the foreground after starting the mock server. 
+**Note:** This script runs `flutter run` interactively in the foreground after starting the mock server.
+
+### `toggle_mock_server.sh`
+
+Provides an interactive menu to manage the mock API server (`mock_api_server/bin/server.dart`). It allows starting, stopping, toggling, and checking the status of the mock server.
+
+**Features:**
+- Checks for required dependencies (`lsof`, `dart`).
+- Identifies if the process on the configured port (`8080` by default) is the expected mock server.
+- Prompts for confirmation before killing an unknown process using the port.
+- Waits for the server to start and provides feedback.
+
+**Usage:**
+
+```bash
+./scripts/toggle_mock_server.sh
+``` 
