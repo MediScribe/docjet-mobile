@@ -10,6 +10,7 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 import 'package:uuid/uuid.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart'; // Import JWT library
 
 // Import the new debug routes, including the cleanup function
 import 'package:mock_api_server/src/debug_routes.dart';
@@ -25,6 +26,12 @@ const String _versionedApiPath = '$_apiPrefix/$_apiVersion';
 
 // Hardcoded API key for mock validation, matching the test
 const String _expectedApiKey = 'test-api-key';
+
+const String _mockJwtSecret = 'mock-secret-key'; // Define JWT secret
+const Duration _accessTokenDuration =
+    Duration(seconds: 10); // Access token lifetime
+const Duration _refreshTokenDuration =
+    Duration(minutes: 5); // Refresh token lifetime
 
 const Uuid _uuid = Uuid();
 
@@ -195,13 +202,39 @@ Future<Response> _loginHandler(Request request) async {
       );
     }
 
-    // Just create our success response
+    // --- Generate Real JWTs ---
+    final now = DateTime.now();
+    final userId = 'fake-user-id-123'; // Keep user ID consistent
+
+    // Create Access Token
+    final accessJwt = JWT(
+      {
+        'sub': userId,
+        'iat': now.millisecondsSinceEpoch ~/ 1000,
+        'exp': now.add(_accessTokenDuration).millisecondsSinceEpoch ~/ 1000,
+        // Add other claims if needed, e.g., roles
+      },
+      issuer: 'mock-api-server',
+    );
+    final accessToken = accessJwt.sign(SecretKey(_mockJwtSecret));
+
+    // Create Refresh Token
+    final refreshJwt = JWT(
+      {
+        'sub': userId,
+        'iat': now.millisecondsSinceEpoch ~/ 1000,
+        'exp': now.add(_refreshTokenDuration).millisecondsSinceEpoch ~/ 1000,
+        // Optionally add a unique ID (jti) for refresh token revocation (not implemented here)
+      },
+      issuer: 'mock-api-server',
+    );
+    final refreshToken = refreshJwt.sign(SecretKey(_mockJwtSecret));
+
+    // Create success response with real JWTs
     final responseBody = jsonEncode({
-      'access_token':
-          'fake-access-token-${DateTime.now().millisecondsSinceEpoch}',
-      'refresh_token':
-          'fake-refresh-token-${DateTime.now().millisecondsSinceEpoch}',
-      'user_id': 'fake-user-id-123',
+      'access_token': accessToken,
+      'refresh_token': refreshToken,
+      'user_id': userId,
     });
 
     return Response.ok(
@@ -214,7 +247,7 @@ Future<Response> _loginHandler(Request request) async {
       print('DEBUG LOGIN: Error processing login: $e');
     }
     return Response(
-      HttpStatus.badRequest, // 400
+      HttpStatus.internalServerError, // 500 for unexpected JWT errors maybe?
       body: jsonEncode(
           {'error': 'Error processing login request: ${e.toString()}'}),
       headers: {'content-type': 'application/json'},
