@@ -151,5 +151,55 @@ void main() {
         Directory.current = originalDir;
       }
     });
+
+    test(
+      'getTestCommandForPath should handle package directory path correctly',
+      () {
+        // Test giving the package directory itself as the target
+        final packageDirectoryPath = mockSubPackageDir.path;
+        final result = script.getTestCommandForPath(packageDirectoryPath);
+
+        final expectedWorkingDirPath =
+            Directory(packageDirectoryPath).resolveSymbolicLinksSync();
+        final actualWorkingDirPath =
+            Directory(result.workingDirectory).resolveSymbolicLinksSync();
+
+        expect(actualWorkingDirPath, equals(expectedWorkingDirPath));
+        expect(
+          result.testPath,
+          equals('test/'),
+        ); // Should target the 'test/' subdirectory
+      },
+    );
+
+    test(
+      'getTestCommandForPath should handle relative package directory path correctly',
+      () {
+        // Change working directory to the tempDir for this test
+        final originalDir = Directory.current;
+        Directory.current = tempDir;
+
+        try {
+          final relativePackageDirPath = path.basename(
+            mockSubPackageDir.path,
+          ); // e.g., "mock_api_server"
+          final result = script.getTestCommandForPath(relativePackageDirPath);
+
+          final expectedWorkingDirPath =
+              Directory(mockSubPackageDir.path).resolveSymbolicLinksSync();
+          final actualWorkingDirPath =
+              Directory(result.workingDirectory).resolveSymbolicLinksSync();
+
+          expect(actualWorkingDirPath, equals(expectedWorkingDirPath));
+          expect(
+            result.testPath,
+            equals('test/'),
+          ); // Should target the 'test/' subdirectory
+        } finally {
+          // Restore original working directory
+          Directory.current = originalDir;
+        }
+      },
+    );
   });
 }

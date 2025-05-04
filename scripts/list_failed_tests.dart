@@ -25,7 +25,28 @@ class TestCommand {
 /// Finds the closest directory containing a pubspec.yaml file, starting from the test file path
 /// This is used to determine the package root for tests in subpackages
 Directory? findPackageRoot(String testPath) {
+  if (_debugScript) {
+    print('[SCRIPT_DEBUG] Finding package root for path: $testPath');
+  }
+
+  // First, check if the path itself is a directory that contains a pubspec.yaml
   final testFile = File(testPath);
+  final testDir = Directory(testPath);
+
+  // If the path is a directory and contains pubspec.yaml, it's a package root
+  if (testDir.existsSync()) {
+    final pubspecFile = File(path.join(testDir.path, 'pubspec.yaml'));
+    if (pubspecFile.existsSync()) {
+      if (_debugScript) {
+        print(
+          '[SCRIPT_DEBUG] Directory itself is a package root: ${testDir.path}',
+        );
+      }
+      return testDir;
+    }
+  }
+
+  // Otherwise, check parent directories as before
   Directory? directory;
 
   if (path.isAbsolute(testPath)) {
@@ -42,6 +63,11 @@ Directory? findPackageRoot(String testPath) {
   while (directory != null) {
     final pubspecFile = File(path.join(directory.path, 'pubspec.yaml'));
     if (pubspecFile.existsSync()) {
+      if (_debugScript) {
+        print(
+          '[SCRIPT_DEBUG] Found package root in parent directory: ${directory.path}',
+        );
+      }
       return directory;
     }
 
@@ -49,17 +75,34 @@ Directory? findPackageRoot(String testPath) {
     final parent = directory.parent;
     // If we've reached the filesystem root, stop
     if (parent.path == directory.path) {
+      if (_debugScript) {
+        print(
+          '[SCRIPT_DEBUG] Reached filesystem root without finding pubspec.yaml',
+        );
+      }
       return null;
     }
     directory = parent;
   }
 
+  if (_debugScript) {
+    print('[SCRIPT_DEBUG] No package root found for path: $testPath');
+  }
   return null;
 }
 
 /// Generates a TestCommand object with the working directory and relative test path
 /// This allows the script to run tests in the correct package context
 TestCommand getTestCommandForPath(String testPath) {
+  // Check if the path is a directory
+  final isDirectory = !testPath.contains('.dart') || testPath.endsWith('/');
+
+  if (_debugScript) {
+    print(
+      '[SCRIPT_DEBUG] Processing path as ${isDirectory ? "directory" : "file"}: $testPath',
+    );
+  }
+
   // Find the package root containing this test
   final packageRoot = findPackageRoot(testPath);
 
@@ -70,6 +113,25 @@ TestCommand getTestCommandForPath(String testPath) {
       workingDirectory: Directory.current.path,
       testPath: testPath,
     );
+  }
+
+  // Special handling for directory paths that are themselves package roots
+  if (isDirectory) {
+    final packageDirPath = packageRoot.path;
+    final inputPath =
+        path.isAbsolute(testPath)
+            ? testPath
+            : path.join(Directory.current.path, testPath);
+
+    if (path.equals(packageDirPath, inputPath)) {
+      // If the target directory IS the package root, just run 'test/'
+      if (_debugScript) {
+        print(
+          '[SCRIPT_DEBUG] Directory is the package root, using test/ as target',
+        );
+      }
+      return TestCommand(workingDirectory: packageRoot.path, testPath: 'test/');
+    }
   }
 
   // Convert the test path to be relative to the package root
@@ -716,8 +778,10 @@ class FailedTestRunner {
         suppressDebugTests: suppressDebugTests,
       );
     } else if (testTargets.length == 1) {
+      final String target = testTargets.first;
+
       // Single target - check if it's in a subpackage
-      final testCommand = getTestCommandForPath(testTargets.first);
+      final testCommand = getTestCommandForPath(target);
 
       if (_debugScript) {
         print(
@@ -726,8 +790,20 @@ class FailedTestRunner {
         print('[SCRIPT_DEBUG] Relative test path: ${testCommand.testPath}');
       }
 
+      // Special case: If the target is a directory that ends with the package name,
+      // we need to use 'test/' as the test path instead of the package name again
+      String testPath = testCommand.testPath;
+      if (target.endsWith('/') || !target.contains('.dart')) {
+        // It's a directory
+        final packageName = path.basename(testCommand.workingDirectory);
+        if (target.endsWith(packageName)) {
+          // The target is the package directory itself, so we should run the test directory
+          testPath = 'test/';
+        }
+      }
+
       return await _runTestsInContext(
-        [testCommand.testPath],
+        [testPath],
         debugMode: debugMode,
         exceptMode: exceptMode,
         suppressDebugTests: suppressDebugTests,
@@ -740,8 +816,19 @@ class FailedTestRunner {
 
       for (final target in testTargets) {
         final testCommand = getTestCommandForPath(target);
+        final String packageName = path.basename(testCommand.workingDirectory);
+
+        String testPath = testCommand.testPath;
+        if (target.endsWith('/') || !target.contains('.dart')) {
+          // It's a directory
+          if (target.endsWith(packageName)) {
+            // The target is the package directory itself
+            testPath = 'test/';
+          }
+        }
+
         workingDirs.add(testCommand.workingDirectory);
-        adjustedPaths.add(testCommand.testPath);
+        adjustedPaths.add(testPath);
       }
 
       if (workingDirs.length == 1) {
