@@ -86,6 +86,7 @@ class FakeProcessRunner implements script.ProcessRunner {
     List<String> arguments, {
     bool runInShell = true,
     Map<String, String>? environment,
+    String? workingDirectory,
   }) async {
     capturedArguments = arguments;
     capturedEnvironment = environment;

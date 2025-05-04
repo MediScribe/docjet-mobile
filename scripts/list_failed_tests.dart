@@ -6,12 +6,90 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:path/path.dart' as path;
 
 // Constants
 const String _helpFlag = 'help';
 const String _debugFlag = 'debug';
 const String _exceptFlag = 'except';
 const bool _debugScript = false;
+
+/// Represents a test command with working directory and relative test path
+class TestCommand {
+  final String workingDirectory;
+  final String testPath;
+
+  TestCommand({required this.workingDirectory, required this.testPath});
+}
+
+/// Finds the closest directory containing a pubspec.yaml file, starting from the test file path
+/// This is used to determine the package root for tests in subpackages
+Directory? findPackageRoot(String testPath) {
+  final testFile = File(testPath);
+  Directory? directory;
+
+  if (path.isAbsolute(testPath)) {
+    // For absolute paths, start from the file's parent directory
+    directory = testFile.parent;
+  } else {
+    // For relative paths, resolve against current directory first
+    directory = Directory(
+      path.join(Directory.current.path, path.dirname(testPath)),
+    );
+  }
+
+  // Traverse up the directory structure looking for pubspec.yaml
+  while (directory != null) {
+    final pubspecFile = File(path.join(directory.path, 'pubspec.yaml'));
+    if (pubspecFile.existsSync()) {
+      return directory;
+    }
+
+    // Move up one directory
+    final parent = directory.parent;
+    // If we've reached the filesystem root, stop
+    if (parent.path == directory.path) {
+      return null;
+    }
+    directory = parent;
+  }
+
+  return null;
+}
+
+/// Generates a TestCommand object with the working directory and relative test path
+/// This allows the script to run tests in the correct package context
+TestCommand getTestCommandForPath(String testPath) {
+  // Find the package root containing this test
+  final packageRoot = findPackageRoot(testPath);
+
+  if (packageRoot == null) {
+    // If no package root found, use current directory as a fallback
+    print('[WARN] No pubspec.yaml found in any parent directory of $testPath');
+    return TestCommand(
+      workingDirectory: Directory.current.path,
+      testPath: testPath,
+    );
+  }
+
+  // Convert the test path to be relative to the package root
+  String relativePath;
+  if (path.isAbsolute(testPath)) {
+    // For absolute paths, make them relative to the package root
+    relativePath = path.relative(testPath, from: packageRoot.path);
+  } else {
+    // For relative paths (from the current directory), we need to resolve them first
+    final resolvedPath = path.normalize(
+      path.join(Directory.current.path, testPath),
+    );
+    relativePath = path.relative(resolvedPath, from: packageRoot.path);
+  }
+
+  return TestCommand(
+    workingDirectory: packageRoot.path,
+    testPath: relativePath,
+  );
+}
 
 /// Main entry point for the script
 void main(List<String> arguments) async {
@@ -104,7 +182,7 @@ ArgParser _buildArgParser() {
 /// Prints usage information
 void _printUsage(ArgParser parser) {
   print(
-    'Usage: ./scripts/list_failed_tests_ng.dart [--debug] [--except] [test_target1 test_target2 ...]',
+    'Usage: ./scripts/list_failed_tests.dart [--debug] [--except] [test_target1 test_target2 ...]',
   );
   print('');
   print(
@@ -118,6 +196,17 @@ void _printUsage(ArgParser parser) {
   print('                 Multiple targets can be specified to run them all.');
   print('                 If omitted, all tests in the project are run.');
   print('');
+  print('Multi-package support:');
+  print(
+    '  This script automatically detects the package directory for each test target,',
+  );
+  print(
+    '  eliminating the need to manually change directories before running tests.',
+  );
+  print(
+    '  Example: ./scripts/list_failed_tests.dart mock_api_server/test/auth_test.dart',
+  );
+  print('');
   print('Options:');
   print(parser.usage);
 }
@@ -128,6 +217,7 @@ abstract class ProcessRunner {
     List<String> arguments, {
     bool runInShell = true,
     Map<String, String>? environment,
+    String? workingDirectory,
   });
 }
 
@@ -138,13 +228,21 @@ class ProcessRunnerImpl implements ProcessRunner {
     List<String> arguments, {
     bool runInShell = true,
     Map<String, String>? environment,
+    String? workingDirectory,
   }) async {
     try {
+      if (workingDirectory != null) {
+        if (_debugScript) {
+          print('[SCRIPT_DEBUG] Using working directory: $workingDirectory');
+        }
+      }
+
       final process = await Process.start(
         'flutter',
         arguments,
         runInShell: runInShell,
         environment: environment,
+        workingDirectory: workingDirectory,
       );
 
       final stdoutCompleter = Completer<String>();
@@ -607,6 +705,104 @@ class FailedTestRunner {
     bool suppressDebugTests = true,
   }) async {
     final List<String> testTargets = args.isNotEmpty ? args : [];
+
+    // Check if we have test targets that need package-specific handling
+    if (testTargets.isEmpty) {
+      // No specific targets - run in the current directory as before
+      return await _runTestsInContext(
+        [],
+        debugMode: debugMode,
+        exceptMode: exceptMode,
+        suppressDebugTests: suppressDebugTests,
+      );
+    } else if (testTargets.length == 1) {
+      // Single target - check if it's in a subpackage
+      final testCommand = getTestCommandForPath(testTargets.first);
+
+      if (_debugScript) {
+        print(
+          '[SCRIPT_DEBUG] Determined package root: ${testCommand.workingDirectory}',
+        );
+        print('[SCRIPT_DEBUG] Relative test path: ${testCommand.testPath}');
+      }
+
+      return await _runTestsInContext(
+        [testCommand.testPath],
+        debugMode: debugMode,
+        exceptMode: exceptMode,
+        suppressDebugTests: suppressDebugTests,
+        workingDirectory: testCommand.workingDirectory,
+      );
+    } else {
+      // Multiple targets - check if they're all in the same package
+      final workingDirs = <String>{};
+      final adjustedPaths = <String>[];
+
+      for (final target in testTargets) {
+        final testCommand = getTestCommandForPath(target);
+        workingDirs.add(testCommand.workingDirectory);
+        adjustedPaths.add(testCommand.testPath);
+      }
+
+      if (workingDirs.length == 1) {
+        // All targets in the same package
+        final workingDir = workingDirs.first;
+
+        if (_debugScript) {
+          print(
+            '[SCRIPT_DEBUG] All test targets in the same package: $workingDir',
+          );
+        }
+
+        return await _runTestsInContext(
+          adjustedPaths,
+          debugMode: debugMode,
+          exceptMode: exceptMode,
+          suppressDebugTests: suppressDebugTests,
+          workingDirectory: workingDir,
+        );
+      } else {
+        // Targets span multiple packages - can't run them all together
+        print(
+          '\x1B[33mWarning: Test targets span multiple packages and cannot be run together.\x1B[0m',
+        );
+        print('\x1B[33mPlease run tests for each package separately:\x1B[0m');
+
+        // Group targets by package
+        final Map<String, List<String>> testsByPackage = {};
+        for (int i = 0; i < testTargets.length; i++) {
+          final testCommand = getTestCommandForPath(testTargets[i]);
+          testsByPackage
+              .putIfAbsent(testCommand.workingDirectory, () => [])
+              .add(testTargets[i]);
+        }
+
+        // Show suggested commands
+        for (final entry in testsByPackage.entries) {
+          print(
+            '\x1B[33m  ./scripts/list_failed_tests.dart ${entry.value.join(' ')}\x1B[0m',
+          );
+        }
+
+        // Run tests in the current directory
+        return await _runTestsInContext(
+          testTargets,
+          debugMode: debugMode,
+          exceptMode: exceptMode,
+          suppressDebugTests: suppressDebugTests,
+        );
+      }
+    }
+  }
+
+  /// Internal method to run tests in the specified working directory
+  Future<TestRunResult> _runTestsInContext(
+    List<String> testTargets, {
+    required bool debugMode,
+    required bool exceptMode,
+    bool suppressDebugTests = true,
+    String? workingDirectory,
+  }) async {
     final arguments = ['test', '--machine'];
     if (testTargets.isNotEmpty) {
       arguments.addAll(testTargets);
@@ -628,11 +824,15 @@ class FailedTestRunner {
       if (environment != null) {
         print('[SCRIPT_DEBUG] Using environment: $environment');
       }
+      if (workingDirectory != null) {
+        print('[SCRIPT_DEBUG] Using working directory: $workingDirectory');
+      }
     }
 
     final processResult = await processRunner.runProcess(
       arguments,
       environment: environment,
+      workingDirectory: workingDirectory,
     );
 
     if (processResult.exitCode != 0 && processResult.exitCode != 1) {
