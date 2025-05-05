@@ -10,12 +10,19 @@ import 'package:intl/intl.dart'; // For date formatting
 class JobListItem extends StatelessWidget {
   final JobViewModel job;
   final bool isOffline;
+  final ValueChanged<JobViewModel>? onTapJob;
 
   /// Create a JobListItem
   ///
   /// [job] contains all the job information to display
   /// [isOffline] indicates if the app is in offline mode, disabling network-dependent actions
-  const JobListItem({super.key, required this.job, this.isOffline = false});
+  /// [onTapJob] optional callback triggered when the job item is tapped
+  const JobListItem({
+    super.key,
+    required this.job,
+    this.isOffline = false,
+    this.onTapJob,
+  });
 
   // Get logger instance for this class
   static final Logger _logger = LoggerFactory.getLogger(JobListItem);
@@ -112,8 +119,11 @@ class JobListItem extends StatelessWidget {
                 isOffline
                     ? null // Disable interaction when offline
                     : () {
-                      _logger.i('$_tag Tapped on job: ${job.localId}');
-                      // TODO: Navigate to job detail page or other action
+                      // Only log and call if the callback is actually provided
+                      if (onTapJob != null) {
+                        _logger.i('$_tag Tapped on job: ${job.localId}');
+                        onTapJob!(job);
+                      }
                     },
           ),
           // Add padding to position the progress bar nicely below the text

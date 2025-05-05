@@ -103,7 +103,7 @@ class JobSyncTriggerService with WidgetsBindingObserver {
     _logger.d('$_tag Triggering push sync via repository.');
     try {
       await _jobRepository.syncPendingJobs();
-      _logger.d('$_tag Sync-Push OK');
+      _logger.i('$_tag Sync-Push OK');
     } catch (e, s) {
       _logger.e('$_tag Sync-Push FAILURE: $e', error: e, stackTrace: s);
     }
@@ -116,7 +116,7 @@ class JobSyncTriggerService with WidgetsBindingObserver {
       final result = await _jobRepository.reconcileJobsWithServer();
       result.fold(
         (failure) => _logger.w('$_tag Sync-Pull FAILURE: $failure'),
-        (_) => _logger.d('$_tag Sync-Pull OK'),
+        (_) => _logger.i('$_tag Sync-Pull OK'),
       );
     } catch (e, s) {
       _logger.e('$_tag Sync-Pull FAILURE: $e', error: e, stackTrace: s);

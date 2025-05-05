@@ -46,8 +46,7 @@ class JobRepositoryImpl implements JobRepository {
     required JobSyncOrchestratorService orchestratorService,
     required AuthSessionProvider authSessionProvider,
     required AuthEventBus authEventBus,
-    required JobLocalDataSource
-    localDataSource, // Add direct access to local data source
+    required JobLocalDataSource localDataSource, // Fixed line break
   }) : _readerService = readerService,
        _writerService = writerService,
        _deleterService = deleterService,
@@ -55,7 +54,7 @@ class JobRepositoryImpl implements JobRepository {
        _authSessionProvider = authSessionProvider,
        _authEventBus = authEventBus,
        _localDataSource = localDataSource {
-    _logger.i('$_tag JobRepositoryImpl initialized.');
+    _logger.i('JobRepositoryImpl initialized.');
 
     // Subscribe to auth events
     _subscribeToAuthEvents();
@@ -63,7 +62,7 @@ class JobRepositoryImpl implements JobRepository {
 
   /// Subscribes to authentication events to react to login/logout
   void _subscribeToAuthEvents() {
-    _logger.d('$_tag Subscribing to auth events.');
+    _logger.d('Subscribing to auth events.');
     _authEventSubscription = _authEventBus.stream.listen((event) {
       if (event == AuthEvent.loggedOut) {
         _handleLogout();
@@ -156,9 +155,8 @@ class JobRepositoryImpl implements JobRepository {
 
   @override
   Future<Either<Failure, Unit>> reconcileJobsWithServer() async {
-    _logger.d(
-      '$_tag Reconciling jobs with server via JobReaderService.getJobs()',
-    );
+    _logger.d('$_tag Reconciling jobs with server');
+
     try {
       final result = await _readerService.getJobs();
       return result.fold(
@@ -171,14 +169,10 @@ class JobRepositoryImpl implements JobRepository {
           return const Right(unit);
         },
       );
-    } catch (e, s) {
-      _logger.e(
-        '$_tag Exception during jobs reconciliation: $e',
-        error: e,
-        stackTrace: s,
-      );
+    } catch (e, stackTrace) {
+      _logger.e('$_tag Exception during jobs reconciliation: $e\n$stackTrace');
       return Left(
-        UnknownFailure('Unexpected error during jobs reconciliation: $e'),
+        UnknownFailure('Unexpected error during jobs reconciliation'),
       );
     }
   }

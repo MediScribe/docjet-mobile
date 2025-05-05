@@ -726,19 +726,21 @@ This separation of concerns allows for:
      * Resets to `SyncStatus.pending` with zeroed retry count
      * Returns `Right<Unit>` on success or appropriate error
 
-### Server-Side Deletion Handling
+### 6. Pull Reconciliation 
+The `JobSyncTriggerService` initiates a periodic pull operation by calling `JobRepository.reconcileJobsWithServer()`. This method delegates to `JobReaderService.getJobs()`.
 
-Server-side deletion detection occurs during the pull phase of the sync cycle:
+1. **Trigger**: `JobSyncTriggerService` calls `JobRepository.reconcileJobsWithServer()`.
+2. **Delegation**: `JobRepositoryImpl.reconcileJobsWithServer()` calls `JobReaderService.getJobs()`.
+3. **Fetch**: `JobReaderService` fetches the *full* list of jobs from the `JobRemoteDataSource`.
+4. **Compare**: `JobReaderService` fetches the list of *synced* jobs (those with `serverId != null`) from `JobLocalDataSource`.
+5. **Identify Deletions**: It calculates the set difference: `locallySyncedJobs.serverId` - `remoteJobs.serverId`. Any `serverId` present locally but not remotely represents a job deleted on the server.
+6. **Local Deletion**: For each identified server-deleted job, `JobReaderService` calls `JobDeleterService.deleteJobLocally()` to remove it from `JobLocalDataSource`.
+7. **File Cleanup**: `JobDeleterService` also deletes the associated audio file.
+8. **Result**: The method returns `Right(unit)` on success, or `Left(Failure)` if any step fails. The primary purpose is the side effect of local cleanup.
 
-1. `JobSyncTriggerService` calls `JobRepository.reconcileJobsWithServer()` (which delegates to `JobReaderService.getJobs()`)
-2. Repository gets full list of jobs from API
-3. Compares with local jobs that have `syncStatus.synced` (ignoring pending ones)
-4. Any jobs previously synced but missing from API response are considered deleted by server
-5. These jobs are immediately deleted locally (including associated audio files)
+This ensures that jobs deleted on the server are eventually removed from the local cache during the periodic sync cycle.
 
-> **IMPORTANT:** Jobs with `SyncStatus.pending`, `SyncStatus.pendingDeletion`, `SyncStatus.error`, or `SyncStatus.failed` are intentionally ignored during this check to prevent accidental deletion of jobs that have not yet successfully synced to the server.
-
-### Audio File Management
+### 7. Audio File Management
 
 1. Audio files are stored locally when jobs are created.
 2. Files remain on device as long as their associated job exists.
@@ -752,7 +754,7 @@ Server-side deletion detection occurs during the pull phase of the sync cycle:
    * These failures are considered non-fatal to the job deletion process itself (the job record is still removed locally).
    * A retry mechanism for failed file deletions will be implemented (e.g., on next app startup or sync cycle) to ensure eventual cleanup.
 
-### Authentication Integration
+### 8. Authentication Integration
 
 The Job Sync system integrates with the AuthEventBus to respond to authentication-related events and manage synchronization accordingly:
 

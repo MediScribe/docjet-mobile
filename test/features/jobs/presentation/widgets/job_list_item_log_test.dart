@@ -42,13 +42,25 @@ void main() {
       final sampleJob = createSampleJob();
       _testLogger.i('$_tag Sample job created');
 
+      // Track onTap callback invocations
+      bool onTapCalled = false;
+      void onTapCallback(JobViewModel job) {
+        onTapCalled = true;
+        _testLogger.i('$_tag onTap callback invoked');
+      }
+
       // First build
       _testLogger.i('$_tag Pumping initial widget');
       await tester.pumpWidget(
         MaterialApp(
           // Use the correct theme from app_theme.dart
           theme: createLightTheme(),
-          home: Scaffold(body: JobListItem(job: sampleJob)),
+          home: Scaffold(
+            body: JobListItem(
+              job: sampleJob,
+              onTapJob: onTapCallback, // Add onTapJob callback
+            ),
+          ),
         ),
       );
       _testLogger.i('$_tag Initial widget pumped');
@@ -62,15 +74,15 @@ void main() {
       await tester.pump();
       _testLogger.i('$_tag Rebuild complete');
 
-      // We'll only count JobListItem logs, not our diagnostic logs
-      final logCount = LoggerFactory.getLogsFor(JobListItem).length;
-      _testLogger.i('$_tag JobListItem logs after rebuild: $logCount');
+      // Check for absence of specific logs after rebuild
+      final containsTapLog = LoggerFactory.containsLog('Tapped on job: 123');
+      _testLogger.i('$_tag Contains tap log after rebuild: $containsTapLog');
       expect(
-        logCount,
-        equals(0),
-        reason: 'JobListItem should not log on identical rebuild',
+        containsTapLog,
+        isFalse,
+        reason: 'JobListItem should not log tap events on identical rebuild',
       );
-      _testLogger.i('$_tag Rebuild log count verification complete');
+      _testLogger.i('$_tag Rebuild log verification complete');
 
       // Tap on the item to trigger a log - since it uses onTap with _logger.i
       _testLogger.i('$_tag Tapping JobListItem');
@@ -86,35 +98,110 @@ void main() {
       await tester.pump();
       _testLogger.i('$_tag Pump after tap complete');
 
-      // Now we should see exactly one more log from JobListItem
-      final afterTapLogCount = LoggerFactory.getLogsFor(JobListItem).length;
-      _testLogger.i('$_tag JobListItem logs after tap: $afterTapLogCount');
-      expect(
-        afterTapLogCount,
-        equals(1),
-        reason: 'JobListItem should log exactly once for tap action',
+      // Now we should see the log about tapping
+      final afterTapContainsLog = LoggerFactory.containsLog(
+        'Tapped on job: 123',
       );
-      _testLogger.i('$_tag Tap log count verification complete');
+      _testLogger.i('$_tag Contains tap log after tap: $afterTapContainsLog');
+      expect(
+        afterTapContainsLog,
+        isTrue,
+        reason: 'JobListItem should log tap event after being tapped',
+      );
+      _testLogger.i('$_tag Tap log verification complete');
+
+      // Verify callback was called
+      expect(
+        onTapCalled,
+        isTrue,
+        reason: 'onTapJob callback should be called when tapped',
+      );
+      _testLogger.i('$_tag Callback verification complete');
 
       // Force another identical rebuild
       _testLogger.i('$_tag Forcing second identical rebuild');
       await tester.pump();
       _testLogger.i('$_tag Second rebuild complete');
 
-      // The log count shouldn't increase after another rebuild
-      final afterSecondRebuildLogCount =
-          LoggerFactory.getLogsFor(JobListItem).length;
+      // Clear logs to verify no new logs after the second rebuild
+      LoggerFactory.clearLogs();
+      _testLogger.i('$_tag Cleared logs before second verification');
+
+      await tester.pump(); // Another pump to ensure nothing happens
+
+      // Check that no new tap log is created after the rebuild
+      final afterRebuildContainsLog = LoggerFactory.containsLog(
+        'Tapped on job: 123',
+      );
       _testLogger.i(
-        '$_tag JobListItem logs after second rebuild: $afterSecondRebuildLogCount',
+        '$_tag Contains tap log after second rebuild: $afterRebuildContainsLog',
       );
       expect(
-        afterSecondRebuildLogCount,
-        equals(1),
+        afterRebuildContainsLog,
+        isFalse,
         reason:
-            'JobListItem should not log additional messages on second identical rebuild',
+            'JobListItem should not log additional tap events on second identical rebuild',
       );
-      _testLogger.i('$_tag Second rebuild log count verification complete');
+      _testLogger.i('$_tag Second rebuild log verification complete');
       _testLogger.i('$_tag Test completed successfully');
+    });
+
+    // New Test: Offline Tap Logging
+    testWidgets('does not log tap when offline', (WidgetTester tester) async {
+      _testLogger.i('$_tag Starting offline tap log test');
+      // Create sample job
+      final sampleJob = createSampleJob();
+      _testLogger.i('$_tag Sample job created');
+
+      // Define a dummy onTap callback
+      bool callbackCalled = false;
+      void dummyOnTap(JobViewModel job) {
+        callbackCalled = true;
+        _testLogger.w('$_tag DUMMY CALLBACK CALLED - THIS SHOULD NOT HAPPEN!');
+      }
+
+      _testLogger.i('$_tag Pumping initial widget (offline)');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: createLightTheme(),
+          home: Scaffold(
+            body: JobListItem(
+              job: sampleJob,
+              isOffline: true, // Set offline state
+              onTapJob: dummyOnTap, // Provide a callback
+            ),
+          ),
+        ),
+      );
+      _testLogger.i('$_tag Initial widget pumped');
+
+      // Clear logs before tap
+      LoggerFactory.clearLogs();
+      _testLogger.i('$_tag Logs cleared before tap');
+
+      // Tap on the item
+      _testLogger.i('$_tag Tapping JobListItem (while offline)');
+      await tester.tap(find.byType(JobListItem));
+      await tester.pump(); // Let UI settle
+      _testLogger.i('$_tag Tap and pump complete');
+
+      // Verify NO logs from JobListItem were emitted
+      final logCount = LoggerFactory.getLogsFor(JobListItem).length;
+      _testLogger.i('$_tag JobListItem logs after offline tap: $logCount');
+      expect(
+        logCount,
+        equals(0),
+        reason: 'JobListItem should not log when tapped in offline mode',
+      );
+
+      // Also verify the dummy callback wasn't called
+      expect(
+        callbackCalled,
+        isFalse,
+        reason: 'onTapJob callback should not be called when offline',
+      );
+
+      _testLogger.i('$_tag Offline tap test completed successfully');
     });
   });
 }

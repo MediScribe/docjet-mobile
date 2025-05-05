@@ -111,7 +111,7 @@ void main() {
     });
 
     test(
-      'didChangeAppLifecycleState should trigger both sync methods on resumed',
+      'didChangeAppLifecycleState should trigger both sync methods on resumed IN ORDER',
       () async {
         // Arrange
         service.init();
@@ -124,8 +124,11 @@ void main() {
         ); // Allow async operations to complete
 
         // Assert
-        verify(mockJobRepository.syncPendingJobs()).called(1);
-        verify(mockJobRepository.reconcileJobsWithServer()).called(1);
+        // Verify calls happen in the correct order
+        verifyInOrder([
+          mockJobRepository.syncPendingJobs(),
+          mockJobRepository.reconcileJobsWithServer(),
+        ]);
         expect(
           LoggerFactory.containsLog(
             'App resumed. Triggering sync and starting timer',
@@ -237,7 +240,7 @@ void main() {
       verifyNever(mockTimer.cancel());
     });
 
-    test('timer callback should trigger both sync methods', () async {
+    test('timer callback should trigger both sync methods IN ORDER', () async {
       // Arrange - Start timer and capture callback
       service.startTimer();
       LoggerFactory.clearLogs();
@@ -247,9 +250,11 @@ void main() {
       await Future.delayed(Duration.zero); // Allow async operations
 
       // Assert
-      verify(mockJobRepository.syncPendingJobs()).called(1);
-      verify(mockJobRepository.reconcileJobsWithServer()).called(1);
-      expect(LoggerFactory.containsLog('Timer fired. Triggering sync'), isTrue);
+      // Verify calls happen in the correct order
+      verifyInOrder([
+        mockJobRepository.syncPendingJobs(),
+        mockJobRepository.reconcileJobsWithServer(),
+      ]);
     });
 
     test('timer callback should handle reconcile errors gracefully', () async {
@@ -267,6 +272,45 @@ void main() {
       // Assert - Should log error but not crash
       expect(LoggerFactory.containsLog('Sync-Pull FAILURE:'), isTrue);
     });
+
+    // NEW Test Case for Push Failure
+    test(
+      '_triggerSync should handle syncPendingJobs failure and still call reconcileJobsWithServer',
+      () async {
+        // Arrange
+        final testException = Exception('Push Sync Failed!');
+        when(mockJobRepository.syncPendingJobs()).thenThrow(testException);
+        // reconcileJobsWithServer should still succeed
+        when(
+          mockJobRepository.reconcileJobsWithServer(),
+        ).thenAnswer((_) async => const Right(unit));
+
+        // Act
+        // Manually trigger the internal method we want to test directly or via lifecycle/timer
+        service.init(); // Need init for the logger tags potentially used
+        LoggerFactory.clearLogs();
+        service.didChangeAppLifecycleState(
+          AppLifecycleState.resumed,
+        ); // Use lifecycle to trigger _triggerSync
+        await Future.delayed(Duration.zero); // Allow async operations
+
+        // Assert
+        // Verify syncPendingJobs was called (and threw)
+        verify(mockJobRepository.syncPendingJobs()).called(1);
+        // Verify reconcileJobsWithServer was STILL called despite the push error
+        verify(mockJobRepository.reconcileJobsWithServer()).called(1);
+
+        // Verify the specific failure log message from _executePushSync
+        expect(
+          LoggerFactory.containsLog('Sync-Push FAILURE: $testException'),
+          isTrue,
+        );
+        // Verify the success log from _executePullSync is still present
+        expect(LoggerFactory.containsLog('Sync-Pull OK'), isTrue);
+        // Verify the outer catch block in _triggerSync did NOT log (as the inner one caught it)
+        expect(LoggerFactory.containsLog('Error during sync trigger'), isFalse);
+      },
+    );
   });
 
   // --- Group: Dispose Tests ---

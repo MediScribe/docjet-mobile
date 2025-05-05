@@ -65,19 +65,29 @@ void main() {
   });
 
   group('reconcileJobsWithServer', () {
-    test('should delegate to readerService.getJobs()', () async {
-      // Arrange
-      final jobs = <Job>[];
-      when(mockReaderService.getJobs()).thenAnswer((_) async => Right(jobs));
+    test(
+      'should delegate to readerService.getJobs() and log success',
+      () async {
+        // Arrange
+        final jobs = <Job>[];
+        when(mockReaderService.getJobs()).thenAnswer((_) async => Right(jobs));
 
-      // Act
-      final result = await repository.reconcileJobsWithServer();
+        // Act
+        final result = await repository.reconcileJobsWithServer();
 
-      // Assert
-      verify(mockReaderService.getJobs()).called(1);
-      expect(result, equals(const Right(unit)));
-      expect(LoggerFactory.containsLog('Reconciling jobs with server'), isTrue);
-    });
+        // Assert
+        verify(mockReaderService.getJobs()).called(1);
+        expect(result, equals(const Right(unit)));
+        expect(
+          LoggerFactory.containsLog('Reconciling jobs with server'),
+          isTrue,
+        );
+        expect(
+          LoggerFactory.containsLog('Successfully reconciled jobs with server'),
+          isTrue,
+        );
+      },
+    );
 
     test(
       'should handle and log failures from readerService.getJobs()',

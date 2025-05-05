@@ -191,6 +191,23 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 
   @override
+  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> reconcileJobsWithServer() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #reconcileJobsWithServer,
+          [],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
+            _FakeEither_0<_i5.Failure, _i2.Unit>(
+          this,
+          Invocation.method(
+            #reconcileJobsWithServer,
+            [],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
+
+  @override
   _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> resetFailedJob(
           String? localId) =>
       (super.noSuchMethod(
@@ -204,23 +221,6 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
           Invocation.method(
             #resetFailedJob,
             [localId],
-          ),
-        )),
-      ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
-
-  @override
-  _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> reconcileJobsWithServer() =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #reconcileJobsWithServer,
-          [],
-        ),
-        returnValue: _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i5.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #reconcileJobsWithServer,
-            [],
           ),
         )),
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);

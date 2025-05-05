@@ -1,3 +1,4 @@
+import 'dart:async'; // Import async for StreamTransformer
 import 'package:dartz/dartz.dart';
 
 import 'package:docjet_mobile/core/error/exceptions.dart';
@@ -67,13 +68,13 @@ class JobReaderService {
           SyncStatus.synced,
         );
         _logger.d(
-          '$_tag Found ${localSyncedJobs.length} local jobs marked as synced:',
+          '$_tag Found ${localSyncedJobs.length} local jobs marked as synced.',
         );
-        if (localSyncedJobs.isNotEmpty) {
+        if (localSyncedJobs.isNotEmpty && localSyncedJobs.length <= 10) {
           final ids = localSyncedJobs
               .map((j) => '(${j.localId} / ${j.serverId})')
               .join(', ');
-          _logger.d('$_tag   Local Synced Job IDs (local/server): $ids');
+          _logger.d('$_tag    Local Synced Job IDs (local/server): $ids');
         }
       } on CacheException catch (e, stackTrace) {
         _logger.w(
@@ -92,7 +93,7 @@ class JobReaderService {
       _logger.d('$_tag Step 2: Fetching remote jobs from API...');
       final List<Job> remoteJobs = await _remoteDataSource.fetchJobs();
       _logger.d('$_tag Fetched ${remoteJobs.length} jobs from remote.');
-      if (remoteJobs.isNotEmpty) {
+      if (remoteJobs.isNotEmpty && remoteJobs.length <= 10) {
         final ids = remoteJobs
             .map((j) => '(${j.localId} / ${j.serverId})')
             .join(', ');
@@ -271,27 +272,36 @@ class JobReaderService {
 
   /// Watches the local data source for changes to the list of all jobs.
   Stream<Either<Failure, List<Job>>> watchJobs() {
-    _logger.d('$_tag Delegating watchJobs to local data source...');
+    _logger.d('Delegating watchJobs to local data source...');
     try {
-      return _localDataSource
-          .watchJobs()
-          .map((result) {
-            _logger.d('$_tag watchJobs emitting new list...');
-            return result;
-          })
-          .handleError((e, stackTrace) {
+      return _localDataSource.watchJobs().transform(
+        StreamTransformer.fromHandlers(
+          handleData: (
+            Either<Failure, List<Job>> data,
+            EventSink<Either<Failure, List<Job>>> sink,
+          ) {
+            _logger.d('watchJobs emitting new list...');
+            sink.add(data);
+          },
+          handleError: (
+            Object error,
+            StackTrace stackTrace,
+            EventSink<Either<Failure, List<Job>>> sink,
+          ) {
             _logger.e(
-              '$_tag Error within watchJobs stream:',
-              error: e,
+              'Error within watchJobs stream:',
+              error: error,
               stackTrace: stackTrace,
             );
-            return Left<Failure, List<Job>>(
-              CacheFailure('Error in job stream: ${e.toString()}'),
+            sink.add(
+              Left(CacheFailure('Error in job stream: ${error.toString()}')),
             );
-          });
+          },
+        ),
+      );
     } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error initiating watchJobs stream',
+        'Unexpected error initiating watchJobs stream',
         error: e,
         stackTrace: stackTrace,
       );
@@ -303,29 +313,42 @@ class JobReaderService {
 
   /// Watches the local data source for changes to a specific job.
   Stream<Either<Failure, Job?>> watchJobById(String localId) {
-    _logger.d(
-      '$_tag Delegating watchJobById($localId) to local data source...',
-    );
+    _logger.d('Delegating watchJobById($localId) to local data source...');
     try {
       return _localDataSource
           .watchJobById(localId)
-          .map((result) {
-            _logger.d('$_tag watchJobById($localId) emitting new value...');
-            return result;
-          })
-          .handleError((e, stackTrace) {
-            _logger.e(
-              '$_tag Error within watchJobById($localId) stream:',
-              error: e,
-              stackTrace: stackTrace,
-            );
-            return Left<Failure, Job?>(
-              CacheFailure('Error in job stream for $localId: ${e.toString()}'),
-            );
-          });
+          .transform(
+            StreamTransformer.fromHandlers(
+              handleData: (
+                Either<Failure, Job?> data,
+                EventSink<Either<Failure, Job?>> sink,
+              ) {
+                _logger.d('watchJobById($localId) emitting new value...');
+                sink.add(data);
+              },
+              handleError: (
+                Object error,
+                StackTrace stackTrace,
+                EventSink<Either<Failure, Job?>> sink,
+              ) {
+                _logger.e(
+                  'Error within watchJobById($localId) stream:',
+                  error: error,
+                  stackTrace: stackTrace,
+                );
+                sink.add(
+                  Left(
+                    CacheFailure(
+                      'Error in job stream for $localId: ${error.toString()}',
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
     } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error initiating watchJobById($localId) stream',
+        'Unexpected error initiating watchJobById($localId) stream',
         error: e,
         stackTrace: stackTrace,
       );
