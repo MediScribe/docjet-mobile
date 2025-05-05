@@ -1,3 +1,4 @@
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:dartz/dartz.dart';
@@ -8,7 +9,9 @@ abstract class JobRemoteDataSource {
   /// Fetches all job records for the authenticated user from the API.
   /// Corresponds to `GET /api/v1/jobs`.
   /// Throws a [ServerException] or [ApiException] for all error cases (4xx, 5xx, network errors).
-  Future<List<Job>> fetchJobs();
+  ///
+  /// Returns [JobApiDTO] objects that must be mapped to domain entities by the service layer.
+  Future<List<JobApiDTO>> fetchJobs();
 
   /// Fetches a single job record by its ID from the API.
   /// Corresponds to `GET /api/v1/jobs/{id}`.

@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,6 +18,14 @@ void main() {
       // If this compiles successfully, then the test passes
       // We're verifying that the createJob method can be implemented without
       // requiring a userId parameter
+      expect(implementation, isA<JobRemoteDataSource>());
+    });
+
+    test('fetchJobs should return List<JobApiDTO> instead of List<Job>', () {
+      // This test is just for interface validation
+      const implementation = _TestImplementation();
+
+      // If this compiles, it means the interface matches our expectations
       expect(implementation, isA<JobRemoteDataSource>());
     });
   });
@@ -47,7 +56,7 @@ class _TestImplementation implements JobRemoteDataSource {
   }
 
   @override
-  Future<List<Job>> fetchJobs() async {
+  Future<List<JobApiDTO>> fetchJobs() async {
     throw UnimplementedError();
   }
 

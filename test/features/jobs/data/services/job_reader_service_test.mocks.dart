@@ -7,15 +7,17 @@ import 'dart:async' as _i5;
 
 import 'package:dartz/dartz.dart' as _i3;
 import 'package:docjet_mobile/core/error/failures.dart' as _i8;
-import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i11;
+import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i12;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i4;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
     as _i9;
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'
+    as _i10;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i6;
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'
-    as _i10;
+    as _i11;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
@@ -302,13 +304,13 @@ class MockJobRemoteDataSource extends _i1.Mock
   }
 
   @override
-  _i5.Future<List<_i2.Job>> fetchJobs() => (super.noSuchMethod(
+  _i5.Future<List<_i10.JobApiDTO>> fetchJobs() => (super.noSuchMethod(
         Invocation.method(
           #fetchJobs,
           [],
         ),
-        returnValue: _i5.Future<List<_i2.Job>>.value(<_i2.Job>[]),
-      ) as _i5.Future<List<_i2.Job>>);
+        returnValue: _i5.Future<List<_i10.JobApiDTO>>.value(<_i10.JobApiDTO>[]),
+      ) as _i5.Future<List<_i10.JobApiDTO>>);
 
   @override
   _i5.Future<_i2.Job> fetchJobById(String? id) => (super.noSuchMethod(
@@ -411,7 +413,7 @@ class MockJobRemoteDataSource extends _i1.Mock
 /// A class which mocks [JobDeleterService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
+class MockJobDeleterService extends _i1.Mock implements _i11.JobDeleterService {
   MockJobDeleterService() {
     _i1.throwOnMissingStub(this);
   }
@@ -455,7 +457,7 @@ class MockJobDeleterService extends _i1.Mock implements _i10.JobDeleterService {
 /// A class which mocks [NetworkInfo].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockNetworkInfo extends _i1.Mock implements _i11.NetworkInfo {
+class MockNetworkInfo extends _i1.Mock implements _i12.NetworkInfo {
   MockNetworkInfo() {
     _i1.throwOnMissingStub(this);
   }

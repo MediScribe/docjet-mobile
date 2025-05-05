@@ -5,22 +5,24 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i6;
 import 'dart:io' as _i4;
-import 'dart:typed_data' as _i12;
+import 'dart:typed_data' as _i13;
 
 import 'package:dartz/dartz.dart' as _i3;
 import 'package:docjet_mobile/core/error/failures.dart' as _i9;
-import 'package:docjet_mobile/core/platform/file_system.dart' as _i11;
+import 'package:docjet_mobile/core/platform/file_system.dart' as _i12;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i5;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
     as _i10;
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'
+    as _i11;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i7;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i13;
+import 'package:mockito/src/dummies.dart' as _i14;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -331,14 +333,15 @@ class MockJobLocalDataSource extends _i1.Mock
 class MockJobRemoteDataSource extends _i1.Mock
     implements _i10.JobRemoteDataSource {
   @override
-  _i6.Future<List<_i2.Job>> fetchJobs() => (super.noSuchMethod(
+  _i6.Future<List<_i11.JobApiDTO>> fetchJobs() => (super.noSuchMethod(
         Invocation.method(
           #fetchJobs,
           [],
         ),
-        returnValue: _i6.Future<List<_i2.Job>>.value(<_i2.Job>[]),
-        returnValueForMissingStub: _i6.Future<List<_i2.Job>>.value(<_i2.Job>[]),
-      ) as _i6.Future<List<_i2.Job>>);
+        returnValue: _i6.Future<List<_i11.JobApiDTO>>.value(<_i11.JobApiDTO>[]),
+        returnValueForMissingStub:
+            _i6.Future<List<_i11.JobApiDTO>>.value(<_i11.JobApiDTO>[]),
+      ) as _i6.Future<List<_i11.JobApiDTO>>);
 
   @override
   _i6.Future<_i2.Job> fetchJobById(String? id) => (super.noSuchMethod(
@@ -479,7 +482,7 @@ class MockJobRemoteDataSource extends _i1.Mock
 /// A class which mocks [FileSystem].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
+class MockFileSystem extends _i1.Mock implements _i12.FileSystem {
   @override
   _i6.Future<_i4.FileStat> stat(String? path) => (super.noSuchMethod(
         Invocation.method(
@@ -562,7 +565,7 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
   @override
   _i6.Future<void> writeFile(
     String? path,
-    _i12.Uint8List? bytes,
+    _i13.Uint8List? bytes,
   ) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -592,14 +595,14 @@ class MockFileSystem extends _i1.Mock implements _i11.FileSystem {
           #resolvePath,
           [path],
         ),
-        returnValue: _i13.dummyValue<String>(
+        returnValue: _i14.dummyValue<String>(
           this,
           Invocation.method(
             #resolvePath,
             [path],
           ),
         ),
-        returnValueForMissingStub: _i13.dummyValue<String>(
+        returnValueForMissingStub: _i14.dummyValue<String>(
           this,
           Invocation.method(
             #resolvePath,

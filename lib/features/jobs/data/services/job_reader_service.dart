@@ -7,7 +7,8 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
-// import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Unused
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Now actively used
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'; // Add import for JobApiDTO
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -97,13 +98,37 @@ class JobReaderService {
 
       // 2. Fetch remote jobs (Source of Truth)
       _logger.d('$_tag Step 2: Fetching remote jobs from API...');
-      final List<Job> remoteJobs = await _remoteDataSource.fetchJobs();
-      _logger.d('$_tag Fetched ${remoteJobs.length} jobs from remote.');
+      final List<JobApiDTO> remoteDtos = await _remoteDataSource.fetchJobs();
+      _logger.d('$_tag Fetched ${remoteDtos.length} job DTOs from remote.');
+
+      // 3. Build server-to-local ID mapping
+      _logger.d('$_tag Step 3: Building server-to-local ID mapping...');
+      final Map<String, String> serverIdToLocalIdMap = {};
+
+      // First, populate map from local synced jobs
+      for (final localJob in localSyncedJobs) {
+        if (localJob.serverId != null && localJob.serverId!.isNotEmpty) {
+          serverIdToLocalIdMap[localJob.serverId!] = localJob.localId;
+          _logger.d(
+            '$_tag   Mapped server ID ${localJob.serverId} to local ID ${localJob.localId}',
+          );
+        }
+      }
+
+      // 4. Convert DTOs to Jobs using the mapping
+      _logger.d(
+        '$_tag Step 4: Converting ${remoteDtos.length} DTOs to Job entities with correct localIds...',
+      );
+      final List<Job> remoteJobs = JobMapper.fromApiDtoList(
+        remoteDtos,
+        serverIdToLocalIdMap: serverIdToLocalIdMap,
+      );
+
       if (remoteJobs.isNotEmpty && remoteJobs.length <= 10) {
         final ids = remoteJobs
             .map((j) => '(${j.localId} / ${j.serverId})')
             .join(', ');
-        _logger.d('$_tag   Remote Job IDs (local/server): $ids');
+        _logger.d('$_tag   Mapped Remote Job IDs (local/server): $ids');
       }
       // For large data sets, only log count to avoid log spam
       else if (remoteJobs.isNotEmpty) {
@@ -112,11 +137,11 @@ class JobReaderService {
         );
       }
 
-      // 3. Identify server-deleted jobs
-      _logger.d('$_tag Step 3: Identifying server-deleted jobs...');
+      // 5. Identify server-deleted jobs
+      _logger.d('$_tag Step 5: Identifying server-deleted jobs...');
       final List<Job> serverDeletedJobs = [];
       final Set<String?> remoteServerIds =
-          remoteJobs.map((j) => j.serverId).where((id) => id != null).toSet();
+          remoteDtos.map((dto) => dto.id).toSet();
 
       _logger.d('$_tag   Remote Server IDs Set: $remoteServerIds');
 
@@ -144,9 +169,9 @@ class JobReaderService {
         '$_tag Identified ${serverDeletedJobs.length} jobs deleted on server.',
       );
 
-      // 4. Permanently delete server-deleted jobs locally
+      // 6. Permanently delete server-deleted jobs locally
       _logger.d(
-        '$_tag Step 4: Deleting ${serverDeletedJobs.length} server-deleted jobs locally...',
+        '$_tag Step 6: Deleting ${serverDeletedJobs.length} server-deleted jobs locally...',
       );
       if (serverDeletedJobs.isNotEmpty) {
         int deletionSuccessCount = 0;
@@ -180,14 +205,22 @@ class JobReaderService {
         _logger.d('$_tag No server-side deletions needed processing.');
       }
 
-      // 5. Cache the fetched remote jobs locally
+      // 7. Cache the mapped remote jobs locally
       _logger.d(
-        '$_tag Step 5: Caching ${remoteJobs.length} fetched remote jobs locally...',
+        '$_tag Step 7: Caching ${remoteJobs.length} mapped remote jobs locally...',
       );
       int savedCount = 0;
       int saveFailedCount = 0;
       for (final remoteJob in remoteJobs) {
         try {
+          _logger.d(
+            '$_tag DEBUG: Inspecting remoteJob before saving to cache: ',
+          );
+          _logger.d('$_tag   - Local ID: ${remoteJob.localId}');
+          _logger.d('$_tag   - Server ID: ${remoteJob.serverId}');
+          _logger.d('$_tag   - Status: ${remoteJob.status}');
+          _logger.d('$_tag   - Sync Status: ${remoteJob.syncStatus}');
+
           await _localDataSource.saveJob(remoteJob);
           savedCount++;
         } on CacheException catch (e, stackTrace) {
@@ -203,9 +236,9 @@ class JobReaderService {
         '$_tag Finished caching remote jobs: $savedCount saved, $saveFailedCount failed.',
       );
 
-      // 6. Return the list fetched from the remote source
+      // 8. Return the list of mapped jobs from the remote source
       _logger.d(
-        '$_tag Step 6: Returning ${remoteJobs.length} remote jobs as result.',
+        '$_tag Step 8: Returning ${remoteJobs.length} mapped remote jobs as result.',
       );
       return Right(remoteJobs);
     } on ApiException catch (e, stackTrace) {

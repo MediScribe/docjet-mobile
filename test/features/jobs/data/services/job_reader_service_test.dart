@@ -10,6 +10,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dar
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'; // Add import for JobApiDTO
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -88,6 +89,32 @@ void main() {
   final tJobsListPendingOnly = [tJobPending];
   final tJobsListAll = [tJobSynced, tJobPending]; // Entities
 
+  // Create DTOs matching the Jobs
+  final tJobSyncedDto = JobApiDTO(
+    id: 'synced-server-id',
+    userId: 'test-user-id',
+    jobStatus: 'completed',
+    createdAt: DateTime(2023, 1, 1, 10, 0, 0),
+    updatedAt: DateTime(2023, 1, 1, 11, 0, 0),
+    displayTitle: 'Synced Job Title',
+    displayText: 'Synced display text',
+    text: 'Synced text',
+  );
+
+  final tJobPendingDto = JobApiDTO(
+    id: 'pending-server-id', // Note: for remote DTOs, even pending jobs would have IDs
+    userId: 'test-user-id',
+    jobStatus: 'created',
+    createdAt: DateTime(2023, 1, 2, 10, 0, 0),
+    updatedAt: DateTime(2023, 1, 2, 11, 0, 0),
+    displayTitle: 'Pending Job Title',
+    displayText: 'Pending display text',
+    text: 'Pending text',
+  );
+
+  final tJobsDtoListSyncedOnly = [tJobSyncedDto];
+  final tJobsDtoListPendingOnly = [tJobPendingDto];
+
   // Helper function for verifying no more interactions
   void verifyNoMoreInteractionsAll() {
     verifyNoMoreInteractions(mockLocalDataSource);
@@ -126,7 +153,7 @@ void main() {
       });
 
       test(
-        'should return remote jobs, save them locally, and not delete when online and local synced is empty',
+        'should return mapped jobs, save them locally, and not delete when online and local synced is empty',
         () async {
           // Arrange
           when(
@@ -139,7 +166,8 @@ void main() {
             (_) async => [], // Local synced is empty
           );
           when(mockRemoteDataSource.fetchJobs()).thenAnswer(
-            (_) async => tJobsListSyncedOnly, // Remote returns one synced job
+            (_) async =>
+                tJobsDtoListSyncedOnly, // Remote returns one synced DTO
           );
 
           // Act
@@ -147,34 +175,37 @@ void main() {
 
           // Assert
           expect(result, isA<Right<Failure, List<Job>>>());
-          expect(
-            result.getOrElse(() => []),
-            tJobsListSyncedOnly,
-          ); // Expect remote data
+          // We expect jobs that match our test Jobs, but the localIds might be different
+          // since they were generated in the mapper. So we just check the serverId.
+          final resultJobs = result.getOrElse(() => []);
+          expect(resultJobs.length, 1);
+          expect(resultJobs[0].serverId, tJobSynced.serverId);
+
           verify(mockNetworkInfo.isConnected).called(1);
           // Verify getJobsByStatus was checked for synced jobs
           verify(
             mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
           ).called(1);
           verify(mockRemoteDataSource.fetchJobs()).called(1); // Fetched remote
-          // Verify saveJob was called correctly for the fetched job
-          verify(mockLocalDataSource.saveJob(tJobSynced)).called(1);
+          // Verify saveJob was called - note that the exact Job object can't be verified
+          // since it may have a generated localId
+          verify(mockLocalDataSource.saveJob(any)).called(1);
           verifyZeroInteractions(mockDeleterService); // No deletions expected
           verifyNoMoreInteractionsAll();
         },
       );
 
       test(
-        'should return remote jobs, save them locally, detect server deletions, trigger local deletion, and return remote jobs when online',
+        'should detect server deletions, trigger local deletion, and return mapped jobs when online',
         () async {
           // Arrange
           when(
             mockNetworkInfo.isConnected,
           ).thenAnswer((_) async => true); // ONLINE
-          // 1. Remote source returns ONLY the pending job (synced one was deleted on server)
+          // 1. Remote source returns ONLY the pending job DTO (synced one was deleted on server)
           when(
             mockRemoteDataSource.fetchJobs(),
-          ).thenAnswer((_) async => tJobsListPendingOnly);
+          ).thenAnswer((_) async => tJobsDtoListPendingOnly);
           // 2. Local source returns the synced job when asked for synced jobs
           when(
             mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
@@ -186,9 +217,12 @@ void main() {
           final result = await service.getJobs();
 
           // Assert
-          // 1. Result should be the list from the remote source (pending only)
-          expect(result, isA<Right<Failure, List<Job>>>());
-          expect(result.getOrElse(() => []), tJobsListPendingOnly);
+          // 1. We expect jobs that match our test Jobs for pending, but the localIds might be different
+          // since they were generated in the mapper. So we just check length and serverId.
+          final resultJobs = result.getOrElse(() => []);
+          expect(resultJobs.length, 1);
+          expect(resultJobs[0].serverId, tJobPendingDto.id);
+
           // 2. Verify interactions
           verify(mockNetworkInfo.isConnected).called(1);
           // Verify getJobsByStatus was checked for synced jobs
@@ -196,16 +230,12 @@ void main() {
             mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
           ).called(1);
           verify(mockRemoteDataSource.fetchJobs()).called(1); // Fetch remote
-          // 3. Verify saveJob was called for the remotely fetched data (pending job)
-          verify(mockLocalDataSource.saveJob(tJobPending)).called(1);
+          // 3. Verify saveJob was called - can't verify exact Job
+          verify(mockLocalDataSource.saveJob(any)).called(1);
           // 4. Crucially, verify the deleter service was called for the synced job
           verify(
             mockDeleterService.permanentlyDeleteJob(tJobSynced.localId),
           ).called(1);
-          // 5. Ensure deleter was NOT called for the pending job (it was in the remote list)
-          verifyNever(
-            mockDeleterService.permanentlyDeleteJob(tJobPending.localId),
-          );
           verifyNoMoreInteractionsAll();
         },
       );

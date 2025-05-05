@@ -1,26 +1,20 @@
 import 'dart:io';
 
 import 'package:docjet_mobile/core/error/exceptions.dart';
-// import 'package:docjet_mobile/core/interfaces/network_info.dart'; // UNUSED
-// import 'package:docjet_mobile/core/platform/file_system.dart'; // UNUSED
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-// import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // UNUSED
-// import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-// import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'; // UNUSED
 import 'package:flutter_test/flutter_test.dart';
-// import 'package:get_it/get_it.dart'; // REMOVE GetIt
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
-import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 
+import 'e2e_dependency_container.dart';
 // Import the setup helpers and container
 import 'e2e_setup_helpers.dart';
-import 'e2e_dependency_container.dart';
 // Import the generated mocks FROM the helper file
 import 'e2e_setup_helpers.mocks.dart';
 

@@ -18,7 +18,7 @@ This document serves as the central index for the project documentation.
 *   [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
 *   [UI Theming System](./feature-ui-theming.md)
 *   [Offline Detection System](./feature-offline-detection.md)
-*   [General Notification System](./todos/feature-general-notifier.md)
+*   [General Notification System](./todo/feature-general-notifier.md)
 
 ### Feature Deep Dive: Authentication
 *   [Authentication Architecture](./feature-auth-architecture.md)
@@ -41,8 +41,8 @@ This document serves as the central index for the project documentation.
 *   [Explicit DI Revisited](./refactoring/explicit-di-revisited_done.md)
 
 ### TODOs
-*   [iOS Password AutoFill Setup](./todos/ios-autofill-setup-todo.md)
-*   [Offline Authentication Caching](./todos/offline_auth_caching.md)
+*   [iOS Password AutoFill Setup](./todo/ios-autofill-setup-todo.md)
+*   [Offline Authentication Caching](./todo/offline_auth_caching.md)
 
 ### Research
 *   [Sync Frameworks](./research/sync_framworks.md)
@@ -81,7 +81,7 @@ This document serves as the central index for the project documentation.
 #### [Offline Detection System](./feature-offline-detection.md)
 *   **Description**: Details the system for detecting network connectivity changes, integrating with the authentication state (`AuthNotifier`), and propagating `OfflineDetected` / `OnlineRestored` events via the `AuthEventBus` for components like the Job sync service to react accordingly.
 
-#### [General Notification System](./todos/feature-general-notifier.md)
+#### [General Notification System](./todo/feature-general-notifier.md)
 *   **Description**: Details the flexible, application-wide notification system for displaying transient messages (info, success, warning, error) triggered from anywhere in the app. Documents the `AppMessage` data model, `AppNotifierService` for state management, and `ConfigurableTransientBanner` UI component with semantic-color styling and accessibility support.
 
 ### Feature Deep Dive: Authentication
@@ -106,10 +106,10 @@ This document serves as the central index for the project documentation.
 *   **Description**: Describes the UI Playground system, a centralized hub providing access to multiple sandboxed environments for rapidly iterating on UI components with mock data, separate from the main application flow. Currently includes job list and notification system playgrounds.
 
 ### TODOs
-#### [iOS Password AutoFill Setup](./todos/ios-autofill-setup-todo.md)
+#### [iOS Password AutoFill Setup](./todo/ios-autofill-setup-todo.md)
 *   **Description**: Detailed guide for configuring iOS Password AutoFill functionality, including Associated Domains setup, Apple Developer Portal configuration, and required server-side implementation of the apple-app-site-association file.
 
-#### [Offline Authentication Caching](./todos/offline_auth_caching.md)
+#### [Offline Authentication Caching](./todo/offline_auth_caching.md)
 *   **Description**: Details the implementation and usage of offline authentication caching in the DocJet platform.
 
 ### Refactoring Efforts (Completed)

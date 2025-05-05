@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_sou
 import 'package:docjet_mobile/core/utils/log_helpers.dart'; // Import logging helpers
 import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart'; // Import the mapper
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'; // Import JobApiDTO
 import 'package:dartz/dartz.dart'; // Import dartz for Unit
 
 // Type definition for the MultipartFile creator function. This allows injecting
@@ -335,7 +336,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
   }
 
   @override
-  Future<List<Job>> fetchJobs() async {
+  Future<List<JobApiDTO>> fetchJobs() async {
     const String endpoint = '/jobs';
     _logger.d('$_tag Fetching all jobs from $endpoint');
 
@@ -350,15 +351,16 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         );
         // API wraps the job list in a "data" key
         final List<dynamic> jobListJson = response.data['data'] as List;
-        // Map each item in the list using the helper method
-        final List<Job> jobs =
+        // Map each item to JobApiDTO instead of Job entity
+        final List<JobApiDTO> jobDtos =
             jobListJson
                 .map(
-                  (jobJson) => _mapJsonToJob(jobJson as Map<String, dynamic>),
+                  (jobJson) =>
+                      JobApiDTO.fromJson(jobJson as Map<String, dynamic>),
                 )
                 .toList();
-        _logger.d('$_tag Parsed ${jobs.length} jobs.');
-        return jobs;
+        _logger.d('$_tag Parsed ${jobDtos.length} job DTOs.');
+        return jobDtos;
       }
       // --- Error Case (Non-200) ---
       else {

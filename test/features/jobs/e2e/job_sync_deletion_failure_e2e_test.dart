@@ -9,6 +9,8 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 // import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'; // UNUSED
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
+import 'package:docjet_mobile/features/jobs/data/mappers/job_mapper.dart';
 // import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'; // UNUSED
 import 'package:flutter_test/flutter_test.dart';
 // import 'package:get_it/get_it.dart'; // REMOVE GetIt
@@ -145,9 +147,18 @@ void main() {
         // Also mock fetchJobs for the initial sync check
         when(mockRemoteDataSource.fetchJobs()).thenAnswer(
           (_) async => [
-            createdJob.copyWith(
-              serverId: mockServerId,
-              syncStatus: SyncStatus.synced,
+            JobApiDTO(
+              id: mockServerId,
+              userId: createdJob.userId,
+              jobStatus: JobMapper.jobStatusToString(createdJob.status),
+              createdAt: createdJob.createdAt,
+              updatedAt: createdJob.updatedAt,
+              displayTitle: createdJob.displayTitle,
+              displayText: createdJob.displayText,
+              text: createdJob.text,
+              additionalText: createdJob.additionalText,
+              errorCode: createdJob.errorCode,
+              errorMessage: createdJob.errorMessage,
             ),
           ],
         );
