@@ -150,14 +150,43 @@ class JobRepositoryImpl implements JobRepository {
 
   @override
   Future<Either<Failure, Unit>> syncPendingJobs() {
-    _logger.d('Delegating syncPendingJobs to JobSyncOrchestratorService');
+    _logger.d('$_tag Delegating syncPendingJobs to JobSyncOrchestratorService');
     return _orchestratorService.syncPendingJobs();
+  }
+
+  @override
+  Future<Either<Failure, Unit>> reconcileJobsWithServer() async {
+    _logger.d(
+      '$_tag Reconciling jobs with server via JobReaderService.getJobs()',
+    );
+    try {
+      final result = await _readerService.getJobs();
+      return result.fold(
+        (failure) {
+          _logger.w('$_tag Failed to reconcile jobs with server: $failure');
+          return Left(failure);
+        },
+        (_) {
+          _logger.i('$_tag Successfully reconciled jobs with server');
+          return const Right(unit);
+        },
+      );
+    } catch (e, s) {
+      _logger.e(
+        '$_tag Exception during jobs reconciliation: $e',
+        error: e,
+        stackTrace: s,
+      );
+      return Left(
+        UnknownFailure('Unexpected error during jobs reconciliation: $e'),
+      );
+    }
   }
 
   @override
   Future<Either<Failure, Unit>> resetFailedJob(String localId) {
     _logger.d(
-      'Delegating resetFailedJob for localId: $localId to JobSyncOrchestratorService',
+      '$_tag Delegating resetFailedJob for localId: $localId to JobSyncOrchestratorService',
     );
     // Delegate directly to the orchestrator service's method
     return _orchestratorService.resetFailedJob(localId: localId);

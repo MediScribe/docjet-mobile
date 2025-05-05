@@ -655,11 +655,15 @@ This separation of concerns allows for:
 ### Sync Process Details
 
 1. **Triggering:** 
-   - The `JobSyncTriggerService` calls `JobRepository.syncPendingJobs()` every 15 seconds
+   - The `JobSyncTriggerService` performs a dual-operation sync cycle every 15 seconds:
+     * PUSH: Calls `JobRepository.syncPendingJobs()` to push local changes to the server
+     * PULL: Calls `JobRepository.reconcileJobsWithServer()` to detect server-side deletions
+   - Both operations occur sequentially (push then pull) to ensure consistency
    - Triggers also occur on app foregrounding via lifecycle observer
+   - Mutex protection prevents overlapping sync cycles
    - Compatible with platform-specific background workers
 
-2. **Orchestration:** 
+2. **Push Orchestration:** 
    - `JobSyncOrchestratorService` gathers three types of jobs to process:
      * Jobs with `SyncStatus.pending` for creation/update
      * Jobs with `SyncStatus.pendingDeletion` for deletion
@@ -667,14 +671,22 @@ This separation of concerns allows for:
    - For each job, it calls the appropriate processor method
    - Handles concurrency with mutex to prevent parallel sync attempts
 
-3. **Retry Eligibility:**
+3. **Pull Reconciliation:**
+   - When fetching jobs from the server via `JobReaderService.getJobs()`:
+     * Repository gets full list of jobs from API
+     * Compares with local jobs that have `syncStatus.synced` (ignoring pending ones)
+     * Any jobs previously synced but missing from API response are considered deleted by server
+     * These jobs are immediately deleted locally (including associated audio files)
+     * This ensures the local database doesn't contain "ghost" jobs deleted on the server
+
+4. **Retry Eligibility:**
    - Jobs are eligible for retry when:
      * `syncStatus == SyncStatus.error`
      * `retryCount < MAX_RETRY_ATTEMPTS` (default: 5)
      * Time since last attempt follows exponential backoff: `now - (baseBackoff * 2^retryCount)`
    - The `JobLocalDataSource` implements the logic for finding retry-eligible jobs
 
-4. **Processing:**
+5. **Processing:**
    - `JobSyncProcessorService` handles each job based on its status:
    - **New Job Flow** (`serverId == null`, `SyncStatus.pending`):
      * Creates job on server with client-generated `localId`
@@ -689,7 +701,7 @@ This separation of concerns allows for:
      * Permanently deletes local job on success
      * Deletes associated audio file
 
-5. **Error Handling:**
+6. **Error Handling:**
    - If an API call fails (e.g., `createJob`, `updateJob`, `deleteJob`), the `JobSyncProcessorService` catches the exception.
    - It calls `_handleSyncError` which updates the job's local state:
      - Increments `retryCount`.
@@ -706,7 +718,7 @@ This separation of concerns allows for:
      - A job is only considered for retry if the current time is after its `lastSyncAttemptAt` plus the calculated backoff duration.
    - The overall sync process continues with other jobs even if one fails.
 
-6. **Manual Reset:**
+7. **Manual Reset:**
    - Jobs with `SyncStatus.failed` require manual intervention
    - UI displays failed jobs with a retry option
    - `resetFailedJob(localId)` in the `JobSyncOrchestratorService`:
@@ -716,11 +728,13 @@ This separation of concerns allows for:
 
 ### Server-Side Deletion Handling
 
-When fetching jobs from the server:
-1. Repository gets full list of jobs from API
-2. Compares with local jobs that have `syncStatus.synced` (ignoring pending ones)
-3. Any jobs previously synced but missing from API response are considered deleted by server
-4. These jobs are immediately deleted locally (including associated audio files)
+Server-side deletion detection occurs during the pull phase of the sync cycle:
+
+1. `JobSyncTriggerService` calls `JobRepository.reconcileJobsWithServer()` (which delegates to `JobReaderService.getJobs()`)
+2. Repository gets full list of jobs from API
+3. Compares with local jobs that have `syncStatus.synced` (ignoring pending ones)
+4. Any jobs previously synced but missing from API response are considered deleted by server
+5. These jobs are immediately deleted locally (including associated audio files)
 
 > **IMPORTANT:** Jobs with `SyncStatus.pending`, `SyncStatus.pendingDeletion`, `SyncStatus.error`, or `SyncStatus.failed` are intentionally ignored during this check to prevent accidental deletion of jobs that have not yet successfully synced to the server.
 

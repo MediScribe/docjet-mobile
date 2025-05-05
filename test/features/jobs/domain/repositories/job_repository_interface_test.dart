@@ -75,6 +75,10 @@ class _TestJobRepository implements JobRepository {
   Future<Either<Failure, Unit>> syncPendingJobs() async => const Right(unit);
 
   @override
+  Future<Either<Failure, Unit>> reconcileJobsWithServer() async =>
+      const Right(unit);
+
+  @override
   Future<Either<Failure, Job>> updateJob({
     required String localId,
     required updates,

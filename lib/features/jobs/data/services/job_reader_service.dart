@@ -17,7 +17,7 @@ class JobReaderService {
   final JobRemoteDataSource _remoteDataSource;
   final JobDeleterService _deleterService;
   final NetworkInfo _networkInfo;
-  final Logger _logger = Logger();
+  final Logger _logger = LoggerFactory.getLogger(JobReaderService);
 
   static final String _tag = logTag(JobReaderService);
 
@@ -40,10 +40,13 @@ class JobReaderService {
         // Fetch using the entity-based method if available, fallback to hive models
         // Assuming getJobs() is the preferred method now.
         final localJobs = await _localDataSource.getJobs();
+        _logger.d('$_tag Returning ${localJobs.length} local jobs (offline).');
         return Right(localJobs);
-      } on CacheException catch (e) {
+      } on CacheException catch (e, stackTrace) {
         _logger.w(
           '$_tag CacheException fetching local jobs while offline: ${e.message}',
+          error: e,
+          stackTrace: stackTrace,
         );
         return Left(
           CacheFailure(e.message ?? 'Failed to get local jobs while offline'),
@@ -57,20 +60,27 @@ class JobReaderService {
     );
     try {
       // 1. Get LOCAL jobs that are marked as SYNCED (candidates for server deletion)
+      _logger.d('$_tag Step 1: Fetching local jobs with SyncStatus.synced...');
       List<Job> localSyncedJobs;
       try {
         localSyncedJobs = await _localDataSource.getJobsByStatus(
           SyncStatus.synced,
         );
         _logger.d(
-          '$_tag Found ${localSyncedJobs.length} local jobs marked as synced using getJobsByStatus.',
+          '$_tag Found ${localSyncedJobs.length} local jobs marked as synced:',
         );
-      } on CacheException catch (e) {
-        // If we can't get local synced jobs, we cannot reliably proceed with online sync/deletion check.
+        if (localSyncedJobs.isNotEmpty) {
+          final ids = localSyncedJobs
+              .map((j) => '(${j.localId} / ${j.serverId})')
+              .join(', ');
+          _logger.d('$_tag   Local Synced Job IDs (local/server): $ids');
+        }
+      } on CacheException catch (e, stackTrace) {
         _logger.w(
           '$_tag CacheException fetching synced local jobs: ${e.message}. Aborting online sync.',
+          error: e,
+          stackTrace: stackTrace,
         );
-        // FIX: Return CacheFailure immediately if this critical step fails.
         return Left(
           CacheFailure(
             e.message ?? 'Failed to fetch local synced jobs for deletion check',
@@ -79,76 +89,124 @@ class JobReaderService {
       }
 
       // 2. Fetch remote jobs (Source of Truth)
-      final remoteJobs = await _remoteDataSource.fetchJobs();
+      _logger.d('$_tag Step 2: Fetching remote jobs from API...');
+      final List<Job> remoteJobs = await _remoteDataSource.fetchJobs();
       _logger.d('$_tag Fetched ${remoteJobs.length} jobs from remote.');
-
-      // 3. Identify server-deleted jobs (only if localSyncedJobs were fetched)
-      final List<Job> serverDeletedJobs = [];
-      if (localSyncedJobs.isNotEmpty) {
-        final remoteServerIds =
-            remoteJobs.map((j) => j.serverId).where((id) => id != null).toSet();
-        for (final localJob in localSyncedJobs) {
-          if (localJob.serverId != null &&
-              !remoteServerIds.contains(localJob.serverId)) {
-            serverDeletedJobs.add(localJob);
-          }
-        }
+      if (remoteJobs.isNotEmpty) {
+        final ids = remoteJobs
+            .map((j) => '(${j.localId} / ${j.serverId})')
+            .join(', ');
+        _logger.d('$_tag   Remote Job IDs (local/server): $ids');
       }
 
-      // 4. Permanently delete server-deleted jobs locally
-      if (serverDeletedJobs.isNotEmpty) {
-        _logger.i(
-          '$_tag Found ${serverDeletedJobs.length} jobs deleted on server. Removing locally...',
-        );
-        for (final jobToDelete in serverDeletedJobs) {
+      // 3. Identify server-deleted jobs
+      _logger.d('$_tag Step 3: Identifying server-deleted jobs...');
+      final List<Job> serverDeletedJobs = [];
+      final Set<String?> remoteServerIds =
+          remoteJobs.map((j) => j.serverId).where((id) => id != null).toSet();
+
+      _logger.d('$_tag   Remote Server IDs Set: $remoteServerIds');
+
+      if (localSyncedJobs.isNotEmpty) {
+        for (final localJob in localSyncedJobs) {
           _logger.d(
+            '$_tag   Checking local synced job: ${localJob.localId} (Server ID: ${localJob.serverId})',
+          );
+          if (localJob.serverId != null &&
+              !remoteServerIds.contains(localJob.serverId)) {
+            _logger.i(
+              '$_tag Detected server-deleted job: ${localJob.localId} (Server ID: ${localJob.serverId})',
+            );
+            serverDeletedJobs.add(localJob);
+          } else {
+            _logger.d(
+              '$_tag   Job ${localJob.localId} (Server ID: ${localJob.serverId}) is present on server or has no serverId.',
+            );
+          }
+        }
+      } else {
+        _logger.d('$_tag No local synced jobs found to check for deletions.');
+      }
+      _logger.d(
+        '$_tag Identified ${serverDeletedJobs.length} jobs deleted on server.',
+      );
+
+      // 4. Permanently delete server-deleted jobs locally
+      _logger.d(
+        '$_tag Step 4: Deleting ${serverDeletedJobs.length} server-deleted jobs locally...',
+      );
+      if (serverDeletedJobs.isNotEmpty) {
+        int deletionSuccessCount = 0;
+        int deletionFailureCount = 0;
+        for (final jobToDelete in serverDeletedJobs) {
+          _logger.i(
             '$_tag Triggering permanent local deletion for job ${jobToDelete.localId} (Server ID: ${jobToDelete.serverId})',
           );
           final deleteResult = await _deleterService.permanentlyDeleteJob(
             jobToDelete.localId,
           );
           deleteResult.fold(
-            (failure) => _logger.e(
-              '$_tag Failed to locally delete server-deleted job ${jobToDelete.localId}: $failure',
-            ),
-            (_) => _logger.i(
-              '$_tag Successfully locally deleted server-deleted job ${jobToDelete.localId}.',
-            ),
+            (failure) {
+              deletionFailureCount++;
+              _logger.e(
+                '$_tag Failed to locally delete server-deleted job ${jobToDelete.localId}: $failure',
+              );
+            },
+            (_) {
+              deletionSuccessCount++;
+              _logger.i(
+                '$_tag Successfully locally deleted server-deleted job ${jobToDelete.localId}.',
+              );
+            },
           );
         }
+        _logger.d(
+          '$_tag Deletion attempts complete: $deletionSuccessCount succeeded, $deletionFailureCount failed.',
+        );
       } else {
-        _logger.d('$_tag No server-side deletions detected.');
+        _logger.d('$_tag No server-side deletions needed processing.');
       }
 
       // 5. Cache the fetched remote jobs locally
       _logger.d(
-        '$_tag Caching ${remoteJobs.length} fetched remote jobs locally...',
+        '$_tag Step 5: Caching ${remoteJobs.length} fetched remote jobs locally...',
       );
       int savedCount = 0;
+      int saveFailedCount = 0;
       for (final remoteJob in remoteJobs) {
         try {
           await _localDataSource.saveJob(remoteJob);
           savedCount++;
-        } on CacheException catch (e) {
+        } on CacheException catch (e, stackTrace) {
+          saveFailedCount++;
           _logger.w(
-            '$_tag CacheException saving job ${remoteJob.localId} to local cache: ${e.message}. Skipping this job.',
+            '$_tag CacheException saving job ${remoteJob.localId} (Server ID: ${remoteJob.serverId}) to local cache: ${e.message}. Skipping this job.',
+            error: e,
+            stackTrace: stackTrace,
           );
         }
       }
       _logger.d(
-        '$_tag Successfully cached $savedCount out of ${remoteJobs.length} remote jobs.',
+        '$_tag Finished caching remote jobs: $savedCount saved, $saveFailedCount failed.',
       );
 
       // 6. Return the list fetched from the remote source
-      _logger.d('$_tag Returning ${remoteJobs.length} remote jobs as result.');
+      _logger.d(
+        '$_tag Step 6: Returning ${remoteJobs.length} remote jobs as result.',
+      );
       return Right(remoteJobs);
-    } on ApiException catch (e) {
-      _logger.e('$_tag API Exception fetching remote jobs: $e');
-      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
-    } catch (e, stacktrace) {
-      // Catch-all for other unexpected errors during the online path
+    } on ApiException catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error in getJobs (Online Path): $e\n$stacktrace',
+        '$_tag API Exception fetching remote jobs: ${e.message} (Status: ${e.statusCode})',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Unexpected error in getJobs (Online Path)',
+        error: e,
+        stackTrace: stackTrace,
       );
       return Left(UnknownFailure('Unexpected error getting jobs: $e'));
     }
@@ -159,18 +217,25 @@ class JobReaderService {
     try {
       // Use the entity-based method
       final job = await _localDataSource.getJobById(localId);
+      _logger.d('$_tag   Found job locally: ${job.localId}');
       return Right(job);
-    } on CacheException catch (e) {
+    } on CacheException catch (e, stackTrace) {
       // CacheException from getJobById likely means not found or DB error
-      _logger.w('$_tag CacheException getting job $localId: ${e.message}');
+      _logger.w(
+        '$_tag CacheException getting job $localId: ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return Left(
         CacheFailure(
           e.message ?? 'Job with ID $localId not found or cache error',
         ),
       );
-    } catch (e, stacktrace) {
+    } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error in getJobById($localId): $e\n$stacktrace',
+        '$_tag Unexpected error in getJobById($localId)',
+        error: e,
+        stackTrace: stackTrace,
       );
       return Left(UnknownFailure('Unexpected error getting job by ID: $e'));
     }
@@ -181,15 +246,20 @@ class JobReaderService {
     try {
       // Use the entity-based method directly
       final filteredJobs = await _localDataSource.getJobsByStatus(status);
+      _logger.d('$_tag Found ${filteredJobs.length} jobs with status $status');
       return Right(filteredJobs);
-    } on CacheException catch (e) {
+    } on CacheException catch (e, stackTrace) {
       _logger.w(
         '$_tag CacheException getting jobs by status $status: ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
       );
       return Left(CacheFailure(e.message ?? 'Failed to get jobs by status'));
-    } catch (e, stacktrace) {
+    } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error in getJobsByStatus($status): $e\n$stacktrace',
+        '$_tag Unexpected error in getJobsByStatus($status)',
+        error: e,
+        stackTrace: stackTrace,
       );
       return Left(
         UnknownFailure('Unexpected error getting jobs by status: $e'),
@@ -203,12 +273,28 @@ class JobReaderService {
   Stream<Either<Failure, List<Job>>> watchJobs() {
     _logger.d('$_tag Delegating watchJobs to local data source...');
     try {
-      return _localDataSource.watchJobs();
-    } catch (e, stacktrace) {
+      return _localDataSource
+          .watchJobs()
+          .map((result) {
+            _logger.d('$_tag watchJobs emitting new list...');
+            return result;
+          })
+          .handleError((e, stackTrace) {
+            _logger.e(
+              '$_tag Error within watchJobs stream:',
+              error: e,
+              stackTrace: stackTrace,
+            );
+            return Left<Failure, List<Job>>(
+              CacheFailure('Error in job stream: ${e.toString()}'),
+            );
+          });
+    } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error initiating watchJobs stream: $e\n$stacktrace',
+        '$_tag Unexpected error initiating watchJobs stream',
+        error: e,
+        stackTrace: stackTrace,
       );
-      // Return a stream that emits a single error
       return Stream.value(
         Left(CacheFailure('Failed to start watching jobs: ${e.toString()}')),
       );
@@ -221,12 +307,28 @@ class JobReaderService {
       '$_tag Delegating watchJobById($localId) to local data source...',
     );
     try {
-      return _localDataSource.watchJobById(localId);
-    } catch (e, stacktrace) {
+      return _localDataSource
+          .watchJobById(localId)
+          .map((result) {
+            _logger.d('$_tag watchJobById($localId) emitting new value...');
+            return result;
+          })
+          .handleError((e, stackTrace) {
+            _logger.e(
+              '$_tag Error within watchJobById($localId) stream:',
+              error: e,
+              stackTrace: stackTrace,
+            );
+            return Left<Failure, Job?>(
+              CacheFailure('Error in job stream for $localId: ${e.toString()}'),
+            );
+          });
+    } catch (e, stackTrace) {
       _logger.e(
-        '$_tag Unexpected error initiating watchJobById($localId) stream: $e\n$stacktrace',
+        '$_tag Unexpected error initiating watchJobById($localId) stream',
+        error: e,
+        stackTrace: stackTrace,
       );
-      // Return a stream that emits a single error
       return Stream.value(
         Left(
           CacheFailure(

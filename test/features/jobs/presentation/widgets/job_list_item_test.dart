@@ -13,11 +13,16 @@ void main() {
   Widget createTestWidget({
     required JobViewModel jobViewModel,
     bool isOffline = false,
+    ValueChanged<JobViewModel>? onTapJob,
   }) {
     return MaterialApp(
       theme: createLightTheme(),
       home: Scaffold(
-        body: JobListItem(job: jobViewModel, isOffline: isOffline),
+        body: JobListItem(
+          job: jobViewModel,
+          isOffline: isOffline,
+          onTapJob: onTapJob,
+        ),
       ),
     );
   }
@@ -187,6 +192,46 @@ void main() {
         listTile.onTap,
         isNull,
         reason: 'onTap should be null when offline',
+      );
+    });
+
+    testWidgets('calls onTapJob when item is tapped', (
+      WidgetTester tester,
+    ) async {
+      // Arrange: Create job and callback
+      bool callbackCalled = false;
+      JobViewModel? callbackJob;
+
+      final jobViewModel = JobViewModel(
+        localId: 'callback-test-job',
+        title: 'Callback Test',
+        text: 'This job tests the callback',
+        syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.submitted,
+        hasFileIssue: false,
+        displayDate: DateTime.now(),
+      );
+
+      // Callback function that tracks being called
+      void onTapCallback(JobViewModel job) {
+        callbackCalled = true;
+        callbackJob = job;
+      }
+
+      // Act: Pump widget with callback and tap it
+      await tester.pumpWidget(
+        createTestWidget(jobViewModel: jobViewModel, onTapJob: onTapCallback),
+      );
+
+      await tester.tap(find.byType(ListTile));
+      await tester.pump();
+
+      // Assert: Callback should be called with the job
+      expect(callbackCalled, isTrue, reason: 'Callback should be called');
+      expect(
+        callbackJob?.localId,
+        equals('callback-test-job'),
+        reason: 'Callback should receive the job',
       );
     });
   });

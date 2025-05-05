@@ -189,7 +189,7 @@ graph TD
         RepoImpl --> WriterSvc
         RepoImpl --> DeleterSvc
         RepoImpl --> SyncOrch
-        SyncTrigger --> SyncOrch
+        SyncTrigger -->|"Push: syncPendingJobs()<br>Pull: reconcileJobsWithServer()"| RepoImpl
         SyncOrch --> SyncProc
         ReaderSvc --> LocalDS
         WriterSvc --> LocalDS

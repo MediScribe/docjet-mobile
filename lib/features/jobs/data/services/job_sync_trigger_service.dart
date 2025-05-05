@@ -3,6 +3,7 @@ import 'dart:async'; // Import async for Timer
 import 'package:flutter/material.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:mutex/mutex.dart';
 
 // Define a type alias for the timer factory at the top level
 typedef TimerFactory =
@@ -12,10 +13,15 @@ typedef TimerFactory =
 ///
 /// Listens to app lifecycle changes and uses a timer to periodically
 /// trigger the synchronization of pending jobs via the [JobRepository].
+///
+/// The sync process consists of two sequential steps:
+/// 1. Push local pending changes to the server (syncPendingJobs)
+/// 2. Pull server state to detect server-side deletions (reconcileJobsWithServer)
 class JobSyncTriggerService with WidgetsBindingObserver {
   final JobRepository _jobRepository;
   final Duration _syncInterval;
   final TimerFactory _timerFactory;
+  final Mutex _triggerMutex = Mutex(); // Mutex to prevent overlapping syncs
   Timer? _timer;
   bool _isInitialized = false; // Flag to prevent double initialization
 
@@ -68,12 +74,52 @@ class JobSyncTriggerService with WidgetsBindingObserver {
   }
 
   /// Triggers the synchronization process.
+  ///
+  /// This performs both push and pull operations in sequence:
+  /// 1. Push local pending changes via syncPendingJobs()
+  /// 2. Pull and reconcile server state via reconcileJobsWithServer()
+  ///
+  /// The mutex ensures that only one sync process runs at a time,
+  /// preventing race conditions between timer and lifecycle triggers.
   Future<void> _triggerSync() async {
-    _logger.d('$_tag Triggering sync via repository.');
+    // Use mutex to prevent overlapping executions
+    await _triggerMutex.acquire();
+
     try {
-      await _jobRepository.syncPendingJobs();
+      // Step 1: Push local pending changes
+      await _executePushSync();
+
+      // Step 2: Pull and reconcile with server state
+      await _executePullSync();
     } catch (e, s) {
       _logger.e('$_tag Error during sync trigger: $e', error: e, stackTrace: s);
+    } finally {
+      _triggerMutex.release();
+    }
+  }
+
+  /// Executes the push synchronization (local changes → server)
+  Future<void> _executePushSync() async {
+    _logger.d('$_tag Triggering push sync via repository.');
+    try {
+      await _jobRepository.syncPendingJobs();
+      _logger.d('$_tag Sync-Push OK');
+    } catch (e, s) {
+      _logger.e('$_tag Sync-Push FAILURE: $e', error: e, stackTrace: s);
+    }
+  }
+
+  /// Executes the pull synchronization and reconciliation (server → local)
+  Future<void> _executePullSync() async {
+    _logger.d('$_tag Triggering pull/reconcile via repository.');
+    try {
+      final result = await _jobRepository.reconcileJobsWithServer();
+      result.fold(
+        (failure) => _logger.w('$_tag Sync-Pull FAILURE: $failure'),
+        (_) => _logger.d('$_tag Sync-Pull OK'),
+      );
+    } catch (e, s) {
+      _logger.e('$_tag Sync-Pull FAILURE: $e', error: e, stackTrace: s);
     }
   }
 

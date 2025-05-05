@@ -82,6 +82,16 @@ abstract class JobRepository {
   /// Returns [Left(Failure)] if a critical error occurs (e.g., network failure before starting).
   Future<Either<Failure, Unit>> syncPendingJobs();
 
+  /// Reconciles the local job cache with the server to detect server-side deletions.
+  ///
+  /// This operation triggers a full fetch from the server via [JobReaderService.getJobs],
+  /// which compares the server list with local synced records and removes any local
+  /// records that no longer exist on the server.
+  ///
+  /// Returns [Right(unit)] when the reconciliation process completes successfully.
+  /// Returns [Left(Failure)] if an error occurs during server fetch or local update.
+  Future<Either<Failure, Unit>> reconcileJobsWithServer();
+
   /// Resets a job stuck in the SyncStatus.failed state back to SyncStatus.pending.
   /// Returns [Right(unit)] on success, [Left(Failure)] otherwise.
   Future<Either<Failure, Unit>> resetFailedJob(String localId);

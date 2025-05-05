@@ -68,6 +68,11 @@ void main() {
       mockJobRepository.syncPendingJobs(),
     ).thenAnswer((_) async => const Right(unit));
 
+    // NEW: Mock the reconcileJobsWithServer method
+    when(
+      mockJobRepository.reconcileJobsWithServer(),
+    ).thenAnswer((_) async => const Right(unit));
+
     // Default stub for mock timer
     when(mockTimer.cancel()).thenReturn(null);
     when(mockTimer.isActive).thenReturn(false);
@@ -105,24 +110,30 @@ void main() {
       );
     });
 
-    test('didChangeAppLifecycleState should trigger sync on resumed', () async {
-      // Arrange
-      service.init();
-      LoggerFactory.clearLogs();
+    test(
+      'didChangeAppLifecycleState should trigger both sync methods on resumed',
+      () async {
+        // Arrange
+        service.init();
+        LoggerFactory.clearLogs();
 
-      // Act
-      service.didChangeAppLifecycleState(AppLifecycleState.resumed);
-      await Future.delayed(Duration.zero); // Allow async operations to complete
+        // Act
+        service.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        await Future.delayed(
+          Duration.zero,
+        ); // Allow async operations to complete
 
-      // Assert
-      verify(mockJobRepository.syncPendingJobs()).called(1);
-      expect(
-        LoggerFactory.containsLog(
-          'App resumed. Triggering sync and starting timer',
-        ),
-        isTrue,
-      );
-    });
+        // Assert
+        verify(mockJobRepository.syncPendingJobs()).called(1);
+        verify(mockJobRepository.reconcileJobsWithServer()).called(1);
+        expect(
+          LoggerFactory.containsLog(
+            'App resumed. Triggering sync and starting timer',
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('didChangeAppLifecycleState should stop timer on paused', () {
       // Arrange
@@ -226,7 +237,7 @@ void main() {
       verifyNever(mockTimer.cancel());
     });
 
-    test('timer callback should trigger sync', () async {
+    test('timer callback should trigger both sync methods', () async {
       // Arrange - Start timer and capture callback
       service.startTimer();
       LoggerFactory.clearLogs();
@@ -237,14 +248,15 @@ void main() {
 
       // Assert
       verify(mockJobRepository.syncPendingJobs()).called(1);
+      verify(mockJobRepository.reconcileJobsWithServer()).called(1);
       expect(LoggerFactory.containsLog('Timer fired. Triggering sync'), isTrue);
     });
 
-    test('timer callback should handle sync errors gracefully', () async {
+    test('timer callback should handle reconcile errors gracefully', () async {
       // Arrange
       when(
-        mockJobRepository.syncPendingJobs(),
-      ).thenAnswer((_) => Future.error(Exception('Test error')));
+        mockJobRepository.reconcileJobsWithServer(),
+      ).thenAnswer((_) => Future.error(Exception('Test reconcile error')));
       service.startTimer();
       LoggerFactory.clearLogs();
 
@@ -253,7 +265,7 @@ void main() {
       await Future.delayed(Duration.zero); // Allow async operations
 
       // Assert - Should log error but not crash
-      expect(LoggerFactory.containsLog('Error during sync trigger'), isTrue);
+      expect(LoggerFactory.containsLog('Sync-Pull FAILURE:'), isTrue);
     });
   });
 
