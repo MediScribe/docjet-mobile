@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
 /// Represents the data needed to display a job item in the UI.
@@ -8,6 +9,7 @@ class JobViewModel extends Equatable {
   final String title; // Derived: Short representation for list display
   final String text; // Full text, maybe for detail view?
   final SyncStatus syncStatus;
+  final JobStatus jobStatus;
   final bool hasFileIssue; // Derived: true if failedAudioDeletionAttempts > 0
   final DateTime displayDate; // What date/time to show (e.g., updatedAt)
 
@@ -16,6 +18,7 @@ class JobViewModel extends Equatable {
     required this.title, // Added
     required this.text,
     required this.syncStatus,
+    required this.jobStatus,
     required this.hasFileIssue,
     required this.displayDate,
   });
@@ -42,6 +45,7 @@ class JobViewModel extends Equatable {
     title, // Added
     text,
     syncStatus,
+    jobStatus,
     hasFileIssue,
     displayDate,
   ];

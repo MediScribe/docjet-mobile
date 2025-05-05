@@ -1,4 +1,5 @@
 import 'package:docjet_mobile/core/theme/app_theme.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
@@ -32,6 +33,7 @@ void main() {
         title: 'Test Job Title',
         text: 'Test job text',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: false,
         displayDate: testDate,
       );
@@ -67,6 +69,7 @@ void main() {
         title: 'Today Job',
         text: 'This job is from today',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: false,
         displayDate: now,
       );
@@ -91,6 +94,7 @@ void main() {
         title: 'File Issue Job',
         text: 'This job has a file issue',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: true,
         displayDate: DateTime(2023, 10, 26),
       );
@@ -115,6 +119,7 @@ void main() {
         title: 'Normal Job',
         text: 'This is a normal job',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: false,
         displayDate: DateTime(2023, 10, 26),
       );
@@ -141,6 +146,7 @@ void main() {
         title: 'Test Job',
         text: 'Test job text',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: false,
         displayDate: DateTime(2023, 10, 26),
       );
@@ -163,6 +169,7 @@ void main() {
         title: 'Test Job',
         text: 'Test job text',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: false,
         displayDate: DateTime(2023, 10, 26),
       );

@@ -1,4 +1,5 @@
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
@@ -62,12 +63,13 @@ void main() {
       WidgetTester tester,
     ) async {
       // Arrange: Create sample job view models
-      final viewModels = [
+      final List<JobViewModel> viewModels = [
         JobViewModel(
           localId: 'job1',
           title: 'Test Job 1',
           text: 'Sample job content',
           syncStatus: SyncStatus.synced,
+          jobStatus: JobStatus.completed,
           hasFileIssue: false,
           displayDate: DateTime(2023, 10, 26),
         ),

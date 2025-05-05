@@ -2,6 +2,7 @@ import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.da
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 // Import app_theme.dart for theme
 import 'package:flutter/material.dart';
 // Add Cupertino import
@@ -95,12 +96,13 @@ void main() {
       'renders ListView with job items when state is JobListLoaded with data',
       (WidgetTester tester) async {
         // Arrange: Create sample job view models
-        final viewModels = [
+        final List<JobViewModel> viewModels = [
           JobViewModel(
             localId: '11111111-aaaa-bbbb-cccc-dddddddddddd',
             title: 'Job 1 Title',
             text: 'Full text for Job 1',
             syncStatus: SyncStatus.synced,
+            jobStatus: JobStatus.completed,
             hasFileIssue: false,
             displayDate: DateTime(2023, 10, 26, 10, 0, 0),
           ),
@@ -109,6 +111,7 @@ void main() {
             title: 'Job 2 Title - Pending',
             text: 'Full text for Job 2',
             syncStatus: SyncStatus.pending,
+            jobStatus: JobStatus.submitted,
             hasFileIssue: true,
             displayDate: DateTime(2023, 10, 26, 11, 30, 0),
           ),

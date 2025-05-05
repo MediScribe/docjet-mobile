@@ -37,6 +37,7 @@ void main() {
         title: 'Test Job Text',
         text: 'Test Job Text',
         syncStatus: SyncStatus.synced,
+        jobStatus: JobStatus.completed,
         hasFileIssue: false, // 0 attempts means no issue
         displayDate:
             jobEntity
@@ -75,6 +76,7 @@ void main() {
           title: 'Another Job',
           text: 'Another Job',
           syncStatus: SyncStatus.synced,
+          jobStatus: jobEntity.status,
           hasFileIssue: true, // Should be true now
           displayDate: jobEntity.updatedAt,
         );

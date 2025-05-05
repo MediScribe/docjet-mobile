@@ -15,6 +15,7 @@ class JobViewModelMapper {
       title: title, // Use the generated title
       text: job.text ?? '', // Keep the full text
       syncStatus: job.syncStatus,
+      jobStatus: job.status,
       hasFileIssue: job.failedAudioDeletionAttempts > 0,
       // Display the last updated time as the primary date for the UI
       displayDate: job.updatedAt,

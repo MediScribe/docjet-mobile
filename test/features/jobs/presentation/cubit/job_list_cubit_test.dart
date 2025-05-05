@@ -45,6 +45,7 @@ void main() {
     title: 'Job 1 Title',
     text: 'Job 1 Text',
     syncStatus: SyncStatus.synced,
+    jobStatus: tJob1.status,
     hasFileIssue: false,
     displayDate: tJob1.updatedAt,
   );
@@ -65,6 +66,7 @@ void main() {
     title: 'Job 2 Title',
     text: 'Job 2 Text',
     syncStatus: SyncStatus.pending,
+    jobStatus: tJob2.status,
     hasFileIssue: true,
     displayDate: tJob2.updatedAt,
   );
@@ -85,6 +87,7 @@ void main() {
     title: 'Job 3 Title',
     text: 'Job 3 Text',
     syncStatus: SyncStatus.synced,
+    jobStatus: tJob3.status,
     hasFileIssue: false,
     displayDate: tJob3.updatedAt,
   );

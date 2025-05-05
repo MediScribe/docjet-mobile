@@ -1,4 +1,5 @@
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
@@ -18,6 +19,7 @@ JobViewModel createSampleJob({bool hasFileIssue = false}) {
     title: 'Test Job',
     text: 'Sample text',
     syncStatus: SyncStatus.synced,
+    jobStatus: JobStatus.completed,
     hasFileIssue: hasFileIssue,
     displayDate: DateTime(2023, 10, 1),
   );
