@@ -74,6 +74,60 @@ When making multipart requests, ensure:
      "http://localhost:8080/api/v1/jobs"
    ```
 
+## Debug Endpoints
+
+These endpoints are provided for testing and debugging job status progression. They are not part of the standard API and should only be used in development/testing environments.
+
+### `GET /debug/jobs/start-progression`
+
+Starts the automatic progression of a job's status through the defined lifecycle (`submitted`, `transcribing`, `transcribed`, `generating`, `generated`, `completed`).
+
+**Query Parameters:**
+
+- `id` (required): The ID of the job to start progression for.
+- `interval_seconds` (optional, double, default: 3.0): The time in seconds between each status update.
+- `fast_test_mode` (optional, boolean, default: false): If `true`, the job immediately progresses through all statuses to `completed`, ignoring the interval.
+
+**Example (Timed Progression):**
+
+```bash
+curl -v -X GET "http://localhost:8080/debug/jobs/start-progression?id=<your-job-id>&interval_seconds=1.5"
+```
+
+**Example (Fast Mode):**
+
+```bash
+curl -v -X GET "http://localhost:8080/debug/jobs/start-progression?id=<your-job-id>&fast_test_mode=true"
+```
+
+### `GET /debug/jobs/stop-progression`
+
+Stops any active automatic status progression timer for a specific job.
+
+**Query Parameters:**
+
+- `id` (required): The ID of the job whose progression timer should be stopped.
+
+**Example:**
+
+```bash
+curl -v -X GET "http://localhost:8080/debug/jobs/stop-progression?id=<your-job-id>"
+```
+
+### `GET /debug/jobs/reset-progression`
+
+Resets a job's status back to the initial state (`submitted`) and stops any active progression timer for it.
+
+**Query Parameters:**
+
+- `id` (required): The ID of the job to reset.
+
+**Example:**
+
+```bash
+curl -v -X GET "http://localhost:8080/debug/jobs/reset-progression?id=<your-job-id>"
+```
+
 ## Quick Debug Commands
 
 For debugging the server and tests in one go, you can use the following one-liner that:
