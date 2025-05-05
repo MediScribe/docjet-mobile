@@ -191,7 +191,24 @@ Future<Response> startJobProgressionHandler(Request request) async {
     job = null;
   }
   if (job == null) {
-    return job_store.createNotFoundResponse('Job', jobId);
+    // Modified: Instead of just returning a 404, return all available jobs
+    // to help with debugging
+    final allJobs = job_store.getAllJobs();
+    if (verboseLoggingEnabled) {
+      print(
+          'DEBUG: Job $jobId not found. Returning all ${allJobs.length} available jobs.');
+    }
+
+    return Response(
+      HttpStatus.notFound, // Still 404 but with helpful data
+      body: jsonEncode({
+        'error': 'Job with ID $jobId not found',
+        'available_jobs': allJobs,
+        'job_count': allJobs.length,
+        'help': 'These are all available jobs on the server'
+      }),
+      headers: {'content-type': 'application/json'},
+    );
   }
 
   // 3. Check if already completed
@@ -364,4 +381,27 @@ void cancelProgressionTimerForJob(String jobId) {
           'DEBUG CLEANUP: No active timer found for deleted/reset job $jobId.');
     }
   }
+}
+
+/// Lists all jobs in the system for debugging purposes
+/// Authentication is still required (API key) to access this endpoint
+/// @route GET /api/v1/debug/jobs/list
+Future<Response> listAllJobsHandler(Request request) async {
+  // Get all jobs from the store
+  final allJobs = job_store.getAllJobs();
+
+  if (verboseLoggingEnabled) {
+    print('DEBUG: Listing all ${allJobs.length} jobs from debug endpoint');
+  }
+
+  // Return as JSON
+  return Response.ok(
+    jsonEncode({
+      'jobs': allJobs,
+      'count': allJobs.length,
+      'message':
+          'Debug endpoint: Returned all ${allJobs.length} jobs in the system'
+    }),
+    headers: {'content-type': 'application/json'},
+  );
 }

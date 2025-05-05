@@ -156,7 +156,10 @@ final _router = Router()
   // Debug endpoints for job progression (Use handlers from debug_routes.dart)
   ..post('/$_versionedApiPath/debug/jobs/start', startJobProgressionHandler)
   ..post('/$_versionedApiPath/debug/jobs/stop', stopJobProgressionHandler)
-  ..post('/$_versionedApiPath/debug/jobs/reset', resetJobProgressionHandler);
+  ..post('/$_versionedApiPath/debug/jobs/reset', resetJobProgressionHandler)
+
+  // Debug endpoint for listing all jobs - requires standard API key auth
+  ..get('/$_versionedApiPath/debug/jobs/list', listAllJobsHandler);
 
 // Health check handler
 Response _healthHandler(Request request) {
@@ -769,16 +772,16 @@ Middleware _authMiddleware() {
   return (innerHandler) {
     return (request) {
       final path = request.requestedUri.path;
-      // Skip API key check for health endpoint to allow unauthenticated health probes
+
+      // Skip API key check only for health endpoint
       if (path == '/$_versionedApiPath/health') {
         if (verboseLoggingEnabled) {
           print('DEBUG AUTH MIDDLEWARE: Skipping auth for health endpoint');
         }
         return innerHandler(request);
       }
-      // Always check API key unless it's a specific public path (none defined yet)
-      // Example: if (path == '/public/status') return innerHandler(request);
 
+      // All other endpoints require authentication
       if (verboseLoggingEnabled) {
         print('DEBUG AUTH MIDDLEWARE: Checking API key for path: $path');
       }
@@ -802,39 +805,6 @@ Middleware _authMiddleware() {
 
       // If API key is valid, proceed to the next handler
       return innerHandler(request);
-
-      // // OLD LOGIC (Conditional based on debug path)
-      // // Skip auth checks for debug routes
-      // if (path.startsWith('/debug/')) {
-      //   if (verboseLoggingEnabled) {
-      //     print('DEBUG: Skipping auth middleware for debug path: $path');
-      //   }
-      //   return innerHandler(request);
-      // }
-
-      // if (verboseLoggingEnabled) {
-      //   print('DEBUG: Applying API key check via _authMiddleware to $path...');
-      // }
-
-      // // API Key Check (Moved to be unconditional above)
-      // final apiKey = request.headers['x-api-key'];
-      // if (apiKey != _expectedApiKey) { // Use the globally defined expected key
-      //   if (verboseLoggingEnabled) {
-      //     print(
-      //         'DEBUG: API Key validation failed in _authMiddleware. Expected \'$_expectedApiKey\', got \'$apiKey\'');
-      //   }
-      //   return Response(
-      //     HttpStatus.unauthorized, // 401
-      //     body: jsonEncode({'error': 'Missing or invalid X-API-Key header'}),
-      //     headers: {'content-type': 'application/json'},
-      //   );
-      // }
-      // if (verboseLoggingEnabled) {
-      //   print('DEBUG: API Key validation successful in _authMiddleware.');
-      // }
-
-      // // If API key is valid, proceed
-      // return innerHandler(request);
     };
   };
 }
