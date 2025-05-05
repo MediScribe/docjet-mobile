@@ -69,6 +69,26 @@ void main() {
     displayDate: tJob2.updatedAt,
   );
 
+  // Create a job with an older date for sorting tests
+  final tJobId3 = const Uuid().v4();
+  final tJob3 = Job(
+    localId: tJobId3,
+    userId: 'user-1',
+    status: JobStatus.completed,
+    syncStatus: SyncStatus.synced,
+    createdAt: DateTime(2022, 1, 1), // Older date
+    updatedAt: DateTime(2022, 1, 2), // Older date
+    text: 'Job 3 Text',
+  );
+  final tViewModel3 = JobViewModel(
+    localId: tJobId3,
+    title: 'Job 3 Title',
+    text: 'Job 3 Text',
+    syncStatus: SyncStatus.synced,
+    hasFileIssue: false,
+    displayDate: tJob3.updatedAt,
+  );
+
   const tServerFailure = ServerFailure(message: 'Something went wrong');
 
   setUp(() {
@@ -85,6 +105,7 @@ void main() {
     // Stub mapper behavior (can be overridden in specific tests)
     when(mockJobViewModelMapper.toViewModel(tJob1)).thenReturn(tViewModel1);
     when(mockJobViewModelMapper.toViewModel(tJob2)).thenReturn(tViewModel2);
+    when(mockJobViewModelMapper.toViewModel(tJob3)).thenReturn(tViewModel3);
   });
 
   // Helper to create the cubit AFTER setting up mocks for a specific test
@@ -172,8 +193,9 @@ void main() {
               tViewModel1,
             ]),
             isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
-              tViewModel1,
+              // Sort by displayDate: tJob2 (newer) comes before tJob1 (older)
               tViewModel2,
+              tViewModel1,
             ]),
             isA<JobListLoaded>().having((state) => (state).jobs, 'jobs', [
               tViewModel2,
@@ -217,6 +239,30 @@ void main() {
         verify(mockWatchJobsUseCase.call(NoParams()));
         verify(mockJobViewModelMapper.toViewModel(tJob1)).called(1);
         verify(mockJobViewModelMapper.toViewModel(tJob2)).called(1);
+      },
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'sorts jobs by displayDate in descending order (newest first)',
+      build: () => createCubit(),
+      act: (cubit) {
+        // Add jobs in random order to ensure sorting is tested
+        streamController.add(Right([tJob3, tJob1, tJob2]));
+      },
+      expect:
+          () => [
+            isA<JobListLoaded>().having(
+              (state) => (state).jobs,
+              'jobs sorted by date desc',
+              // Expected order: tJob2 (newest), tJob1, tJob3 (oldest)
+              [tViewModel2, tViewModel1, tViewModel3],
+            ),
+          ],
+      verify: (_) {
+        verify(mockWatchJobsUseCase.call(NoParams()));
+        verify(mockJobViewModelMapper.toViewModel(tJob1));
+        verify(mockJobViewModelMapper.toViewModel(tJob2));
+        verify(mockJobViewModelMapper.toViewModel(tJob3));
       },
     );
 
