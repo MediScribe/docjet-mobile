@@ -122,6 +122,10 @@ class JobListCubit extends Cubit<JobListState> {
               (jobs) {
                 _logger.t('$_tag: Received ${jobs.length} jobs.');
                 final viewModels = jobs.map(_mapper.toViewModel).toList();
+                // Sort by displayDate, newest first
+                viewModels.sort(
+                  (a, b) => b.displayDate.compareTo(a.displayDate),
+                );
                 emit(JobListLoaded(viewModels));
               },
             );
