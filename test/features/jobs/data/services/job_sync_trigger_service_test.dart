@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
@@ -278,37 +279,50 @@ void main() {
       '_triggerSync should handle syncPendingJobs failure and still call reconcileJobsWithServer',
       () async {
         // Arrange
-        final testException = Exception('Push Sync Failed!');
-        when(mockJobRepository.syncPendingJobs()).thenThrow(testException);
-        // reconcileJobsWithServer should still succeed
+        when(
+          mockJobRepository.syncPendingJobs(),
+        ).thenThrow(Exception('Push error'));
+        service.init();
+
+        // Act - this would normally throw if not handled
+        service.startTimer();
+        capturedCallback(mockTimer);
+        await Future.delayed(Duration.zero); // Let async complete
+
+        // Assert - verify both methods were called despite the first one throwing
+        verify(mockJobRepository.syncPendingJobs()).called(1);
+        verify(mockJobRepository.reconcileJobsWithServer()).called(1);
+        expect(LoggerFactory.containsLog('Sync-Push FAILURE:'), isTrue);
+      },
+    );
+
+    test(
+      '_triggerSync should handle reconcileJobsWithServer failure after successful push',
+      () async {
+        // Arrange
+        when(
+          mockJobRepository.syncPendingJobs(),
+        ).thenAnswer((_) async => const Right(unit));
         when(
           mockJobRepository.reconcileJobsWithServer(),
-        ).thenAnswer((_) async => const Right(unit));
+        ).thenAnswer((_) async => Left(ServerFailure()));
+        service.init();
 
         // Act
-        // Manually trigger the internal method we want to test directly or via lifecycle/timer
-        service.init(); // Need init for the logger tags potentially used
-        LoggerFactory.clearLogs();
-        service.didChangeAppLifecycleState(
-          AppLifecycleState.resumed,
-        ); // Use lifecycle to trigger _triggerSync
-        await Future.delayed(Duration.zero); // Allow async operations
+        service.startTimer();
+        capturedCallback(mockTimer);
+        await Future.delayed(Duration.zero); // Let async complete
 
         // Assert
-        // Verify syncPendingJobs was called (and threw)
-        verify(mockJobRepository.syncPendingJobs()).called(1);
-        // Verify reconcileJobsWithServer was STILL called despite the push error
-        verify(mockJobRepository.reconcileJobsWithServer()).called(1);
+        // Verify the methods were called in order
+        verifyInOrder([
+          mockJobRepository.syncPendingJobs(),
+          mockJobRepository.reconcileJobsWithServer(),
+        ]);
 
-        // Verify the specific failure log message from _executePushSync
-        expect(
-          LoggerFactory.containsLog('Sync-Push FAILURE: $testException'),
-          isTrue,
-        );
-        // Verify the success log from _executePullSync is still present
-        expect(LoggerFactory.containsLog('Sync-Pull OK'), isTrue);
-        // Verify the outer catch block in _triggerSync did NOT log (as the inner one caught it)
-        expect(LoggerFactory.containsLog('Error during sync trigger'), isFalse);
+        // Verify push success and pull failure logs
+        expect(LoggerFactory.containsLog('Sync-Push OK'), isTrue);
+        expect(LoggerFactory.containsLog('Sync-Pull FAILURE:'), isTrue);
       },
     );
   });

@@ -170,7 +170,11 @@ class JobRepositoryImpl implements JobRepository {
         },
       );
     } catch (e, stackTrace) {
-      _logger.e('$_tag Exception during jobs reconciliation: $e\n$stackTrace');
+      _logger.e(
+        '$_tag Exception during jobs reconciliation',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return Left(
         UnknownFailure('Unexpected error during jobs reconciliation'),
       );

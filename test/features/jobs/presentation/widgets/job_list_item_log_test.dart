@@ -181,7 +181,7 @@ void main() {
 
       // Tap on the item
       _testLogger.i('$_tag Tapping JobListItem (while offline)');
-      await tester.tap(find.byType(JobListItem));
+      await tester.tap(find.byType(ListTile));
       await tester.pump(); // Let UI settle
       _testLogger.i('$_tag Tap and pump complete');
 

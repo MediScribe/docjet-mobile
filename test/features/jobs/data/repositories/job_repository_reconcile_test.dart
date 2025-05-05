@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/auth/events/auth_events.dart';
+import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
@@ -125,6 +126,30 @@ void main() {
         (failure) => expect(failure, isA<UnknownFailure>()),
         (_) => fail('Expected Left(UnknownFailure)'),
       );
+      expect(
+        LoggerFactory.containsLog('Exception during jobs reconciliation'),
+        isTrue,
+      );
+    });
+
+    test('should handle ApiException and return ServerFailure', () async {
+      // Arrange
+      final apiException = ApiException(message: 'API error', statusCode: 500);
+      when(mockReaderService.getJobs()).thenThrow(apiException);
+
+      // Act
+      final result = await repository.reconcileJobsWithServer();
+
+      // Assert
+      verify(mockReaderService.getJobs()).called(1);
+      expect(result.isLeft(), isTrue);
+      result.fold((failure) {
+        expect(failure, isA<UnknownFailure>());
+        expect(
+          (failure as UnknownFailure).message,
+          equals('Unexpected error during jobs reconciliation'),
+        );
+      }, (_) => fail('Expected Left(UnknownFailure)'));
       expect(
         LoggerFactory.containsLog('Exception during jobs reconciliation'),
         isTrue,

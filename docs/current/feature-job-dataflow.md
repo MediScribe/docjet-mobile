@@ -726,21 +726,19 @@ This separation of concerns allows for:
      * Resets to `SyncStatus.pending` with zeroed retry count
      * Returns `Right<Unit>` on success or appropriate error
 
-### 6. Pull Reconciliation 
-The `JobSyncTriggerService` initiates a periodic pull operation by calling `JobRepository.reconcileJobsWithServer()`. This method delegates to `JobReaderService.getJobs()`.
+### Pull Reconciliation
 
-1. **Trigger**: `JobSyncTriggerService` calls `JobRepository.reconcileJobsWithServer()`.
-2. **Delegation**: `JobRepositoryImpl.reconcileJobsWithServer()` calls `JobReaderService.getJobs()`.
-3. **Fetch**: `JobReaderService` fetches the *full* list of jobs from the `JobRemoteDataSource`.
-4. **Compare**: `JobReaderService` fetches the list of *synced* jobs (those with `serverId != null`) from `JobLocalDataSource`.
-5. **Identify Deletions**: It calculates the set difference: `locallySyncedJobs.serverId` - `remoteJobs.serverId`. Any `serverId` present locally but not remotely represents a job deleted on the server.
-6. **Local Deletion**: For each identified server-deleted job, `JobReaderService` calls `JobDeleterService.deleteJobLocally()` to remove it from `JobLocalDataSource`.
-7. **File Cleanup**: `JobDeleterService` also deletes the associated audio file.
-8. **Result**: The method returns `Right(unit)` on success, or `Left(Failure)` if any step fails. The primary purpose is the side effect of local cleanup.
+The `JobReaderService.getJobs()` method performs synchronization and reconciliation in the following sequence:
 
-This ensures that jobs deleted on the server are eventually removed from the local cache during the periodic sync cycle.
+1. Fetch all local jobs with `SyncStatus.synced`
+2. Fetch all server jobs via the API
+3. Compare the collections to identify jobs present locally but missing on the server
+4. For each server-deleted job, call `JobDeleterService.permanentlyDeleteJob(localId)` 
+5. For each remaining server job, update the local copy
 
-### 7. Audio File Management
+This reconciliation process ensures the local cache accurately reflects the server state, particularly for jobs deleted on the server.
+
+### Audio File Management
 
 1. Audio files are stored locally when jobs are created.
 2. Files remain on device as long as their associated job exists.
@@ -754,7 +752,7 @@ This ensures that jobs deleted on the server are eventually removed from the loc
    * These failures are considered non-fatal to the job deletion process itself (the job record is still removed locally).
    * A retry mechanism for failed file deletions will be implemented (e.g., on next app startup or sync cycle) to ensure eventual cleanup.
 
-### 8. Authentication Integration
+### Authentication Integration
 
 The Job Sync system integrates with the AuthEventBus to respond to authentication-related events and manage synchronization accordingly:
 

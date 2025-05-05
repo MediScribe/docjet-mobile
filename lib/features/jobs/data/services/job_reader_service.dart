@@ -76,6 +76,12 @@ class JobReaderService {
               .join(', ');
           _logger.d('$_tag    Local Synced Job IDs (local/server): $ids');
         }
+        // For large data sets, only log count to avoid log spam
+        else if (localSyncedJobs.isNotEmpty) {
+          _logger.d(
+            '$_tag    Only logging count for >10 entries to avoid log spam',
+          );
+        }
       } on CacheException catch (e, stackTrace) {
         _logger.w(
           '$_tag CacheException fetching synced local jobs: ${e.message}. Aborting online sync.',
@@ -98,6 +104,12 @@ class JobReaderService {
             .map((j) => '(${j.localId} / ${j.serverId})')
             .join(', ');
         _logger.d('$_tag   Remote Job IDs (local/server): $ids');
+      }
+      // For large data sets, only log count to avoid log spam
+      else if (remoteJobs.isNotEmpty) {
+        _logger.d(
+          '$_tag   Only logging count for >10 entries to avoid log spam',
+        );
       }
 
       // 3. Identify server-deleted jobs

@@ -100,7 +100,7 @@ class JobSyncTriggerService with WidgetsBindingObserver {
 
   /// Executes the push synchronization (local changes → server)
   Future<void> _executePushSync() async {
-    _logger.d('$_tag Triggering push sync via repository.');
+    _logger.i('$_tag Triggering push sync via repository.');
     try {
       await _jobRepository.syncPendingJobs();
       _logger.i('$_tag Sync-Push OK');
@@ -111,7 +111,7 @@ class JobSyncTriggerService with WidgetsBindingObserver {
 
   /// Executes the pull synchronization and reconciliation (server → local)
   Future<void> _executePullSync() async {
-    _logger.d('$_tag Triggering pull/reconcile via repository.');
+    _logger.i('$_tag Triggering pull/reconcile via repository.');
     try {
       final result = await _jobRepository.reconcileJobsWithServer();
       result.fold(
