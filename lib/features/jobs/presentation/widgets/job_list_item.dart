@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import JobStatus
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -68,29 +69,74 @@ class JobListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     // Get theme colors
     final colorScheme = Theme.of(context).colorScheme;
+    final appTokens = getAppColors(context); // Get AppColorTokens
     final formattedDate = _formatDate(job.displayDate);
+    // final progressValue = _getProgressValue(job.jobStatus); // Use getter instead
+    // final progressColor = _getProgressColor(job.jobStatus, appTokens); // Determine color directly
+
+    // Determine progress bar color directly based on status
+    final progressColor =
+        job.jobStatus == JobStatus.error
+            ? appTokens
+                .dangerFg // Use danger color for errors
+            : appTokens.successFg; // Use success color otherwise
 
     // WRAP ListTile with Material to provide context needed for ink splashes etc.
     // Use MaterialType.transparency to avoid drawing a Material background.
     return Material(
       type: MaterialType.transparency,
-      child: ListTile(
-        leading: Icon(_getJobItemIcon(job), color: _getIconColor(context, job)),
-        title: Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          formattedDate,
-          style: TextStyle(
-            fontSize: 12.0,
-            color: colorScheme.onSurfaceVariant, // Use color scheme for text
+      child: Column(
+        // Wrap ListTile content and Progress Bar
+        mainAxisSize:
+            MainAxisSize.min, // Prevent Column from expanding vertically
+        children: [
+          ListTile(
+            leading: Icon(
+              _getJobItemIcon(job),
+              color: _getIconColor(context, job),
+            ),
+            title: Text(
+              job.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              formattedDate,
+              style: TextStyle(
+                fontSize: 12.0,
+                color:
+                    colorScheme.onSurfaceVariant, // Use color scheme for text
+              ),
+            ),
+            onTap:
+                isOffline
+                    ? null // Disable interaction when offline
+                    : () {
+                      _logger.i('$_tag Tapped on job: ${job.localId}');
+                      // TODO: Navigate to job detail page or other action
+                    },
           ),
-        ),
-        onTap:
-            isOffline
-                ? null // Disable interaction when offline
-                : () {
-                  _logger.i('$_tag Tapped on job: ${job.localId}');
-                  // TODO: Navigate to job detail page or other action
-                },
+          // Add padding to position the progress bar nicely below the text
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+            ), // Match ListTile horizontal padding
+            child: SizedBox(
+              // Constrain height of the progress bar
+              height: 4.0, // Thin progress bar
+              child: LinearProgressIndicator(
+                value: job.progressValue, // Use the getter directly
+                color: progressColor,
+                backgroundColor:
+                    appTokens
+                        .outlineColor, // Use theme outline color for background
+                // Consider minHeight for very thin bars if needed, but SizedBox works
+              ),
+            ),
+          ),
+          // Add a small gap below the progress bar before the next item
+          const SizedBox(height: 4.0),
+        ],
       ),
     );
   }

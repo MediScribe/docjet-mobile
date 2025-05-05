@@ -39,6 +39,40 @@ class JobViewModel extends Equatable {
     }
   }
 
+  /// Calculated progress value (0.0 - 1.0) based on jobStatus.
+  ///
+  /// This getter centralizes the logic for converting backend status
+  /// into a UI-friendly progress representation.
+  double get progressValue {
+    switch (jobStatus) {
+      case JobStatus.created:
+        return 0.0;
+      case JobStatus.submitted:
+        return 0.1;
+      case JobStatus.transcribing:
+        return 0.3;
+      case JobStatus.transcribed:
+        return 0.5;
+      case JobStatus.generating:
+        return 0.7;
+      case JobStatus.generated:
+        return 0.9;
+      case JobStatus.completed:
+        return 1.0;
+      case JobStatus.error:
+        // TODO: Determine how to get the actual progress before the error.
+        // Currently hardcoded based on previous implementation's assumption.
+        // This needs refinement - perhaps add previousStatus to ViewModel?
+        return 0.7;
+      case JobStatus.pendingDeletion:
+        return 0.0;
+    }
+    // Note: The switch is exhaustive for JobStatus enum, so default is unreachable.
+    // Adding a fallback just in case, though it indicates an issue.
+    // _logger.w('Unknown JobStatus encountered in progressValue: $jobStatus');
+    // return 0.0;
+  }
+
   @override
   List<Object?> get props => [
     localId,

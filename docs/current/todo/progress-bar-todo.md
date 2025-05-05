@@ -102,40 +102,40 @@ graph TD
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 2.1. [ ] **Research:** Define visual mapping from JobStatus to progress values
-    * Findings: Will map JobStatus to progress percentages as follows:
-      * `created`: 0.0 (Empty gray bar)
-      * `submitted`: 0.1 (Small sliver of green)
-      * `transcribing`: 0.3
-      * `transcribed`: 0.5
-      * `generating`: 0.7
-      * `generated`: 0.9
-      * `completed`: 1.0 (Full green bar)
-      * `error`: [value based on last status before error] with red color
-      * `pendingDeletion`: 0.0 (Empty gray bar or possibly hidden)
-* 2.2. [ ] **Tests RED:** Create widget tests for JobListItem with progress bar
+* 2.1. [x] **Research:** Define visual mapping from JobStatus to progress values
+    * Findings: Mapped JobStatus enum values to progress percentages (0.0-1.0) for the LinearProgressIndicator:
+      * `created`: 0.0 (Gray background)
+      * `submitted`: 0.1 (Green)
+      * `transcribing`: 0.3 (Green)
+      * `transcribed`: 0.5 (Green)
+      * `generating`: 0.7 (Green)
+      * `generated`: 0.9 (Green)
+      * `completed`: 1.0 (Green)
+      * `error`: Progress value before error state, color RED.
+      * `pendingDeletion`: 0.0 (Gray background)
+* 2.2. [x] **Tests RED:** Create widget tests for JobListItem with progress bar
     * Test File: `test/features/jobs/presentation/widgets/job_list_item_test.dart`
     * Test Description: `should display progress bar based on jobStatus with appropriate color and value`
-    * Findings: 
-* 2.3. [ ] **Implement GREEN:** Add the progress bar to the JobListItem widget
+    * Findings: Added 3 new tests covering LinearProgressIndicator presence, value for `completed`, value/color for `transcribing`, and value/color for `error`. Confirmed tests fail as expected (cannot find LinearProgressIndicator). Used theme colors: `successFg` for progress, `dangerFg` for error, `outlineColor` for background.
+* 2.3. [x] **Implement GREEN:** Add the progress bar to the JobListItem widget
     * Implementation File: `lib/features/jobs/presentation/widgets/job_list_item.dart`
-    * Run the new tests: `./scripts/list_failed_tests.dart <path/dir/empty> <--debug/--except>`
-    * Findings:
-* 2.4. [ ] **Refactor:** Clean up implementation and extract progress conversion to a dedicated method
-    * Findings: 
-* 2.5. [ ] **Run Cycle-Specific Tests:** 
+    * Run the new tests: `./scripts/list_failed_tests.dart test/features/jobs/presentation/widgets/job_list_item_test.dart --except`
+    * Findings: Wrapped ListTile content in a Column, added LinearProgressIndicator below it with SizedBox for height/padding. Created helper functions `_getProgressValue` and `_getProgressColor` to map `JobStatus` to UI values/colors. Fixed initial test failures related to context fetching (`getAppColors`) by moving it after `pumpWidget`. All tests now pass.
+* 2.4. [x] **Refactor:** Clean up implementation and extract progress conversion to a dedicated method
+    * Findings: Moved progress value calculation (`switch` statement) from `JobListItem` static helper to a new `progressValue` getter in `JobViewModel`. Created `job_view_model_test.dart` to test this getter. Removed helpers from `JobListItem` and simplified its build method to use `job.progressValue` and determine color directly. All unit tests pass.
+* 2.5. [x] **Run Cycle-Specific Tests:**
     * Command: `./scripts/list_failed_tests.dart test/features/jobs/presentation/widgets/job_list_item_test.dart --except`
-    * Findings: 
-* 2.6. [ ] **Run ALL Unit/Integration Tests:**
+    * Findings: All 10 tests in `job_list_item_test.dart` pass after refactoring.
+* 2.6. [x] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings: 
-* 2.7. [ ] **Format, Analyze, and Fix:**
+    * Findings: All 816 unit and integration tests passed after completing Cycle 2 changes.
+* 2.7. [x] **Format, Analyze, and Fix:**
     * Command: `./scripts/fix_format_analyze.sh`
-    * Findings: 
-* 2.8. [ ] **Handover Brief:**
-    * Status: 
-    * Gotchas: 
-    * Recommendations: 
+    * Findings: Script applied 1 fix (unused import), formatted 1 file. Fixed 1 analyzer warning (`unused_local_variable` in `job_list_item_test.dart`). The remaining expected error (`missing_required_argument` in `job_list_playground.dart`) will be addressed in Cycle 3.
+* 2.8. [x] **Handover Brief:**
+    * Status: Cycle 2 complete. Progress bar added to `JobListItem`, logic refactored into `JobViewModel.progressValue`, all tests passing, formatting/analysis clean (except expected playground error).
+    * Gotchas: The `progressValue` for `JobStatus.error` in `JobViewModel` uses a placeholder (0.7). This needs proper implementation, potentially requiring the `previousStatus` before the error.
+    * Recommendations: Proceed to Cycle 3: Integration Testing with Mock Server to visually verify the progress bar behavior with dynamic status changes.
 
 ---
 
@@ -149,3 +149,70 @@ graph TD
     * Findings: 
 * 3.2. [ ] **Implement TEST:** Create a simple test script in the playground to trigger job status progression
     * Implementation File: `lib/features/jobs/presentation/pages/job_list_playground.dart`
+    * Findings:
+* 3.2.1 [ ] Add a guesture to each item: upon tap, it triggers the server-cycle for that particular item.
+    * Add guesture to item
+    * Findings:
+* 3.3. [ ] **Test Manual Verification:**
+    * Command: Start the mock server and app, create a job, and use debug endpoints to watch progression
+    * Findings: 
+* 3.4. [ ] **Run ALL Unit/Integration Tests:**
+    * Command: `./scripts/list_failed_tests.dart --except`
+    * Findings: 
+* 3.5. [ ] **Format, Analyze, and Fix:**
+    * Command: `./scripts/fix_format_analyze.sh`
+    * Findings: 
+* 3.6. [ ] **Run ALL E2E & Stability Tests:**
+    * Command: `./scripts/run_all_tests.sh`
+    * Findings: 
+* 3.7. [ ] **Handover Brief:**
+    * Status: 
+    * Gotchas: 
+    * Recommendations: 
+
+---
+
+## Cycle 4: Documentation & Cleanup
+
+**Goal:** Document the new feature and ensure code quality across the implementation.
+
+**MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
+
+* 4.1. [ ] **Task:** Add documentation about the progress bar to JobListItem class
+    * File: `lib/features/jobs/presentation/widgets/job_list_item.dart`
+    * Findings: 
+* 4.2. [ ] **Task:** Update documentation to include progress bar information
+    * File: `docs/current/ui-screens-overview.md`
+    * Findings:
+    * Identify other document requiring updates, starting in `docs/current/start.md`
+    * Findings: 
+* 4.3. [ ] **Run ALL Unit/Integration Tests:**
+    * Command: `./scripts/list_failed_tests.dart --except`
+    * Findings: 
+* 4.4. [ ] **Format, Analyze, and Fix:**
+    * Command: `./scripts/fix_format_analyze.sh`
+    * Findings: 
+* 4.5. [ ] **Run ALL E2E & Stability Tests:**
+    * Command: `./scripts/run_all_tests.sh`
+    * Findings: 
+* 4.6. [ ] **Manual Smoke Test:** 
+    * Findings: 
+* 4.7. [ ] **Code Review & Commit Prep:** 
+    * Findings: 
+* 4.8. [ ] **Handover Brief:**
+    * Status: 
+    * Gotchas: 
+    * Recommendations: 
+
+---
+
+## DONE
+
+With these cycles we will:
+1. Enhance `JobViewModel` with `jobStatus` for better status representation
+2. Implement a visually intuitive progress bar that shows processing stage
+3. Integrate with the existing theme system for consistent styling
+4. Test thoroughly with the mock server's status progression simulation
+
+No bullshit, no uncertainty – "You don't have to be right. You just have to be less wrong than everybody els
+e. Dollar Bill style."
