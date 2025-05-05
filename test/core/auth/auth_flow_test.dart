@@ -69,6 +69,14 @@ void main() {
       mockCredentialsProvider.getUserId(),
     ).thenAnswer((_) async => 'test-user-id');
 
+    // Provide default stubs for token retrieval to avoid MissingStubError in tests
+    when(
+      mockCredentialsProvider.getAccessToken(),
+    ).thenAnswer((_) async => 'dummy-access-token');
+    when(
+      mockCredentialsProvider.getRefreshToken(),
+    ).thenAnswer((_) async => 'dummy-refresh-token');
+
     // Default setup for cache (optional, good practice)
     when(
       mockUserProfileCache.saveProfile(any, any),

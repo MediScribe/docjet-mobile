@@ -62,6 +62,14 @@ void main() {
     mockAuthEventBus = MockAuthEventBus();
     mockUserProfileCache = MockIUserProfileCache();
 
+    // Provide default stubs for token retrieval to avoid MissingStubError in tests
+    when(
+      mockCredentialsProvider.getAccessToken(),
+    ).thenAnswer((_) async => 'dummy-access-token');
+    when(
+      mockCredentialsProvider.getRefreshToken(),
+    ).thenAnswer((_) async => 'dummy-refresh-token');
+
     authService = AuthServiceImpl(
       authenticationApiClient: mockAuthenticationApiClient,
       userApiClient: mockUserApiClient,
@@ -672,13 +680,12 @@ void main() {
         }
 
         // Assert
-        expect(thrownException, isNotNull);
         expect(
           thrownException,
           isA<AuthException>().having(
             (e) => e.toString(),
             'toString',
-            contains('Both tokens expired'),
+            contains('Offline check failed'),
           ),
         );
 

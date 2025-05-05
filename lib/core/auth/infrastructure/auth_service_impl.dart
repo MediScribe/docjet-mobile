@@ -11,6 +11,10 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/network/connectivity_error.dart';
+import 'package:flutter/foundation.dart';
+
+/// Enum representing token validation states
+enum TokenValidationResult { noneValid, accessOnly, refreshOnly, bothValid }
 
 /// Implementation of the AuthService interface
 ///
@@ -167,31 +171,38 @@ class AuthServiceImpl implements AuthService {
   Future<bool> isAuthenticated({bool validateTokenLocally = false}) async {
     if (validateTokenLocally) {
       try {
-        return await credentialsProvider.isAccessTokenValid();
+        final bool isAccessValid =
+            await credentialsProvider.isAccessTokenValid();
+        if (isAccessValid) return true;
+
+        // Fallback to refresh token validity – useful for offline mode.
+        final bool isRefreshValid =
+            await credentialsProvider.isRefreshTokenValid();
+        return isRefreshValid;
       } on AuthException {
-        // Propagate auth-specific errors (like offline)
-        rethrow;
-      } catch (e) {
-        // Treat other validation errors (e.g., token missing/malformed)
-        // as not authenticated.
-        // Consider logging this error.
-        return false;
+        rethrow; // Propagate as before
+      } catch (_) {
+        return false; // Any other error → unauthenticated
       }
-    } else {
-      // Basic check: does the token exist?
-      final accessToken = await credentialsProvider.getAccessToken();
-      return accessToken != null;
     }
+
+    // --- Basic presence check (no local validation) ---
+    final accessToken = await credentialsProvider.getAccessToken();
+    return accessToken != null;
   }
 
   @override
   Future<User> getUserProfile({bool acceptOfflineProfile = true}) async {
     String? userId;
+    _logger.i(
+      '$_tag getUserProfile called (acceptOfflineProfile: $acceptOfflineProfile)',
+    );
     try {
       userId = await _getUserIdOrThrow();
       _logger.d('$_tag Attempting to get profile for user: $userId');
 
       // Try fetching from network first
+      _logger.d('$_tag Attempting online profile fetch for user: $userId');
       return await _fetchProfileFromNetworkAndCache(userId);
     } on AuthException catch (e) {
       _logger.w(
@@ -200,7 +211,7 @@ class AuthServiceImpl implements AuthService {
       // Rethrow if not offline or offline not accepted
       if (e.type != AuthErrorType.offlineOperation || !acceptOfflineProfile) {
         _logger.w(
-          '$_tag Propagating original AuthException (${e.type}) for user $userId.',
+          '$_tag Propagating original AuthException (${e.type}) for user $userId (offline accepted: $acceptOfflineProfile).',
         );
         rethrow;
       }
@@ -208,27 +219,41 @@ class AuthServiceImpl implements AuthService {
       _logger.i(
         '$_tag Network unavailable for profile fetch (user $userId), checking cache...',
       );
-      return await _fetchProfileFromCacheOrThrow(
-        userId!,
-        e,
-      ); // Pass original exception
+      return await _fetchProfileFromCacheOrThrow(userId!, e);
     } on DioException catch (e) {
-      // Classify network-related DioExceptions as offline operations
       _logger.w('$_tag DioException during profile fetch: ${e.type}');
 
       if (_isConnectivityError(e.type)) {
-        _logger.w('$_tag Classifying as offline operation: ${e.message}');
+        _logger.w(
+          '$_tag Classifying DioException as offline operation: ${e.message}',
+        );
         final offlineException = AuthException.offlineOperationFailed(
           e.stackTrace,
         );
 
         // If offline profiles not accepted, just throw the offline error
         if (!acceptOfflineProfile) {
+          _logger.w(
+            '$_tag Offline profile not accepted, throwing AuthException.offlineOperationFailed for user $userId.',
+          );
           throw offlineException;
         }
 
         // Otherwise try the cache
-        return await _fetchProfileFromCacheOrThrow(userId!, offlineException);
+        _logger.i(
+          '$_tag DioException indicates offline, trying cache for user $userId...',
+        );
+        // Ensure userId is retrieved before proceeding
+        userId ??= await credentialsProvider.getUserId();
+        if (userId == null) {
+          _logger.e(
+            '$_tag Cannot fetch profile from cache: User ID is null after DioException.',
+          );
+          throw AuthException.unauthenticated(
+            'User ID not found after network failure.',
+          );
+        }
+        return await _fetchProfileFromCacheOrThrow(userId, offlineException);
       }
 
       // For other DioExceptions, throw a profile fetch failed error
@@ -236,8 +261,11 @@ class AuthServiceImpl implements AuthService {
         '$_tag Non-connectivity DioException: ${e.type} - ${e.message}',
       );
       throw AuthException.userProfileFetchFailed(e.stackTrace);
-    } catch (e) {
-      _logger.e('$_tag Unexpected error fetching profile for user $userId: $e');
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag Unexpected error fetching profile for user $userId: $e',
+        stackTrace: stackTrace,
+      );
       throw AuthException.userProfileFetchFailed();
     }
   }
@@ -254,80 +282,157 @@ class AuthServiceImpl implements AuthService {
     return userId;
   }
 
-  /// Fetches profile from network, caches it, and returns the User.
+  /// Fetches profile from network, updates cache on success.
   Future<User> _fetchProfileFromNetworkAndCache(String userId) async {
+    _logger.d(
+      '$_tag [_fetchProfileFromNetworkAndCache] Fetching profile online for user $userId...',
+    );
+    // Corrected: Call getUserProfile() with NO arguments
     final profileDto = await userApiClient.getUserProfile();
-    _logger.i('$_tag Successfully fetched profile for user $userId from API.');
 
-    // Save to cache (best effort)
-    try {
-      final now = DateTime.now();
-      await userProfileCache.saveProfile(profileDto, now);
-      _logger.d('$_tag Saved profile for user $userId to cache at $now.');
-    } catch (e) {
-      _logger.e('$_tag Failed to save profile to cache for user $userId: $e');
+    // Verify the fetched profile ID matches the expected userId
+    if (profileDto.id != userId) {
+      _logger.e(
+        '$_tag [_fetchProfileFromNetworkAndCache] Mismatched User ID! Expected $userId but API returned ${profileDto.id}. Throwing.',
+      );
+      // This indicates a serious inconsistency, treat as unauthenticated
+      throw AuthException.unauthenticated(
+        'Mismatched user ID returned from API.',
+      );
     }
+
+    try {
+      _logger.d(
+        '$_tag [_fetchProfileFromNetworkAndCache] Saving fetched profile DTO to cache for $userId...',
+      );
+      await userProfileCache.saveProfile(profileDto, DateTime.now());
+      _logger.i(
+        '$_tag [_fetchProfileFromNetworkAndCache] Profile DTO for $userId saved to cache.',
+      );
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag [_fetchProfileFromNetworkAndCache] Failed to cache profile DTO for $userId after network fetch',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+    // Corrected: Construct User using its standard constructor with the ID from DTO
     return User(id: profileDto.id);
   }
 
-  /// Attempts to fetch profile from cache during offline scenario.
-  /// Checks token validity, clears cache if both invalid, otherwise returns cached User or throws.
-  Future<User> _fetchProfileFromCacheOrThrow(
-    String userId,
-    AuthException originalNetworkException,
-  ) async {
-    // Check token validity
-    bool accessValid = false;
-    bool refreshValid = false;
-    try {
-      accessValid = await credentialsProvider.isAccessTokenValid();
-      refreshValid = await credentialsProvider.isRefreshTokenValid();
+  /// Validates both tokens and returns their validation state
+  Future<TokenValidationResult> _validateTokens() async {
+    _logger.d('$_tag [_validateTokens] Retrieving tokens for validation...');
+
+    // Get tokens just once and cache them for both validation and logging
+    final accessToken = await credentialsProvider.getAccessToken();
+    final refreshToken = await credentialsProvider.getRefreshToken();
+
+    // Only log token presence in debug mode
+    if (kDebugMode) {
       _logger.d(
-        '$_tag Token validity for offline cache check (user $userId): access=$accessValid, refresh=$refreshValid',
+        '$_tag [_validateTokens] Raw Access Token: ${accessToken == null ? "NULL" : "PRESENT"}',
       );
-    } catch (tokenError) {
-      _logger.e(
-        '$_tag Error checking token validity during offline profile check for user $userId: $tokenError',
+      _logger.d(
+        '$_tag [_validateTokens] Raw Refresh Token: ${refreshToken == null ? "NULL" : "PRESENT"}',
       );
-      // Treat as invalid
     }
 
-    // If BOTH tokens invalid, clear cache and throw
-    if (!accessValid && !refreshValid) {
+    _logger.d('$_tag [_validateTokens] Validating Access Token...');
+    final isAccessTokenValid = await credentialsProvider.isAccessTokenValid();
+    _logger.d(
+      '$_tag [_validateTokens] Access Token validation result: $isAccessTokenValid',
+    );
+
+    _logger.d('$_tag [_validateTokens] Validating Refresh Token...');
+    final isRefreshTokenValid = await credentialsProvider.isRefreshTokenValid();
+    _logger.d(
+      '$_tag [_validateTokens] Refresh Token validation result: $isRefreshTokenValid',
+    );
+
+    if (isAccessTokenValid && isRefreshTokenValid) {
+      return TokenValidationResult.bothValid;
+    } else if (isAccessTokenValid) {
+      return TokenValidationResult.accessOnly;
+    } else if (isRefreshTokenValid) {
+      return TokenValidationResult.refreshOnly;
+    } else {
+      return TokenValidationResult.noneValid;
+    }
+  }
+
+  /// Attempts to get the profile from cache, returns null if not found
+  Future<dynamic> _getCachedProfileOrThrow(String userId) async {
+    _logger.d(
+      '$_tag [_getCachedProfileOrThrow] Attempting to retrieve profile from cache for $userId.',
+    );
+    final cachedProfileDto = await userProfileCache.getProfile(userId);
+    if (cachedProfileDto != null) {
+      _logger.d(
+        '$_tag [_getCachedProfileOrThrow] Found profile DTO in cache for user $userId.',
+      );
+      return cachedProfileDto;
+    } else {
       _logger.w(
-        '$_tag Both tokens invalid for user $userId during offline check. Clearing cache and throwing.',
+        '$_tag [_getCachedProfileOrThrow] Profile DTO not found in cache for $userId.',
+      );
+      return null;
+    }
+  }
+
+  /// Fetches profile from cache, validates tokens, throws if invalid/expired.
+  Future<User> _fetchProfileFromCacheOrThrow(
+    String userId,
+    AuthException originalException,
+  ) async {
+    _logger.d(
+      '$_tag [_fetchProfileFromCacheOrThrow] Attempting fetch from cache for user $userId.',
+    );
+
+    // First, validate tokens to determine if we should use the cache
+    final tokenValidationResult = await _validateTokens();
+
+    // If neither token is valid, clear cache and throw unauthenticated
+    if (tokenValidationResult == TokenValidationResult.noneValid) {
+      _logger.e(
+        '$_tag [_fetchProfileFromCacheOrThrow] Both tokens invalid for user $userId during offline check. Clearing cache and throwing.',
       );
       try {
         await userProfileCache.clearProfile(userId);
-      } catch (clearError) {
-        _logger.e(
-          '$_tag Failed to clear profile cache for user $userId after invalid tokens: $clearError',
+        _logger.d(
+          '$_tag [_fetchProfileFromCacheOrThrow] Cleared cached profile for user $userId',
         );
+      } catch (e, stackTrace) {
+        _logger.e(
+          '$_tag [_fetchProfileFromCacheOrThrow] Failed to clear profile cache for $userId after invalid tokens',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        // Don't hide the original auth error
       }
-      throw AuthException.unauthenticated('Both tokens expired');
+      // Throw unauthenticated, as neither token is good
+      _logger.w(
+        '$_tag [_fetchProfileFromCacheOrThrow] Throwing AuthException.unauthenticated as fallback.',
+      );
+      throw AuthException.unauthenticated(
+        'Offline check failed: Both tokens invalid.',
+      );
     }
 
-    // Try fetching from cache
-    try {
-      final cachedProfileDto = await userProfileCache.getProfile(userId);
-      if (cachedProfileDto != null) {
-        _logger.i(
-          '$_tag Using cached profile for user $userId due to offline operation.',
-        );
-        return User(id: cachedProfileDto.id);
-      } else {
-        _logger.w(
-          '$_tag Offline profile fetch failed for user $userId: No profile found in cache.',
-        );
-        // If no cached profile, throw the original network exception
-        throw originalNetworkException;
-      }
-    } catch (cacheError) {
-      _logger.e(
-        '$_tag Error reading profile cache for user $userId during offline check: $cacheError',
+    // At least one token is valid, try to get profile from cache
+    _logger.d(
+      '$_tag [_fetchProfileFromCacheOrThrow] At least one token valid, attempting to retrieve profile from cache.',
+    );
+    final cachedProfileDto = await _getCachedProfileOrThrow(userId);
+
+    if (cachedProfileDto != null) {
+      // Corrected: Construct User using its standard constructor with the ID from DTO
+      return User(id: cachedProfileDto.id);
+    } else {
+      _logger.w(
+        '$_tag [_fetchProfileFromCacheOrThrow] Profile DTO not found in cache for $userId despite valid token(s). Rethrowing original error: ${originalException.type}',
       );
-      // If cache read fails, throw the original network exception
-      throw originalNetworkException;
+      throw originalException;
     }
   }
 
@@ -345,10 +450,7 @@ class AuthServiceImpl implements AuthService {
     // Offline exceptions are expected to be thrown by the provider if applicable.
   }
 
-  /// Checks if a DioException type represents a network connectivity issue
-  ///
-  /// Returns true for connection errors and timeouts that typically indicate
-  /// offline or unreachable server conditions.
+  /// Checks if a DioException type represents a connectivity issue.
   bool _isConnectivityError(DioExceptionType type) {
     return isNetworkConnectivityError(type);
   }
