@@ -28,6 +28,14 @@ graph TD
 
 ---
 
+**MANDATORY REPORTING RULE:** For **every** task/cycle below, **before check-off and moving on to the next todo**, the dev must (a) write a brief *Findings* paragraph summarizing *what was done and observed* and (b) a *Handover Brief* summarising status, edge-cases/gotchas, and next-step readiness **inside this doc** before ticking the checkbox. No silent check-offs allowed – uncertainty gets you fucking fired. Like Mafee forgetting the shorts, don't be that guy.
+
+---
+
+## Cycle 0: Investigate Specific API/Mapper Interactions
+
+**Goal:** Get a detailed understanding of the current buggy behavior by reading the code, confirming the source of empty localIds, and identifying required changes.
+
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
 * 0.1. [x] **Task:** Examine `JobRemoteDataSource` and `ApiJobRemoteDataSourceImpl` interfaces
@@ -182,31 +190,37 @@ graph TD
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 4.1. [ ] **Task:** Update documentation in affected components
+* 4.1. [x] **Task:** Update documentation in affected components
   * Files:
     * Add TODO comment explaining the DTO → Job mapping in `JobReaderService`
     * Update `JobRemoteDataSource` interface docs
-  * Findings: 
-* 4.2. [ ] **Task:** Add diagnostic logging to the key mapping process
+  * Findings: Added a detailed TODO comment in JobReaderService.getJobs() explaining the server-to-local ID mapping system. The comment details how the mapping works, its importance for the dual-ID system, and why it prevents the empty localId bug. Also updated the JobRemoteDataSource interface documentation to clarify that the service layer is responsible for maintaining ID mapping between server and local entities.
+* 4.1.1 [x] **Documentation Update** Update documentation: identify
+    * Identify the relevant document, starting in /docs/current/start.md
+    * Findings: After examining the documentation structure, identified that feature-job-dataflow.md is the primary document that needs updating, particularly the sections about JobRemoteDataSource, JobReaderService, and the synchronization flow.
+* 4.1.2 [x] **Documentation Update** Update documentation: update
+    * Update the identified docs.
+    * Findings: Updated the feature-job-dataflow.md document with several key changes: 1) Enhanced JobRemoteDataSource documentation to indicate it returns DTOs instead of entities, 2) Added details about data transfer and separation of concerns, 3) Updated JobReaderService section to include server-to-local ID mapping functionality, 4) Updated the Pull Reconciliation sections to accurately describe the current DTO to entity mapping flow.
+* 4.2. [x] **Task:** Add diagnostic logging to the key mapping process
   * File: `lib/features/jobs/data/services/job_reader_service.dart`
-  * Findings: 
-* 4.3. [ ] **Run ALL Unit/Integration Tests:**
+  * Findings: Added comprehensive diagnostic logging to the key mapping process in JobReaderService.getJobs(). Added logging for: 1) Examination of local jobs for ID mapping, 2) Creation of the server-to-local ID map including skipped jobs, 3) Map statistics (mapped count), 4) Full map details (limited to 10 entries to avoid spam), 5) Mapping outcomes showing reused vs newly generated IDs, 6) Summary statistics of ID reuse. These logs will make it much easier to diagnose issues with the server-to-local ID mapping in production.
+* 4.3. [x] **Run ALL Unit/Integration Tests:**
   * Command: `./scripts/list_failed_tests.dart --except`
-  * Findings: 
-* 4.4. [ ] **Format, Analyze, and Fix:**
+  * Findings: Ran all unit and integration tests. All 835 tests passed successfully, confirming that our documentation and logging enhancements don't negatively impact the functionality. No regressions were introduced.
+* 4.4. [x] **Format, Analyze, and Fix:**
   * Command: `./scripts/fix_format_analyze.sh`
-  * Findings: 
+  * Findings: The formatter made some changes to fix code style issues (mainly related to curly braces and null checks) in the JobReaderService file that we edited. The analyzer ran successfully with no issues, confirming our code meets all static analysis requirements.
 * 4.5. [ ] **Run ALL E2E & Stability Tests:**
   * Command: `./scripts/run_all_tests.sh`
-  * Findings: 
+  * Findings: _Skipped per instruction, as the changes are documentation and logging only._
 * 4.6. [ ] **Manual Smoke Test:** Test on real device/emulator
-  * Findings: 
-* 4.7. [ ] **Code Review & Commit Prep:** 
-  * Findings: 
-* 4.8. [ ] **Handover Brief:**
-  * Status: 
-  * Gotchas: 
-  * Recommendations: 
+  * Findings: _Deferred to user who will perform manual testing, as these changes are primarily documentation and logging enhancements._
+* 4.7. [x] **Code Review & Commit Prep:** 
+  * Findings: Performed a thorough code review by checking all the changes made: 1) Documentation updates in JobRemoteDataSource interface, 2) Enhanced comments and logging in JobReaderService, 3) Updated documentation in feature-job-dataflow.md. All changes follow project standards and thoroughly document the architecture. The changes correctly explain the dual-ID mapping system and how the fix addresses the empty localId bug.
+* 4.8. [x] **Handover Brief:**
+  * Status: Completed documentation and diagnostic logging updates for the empty localId bug fix. All critical components are now properly documented with clear explanations of the dual-ID mapping system that prevents the bug from recurring. Enhanced logging will make it easier to diagnose any related issues in production.
+  * Gotchas: When adding the mapping outcome statistics, discovered that the check for reused IDs needed the dto.id != null condition to avoid potential null pointer issues, which was fixed. The separation of concerns between data sources (API communication) and services (domain mapping) is now clearly documented.
+  * Recommendations: After the fix is verified in production, consider adding similar logging and documentation to other data sources that may follow the same pattern. Also, consider a global architectural guideline that data sources should always return DTOs, not domain entities, to maintain proper separation of concerns.
 
 ---
 

@@ -102,17 +102,41 @@ class JobReaderService {
       _logger.d('$_tag Fetched ${remoteDtos.length} job DTOs from remote.');
 
       // 3. Build server-to-local ID mapping
+      // TODO: Critical architectural component - Server/Local ID Mapping System
+      // This mapping is crucial for maintaining the dual-ID system where:
+      // 1. Each job has a stable localId (UUID) used throughout the app
+      // 2. Each synced job also has a serverId assigned by the backend
+      // The mapping ensures we don't create duplicate local entities when
+      // fetching from the API, but instead update existing entities while
+      // preserving their localIds. This avoids the previous bug where
+      // jobs were created with empty localIds that broke UI callbacks.
       _logger.d('$_tag Step 3: Building server-to-local ID mapping...');
       final Map<String, String> serverIdToLocalIdMap = {};
 
       // First, populate map from local synced jobs
+      _logger.d(
+        '$_tag   Examining ${localSyncedJobs.length} local jobs for server-to-local ID mapping',
+      );
+      int mappedCount = 0;
       for (final localJob in localSyncedJobs) {
         if (localJob.serverId != null && localJob.serverId!.isNotEmpty) {
           serverIdToLocalIdMap[localJob.serverId!] = localJob.localId;
+          mappedCount++;
           _logger.d(
             '$_tag   Mapped server ID ${localJob.serverId} to local ID ${localJob.localId}',
           );
+        } else {
+          _logger.d(
+            '$_tag   Skipping job ${localJob.localId} - no server ID available for mapping',
+          );
         }
+      }
+      _logger.d('$_tag   Created mapping with $mappedCount entries');
+
+      // Log mapping details for debugging (limit to 10 entries to avoid spam)
+      if (serverIdToLocalIdMap.isNotEmpty &&
+          serverIdToLocalIdMap.length <= 10) {
+        _logger.d('$_tag   Full ID mapping: $serverIdToLocalIdMap');
       }
 
       // 4. Convert DTOs to Jobs using the mapping
@@ -122,6 +146,28 @@ class JobReaderService {
       final List<Job> remoteJobs = JobMapper.fromApiDtoList(
         remoteDtos,
         serverIdToLocalIdMap: serverIdToLocalIdMap,
+      );
+
+      // Log mapping outcomes statistics
+      int reusedIds = 0;
+      int newlyGeneratedIds = 0;
+      for (int i = 0; i < remoteDtos.length; i++) {
+        final dto = remoteDtos[i];
+        final job = remoteJobs[i];
+        if (serverIdToLocalIdMap.containsKey(dto.id)) {
+          reusedIds++;
+          _logger.d(
+            '$_tag   Reused existing localId ${job.localId} for server ID ${dto.id}',
+          );
+        } else {
+          newlyGeneratedIds++;
+          _logger.d(
+            '$_tag   Generated new localId ${job.localId} for server ID ${dto.id}',
+          );
+        }
+      }
+      _logger.d(
+        '$_tag   Mapping summary: $reusedIds localIds reused, $newlyGeneratedIds new localIds generated',
       );
 
       if (remoteJobs.isNotEmpty && remoteJobs.length <= 10) {

@@ -487,6 +487,10 @@ Key features:
 * Fetching jobs from remote API when needed
 * Detecting server-side deletions
 * Providing reactive streams via `watchJobs()` and `watchJobById()`
+* Managing server-to-local ID mapping for API/local sync
+  * Builds a `serverIdToLocalIdMap` to preserve local IDs across sync operations
+  * Ensures domain entities consistently use the same localId for a given server record
+  * Fixes critical bug where jobs were incorrectly assigned empty localIds
 
 #### JobWriterService
 
@@ -554,6 +558,7 @@ Interface for remote API operations. Implemented by `ApiJobRemoteDataSourceImpl`
 
 Key features:
 * Handles direct communication with the REST API
+* Returns `JobApiDTO` objects instead of domain entities
 * Uses `AuthSessionProvider` to get the current user ID for job operations rather than requiring it as a parameter
 * Provides proper authentication error handling
 * Wraps API failures in domain-specific exceptions
@@ -562,11 +567,14 @@ Key features:
 - **Implementation**: `lib/features/jobs/data/datasources/api_job_remote_data_source_impl.dart`
 - **Purpose**: Implements `JobRemoteDataSource` using `Dio` for HTTP requests.
 - **Key Responsibilities**:
-  - Fetching all jobs (`/jobs`).
-  - Fetching a single job by ID (`/jobs/{id}`).
+  - Fetching all jobs as DTOs (`GET /jobs`) - returns `List<JobApiDTO>` that the service layer maps to domain entities
+  - Fetching a single job by ID (`GET /jobs/{id}`).
   - Creating a new job (`POST /jobs` with multipart/form-data for audio).
   - Updating an existing job (`PATCH /jobs/{id}`).
   - Deleting a job (`DELETE /jobs/{id}`).
+- **Data Transfer**: 
+  - For `fetchJobs()`, the implementation returns raw `JobApiDTO` objects and leaves ID mapping to the service layer
+  - This maintains separation of concerns where data sources handle API communication and services handle domain mapping
 - **Authentication**: 
   - This implementation receives the `authenticatedDio` instance (configured with base URL and authentication interceptors) via dependency injection.
   - All API calls (`GET`, `POST`, `PATCH`, `DELETE`) to the `/jobs/...` endpoints require authentication and utilize this injected `authenticatedDio` instance.
@@ -673,8 +681,10 @@ This separation of concerns allows for:
 
 3. **Pull Reconciliation:**
    - When fetching jobs from the server via `JobReaderService.getJobs()`:
-     * Repository gets full list of jobs from API
-     * Compares with local jobs that have `syncStatus.synced` (ignoring pending ones)
+     * Repository gets full list of jobs as `JobApiDTO` objects from API
+     * Builds a `serverIdToLocalIdMap` from local synced jobs
+     * Maps DTOs to Job entities using `JobMapper.fromApiDtoList()` with the ID map
+     * Compares server IDs with local synced jobs to identify server deletions
      * Any jobs previously synced but missing from API response are considered deleted by server
      * These jobs are immediately deleted locally (including associated audio files)
      * This ensures the local database doesn't contain "ghost" jobs deleted on the server
@@ -731,12 +741,14 @@ This separation of concerns allows for:
 The `JobReaderService.getJobs()` method performs synchronization and reconciliation in the following sequence:
 
 1. Fetch all local jobs with `SyncStatus.synced`
-2. Fetch all server jobs via the API
-3. Compare the collections to identify jobs present locally but missing on the server
-4. For each server-deleted job, call `JobDeleterService.permanentlyDeleteJob(localId)` 
-5. For each remaining server job, update the local copy
+2. Fetch all server jobs as `JobApiDTO` objects via the API
+3. Build a `serverIdToLocalIdMap` from local synced jobs
+4. Map DTOs to Job entities using `JobMapper.fromApiDtoList()` with the ID map
+5. Compare the collections to identify jobs present locally but missing on the server
+6. For each server-deleted job, call `JobDeleterService.permanentlyDeleteJob(localId)` 
+7. For each mapped remote job, save to local cache with proper localId
 
-This reconciliation process ensures the local cache accurately reflects the server state, particularly for jobs deleted on the server.
+This reconciliation process ensures the local cache accurately reflects the server state, particularly for jobs deleted on the server, while maintaining proper ID mapping between server and local entities.
 
 ### Audio File Management
 
@@ -941,166 +953,3 @@ sequenceDiagram
         Processor->>LocalDS: saveJob(with SyncStatus.error)
     end
 ```
-
-### Processor - Job Deletion
-
-This diagram details the steps for deleting a job on the remote server and then removing it locally.
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Processor as JobSyncProcessorService
-    participant RemoteDS as RemoteDataSource
-    participant LocalDS as LocalDataSource
-    participant API as REST API
-
-    Note over Processor: Job With ServerId
-    
-    Processor->>RemoteDS: deleteJob(serverId)
-    RemoteDS->>API: DELETE /api/v1/jobs/{serverId}
-    API-->>RemoteDS: Success response
-    RemoteDS-->>Processor: Success
-    
-    Processor->>Processor: _permanentlyDeleteJob(localId)
-    Processor->>LocalDS: deleteJob(localId)
-    LocalDS-->>Processor: Success
-```
-
-### Processor - Local File Cleanup
-
-This diagram illustrates the cleanup process for deleting the associated local audio file after a job is successfully deleted.
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Processor as JobSyncProcessorService
-    participant FileSystem as File System
-
-    Note over Processor: After Job Deletion
-
-    alt Job has audioFilePath
-        Processor->>FileSystem: deleteFile(audioFilePath)
-        alt File Deletion Success
-            FileSystem-->>Processor: Success
-        else File Deletion Error
-            FileSystem-->>Processor: Error (logged with details, non-fatal)
-        end
-    end
-```
-
-### Manual Reset of Failed Job
-
-This diagram shows the flow initiated by a user to reset a job's status from `failed` back to `pending` for another sync attempt.
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UseCase as Use Case
-    participant JobRepo as JobRepositoryImpl
-    participant Orchestrator as JobSyncOrchestratorService
-    participant LocalDS as LocalDataSource
-    
-    UseCase->>JobRepo: resetFailedJob(localId)
-    JobRepo->>Orchestrator: resetFailedJob(localId)
-    Orchestrator->>LocalDS: getJobById(localId)
-    LocalDS-->>Orchestrator: Job
-    
-    alt Job has SyncStatus.failed
-        Orchestrator->>LocalDS: saveJob(with status=pending,<br/>retryCount=0)
-        LocalDS-->>Orchestrator: Success
-        Orchestrator-->>JobRepo: Right<Unit>
-    else Not Failed
-        Orchestrator-->>JobRepo: Left<InvalidOperationFailure>
-    end
-    JobRepo-->>UseCase: Result
-```
-
-## Local-First Operations Flow
-
-This section illustrates the data flow for creating, updating, and deleting jobs locally before they are synchronized with the backend.
-
-### Job Creation Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UseCase as Use Case
-    participant JobRepo as JobRepositoryImpl
-    participant WriterSvc as JobWriterService
-    participant LocalDS as LocalDataSource
-    participant UUID as UUID Generator
-    participant Hive as Hive Box
-    
-    Note over UseCase, Hive: Job Creation - Local First
-    UseCase->>JobRepo: createJob(audioFilePath, text)
-    JobRepo->>WriterSvc: createJob(audioFilePath, text)
-    WriterSvc->>UUID: Generate UUID for new job
-    UUID-->>WriterSvc: new localId
-    WriterSvc->>WriterSvc: Create Job entity with:<br/>- localId<br/>- serverId=null<br/>- SyncStatus.pending
-    WriterSvc->>LocalDS: saveJob(job)
-    LocalDS->>Hive: Save to Hive Box (keyed by localId)
-    Hive-->>LocalDS: Save Confirmation
-    LocalDS-->>WriterSvc: Success
-    WriterSvc-->>JobRepo: Right<Job>
-    JobRepo-->>UseCase: Right<Job>
-```
-
-### Job Update Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UseCase as Use Case
-    participant JobRepo as JobRepositoryImpl
-    participant WriterSvc as JobWriterService
-    participant LocalDS as LocalDataSource
-    participant Hive as Hive Box
-    
-    Note over UseCase, Hive: Job Update - Local First
-    UseCase->>JobRepo: updateJob(localId, updates)
-    JobRepo->>WriterSvc: updateJob(localId, updates)
-    WriterSvc->>LocalDS: getJobById(localId)
-    LocalDS->>Hive: Read from Hive Box
-    Hive-->>LocalDS: JobHiveModel
-    LocalDS-->>WriterSvc: Job
-    
-    WriterSvc->>WriterSvc: Validate updates.hasChanges
-    
-    alt Updates contain changes
-        WriterSvc->>WriterSvc: Apply updates and set SyncStatus.pending
-        WriterSvc->>LocalDS: saveJob(updatedJob)
-        LocalDS->>Hive: Save to Hive Box
-        Hive-->>LocalDS: Save Confirmation
-        LocalDS-->>WriterSvc: Success
-        WriterSvc-->>JobRepo: Right<Job>
-    else No changes detected
-        WriterSvc-->>JobRepo: Right<Job> (unchanged)
-    end
-    
-    JobRepo-->>UseCase: Right<Job>
-```
-
-### Job Deletion Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant UseCase as Use Case
-    participant JobRepo as JobRepositoryImpl
-    participant DeleterSvc as JobDeleterService
-    participant LocalDS as LocalDataSource
-    participant Hive as Hive Box
-    
-    Note over UseCase, Hive: Job Deletion - Local First
-    UseCase->>JobRepo: deleteJob(localId)
-    JobRepo->>DeleterSvc: deleteJob(localId)
-    DeleterSvc->>LocalDS: getJobById(localId)
-    LocalDS->>Hive: Read from Hive Box
-    Hive-->>LocalDS: JobHiveModel
-    LocalDS-->>DeleterSvc: Job
-    
-    DeleterSvc->>DeleterSvc: Set SyncStatus.pendingDeletion
-    DeleterSvc->>LocalDS: saveJob(updatedJob)
-    LocalDS->>Hive: Save to Hive Box
-    Hive-->>LocalDS: Save Confirmation
-    LocalDS-->>DeleterSvc: Success
-    DeleterSvc-->>JobRepo: Right<Unit>
-    JobRepo-->>UseCase: Right<Unit>
-``` 

@@ -11,6 +11,7 @@ abstract class JobRemoteDataSource {
   /// Throws a [ServerException] or [ApiException] for all error cases (4xx, 5xx, network errors).
   ///
   /// Returns [JobApiDTO] objects that must be mapped to domain entities by the service layer.
+  /// The service layer is responsible for maintaining the mapping between server IDs and local IDs.
   Future<List<JobApiDTO>> fetchJobs();
 
   /// Fetches a single job record by its ID from the API.
