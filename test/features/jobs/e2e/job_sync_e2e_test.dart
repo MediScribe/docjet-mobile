@@ -186,7 +186,22 @@ void main() {
 
         // Allow time for async operations (API call, DB update)
         _logger.d('$_tag Waiting for sync operations to complete...');
-        await Future.delayed(const Duration(seconds: 2)); // Adjust if needed
+
+        // Replace sleep with polling
+        final jobSynced = await pollUntil(
+          condition: () async {
+            final job = await localDataSource.getJobById(localId);
+            return job.syncStatus == SyncStatus.synced;
+          },
+          description: 'Job sync status to be SyncStatus.synced',
+          timeout: const Duration(seconds: 10),
+        );
+
+        expect(
+          jobSynced,
+          isTrue,
+          reason: 'Job should have been synced within timeout period',
+        );
 
         // Assert: Verify final state in local DB
         _logger.i('$_tag Verifying final job state in local DB...');
@@ -283,7 +298,21 @@ void main() {
           isTrue,
           reason: 'Initial sync failed',
         );
-        await Future.delayed(const Duration(seconds: 2)); // Allow sync time
+
+        // Poll for synced status instead of using sleep
+        final initialSyncCompleted = await pollUntil(
+          condition: () async {
+            final job = await localDataSource.getJobById(localId);
+            return job.syncStatus == SyncStatus.synced && job.serverId != null;
+          },
+          description: 'Initial job sync to complete',
+          timeout: const Duration(seconds: 10),
+        );
+        expect(
+          initialSyncCompleted,
+          isTrue,
+          reason: 'Initial sync should complete within timeout',
+        );
 
         final jobAfterInitialSync = await localDataSource.getJobById(localId);
         expect(jobAfterInitialSync, isNotNull);
@@ -579,9 +608,9 @@ void main() {
         );
 
         // Assert: Verify network check occurred (interaction with mock from container)
-        verify(
-          mockNetworkInfo.isConnected,
-        ).called(greaterThan(0)); // Called by orchestrator
+        verify(mockNetworkInfo.isConnected).called(
+          greaterThanOrEqualTo(1),
+        ); // Orchestrator may call multiple times
 
         // Assert: Verify remote methods were NOT called
         verifyNever(

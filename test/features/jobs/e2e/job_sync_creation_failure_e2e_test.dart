@@ -127,6 +127,8 @@ void main() {
         expect(jobFromDb.syncStatus, SyncStatus.pending);
 
         // Arrange: Mock the remote data source to throw a 500 server error
+        // This mock will apply to both the immediate sync triggered by createJob
+        // and the explicitly triggered sync later in the test
         _logger.d(
           '$_tag Arranging: Mocking remote createJob to throw 500 error...',
         );
@@ -141,52 +143,97 @@ void main() {
           ApiException(message: 'Internal Server Error', statusCode: 500),
         );
 
-        // Act: Trigger synchronization (using repository from container)
-        _logger.i(
-          '$_tag Acting: Triggering sync expecting server 5xx error...',
-        );
-        final syncResult = await jobRepository.syncPendingJobs();
+        // Allow time for immediate sync to complete (it's triggered by createJob)
+        await Future.delayed(const Duration(seconds: 2));
 
-        // Assert: Sync orchestration should still succeed (it delegates error handling)
-        expect(
-          syncResult.isRight(),
-          isTrue,
-          reason: 'Sync orchestration should complete',
-        );
-
-        // Assert: Verify job state is now 'error' in local DB (using local DS from container)
-        _logger.i('$_tag Verifying job state is now error...');
+        // Check if job is already in error state from immediate sync
         jobFromDb = await localDataSource.getJobById(localId);
-        expect(jobFromDb, isNotNull, reason: 'Job should still exist locally');
-        expect(
-          jobFromDb.syncStatus,
-          SyncStatus.error,
-          reason: 'Job status should be error after 5xx',
-        );
-        expect(
-          jobFromDb.serverId,
-          isNull,
-          reason: 'ServerId should remain null',
-        );
-        expect(
-          jobFromDb.retryCount,
-          1,
-          reason: 'Retry count should be incremented to 1',
-        );
-        expect(
-          jobFromDb.lastSyncAttemptAt,
-          isNotNull,
-          reason: 'Last sync attempt time should be set',
-        );
 
-        // Assert: Verify the remote createJob was called once (using mock from container)
-        verify(
-          mockRemoteDataSource.createJob(
-            audioFilePath: audioFilePath,
-            text: 'Job created before server 5xx failure',
-            additionalText: null, // Explicitly null if not provided
-          ),
-        ).called(1);
+        // If job is already in error state, we verify its properties
+        if (jobFromDb.syncStatus == SyncStatus.error) {
+          _logger.i('$tag Job already in error state from immediate sync');
+
+          expect(
+            jobFromDb.serverId,
+            isNull,
+            reason: 'ServerId should remain null after failed sync',
+          );
+          expect(
+            jobFromDb.retryCount,
+            1,
+            reason: 'Retry count should be incremented to 1 after failed sync',
+          );
+          expect(
+            jobFromDb.lastSyncAttemptAt,
+            isNotNull,
+            reason: 'Last sync attempt time should be set after failed sync',
+          );
+
+          // Verify the remote createJob was called once during the immediate sync
+          verify(
+            mockRemoteDataSource.createJob(
+              audioFilePath: audioFilePath,
+              text: 'Job created before server 5xx failure',
+              additionalText: null,
+            ),
+          ).called(1);
+        }
+        // Otherwise we need to trigger the sync manually and verify results
+        else {
+          _logger.i('$tag Job still pending, triggering manual sync');
+
+          // Act: Trigger synchronization (using repository from container)
+          _logger.i(
+            '$_tag Acting: Triggering sync expecting server 5xx error...',
+          );
+          final syncResult = await jobRepository.syncPendingJobs();
+
+          // Assert: Sync orchestration should still succeed (it delegates error handling)
+          expect(
+            syncResult.isRight(),
+            isTrue,
+            reason: 'Sync orchestration should complete',
+          );
+
+          // Assert: Verify job state is now 'error' in local DB (using local DS from container)
+          _logger.i('$_tag Verifying job state is now error...');
+          jobFromDb = await localDataSource.getJobById(localId);
+          expect(
+            jobFromDb,
+            isNotNull,
+            reason: 'Job should still exist locally',
+          );
+          expect(
+            jobFromDb.syncStatus,
+            SyncStatus.error,
+            reason: 'Job status should be error after 5xx',
+          );
+          expect(
+            jobFromDb.serverId,
+            isNull,
+            reason: 'ServerId should remain null',
+          );
+          expect(
+            jobFromDb.retryCount,
+            1,
+            reason: 'Retry count should be incremented to 1',
+          );
+          expect(
+            jobFromDb.lastSyncAttemptAt,
+            isNotNull,
+            reason: 'Last sync attempt time should be set',
+          );
+
+          // Assert: Verify the remote createJob was called at least once
+          // (could be called during immediate sync and/or manual sync)
+          verify(
+            mockRemoteDataSource.createJob(
+              audioFilePath: audioFilePath,
+              text: 'Job created before server 5xx failure',
+              additionalText: null,
+            ),
+          ).called(greaterThanOrEqualTo(1));
+        }
 
         // Cleanup: Delete the dummy audio file
         _logger.d('$_tag Cleaning up dummy audio file...');

@@ -2,7 +2,9 @@ import 'dart:io';
 import 'dart:math';
 
 // import 'package:docjet_mobile/core/auth/auth_session_provider.dart'; // UNUSED (mocked via container)
+import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
 // import 'package:docjet_mobile/core/interfaces/network_info.dart'; // UNUSED (mocked via container)
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 // import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'; // UNUSED (accessed via container)
@@ -138,21 +140,41 @@ void main() {
           ApiException(message: 'First Sync Failed', statusCode: 500),
         );
 
-        // Act: Trigger first synchronization (expect failure)
-        _logger.i('$_tag Acting: Triggering first sync (expecting failure)...');
-        var syncResult = await jobRepository.syncPendingJobs();
-        expect(
-          syncResult.isRight(),
-          isTrue,
-          reason: 'First sync orchestration should complete',
-        );
+        // Allow time for immediate sync to complete (it's triggered by createJob)
+        await Future.delayed(const Duration(seconds: 2));
 
-        // Assert: Verify job state is 'error' and retry count is 1
-        _logger.i('$_tag Verifying job state is error after first sync...');
+        // Check current job state
         var jobFromDb = await localDataSource.getJobById(localId);
-        expect(jobFromDb.syncStatus, SyncStatus.error);
-        expect(jobFromDb.retryCount, 1);
-        expect(jobFromDb.lastSyncAttemptAt, isNotNull);
+
+        // For tracking the result of manual sync
+        Either<Failure, Unit> syncResult;
+
+        // If job is already in error state from immediate sync, we can proceed
+        if (jobFromDb.syncStatus == SyncStatus.error) {
+          _logger.i('$_tag Job already in error state from immediate sync');
+          expect(jobFromDb.retryCount, 1);
+          expect(jobFromDb.lastSyncAttemptAt, isNotNull);
+        }
+        // Otherwise we need to trigger the sync manually
+        else {
+          // Act: Trigger first synchronization (expect failure)
+          _logger.i(
+            '$_tag Acting: Triggering first sync (expecting failure)...',
+          );
+          syncResult = await jobRepository.syncPendingJobs();
+          expect(
+            syncResult.isRight(),
+            isTrue,
+            reason: 'First sync orchestration should complete',
+          );
+
+          // Assert: Verify job state is 'error' and retry count is 1
+          _logger.i('$_tag Verifying job state is error after first sync...');
+          jobFromDb = await localDataSource.getJobById(localId);
+          expect(jobFromDb.syncStatus, SyncStatus.error);
+          expect(jobFromDb.retryCount, 1);
+          expect(jobFromDb.lastSyncAttemptAt, isNotNull);
+        }
 
         // --- SPEEDUP-HACK: Directly manipulate the job to bypass backoff ---
         // This avoids long delays in the test by manually setting the lastSyncAttemptAt

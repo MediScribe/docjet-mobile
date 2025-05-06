@@ -168,10 +168,37 @@ void main() {
         final initialSyncResult = await jobRepository.syncPendingJobs();
         expect(initialSyncResult.isRight(), true);
 
+        // Give immediate sync time to complete
+        await Future.delayed(const Duration(seconds: 2));
+
         // Assert: Verify job is synced locally
         _logger.i('$_tag Verifying job is synced locally...');
         var jobFromDb = await localDataSource.getJobById(localId);
-        expect(jobFromDb.syncStatus, SyncStatus.synced);
+
+        // In case the immediate sync hasn't changed the status to synced yet
+        int syncAttempts = 0;
+        int maxSyncAttempts = 3;
+        while (jobFromDb.syncStatus != SyncStatus.synced &&
+            syncAttempts < maxSyncAttempts) {
+          _logger.d(
+            '$_tag Job not synced yet (status: ${jobFromDb.syncStatus}), waiting and trying again...',
+          );
+          await Future.delayed(const Duration(seconds: 1));
+
+          // Try explicit sync again if needed
+          if (syncAttempts > 0) {
+            await jobRepository.syncPendingJobs();
+          }
+
+          jobFromDb = await localDataSource.getJobById(localId);
+          syncAttempts++;
+        }
+
+        expect(
+          jobFromDb.syncStatus,
+          SyncStatus.synced,
+          reason: 'Job should eventually be synced',
+        );
         expect(jobFromDb.serverId, mockServerId);
         _logger.d('$_tag Initial sync complete. ServerId: $mockServerId');
 

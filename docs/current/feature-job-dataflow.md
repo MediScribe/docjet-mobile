@@ -392,7 +392,16 @@ sequenceDiagram
     Hive-->>LocalDS: Save Confirmation
     LocalDS-->>WriterSvc: Success
     WriterSvc-->>JobRepo: Right<Job>
+    
+    Note over JobRepo, SyncOrch: Immediate Sync Triggered (Fire-and-forget)
+    JobRepo->>SyncOrch: syncPendingJobs()
     JobRepo-->>UseCase: Right<Job>
+    
+    Note over SyncOrch, API: Asynchronous Sync Process (non-blocking)
+    SyncOrch->>SyncProc: processJobSync(job)
+    SyncProc->>RemoteDS: createJob(job)
+    RemoteDS->>API: POST /api/v1/jobs
+    API-->>RemoteDS: Job JSON with serverId
     
     %% Job Update Flow
     Note over UseCase, API: Job Update - Local First
@@ -474,9 +483,30 @@ class JobRepositoryImpl implements JobRepository {
   
   // Methods delegate directly to appropriate service
   Future<Either<Failure, List<Job>>> getJobs() => _readerService.getJobs();
+  
+  // Job creation with immediate sync
+  Future<Either<Failure, Job>> createJob({required String audioFilePath, String? text}) async {
+    final Either<Failure, Job> result = await _writerService.createJob(audioFilePath: audioFilePath, text: text);
+    
+    // After successful local creation, trigger immediate sync (fire-and-forget)
+    result.fold(
+      (failure) => null, // Do nothing on failure
+      (job) => _triggerImmediateSync(job) // Trigger sync on success
+    );
+    
+    return result; // Return original result regardless of sync outcome
+  }
+  
   // Other methods follow the same pattern...
 }
 ```
+
+Key features:
+* Delegates to specialized services for different operations
+* Authenticates user before job creation operations
+* Triggers immediate sync after successful local job creation (fire-and-forget)
+* Propagates results from services directly to callers
+* Properly manages auth event subscriptions
 
 #### JobReaderService
 
@@ -805,13 +835,20 @@ The job feature architecture is designed to work with background processing mech
 1. **In-App Foreground Sync:**
    - `JobSyncTriggerService` manages a 15-second `Timer.periodic` when app is foregrounded
    - Timer is paused/resumed based on app lifecycle events
+   - `JobRepositoryImpl` triggers immediate sync upon successful job creation
 
-2. **Background Worker Integration:**
+2. **Immediate Sync on Job Creation:**
+   - After successful local job creation, `JobRepositoryImpl` immediately triggers `syncPendingJobs()`
+   - This "fire-and-forget" call reduces server synchronization latency for newly created jobs
+   - The sync operation runs asynchronously and doesn't block or affect the job creation result
+   - Handles all error conditions gracefully, preserving the offline-first architecture
+
+3. **Background Worker Integration:**
    - The architecture separates triggering from execution
    - Platform-specific implementations (WorkManager for Android, BackgroundTasks for iOS) can call the same `JobRepository.syncPendingJobs()` method
    - Consistent retry mechanism works regardless of what triggered the sync
 
-3. **Lifecycle-Aware Processing:**
+4. **Lifecycle-Aware Processing:**
    - `JobSyncLifecycleObserver` manages sync state during app transitions
    - Ensures sync is running when app is visible
    - Pauses sync when app is backgrounded (unless using platform background workers)
@@ -846,6 +883,8 @@ sequenceDiagram
     participant Orchestrator as JobSyncOrchestratorService
     participant Network as NetworkInfo
     participant LocalDS as LocalDataSource
+    
+    Note over JobRepo, Orchestrator: Triggered by:<br/>1. Timer-based sync (15s)<br/>2. Immediate sync after job creation<br/>3. Network connectivity restored
     
     JobRepo->>Orchestrator: syncPendingJobs()
     Orchestrator->>Orchestrator: acquireLock() (mutex)

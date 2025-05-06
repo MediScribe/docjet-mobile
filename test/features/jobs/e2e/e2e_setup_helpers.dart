@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
@@ -26,11 +27,9 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 
 // Import the new container
 import 'e2e_dependency_container.dart';
-
 // Generate mocks for NetworkInfo, AuthCredentialsProvider, and FileSystem
 @GenerateMocks([
   NetworkInfo,
@@ -436,4 +435,36 @@ Future<void> teardownE2ETestSuite(
   await stopMockServer(mockServerProcess);
 
   logger.i('$tag --- Shared E2E Test Suite Teardown Complete ---');
+}
+
+/// Polls until a condition is met or timeout is reached
+///
+/// Returns true if condition was met, false if timed out
+Future<bool> pollUntil({
+  required Future<bool> Function() condition,
+  required String description,
+  Duration timeout = const Duration(seconds: 10),
+  Duration interval = const Duration(milliseconds: 100),
+}) async {
+  final stopwatch = Stopwatch()..start();
+
+  logHelper(
+    'Polling until: $description (timeout: ${timeout.inMilliseconds}ms)',
+  );
+
+  while (stopwatch.elapsed < timeout) {
+    if (await condition()) {
+      logHelper(
+        'Condition met after ${stopwatch.elapsedMilliseconds}ms: $description',
+      );
+      return true;
+    }
+
+    await Future.delayed(interval);
+  }
+
+  logger.w(
+    'Timed out after ${stopwatch.elapsedMilliseconds}ms waiting for: $description',
+  );
+  return false;
 }
