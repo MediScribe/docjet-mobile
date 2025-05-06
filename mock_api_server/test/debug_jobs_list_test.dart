@@ -189,13 +189,16 @@ void main() {
           reason: 'Response should include job_count field');
 
       // Make sure our test jobs are in the available_jobs list
-      final availableJobs = jsonResponse['available_jobs'] as List;
-      final jobIds = availableJobs.map((job) => job['id']).toList();
+      final availableJobsListFromJson = jsonResponse['available_jobs'] as List;
+      // availableJobsListFromJson is a list of job ID strings, e.g., ["id1", "id2"]
+      // So, it already is the list of jobIds.
+      final jobIds = List<String>.from(availableJobsListFromJson);
+
       expect(jobIds, contains(jobId1),
           reason: 'Available jobs should include jobId1');
       expect(jobIds, contains(jobId2),
           reason: 'Available jobs should include jobId2');
-      expect(jsonResponse['job_count'], equals(availableJobs.length),
+      expect(jsonResponse['job_count'], equals(jobIds.length),
           reason: 'Job count should match the number of available jobs');
     });
   });

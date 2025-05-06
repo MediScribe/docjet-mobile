@@ -118,8 +118,13 @@ void main() {
 
       // Act: Try starting again after completion
       final restartResponse = await http.post(startUrl, headers: headers);
-      expect(restartResponse.statusCode, 400, // Or appropriate error
-          reason: 'Should not be able to restart completed job progression');
+      // Assert: Expect 200 OK with a specific message, not 400
+      expect(restartResponse.statusCode, 200,
+          reason: 'Should return 200 OK for already completed job');
+      final restartBody = jsonDecode(restartResponse.body);
+      expect(restartBody['message'],
+          'Job $jobId is already completed. No action taken.',
+          reason: 'Response message should indicate job already completed');
     });
 
     test('POST /stop?id={jobId} should stop status progression', () async {
@@ -168,15 +173,34 @@ void main() {
 
     // --- Negative Path Tests ---
 
-    test('POST /start without id should return 400', () async {
-      final url = Uri.parse('$baseUrl/api/v1/debug/jobs/start'); // No id
+    test('POST /start without id should apply to all jobs and return 200',
+        () async {
+      // Arrange: Create another job so we have at least two
+      final jobId2 = await createTestJob(baseUrl, 'progression-user-2');
+
+      final url = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?fast_test_mode=true'); // No id
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
         'x-api-key': testApiKey,
       };
+
+      // Act: Start progression for all jobs
       final response = await http.post(url, headers: headers);
-      expect(response.statusCode, 400);
-      expect(response.body, contains('Missing required query parameter: id'));
+
+      // Assert: Response indicates success
+      expect(response.statusCode, 200);
+      expect(response.body, contains('Start Progression applied to'));
+
+      // Verify both jobs are completed
+      var job1 = await getJob(baseUrl, jobId);
+      var job2 = await getJob(baseUrl, jobId2);
+      expect(job1['job_status'], 'completed');
+      expect(job2['job_status'], 'completed');
+
+      // Clean up the additional job
+      final deleteUrl = Uri.parse('$baseUrl/api/v1/jobs/$jobId2');
+      await http.delete(deleteUrl, headers: headers);
     });
 
     test('POST /start with invalid interval should return 400', () async {
@@ -213,19 +237,82 @@ void main() {
       };
       final response = await http.post(url, headers: headers);
       expect(response.statusCode, 404);
-      expect(
-          response.body, contains('Job with ID $nonExistentJobId not found'));
+      // Verify the new error message format
+      final expectedErrorMessage = 'Job ID $nonExistentJobId not found.';
+      final responseBody = jsonDecode(response.body);
+      expect(responseBody['error'], expectedErrorMessage,
+          reason: 'Error message should match the new format.');
+      expect(responseBody.containsKey('available_jobs'), isTrue);
+      expect(responseBody.containsKey('job_count'), isTrue);
     });
 
-    test('POST /stop without id should return 400', () async {
-      final url = Uri.parse('$baseUrl/api/v1/debug/jobs/stop'); // No id
+    test('POST /stop without id should apply to all jobs and return 200',
+        () async {
+      // Arrange: Create a couple of jobs and start their progression
+      final jobId1 = await createTestJob(baseUrl, 'stop-all-user-1');
+      final jobId2 = await createTestJob(baseUrl, 'stop-all-user-2');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
         'x-api-key': testApiKey,
       };
+
+      // Start progression for both (non-fast mode, short interval to see change)
+      final startUrl1 = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?id=$jobId1&interval_seconds=0.5');
+      final startUrl2 = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?id=$jobId2&interval_seconds=0.5');
+      await http.post(startUrl1, headers: headers);
+      await http.post(startUrl2, headers: headers);
+
+      // Allow some time for progression to start and not complete
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      // Optional: Check they are progressing (not strictly needed for this test's main assertion)
+      // final job1Prog = await getJob(baseUrl, jobId1);
+      // final job2Prog = await getJob(baseUrl, jobId2);
+      // expect(job1Prog['job_status'], isNot(equals('submitted')));
+      // expect(job1Prog['job_status'], isNot(equals('completed')));
+
+      final url = Uri.parse('$baseUrl/api/v1/debug/jobs/stop'); // No id
+
+      // Act
       final response = await http.post(url, headers: headers);
-      expect(response.statusCode, 400);
-      expect(response.body, contains('Missing required query parameter: id'));
+
+      // Assert
+      expect(response.statusCode, 200,
+          reason: "Should return 200 for all-jobs stop");
+      final responseBody = jsonDecode(response.body);
+      // The number of jobs can vary if other tests didn't clean up perfectly or if the job_store isn't reset fully.
+      // For now, let's check it applied to at least our 2 jobs, or more generally, contains the message structure.
+      // A more robust test would fully reset the job store.
+      expect(responseBody['message'], contains('Stop Progression applied to'),
+          reason: "Response message mismatch");
+      expect(responseBody['message'], endsWith('jobs.'),
+          reason: "Response message mismatch");
+      expect(responseBody['successful_applications'], greaterThanOrEqualTo(2),
+          reason: "Should have attempted to stop at least 2 jobs");
+
+      // Further assertions could involve checking job statuses after a delay to ensure they stopped progressing.
+      // For example, record status now, wait, check status again.
+      final job1AfterStop = await getJob(baseUrl, jobId1);
+      final job2AfterStop = await getJob(baseUrl, jobId2);
+      final status1AfterStop = job1AfterStop['job_status'];
+      final status2AfterStop = job2AfterStop['job_status'];
+
+      await Future.delayed(const Duration(milliseconds: 700)); // Longer delay
+
+      final job1Final = await getJob(baseUrl, jobId1);
+      final job2Final = await getJob(baseUrl, jobId2);
+      expect(job1Final['job_status'], status1AfterStop,
+          reason: "Job 1 should have stopped progressing");
+      expect(job2Final['job_status'], status2AfterStop,
+          reason: "Job 2 should have stopped progressing");
+
+      // Clean up explicitly created jobs for this test
+      final deleteUrl1 = Uri.parse('$baseUrl/api/v1/jobs/$jobId1');
+      final deleteUrl2 = Uri.parse('$baseUrl/api/v1/jobs/$jobId2');
+      await http.delete(deleteUrl1, headers: headers);
+      await http.delete(deleteUrl2, headers: headers);
     });
 
     test('POST /stop with non-existent job ID should return 404', () async {
@@ -389,15 +476,69 @@ void main() {
           reason: 'Status should remain submitted');
     });
 
-    test('POST /reset without id should return 400', () async {
-      final url = Uri.parse('$baseUrl/api/v1/debug/jobs/reset'); // No id
+    test('POST /reset without id should apply to all jobs and return 200',
+        () async {
+      // Arrange: Create a couple of jobs and start their progression
+      final jobId1 = await createTestJob(baseUrl, 'reset-all-user-1');
+      final jobId2 = await createTestJob(baseUrl, 'reset-all-user-2');
       final headers = {
         'Authorization': 'Bearer $dummyJwt',
-        'x-api-key': testApiKey
+        'x-api-key': testApiKey,
       };
+
+      // Start progression for both (non-fast mode, short interval to see change)
+      final startUrl1 = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?id=$jobId1&interval_seconds=0.5');
+      final startUrl2 = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?id=$jobId2&interval_seconds=0.5');
+      await http.post(startUrl1, headers: headers);
+      await http.post(startUrl2, headers: headers);
+
+      // Allow some time for progression to start and move past 'submitted'
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      // Optional: Verify they have progressed from 'submitted'
+      // final job1Prog = await getJob(baseUrl, jobId1);
+      // expect(job1Prog['job_status'], isNot(equals('submitted')));
+
+      final url = Uri.parse('$baseUrl/api/v1/debug/jobs/reset'); // No id
+
+      // Act
       final response = await http.post(url, headers: headers);
-      expect(response.statusCode, 400);
-      expect(response.body, contains('Missing required query parameter: id'));
+
+      // Assert
+      expect(response.statusCode, 200,
+          reason: "Should return 200 for all-jobs reset");
+      final responseBody = jsonDecode(response.body);
+      expect(responseBody['message'], contains('Reset Progression applied to'),
+          reason: "Response message mismatch for reset all");
+      expect(responseBody['message'], endsWith('jobs.'),
+          reason: "Response message mismatch for reset all");
+      expect(responseBody['successful_applications'], greaterThanOrEqualTo(2),
+          reason: "Should have attempted to reset at least 2 jobs");
+
+      // Verify jobs are reset to 'submitted' and timers are stopped
+      final job1AfterReset = await getJob(baseUrl, jobId1);
+      final job2AfterReset = await getJob(baseUrl, jobId2);
+      expect(job1AfterReset['job_status'], 'submitted',
+          reason: "Job 1 should be reset to submitted");
+      expect(job2AfterReset['job_status'], 'submitted',
+          reason: "Job 2 should be reset to submitted");
+
+      // Wait to ensure timers are indeed stopped
+      await Future.delayed(const Duration(milliseconds: 700));
+      final job1Final = await getJob(baseUrl, jobId1);
+      final job2Final = await getJob(baseUrl, jobId2);
+      expect(job1Final['job_status'], 'submitted',
+          reason: "Job 1 should remain submitted (timer stopped)");
+      expect(job2Final['job_status'], 'submitted',
+          reason: "Job 2 should remain submitted (timer stopped)");
+
+      // Clean up explicitly created jobs for this test
+      final deleteUrl1 = Uri.parse('$baseUrl/api/v1/jobs/$jobId1');
+      final deleteUrl2 = Uri.parse('$baseUrl/api/v1/jobs/$jobId2');
+      await http.delete(deleteUrl1, headers: headers);
+      await http.delete(deleteUrl2, headers: headers);
     });
 
     test('POST /reset with non-existent job ID should return 404', () async {

@@ -189,3 +189,114 @@ void cancelProgressionTimerForJob(String jobId) {
     }
   }
 }
+
+/// Applies an action to all jobs in the store.
+///
+/// Takes an action name for logging, and a job action function.
+/// The job action function will be called for each job in the store,
+/// using the global `job_store.getAllJobs()` to retrieve jobs.
+/// Returns a shelf Response with a success message indicating how many jobs were processed.
+Future<Response> applyActionToAllJobs(
+  // dynamic jobStore, // Removed: will use job_store.getAllJobs() directly
+  String actionName,
+  Future<void> Function(String jobId, {Map<String, dynamic> jobData}) jobAction,
+) async {
+  final List<Map<String, dynamic>> allJobs;
+  try {
+    allJobs = job_store.getAllJobs(); // Directly use the global store
+  } catch (e, s) {
+    print('ERROR: Failed to get all jobs from store: $e\n$s');
+    // TODO: Consider a more user-friendly error response if this is user-facing
+    return Response.internalServerError(
+        body: jsonEncode({
+      'error': 'Failed to retrieve jobs from store',
+      'details': e.toString(),
+    }));
+  }
+
+  if (verboseLoggingEnabled) {
+    print('DEBUG APPLY_ALL: Action "$actionName" initiated for all jobs.');
+  }
+
+  var successCounter = 0;
+  final List<String> errorMessages = [];
+
+  if (allJobs.isEmpty) {
+    if (verboseLoggingEnabled) {
+      print('DEBUG APPLY_ALL: No jobs found in store to apply "$actionName".');
+    }
+    return Response.ok(
+      jsonEncode({'message': '$actionName applied to 0 jobs. No jobs found.'}),
+      headers: {'content-type': 'application/json'},
+    );
+  }
+
+  for (final job in allJobs) {
+    final jobId = job['id'] as String?;
+    if (jobId == null) {
+      final errorMessage =
+          'Error applying $actionName: Job found with null ID. Skipping.';
+      print('ERROR APPLY_ALL: $errorMessage Job data: $job');
+      errorMessages.add(errorMessage);
+      continue;
+    }
+    try {
+      // Pass the full job data to the action, if it needs it.
+      await jobAction(jobId, jobData: job);
+      successCounter++;
+      if (verboseLoggingEnabled) {
+        print(
+            'DEBUG APPLY_ALL: Successfully applied "$actionName" to job $jobId.');
+      }
+    } catch (e, s) {
+      final errorMessage =
+          'Error applying $actionName to job $jobId: ${e.toString()}';
+      print('ERROR APPLY_ALL: $errorMessage\nStack trace:\n$s');
+      errorMessages.add(errorMessage);
+      // Continue to the next job even if one fails
+    }
+  }
+
+  final Map<String, dynamic> responseBody = {
+    'message':
+        '$actionName applied to $successCounter out of ${allJobs.length} jobs.',
+    'successful_applications': successCounter,
+    'total_jobs_processed': allJobs.length,
+  };
+
+  if (errorMessages.isNotEmpty) {
+    responseBody['errors'] = errorMessages;
+    responseBody['error_count'] = errorMessages.length;
+    if (verboseLoggingEnabled) {
+      print(
+          'DEBUG APPLY_ALL: Action "$actionName" completed with ${errorMessages.length} errors.');
+    }
+    // Return 207 Multi-Status if there were errors but some successes
+    if (successCounter > 0 && successCounter < allJobs.length) {
+      return Response(
+        207, // Multi-Status
+        body: jsonEncode(responseBody),
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    // Return 500 if all attempts failed or if there were only errors (and no successes)
+    // or if there were successes but the overall operation is considered a failure due to errors.
+    // For now, let's assume any error makes the "all" operation problematic.
+    // If all jobs resulted in an error, or if there were errors.
+    // This can be refined based on how strictly we want to report partial success.
+    // For now, if there are any errors, let's not return a simple 200 OK.
+    return Response.internalServerError(
+      body: jsonEncode(responseBody),
+      headers: {'content-type': 'application/json'},
+    );
+  }
+
+  if (verboseLoggingEnabled) {
+    print(
+        'DEBUG APPLY_ALL: Action "$actionName" completed successfully for all $successCounter jobs.');
+  }
+  return Response.ok(
+    jsonEncode(responseBody),
+    headers: {'content-type': 'application/json'},
+  );
+}
