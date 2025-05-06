@@ -143,8 +143,7 @@ final _router = Router()
   ..post('/$_versionedApiPath/auth/refresh-session', _refreshHandler)
 
   // User profile endpoints (prefixed)
-  ..get('/$_versionedApiPath/users/profile', _getUserProfileHandler)
-  ..get('/$_versionedApiPath/users/<userId>', _getUserByIdHandler)
+  ..get('/$_versionedApiPath/users/me', _getUserMeHandler)
 
   // Job endpoints (prefixed)
   ..post('/$_versionedApiPath/jobs', _createJobHandler)
@@ -351,9 +350,9 @@ Future<Response> _refreshHandler(Request request) async {
   );
 }
 
-// Get User Profile handler logic
-Future<Response> _getUserProfileHandler(Request request) async {
-  if (verboseLoggingEnabled) print('DEBUG: Get User Profile handler called');
+// NEW Get User Me handler logic
+Future<Response> _getUserMeHandler(Request request) async {
+  if (verboseLoggingEnabled) print('DEBUG: Get User Me handler called');
 
   // --- JWT Validation ---
   try {
@@ -361,7 +360,7 @@ Future<Response> _getUserProfileHandler(Request request) async {
     if (authorizationHeader == null ||
         !authorizationHeader.startsWith('Bearer ')) {
       if (verboseLoggingEnabled)
-        print('DEBUG Profile: Missing or invalid Bearer token header.');
+        print('DEBUG: Missing or invalid Bearer token header.');
       return Response(HttpStatus.unauthorized,
           body: jsonEncode({'error': 'Missing or invalid Bearer token'}),
           headers: {'content-type': 'application/json'});
@@ -374,25 +373,28 @@ Future<Response> _getUserProfileHandler(Request request) async {
     final jwt = JWT.verify(token, SecretKey(_mockJwtSecret));
     final userId = jwt.payload['sub'] as String?;
 
-    if (userId == null) {
+    if (userId == null || userId.isEmpty) {
       if (verboseLoggingEnabled)
-        print('DEBUG Profile: Token is missing \'sub\' (user ID) claim.');
+        print('DEBUG: Token is missing or has empty \'sub\' (user ID) claim.');
       return Response(HttpStatus.unauthorized,
-          body: jsonEncode({'error': 'Invalid token claims'}),
+          body: jsonEncode({
+            'error': 'Invalid token claims'
+          }), // Consistent error message with tests
           headers: {'content-type': 'application/json'});
     }
 
     if (verboseLoggingEnabled)
-      print('DEBUG Profile: Token validated for user: $userId');
+      print('DEBUG: Token validated for user: $userId');
 
-    // --- Generate Response using validated User ID ---
+    // --- Generate Response using validated User ID (mirroring old /profile structure) ---
     final responseBody = jsonEncode({
       'id': userId, // Use the ID from the token!
-      'name': 'Mock User ($userId)', // Make name specific to validated user
-      'email': 'mock.user.$userId@example.com', // Make email specific
+      'name':
+          'Mock User ($userId)', // Consistent with old /profile test expectations
+      'email': 'mock.user.$userId@example.com', // Consistent
       'settings': {
-        'theme': 'dark',
-        'notifications_enabled': true,
+        'theme': 'dark', // Consistent
+        'notifications_enabled': true, // Consistent
       },
     });
 
@@ -401,83 +403,23 @@ Future<Response> _getUserProfileHandler(Request request) async {
       headers: {'content-type': 'application/json'},
     );
   } on JWTExpiredException {
-    if (verboseLoggingEnabled) print('DEBUG Profile: JWT expired.');
+    if (verboseLoggingEnabled) print('DEBUG: JWT expired.');
     return Response(HttpStatus.unauthorized,
         body: jsonEncode({'error': 'Token expired'}),
         headers: {'content-type': 'application/json'});
   } on JWTException catch (ex) {
     // Catches other JWT errors (signature, format)
     if (verboseLoggingEnabled)
-      print('DEBUG Profile: JWT validation error: ${ex.message}');
+      print('DEBUG: JWT validation error: ${ex.message}');
     return Response(HttpStatus.unauthorized,
         body: jsonEncode({'error': 'Invalid token: ${ex.message}'}),
         headers: {'content-type': 'application/json'});
   } catch (e) {
-    if (verboseLoggingEnabled) print('DEBUG Profile: Unexpected error: $e');
+    if (verboseLoggingEnabled) print('DEBUG: Unexpected error: $e');
     return Response.internalServerError(
         body: jsonEncode({'error': 'Internal server error'}),
         headers: {'content-type': 'application/json'});
   }
-}
-
-// Get User By ID handler logic
-Future<Response> _getUserByIdHandler(Request request, String userId) async {
-  if (verboseLoggingEnabled) {
-    print('DEBUG: Get User By ID handler called for userId: $userId');
-  }
-
-  // Note: Header validation (API Key) is done by the middleware
-
-  // Validate userId format/presence
-  if (userId.isEmpty) {
-    return Response(
-      HttpStatus.badRequest,
-      body: jsonEncode({'error': 'User ID cannot be empty'}),
-      headers: {'content-type': 'application/json'},
-    );
-  }
-
-  // --- Mock User Existence Check ---
-  // Here, we'll just check against the specific ID used in tests.
-  const String expectedWorkaroundUserId =
-      'fake-user-id-123'; // User ID from JWT/workaround
-
-  if (userId != expectedWorkaroundUserId) {
-    // Also allow the old test ID for compatibility, remove later if needed
-    const String oldTestUserId = 'user-from-path-123';
-    if (userId != oldTestUserId) {
-      if (verboseLoggingEnabled) {
-        print(
-            'DEBUG GetUserById: User ID "$userId" not found (expecting "$expectedWorkaroundUserId" or "$oldTestUserId").');
-      }
-      // Return 404 Not Found
-      return Response.notFound(
-        jsonEncode({'error': 'User with ID \'$userId\' not found'}),
-        headers: {'content-type': 'application/json'},
-      );
-    }
-  }
-  // --- End Mock User Existence Check ---
-
-  // User ID is known, proceed to generate response
-  if (verboseLoggingEnabled) {
-    print('DEBUG GetUserById: User ID "$userId" found. Generating response.');
-  }
-
-  final responseBody = jsonEncode({
-    'id': userId, // Use the ID from the URL path
-    'name': 'Mock User (ID: $userId)', // Add ID to name for clarity
-    'email': 'mock.user.$userId@example.com', // Make email unique too
-    'settings': {
-      'theme': 'light', // Slightly different settings for testing
-      'notifications_enabled': false,
-    },
-  });
-
-  return Response.ok(
-    responseBody,
-    headers: {'content-type': 'application/json'},
-  );
 }
 
 // Create Job handler logic

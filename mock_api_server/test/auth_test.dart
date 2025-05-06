@@ -459,8 +459,9 @@ void main() {
     });
   });
 
-  group('GET /api/v1/users/profile', () {
-    test('should return user profile on successful GET with valid JWT',
+  group('GET /api/v1/users/profile (deprecated)', () {
+    test(
+        'should return 404 Not Found as endpoint is removed (even with valid tokens)',
         () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
@@ -474,19 +475,12 @@ void main() {
       final response = await http.get(url, headers: headers);
 
       // Assert
-      expect(response.statusCode, 200); // Should now be 200 OK
-      expect(response.headers['content-type'], contains('application/json'));
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      expect(body, isA<Map<String, dynamic>>());
-      // Verify the ID matches the one from the JWT
-      expect(body['id'], equals(_jwtUserId));
-      expect(body['name'], contains(_jwtUserId)); // Name should contain the ID
-      expect(
-          body['email'], contains(_jwtUserId)); // Email should contain the ID
-      expect(body['settings'], isA<Map>());
+      expect(response.statusCode, 404); // Should now be 404 Not Found
     });
 
-    test('should return 401 Unauthorized if x-api-key is missing', () async {
+    test(
+        'should return 401 Unauthorized if x-api-key is missing (middleware runs before routing)',
+        () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
       final validJwt =
@@ -500,10 +494,12 @@ void main() {
       final response = await http.get(url, headers: headers);
 
       // Assert
-      expect(response.statusCode, 401);
+      expect(response.statusCode,
+          401); // Auth middleware still catches this before routing
     });
 
-    test('should return 401 Unauthorized if Authorization header is missing',
+    test(
+        'should return 404 Not Found if Authorization header is missing (API key present)',
         () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
@@ -516,11 +512,13 @@ void main() {
       final response = await http.get(url, headers: headers);
 
       // Assert
-      expect(response.statusCode, 401);
+      expect(response.statusCode,
+          404); // Should be 404 as endpoint is removed, but API key is valid
     });
 
-    // Add tests for expired/invalid JWT if desired (mirroring user_test.dart)
-    test('should return 401 Unauthorized if JWT is expired', () async {
+    // Updated tests for expired/invalid JWT
+    test('should return 404 Not Found if JWT is expired (endpoint removed)',
+        () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
       final expiredJwt =
@@ -532,11 +530,10 @@ void main() {
       // Act
       final response = await http.get(url, headers: headers);
       // Assert
-      expect(response.statusCode, 401);
-      expect(response.body, contains('Token expired'));
+      expect(response.statusCode, 404); // Now 404 as endpoint doesn't exist
     });
 
-    test('should return 401 Unauthorized if JWT is invalid (wrong secret)',
+    test('should return 404 Not Found if JWT is invalid (endpoint removed)',
         () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/users/profile');
@@ -548,8 +545,7 @@ void main() {
       // Act
       final response = await http.get(url, headers: headers);
       // Assert
-      expect(response.statusCode, 401);
-      expect(response.body, contains('Invalid token')); // Or specific message
+      expect(response.statusCode, 404); // Now 404 as endpoint doesn't exist
     });
   });
 

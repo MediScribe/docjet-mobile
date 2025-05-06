@@ -70,10 +70,10 @@ sequenceDiagram
 * 0.4. [x] **Task:** Confirm the new endpoint structure: `GET /api/v1/users/me` returning `{"id": "...", "email": "...", ...}`.
     * Action: User confirmation.
     * Findings: Confirmed.
-* 0.5. [ ] **Update Plan:** Review the multi-cycle plan based on these findings.
+* 0.5. [x] **Update Plan:** Review the multi-cycle plan based on these findings.
     * Action: Review the proposed plan (Cycle 1: Mock Server, Cycle 2: Client-Side, Cycle 3: Cleanup & Docs).
     * Findings: [Plan confirmed and refined based on detailed code review. Key areas for attention include ensuring the mock server's new `/users/me` endpoint correctly mirrors the auth requirements (API Key + Bearer Token) and response structure of the old `/users/profile` endpoint, and that tests for deprecated endpoints are updated to expect 404s or are removed.]
-* 0.6. [ ] **Handover Brief:**
+* 0.6. [x] **Handover Brief:**
     * Status: [Investigation complete. The battle plan is solid, verified against current code. We know the enemy, its name is `ProfileEndpointWorkaround`, and its days are numbered.]
     * Gotchas: [The `ApiPathMatcher` might be an orphaned child after this; we'll need to check its parentage or send it to an orphanage. Ensure mock server's new `/users/me` correctly implements auth and response consistent with the old `/users/profile`.]
     * Recommendations: [Proceed with Cycle 1: Mock Server Overhaul. Prepare for righteous deletion. Pay close attention to mock server auth logic and test updates for old endpoints.]
@@ -86,9 +86,9 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle.
 
-* 1.1. [ ] **Research:** Review existing mock server auth middleware and response structures to ensure the new `/api/v1/users/me` endpoint integrates cleanly.
-    * Findings: [e.g., Auth middleware checks for `X-API-Key` and `Authorization: Bearer <token>`. New endpoint should follow this. Standard JSON response structure. Confirm `/users/profile` required both API key and Bearer token; `/users/me` must do the same.]
-* 1.2. [ ] **Tests RED:**
+* 1.1. [x] **Research:** Review existing mock server auth middleware and response structures to ensure the new `/api/v1/users/me` endpoint integrates cleanly.
+    * Findings: [The mock server applies a global `_authMiddleware` that checks for a valid `X-API-Key` on all routes except health and debug. The old `/users/profile` endpoint handler (`_getUserProfileHandler`) additionally performed its own JWT Bearer token validation (`Authorization: Bearer <token>`) and extracted the user ID from the token's `sub` claim. The old `/users/<userId>` handler relied only on the global API key check. Therefore, the new `/api/v1/users/me` handler must also perform its own JWT Bearer token validation (like `/users/profile` did) and will automatically be covered by the global API key check. The response structure of `/users/profile` (`{"id": "...", "name": "...", "email": "...", "settings": {...}}`) should be mirrored, with the `id` derived from the JWT `sub` claim.]
+* 1.2. [x] **Tests RED:**
     * Test File: `mock_api_server/test/user_test.dart`
     * Test Description:
         *   Add new tests for `GET /api/v1/users/me`:
@@ -96,9 +96,9 @@ sequenceDiagram
             *   Failure case (401 if auth headers missing/invalid).
         *   Modify existing tests for `/api/v1/users/profile` and `/api/v1/users/<userId>`:
             *   Ensure they now expect 404s (as handlers will be deleted). Tests for handlers that are completely removed should themselves be removed to avoid clutter.
-    * Run the tests: `cd mock_api_server && dart test test/user_test.dart` (or relevant script)
-    * Findings: [New tests for `/users/me` fail as expected (no handler). Tests for old endpoints pass if not modified, or fail if modified to expect 404s against existing handlers (these will be removed/updated in green stage).]
-* 1.3. [ ] **Implement GREEN:**
+    * Run the tests: `./scripts/list_failed_tests.dart mock_api_server/test/user_test.dart --except`
+    * Findings: [Tests executed. 10 out of 17 tests failed as expected. New tests for `/api/v1/users/me` predominantly fail with 404 (Not Found) instead of 200 (OK) or specific 401s (Unauthorized), as the endpoint and its logic do not yet exist. Modified tests for deprecated `/users/<userId>` and `/users/profile` also fail, as they currently hit existing handlers (returning 200s or 401s) instead of the target 404s. This confirms the RED state: the tests demand changes that are not yet implemented.]
+* 1.3. [x] **Implement GREEN:**
     * Implementation File: `mock_api_server/bin/server.dart`
     * Action:
         *   Remove the route handlers for `/$_versionedApiPath/users/profile`.
@@ -107,22 +107,22 @@ sequenceDiagram
         *   Implement `_getUserMeHandler` to:
             *   Perform auth checks: strictly enforce both API key (`X-API-Key`) and Bearer token (`Authorization: Bearer <token>`), reusing logic from the old `/users/profile` handler if possible.
             *   Return a 200 OK with the user profile JSON: `{"id": "mock-user-id-from-token-sub-claim", "email": "user@example.com", "full_name": "Mock User", ...}`. (Extract user ID from token's 'sub' claim like the old profile handler did). Ensure the response structure is identical to the one previously returned by `/users/profile`.
-    * Findings: [Code implemented. New tests for `/users/me` should now pass. Tests for old endpoints should fail (as handlers are gone) or be deleted.]
-* 1.4. [ ] **Refactor:** Clean up `mock_api_server/bin/server.dart` and `mock_api_server/test/user_test.dart`. Remove any dead code and tests related to the old endpoints.
-    * Findings: [Code and tests are cleaner than a germaphobe's operating room.]
-* 1.5. [ ] **Run Cycle-Specific Tests:**
-    * Command: `cd mock_api_server && dart test test/user_test.dart`
-    * Findings: [All tests in `user_test.dart` pass. The mock server is behaving like a well-trained attack dog.]
-* 1.6. [ ] **Run ALL Unit/Integration Tests (Mock Server):**
-    * Command: `cd mock_api_server && dart test`
-    * Findings: `[Confirm ALL mock server tests pass. FIX if not.]`
-* 1.7. [ ] **Format, Analyze, and Fix (Mock Server):**
+    * Findings: [Code implemented in `mock_api_server/bin/server.dart`. The old route declarations for `/users/profile` and `/users/<userId>` were removed. A new route `GET /users/me` was added, pointing to a new `_getUserMeHandler`. This handler implements JWT Bearer token authentication (checking for valid token and non-empty `sub` claim) and returns user data in the same structure as the old `/users/profile` endpoint. The global API key middleware continues to provide X-API-Key protection. Upon re-running tests (`./scripts/list_failed_tests.dart mock_api_server/test/user_test.dart --except`), all 17 tests now pass. The mock server correctly serves `/api/v1/users/me` and rejects calls to the old endpoints with 404s as intended.]
+* 1.4. [x] **Refactor:** Clean up `mock_api_server/bin/server.dart` and `mock_api_server/test/user_test.dart`. Remove any dead code and tests related to the old endpoints.
+    * Findings: [Removed reference to the old handlers in the comments in `mock_api_server/bin/server.dart`. Discovered and fixed 4 failing tests in `mock_api_server/test/auth_test.dart` that still expected responses from the removed `/users/profile` endpoint. Updated those tests to expect 404 Not Found responses (except for the API key missing case which still returns 401 from the middleware). After these changes, all tests in the `mock_api_server` package pass, confirming our successful refactoring.]
+* 1.5. [x] **Run Cycle-Specific Tests:**
+    * Command: `./scripts/list_failed_tests.dart mock_api_server/test/user_test.dart`
+    * Findings: [All 17 tests in `user_test.dart` pass. New tests for `/users/me` verify correct authentication logic and response structure. Tests for removed endpoints correctly verify they return 404s now.]
+* 1.6. [x] **Run ALL Unit/Integration Tests (Mock Server):**
+    * Command: `./scripts/list_failed_tests.dart mock_api_server`
+    * Findings: [All 104 tests in the mock server pass after our changes, including the previously failing tests in `auth_test.dart`. This confirms we've handled all dependencies and edge cases correctly.]
+* 1.7. [x] **Format, Analyze, and Fix (Mock Server):**
     * Command: `cd mock_api_server && dart format . && dart analyze`
-    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
-* 1.8. [ ] **Handover Brief:**
-    * Status: [Mock server has been successfully purged of the old filth and now proudly serves `/api/v1/users/me`. Tests confirm its newfound purity.]
-    * Gotchas: [Ensure the new handler correctly mimics any nuances of the real backend's auth, if known (e.g., specific error messages for bad tokens). Confirm the mock `/users/me` strictly enforces both API key and Bearer token auth, consistent with the old `/users/profile`.]
-    * Recommendations: [Proceed to Cycle 2: Client-Side Refactoring. The client is currently dumber than a bag of hammers, calling endpoints that no longer exist on the mock. Time to educate it.]
+    * Findings: [No formatting or analysis issues detected. The code is clean and compliant with style guidelines.]
+* 1.8. [x] **Handover Brief:**
+    * Status: [Mock server has been successfully purged of the old filth and now proudly serves `/api/v1/users/me`. Tests confirm its newfound purity. The `/users/profile` and `/users/<userId>` endpoints are gone, only returning 404s now. All tests have been updated to reflect this change, including those in `auth_test.dart` which we discovered were still expecting the old behavior.]
+    * Gotchas: [Discovered that endpoint changes need to be reflected in ALL test files, not just the primary ones. The `auth_test.dart` file had tests for the deprecated endpoint that needed updates. Be aware of cross-dependencies between tests and functionality. Also remember that auth middleware runs before routing, so some 401 responses still happen even for non-existent routes.]
+    * Recommendations: [Proceed to Cycle 2: Client-Side Refactoring. The mock server is ready, but the client is still trying to call endpoints that no longer exist. Now we need to update `ApiConfig` to use the new endpoint and remove the `ProfileEndpointWorkaround` hack.]
 
 ---
 
@@ -156,7 +156,7 @@ sequenceDiagram
             *   Uncomment and use: `return ApiConfig.userProfileEndpoint;` (this will now return 'users/me').
             *   Remove the `HACK-TODO` comments.
             *   Remove the import for `hack_profile_endpoint_workaround.dart`.
-        3.  Delete the file `lib/core/user/infrastructure/hack_profile_endpoint_workaround.dart`. Send it to the fucking void.
+        3.  Delete the file `lib/core/user/infrastructure/hack_profile_endpoint_workaround.dart`. Send it to the fucking void. (Verify any utility logic within it, e.g., JWT parsing, is not needed elsewhere or is migrated if it was a general utility – though it appears self-contained for this specific path transformation hack).
     * Findings: [Client code updated. `hack_profile_endpoint_workaround.dart` is now sleeping with the fishes. Tests in `user_api_client_test.dart` should pass.]
 * 2.4. [ ] **Refactor:** Clean up `UserApiClient` and its tests. Ensure clarity and remove any lingering HACK comments related to the old endpoint.
     * Findings: [Client code is now as clean and direct as a sniper shot.]
@@ -229,4 +229,4 @@ With these cycles we:
 2. Seamlessly integrated the new, proper `/api/v1/users/me` endpoint for fetching user profiles.
 3. Updated all relevant tests and documentation, leaving a codebase cleaner than a Cistercian monastery.
 
-No bullshit, no uncertainty – "Certainty. That's what I'm selling." 
+No bullshit, no uncertainty – "Certainty. That's what I'm selling."
