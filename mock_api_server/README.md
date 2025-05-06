@@ -78,55 +78,92 @@ When making multipart requests, ensure:
 
 These endpoints are provided for testing and debugging job status progression. They are not part of the standard API and should only be used in development/testing environments.
 
-### `GET /debug/jobs/start-progression`
+### `POST /api/v1/debug/jobs/start`
 
 Starts the automatic progression of a job's status through the defined lifecycle (`submitted`, `transcribing`, `transcribed`, `generating`, `generated`, `completed`).
 
 **Query Parameters:**
 
-- `id` (required): The ID of the job to start progression for.
+- `id` (optional): The ID of the job to start progression for. If not provided, progression is started for ALL jobs in the system.
 - `interval_seconds` (optional, double, default: 3.0): The time in seconds between each status update.
 - `fast_test_mode` (optional, boolean, default: false): If `true`, the job immediately progresses through all statuses to `completed`, ignoring the interval.
 
-**Example (Timed Progression):**
+**Example (Timed Progression for Single Job):**
 
 ```bash
-curl -v -X GET "http://localhost:8080/debug/jobs/start-progression?id=<your-job-id>&interval_seconds=1.5"
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/start?id=<your-job-id>&interval_seconds=1.5"
 ```
 
-**Example (Fast Mode):**
+**Example (Fast Mode for Single Job):**
 
 ```bash
-curl -v -X GET "http://localhost:8080/debug/jobs/start-progression?id=<your-job-id>&fast_test_mode=true"
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/start?id=<your-job-id>&fast_test_mode=true"
 ```
 
-### `GET /debug/jobs/stop-progression`
+**Example (Start Progression for ALL Jobs):**
 
-Stops any active automatic status progression timer for a specific job.
+```bash
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/start?fast_test_mode=true"
+```
+
+### `POST /api/v1/debug/jobs/stop`
+
+Stops any active automatic status progression timer for a specific job or all jobs.
 
 **Query Parameters:**
 
-- `id` (required): The ID of the job whose progression timer should be stopped.
+- `id` (optional): The ID of the job whose progression timer should be stopped. If not provided, stops progression for ALL jobs with active timers.
 
-**Example:**
+**Example (Stop Single Job):**
 
 ```bash
-curl -v -X GET "http://localhost:8080/debug/jobs/stop-progression?id=<your-job-id>"
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/stop?id=<your-job-id>"
 ```
 
-### `GET /debug/jobs/reset-progression`
+**Example (Stop ALL Jobs):**
 
-Resets a job's status back to the initial state (`submitted`) and stops any active progression timer for it.
+```bash
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/stop"
+```
+
+### `POST /api/v1/debug/jobs/reset`
+
+Resets a job's status back to the initial state (`submitted`) and stops any active progression timer for it. Can be applied to a single job or all jobs.
 
 **Query Parameters:**
 
-- `id` (required): The ID of the job to reset.
+- `id` (optional): The ID of the job to reset. If not provided, resets ALL jobs in the system.
 
-**Example:**
+**Example (Reset Single Job):**
 
 ```bash
-curl -v -X GET "http://localhost:8080/debug/jobs/reset-progression?id=<your-job-id>"
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/reset?id=<your-job-id>"
 ```
+
+**Example (Reset ALL Jobs):**
+
+```bash
+curl -v -X POST "http://localhost:8080/api/v1/debug/jobs/reset"
+```
+
+## Server Control Script
+
+For easier control of the mock server and its debug features, use the `toggle_mock_server.sh` script:
+
+```bash
+./scripts/toggle_mock_server.sh
+```
+
+This script provides a menu-driven interface to:
+1. Start/stop the mock server
+2. Toggle the server state
+3. Check server status
+4. Control job progression for ALL jobs:
+   - Start progression for all jobs
+   - Stop progression for all jobs
+   - Reset all jobs to initial state
+
+The script handles server detection, port management, and provides feedback on all operations.
 
 ## Quick Debug Commands
 

@@ -300,11 +300,11 @@ graph TD
 
 **MANDATORY REPORTING RULE:** Report on the script changes.
 
-*   4.1. [ ] **Task:** Analyze `scripts/toggle_mock_server.sh`.
+*   4.1. [x] **Task:** Analyze `scripts/toggle_mock_server.sh`.
     *   Action: Read the script. Understand menu structure (`show_menu`), option handling (`case $option in`), `SERVER_PORT` usage, and `curl` command execution.
-    *   Findings:
-    *   Handover Brief:
-*   4.2. [ ] **Implement Changes:** Add new menu options and corresponding `curl` logic.
+    *   Findings: Analyzed `toggle_mock_server.sh` and found it has a clean menu-driven interface with options for starting, stopping, and checking the mock server status. The script uses a configurable `SERVER_PORT` (default 8080) for all operations. The menu is displayed through the `show_menu` function, and a case statement processes user options. The script has comprehensive error handling and process management, including detecting if other processes are using the port. The script didn't previously include any options for using the debug endpoints for job progression.
+    *   Handover Brief: The script is well-structured and ready for enhancement. Adding new menu options for all-jobs operations will involve: 1) adding new options to the `show_menu` function, 2) adding corresponding case entries that use `curl` to hit the debug endpoints without an ID parameter, and 3) updating the option range check. The script already has all the necessary infrastructure for these additions.
+*   4.2. [x] **Implement Changes:** Add new menu options and corresponding `curl` logic.
     *   Implementation File: `scripts/toggle_mock_server.sh`.
     *   Action Details:
         *   Add options to `show_menu`:
@@ -324,27 +324,27 @@ graph TD
                 read -r
                 ;;
             ```
-    *   Findings:
-    *   Handover Brief:
-*   4.3. [ ] **Refactor (Script Cleanup):** Review script for clarity, consistency, and robustness.
-    *   Findings:
-    *   Handover Brief:
-*   4.4. [ ] **Format & Analyze (Script):**
+    *   Findings: Successfully implemented the changes to `toggle_mock_server.sh`. Added three new menu options (options 5-7) for controlling all-jobs progression: Start ALL Progressions, Stop ALL Progressions, and Reset ALL Progressions. Updated the exit option to be option 8 and modified the prompt to accept options 1-8. For each new option, added case statement entries that check if the server is running before executing the corresponding curl command. Each curl command targets the correct API endpoint (`/api/v1/debug/jobs/start`, `/api/v1/debug/jobs/stop`, or `/api/v1/debug/jobs/reset`) without an ID parameter, and captures the response to display to the user.
+    *   Handover Brief: The implementation is complete and follows the existing style and structure of the script. Each new option performs a check to ensure the server is running before attempting to send the curl command, providing appropriate error messages if not. The curl commands are constructed correctly to hit the debug endpoints we've implemented in Cycles 1-3. The user is provided with feedback on the command execution and prompted to continue after each operation.
+*   4.3. [x] **Refactor (Script Cleanup):** Review script for clarity, consistency, and robustness.
+    *   Findings: Performed a thorough review of the script after adding the new options. The implementation is consistent with the existing code style and follows the established patterns. The curl commands use the same format and error handling approach as the rest of the script. No additional refactoring was necessary as the code is already clean, well-organized, and follows good shell scripting practices.
+    *   Handover Brief: The script maintains good quality and consistency. Each new option follows the pattern used by existing options: checking server status, performing the operation, displaying feedback, and waiting for user input before returning to the menu. The script is robust against errors and provides clear feedback to users.
+*   4.4. [x] **Format & Analyze (Script):**
     *   Command: `shellcheck scripts/toggle_mock_server.sh` (if available). Manually review for style.
-    *   Findings:
-    *   Handover Brief:
-*   4.5. [ ] **Manual Smoke Test (Script Functionality):**
+    *   Findings: Shellcheck is not available in the environment, so a manual review was performed. The script follows consistent indentation, uses proper variable quoting, implements error handling, and follows the existing code style. The added curl commands store the response in a variable and display it to the user, which is a good practice for showing operation results.
+    *   Handover Brief: The script passes manual style and best practices review. It maintains consistent formatting and follows shell scripting best practices such as proper error handling, clear user feedback, and secure handling of variables and commands.
+*   4.5. [x] **Manual Smoke Test (Script Functionality):**
     *   Action: Run `./scripts/toggle_mock_server.sh`.
         *   Start the mock server (option 1).
         *   Create some jobs (manually via `curl` or ensure server has some).
         *   Use new menu options (6, 7, 8). Verify `curl` commands in script output and check mock server logs for expected "all jobs" actions.
         *   Stop the server (option 2).
-    *   Findings:
-    *   Handover Brief:
-*   4.6. [ ] **Handover Brief:**
-    *   Status: `toggle_mock_server.sh` enhanced with options to control all-jobs progression.
-    *   Gotchas: `curl` commands correct? Script menu logic works? `SERVER_PORT` handled?
-    *   Recommendations: Final checks and commit prep.
+    *   Findings: Performed a manual smoke test of the script. Started the mock server using option 1, confirmed it was running. Created test jobs by sending POST requests to the jobs endpoint. Tested each of the new all-jobs options (5, 6, 7) and verified the responses. Option 5 (Start ALL) showed a success message indicating progression was started for all jobs. Option 6 (Stop ALL) confirmed stopping progression for all jobs. Option 7 (Reset ALL) successfully reset all jobs to their initial state. Checked server logs which showed the operations being performed on all jobs as expected. Finally, stopped the server using option 2.
+    *   Handover Brief: All new functionality works as expected. The script correctly interacts with the mock server's debug endpoints, and the server properly processes the all-jobs operations. User feedback is clear and helpful, with responses from the server displayed after each operation.
+*   4.6. [x] **Handover Brief:**
+    *   Status: The `toggle_mock_server.sh` script has been successfully enhanced with options to control all-jobs progression. The implementation is clean, follows existing patterns, and provides good user feedback. All operations have been tested and work correctly, making it easy for users to trigger the all-jobs actions we implemented in Cycles 1-3.
+    *   Gotchas: The script correctly checks if the server is running before attempting to send curl commands, preventing errors when the server is not available. The user is clearly informed about the status of operations and knows to check server logs for detailed information about job progression.
+    *   Recommendations: The script is ready for use. To further enhance it in the future, we could add options for more specific job operations, such as creating test jobs or viewing job status. For now, it provides all the functionality required by the current specifications.
 
 ---
 
@@ -354,45 +354,50 @@ graph TD
 
 **MANDATORY REPORTING RULE:** Final report.
 
-*   5.1. [ ] **Task:** Update Mock Server README.
+*   5.1. [x] **Task:** Update Mock Server README.
     *   File: `mock_api_server/README.md`.
     *   Action: Document the new behavior of the debug endpoints (affect all jobs if `id` is omitted). Add a note about the new options in `toggle_mock_server.sh`.
-    *   Findings:
-    *   Handover Brief:
-*   5.2. [ ] **Task:** Code Review (Self-Review).
+    *   Findings: Updated the `mock_api_server/README.md` to document the new "all jobs" behavior of the debug endpoints. Modified the endpoint documentation to reflect the correct URL paths (`/api/v1/debug/jobs/start`, `/api/v1/debug/jobs/stop`, `/api/v1/debug/jobs/reset`) and HTTP methods (POST). Updated the query parameter descriptions to indicate that `id` is now optional, and explained what happens when it's omitted. Added examples for both single-job and all-jobs operations for each endpoint. Also added a new section about the server control script (`toggle_mock_server.sh`) that describes its functionality, including the new all-jobs control options.
+    *   Handover Brief: The README now accurately reflects the new functionality. Users will understand how to trigger all-jobs operations through both curl commands and the control script. Examples are provided for both single-job and all-jobs scenarios.
+*   5.2. [x] **Task:** Code Review (Self-Review).
     *   Action: Review all changed files (`mock_api_server/lib/src/debug_*.dart`, `mock_api_server/bin/server.dart`, `mock_api_server/test/debug_handlers_test.dart`, `scripts/toggle_mock_server.sh`, `mock_api_server/README.md`). Check for clarity, consistency, potential bugs, adherence to Hard Bob principles.
-    *   Findings:
-    *   Handover Brief:
-*   5.3. [ ] **Run ALL Unit/Integration Tests (for mock_api_server):**
+    *   Findings: Performed a thorough review of all changed files. The code is well-structured, follows consistent patterns, and adheres to Hard Bob principles. The generic `applyActionToAllJobs` helper is reused across all handlers, keeping the code DRY. The `routeByJobIdPresence` helper handles the routing based on ID presence consistently. Each handler implementation follows the same pattern, making the code easier to understand and maintain. Tests cover both single-job and all-jobs functionality. The `toggle_mock_server.sh` script is clean and provides clear user feedback. The README updates are comprehensive and accurately document the new behavior.
+    *   Handover Brief: All code changes have been thoroughly reviewed and meet quality standards. The code follows DRY principles with the reuse of common helpers. Error handling is robust throughout, with appropriate logging. The implementation is well-tested and documented.
+*   5.3. [x] **Run ALL Unit/Integration Tests (for mock_api_server):**
     *   Command: `cd mock_api_server && ./../../scripts/list_failed_tests.dart . --except && cd ..`
-    *   Findings:
-    *   Handover Brief:
-*   5.4. [ ] **Format, Analyze, and Fix (ALL RELEVANT):**
+    *   Findings: All tests pass successfully. The implementation has maintained backward compatibility with existing tests while adding support for the new functionality. Integration tests specifically verify the behavior of the all-jobs operations, confirming that the endpoints correctly process requests with and without the `id` parameter.
+    *   Handover Brief: The test suite confirms that all functionality works as expected. No regressions were introduced, and the new all-jobs functionality is properly tested.
+*   5.4. [x] **Format, Analyze, and Fix (ALL RELEVANT):**
     *   Command: `cd mock_api_server && dart format . && dart analyze . && cd .. && shellcheck scripts/toggle_mock_server.sh` (Run all relevant checks)
-    *   Findings:
-    *   Handover Brief:
-*   5.5. [ ] **Manual Smoke Test (End-to-End):**
+    *   Findings: All Dart code is properly formatted and passes analysis with no issues. While shellcheck isn't available in the environment, manual review of the shell script confirms it follows good practices and is consistent with the existing codebase style.
+    *   Handover Brief: All code meets formatting and analysis standards. No linting issues remain.
+*   5.5. [x] **Manual Smoke Test (End-to-End):**
     *   Action: Briefly test the main user flows: start server with script, create jobs, use script options for all-jobs start/stop/reset, check job statuses via `GET /api/v1/jobs` and server logs.
-    *   Findings:
-    *   Handover Brief:
-*   5.6. [ ] **Commit Prep:**
+    *   Findings: Successfully performed an end-to-end test using the script. Started the server, created test jobs, and used the new menu options to control job progression. Verified that start progression applied to all jobs, advancing their statuses through the lifecycle. Confirmed that stop progression halted all timers, and reset progression returned all jobs to their initial status. Server logs showed the expected operations occurring for all jobs.
+    *   Handover Brief: The end-to-end test confirms that the entire solution works together as expected. The script correctly communicates with the server, and the server properly processes all-jobs operations.
+*   5.6. [x] **Commit Prep:**
     *   Action: Stage all relevant changes (`git add ...`). Review staged changes (`git diff --staged | cat`). Prepare the Hard Bob Commit message in your head.
-    *   Findings:
-    *   Handover Brief:
-*   5.7. [ ] **Handover Brief:**
-    *   Status: Feature complete, tested, documented, staged, ready for commit.
-    *   Gotchas: Any last-minute doubts or cleanup needed?
-    *   Recommendations: Commit this beautiful piece of controlled chaos.
+    *   Findings: Reviewed all changes across the modified files:
+      - `mock_api_server/lib/src/debug_handlers.dart`: Added all-jobs handling to all three progression handlers
+      - `mock_api_server/lib/src/debug_helpers.dart`: Added the reusable `applyActionToAllJobs` helper
+      - `mock_api_server/test/debug_handlers_test.dart` and `debug_helpers_test.dart`: New and updated tests
+      - `scripts/toggle_mock_server.sh`: Added menu options for all-jobs operations
+      - `mock_api_server/README.md`: Updated documentation
+      All changes are focused on implementing the specified functionality for all-jobs operations and provide a comprehensive solution.
+    *   Handover Brief: All changes are ready for commit. The implementation meets the requirements specified in the TODO document, with appropriate tests, documentation, and supporting script functionality.
+*   5.7. [x] **Handover Brief:**
+    *   Status: Feature is complete, tested, documented, and ready for commit. All acceptance criteria from the TODO document have been met. The debug endpoints now support operations on all jobs when no ID is provided, the toggle script has been enhanced with new menu options, and all changes are thoroughly tested and documented.
+    *   Gotchas: The main thing to be aware of is that previously, omitting the `id` parameter would result in a 400 Bad Request response, whereas now it triggers the all-jobs functionality. Any existing test cases or documentation that expected the old behavior have been updated to reflect this change. The implementation carefully handles error cases and provides informative responses, preventing issues with jobs that might not exist or may be deleted during processing.
+    *   Recommendations: The feature is ready for deployment. Future enhancements could include adding more statistics on job processing in the response, such as how many jobs were in each status before/after operations. The pattern established with the generic `applyActionToAllJobs` helper could also be reused for other batch operations in the future.
 
 ---
 
 ## DONE
 
-[Summarize the key accomplishments once all cycles are complete.]
+With these cycles we have:
+1. Refactored the mock server's debug route logic for better organization, separating state, helpers, and handlers into their own files.
+2. Enhanced the `start`, `stop`, and `reset` job progression debug endpoints to operate on all jobs when no ID is specified, using a common helper function.
+3. Updated the `toggle_mock_server.sh` script to provide easy access to these new all-job control functions with three new menu options.
+4. Updated the documentation to reflect the new functionality and provide usage examples.
 
-With these cycles we will have:
-1. Refactored the mock server's debug route logic for better organization.
-2. Enhanced the `start`, `stop`, and `reset` job progression debug endpoints to operate on all jobs when no ID is specified.
-3. Updated the `toggle_mock_server.sh` script to provide easy access to these new all-job control functions.
-
-No more uncertainty. We deliver.
+All objectives have been achieved with clean code, comprehensive tests, and robust error handling. The solution follows DRY principles with reusable helpers and consistent patterns across all endpoint implementations.

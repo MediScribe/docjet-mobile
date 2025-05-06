@@ -113,7 +113,8 @@ start_server() {
 
     # Ensure port is free first
     if is_server_running; then
-        local pid=$(get_server_pid)
+        local pid
+        pid=$(get_server_pid)
         if is_our_mock_server "$pid"; then
             echo "    Mock server is already running (PID: $pid)."
             return 0
@@ -127,14 +128,14 @@ start_server() {
 
     # Navigate, start, and go back
     original_dir=$(pwd)
-    cd "$MOCK_SERVER_DIR"
+    cd "$MOCK_SERVER_DIR" || { echo "Failed to change directory to $MOCK_SERVER_DIR"; return 1; }
     echo "    Executing: $SERVER_START_CMD &"
     $SERVER_START_CMD &
-    cd "$original_dir"
+    cd "$original_dir" || { echo "Failed to return to original directory"; return 1; }
 
     # Wait for server to start
     echo -n "    Waiting for server to start"
-    for i in $(seq 1 $MAX_STARTUP_WAIT); do
+    for _ in $(seq 1 $MAX_STARTUP_WAIT); do
         if is_server_running; then
             echo # Newline after dots
             pid=$(get_server_pid)
@@ -160,7 +161,8 @@ show_menu() {
     
     # Get current status
     if is_server_running; then
-        local pid=$(get_server_pid)
+        local pid
+        pid=$(get_server_pid)
         if is_our_mock_server "$pid"; then
             echo "STATUS: RUNNING MOCK SERVER (PID: $pid)"
         else
@@ -176,9 +178,12 @@ show_menu() {
     echo "2) Stop Server"
     echo "3) Toggle Server"
     echo "4) Check Status"
-    echo "5) Exit"
+    echo "5) Start ALL Progressions"
+    echo "6) Stop ALL Progressions"
+    echo "7) Reset ALL Progressions"
+    echo "8) Exit"
     echo ""
-    echo -n "Enter option [1-5]: "
+    echo -n "Enter option [1-8]: "
 }
 
 # --- Main Loop ---
@@ -242,6 +247,42 @@ while true; do
             read -r
             ;;
         5)  
+            if is_server_running; then
+                echo "--> Triggering Start Progression for ALL jobs..."
+                response=$(curl -s -X POST "http://localhost:$SERVER_PORT/api/v1/debug/jobs/start")
+                echo "$response"
+                echo "Trigger command sent. Check server logs for details."
+            else
+                echo "Error: Mock server is not running. Start it first (option 1)."
+            fi
+            echo "Press Enter to continue..."
+            read -r
+            ;;
+        6)  
+            if is_server_running; then
+                echo "--> Triggering Stop Progression for ALL jobs..."
+                response=$(curl -s -X POST "http://localhost:$SERVER_PORT/api/v1/debug/jobs/stop")
+                echo "$response"
+                echo "Trigger command sent. Check server logs for details."
+            else
+                echo "Error: Mock server is not running. Start it first (option 1)."
+            fi
+            echo "Press Enter to continue..."
+            read -r
+            ;;
+        7)  
+            if is_server_running; then
+                echo "--> Triggering Reset Progression for ALL jobs..."
+                response=$(curl -s -X POST "http://localhost:$SERVER_PORT/api/v1/debug/jobs/reset")
+                echo "$response"
+                echo "Trigger command sent. Check server logs for details."
+            else
+                echo "Error: Mock server is not running. Start it first (option 1)."
+            fi
+            echo "Press Enter to continue..."
+            read -r
+            ;;
+        8)  
             echo "Exiting..."
             # Optionally stop server on exit
             if is_server_running; then
