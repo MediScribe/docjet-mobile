@@ -106,6 +106,10 @@ void main() {
         when(
           mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
         ).thenAnswer((_) async => Right(tJob));
+        // Mock orchestrator's syncPendingJobs now that it's called after successful creation
+        when(
+          mockOrchestratorService.syncPendingJobs(),
+        ).thenAnswer((_) async => const Right(unit));
 
         // Act
         final result = await repository.createJob(
@@ -122,13 +126,89 @@ void main() {
         verify(
           mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
         ).called(1); // Verify writer service is called (without userId)
+        // Verify orchestrator is now called with the new implementation
+        verify(mockOrchestratorService.syncPendingJobs()).called(1);
+
         verifyNoMoreInteractions(mockWriterService);
         verifyNoMoreInteractions(mockAuthSessionProvider);
+        verifyNoMoreInteractions(mockOrchestratorService);
         verifyZeroInteractions(mockReaderService);
         verifyZeroInteractions(mockDeleterService);
-        verifyZeroInteractions(mockOrchestratorService);
       },
     );
+
+    test(
+      'should trigger orchestrator\'s syncPendingJobs and return job on successful local creation',
+      () async {
+        // Arrange
+        when(
+          mockAuthSessionProvider.isAuthenticated(),
+        ).thenAnswer((_) async => true);
+        when(
+          mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+        ).thenAnswer((_) async => Right(tJob));
+        // Mock the orchestrator to return success for the sync call
+        when(
+          mockOrchestratorService.syncPendingJobs(),
+        ).thenAnswer((_) async => const Right(unit));
+
+        // Act
+        final result = await repository.createJob(
+          audioFilePath: tAudioPath,
+          text: tText,
+        );
+
+        // Assert
+        // Result of createJob should still be the job from writer service
+        expect(result, equals(Right(tJob)));
+        // Verify essential calls
+        verify(mockAuthSessionProvider.isAuthenticated()).called(1);
+        verify(
+          mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+        ).called(1);
+        // CRITICAL: Verify orchestrator was called
+        verify(mockOrchestratorService.syncPendingJobs()).called(1);
+
+        // Ensure no unexpected interactions
+        verifyNoMoreInteractions(mockAuthSessionProvider);
+        verifyNoMoreInteractions(mockWriterService);
+        verifyNoMoreInteractions(mockOrchestratorService);
+        verifyZeroInteractions(mockReaderService);
+        verifyZeroInteractions(mockDeleterService);
+      },
+    );
+
+    test('does not trigger sync when writerService fails', () async {
+      // Arrange
+      when(
+        mockAuthSessionProvider.isAuthenticated(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+      ).thenAnswer((_) async => Left(CacheFailure()));
+      // No stub for syncPendingJobs on purpose
+
+      // Act
+      final result = await repository.createJob(
+        audioFilePath: tAudioPath,
+        text: tText,
+      );
+
+      // Assert
+      expect(result, equals(Left(CacheFailure())));
+      verify(mockAuthSessionProvider.isAuthenticated()).called(1);
+      verify(
+        mockWriterService.createJob(audioFilePath: tAudioPath, text: tText),
+      ).called(1);
+      // CRITICAL: Verify orchestrator was NOT called
+      verifyNever(mockOrchestratorService.syncPendingJobs());
+
+      verifyNoMoreInteractions(mockAuthSessionProvider);
+      verifyNoMoreInteractions(mockWriterService);
+      verifyZeroInteractions(mockOrchestratorService);
+      verifyZeroInteractions(mockReaderService);
+      verifyZeroInteractions(mockDeleterService);
+    });
 
     test(
       'should return AuthFailure and not call writer service when user is not authenticated',
@@ -158,6 +238,9 @@ void main() {
             text: anyNamed('text'),
           ),
         ); // Writer service should not be called
+        // Verify orchestrator sync was NEVER called
+        verifyNever(mockOrchestratorService.syncPendingJobs());
+
         verifyNoMoreInteractions(mockAuthSessionProvider);
         verifyZeroInteractions(mockWriterService);
         verifyZeroInteractions(mockReaderService);

@@ -162,6 +162,10 @@ void main() {
       when(
         mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
       ).thenAnswer((_) async => Right(initialJob));
+      // Add mock for immediate sync
+      when(
+        mockOrchestratorService.syncPendingJobs(),
+      ).thenAnswer((_) async => const Right(unit));
 
       // Act
       final result = await repository.createJob(
@@ -174,6 +178,9 @@ void main() {
       verify(
         mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
       ).called(1);
+      // Verify immediate sync was called
+      verify(mockOrchestratorService.syncPendingJobs()).called(1);
+      verifyNoMoreInteractions(mockOrchestratorService);
     });
 
     test('should check authentication before creating job', () async {
@@ -183,6 +190,10 @@ void main() {
       ).thenAnswer(
         (_) async => Right(initialJob),
       ); // Assume writer service succeeds if called
+      // Add mock for immediate sync
+      when(
+        mockOrchestratorService.syncPendingJobs(),
+      ).thenAnswer((_) async => const Right(unit));
 
       // Act
       await repository.createJob(audioFilePath: audioPath, text: jobText);
@@ -194,6 +205,9 @@ void main() {
       verify(
         mockWriterService.createJob(audioFilePath: audioPath, text: jobText),
       ).called(1);
+      // Verify immediate sync was called
+      verify(mockOrchestratorService.syncPendingJobs()).called(1);
+      verifyNoMoreInteractions(mockOrchestratorService);
     });
 
     test('should return AuthFailure when not authenticated', () async {
@@ -218,6 +232,9 @@ void main() {
           text: anyNamed('text'),
         ),
       );
+      // Verify orchestrator sync was NEVER called
+      verifyNever(mockOrchestratorService.syncPendingJobs());
+      verifyZeroInteractions(mockOrchestratorService);
     });
 
     test('should sync pending jobs through repository', () async {

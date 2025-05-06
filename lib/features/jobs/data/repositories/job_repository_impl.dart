@@ -122,7 +122,56 @@ class JobRepositoryImpl implements JobRepository {
     _logger.d('$_tag User authenticated, proceeding to delegate job creation.');
 
     // Delegate to writer service - NO userId passed from here
-    return _writerService.createJob(audioFilePath: audioFilePath, text: text);
+    final Either<Failure, Job> createJobResult = await _writerService.createJob(
+      audioFilePath: audioFilePath,
+      text: text,
+    );
+
+    // After successful local creation, trigger immediate sync (fire-and-forget)
+    createJobResult.fold(
+      (failure) {
+        // If creation failed, do nothing extra, just return the failure
+        _logger.w(
+          '$_tag Job creation failed with $failure. No immediate sync will be triggered.',
+        );
+      },
+      (job) {
+        // If creation succeeded, trigger sync
+        _logger.i(
+          '$_tag Job ${job.localId} created locally. Triggering immediate sync attempt.',
+        );
+        _triggerImmediateSync(job);
+      },
+    );
+
+    return createJobResult; // Return the original result of job creation
+  }
+
+  /// Triggers an immediate sync attempt for a newly created job.
+  /// This is a fire-and-forget operation that doesn't affect the result of createJob.
+  void _triggerImmediateSync(Job job) {
+    unawaited(
+      _orchestratorService
+          .syncPendingJobs()
+          .then(
+            (syncResult) => syncResult.fold(
+              (syncFailure) => _logger.w(
+                '$_tag Immediate sync for ${job.localId} failed: $syncFailure (does not affect createJob result)',
+              ),
+              (_) => _logger.i(
+                '$_tag Immediate sync for ${job.localId} completed/skipped (does not affect createJob result)',
+              ),
+            ),
+          )
+          .catchError((error, stackTrace) {
+            // Catch any unexpected error from the Future itself
+            _logger.e(
+              '$_tag Unexpected error in syncPendingJobs for ${job.localId} (does not affect createJob result)',
+              error: error,
+              stackTrace: stackTrace,
+            );
+          }),
+    );
   }
 
   @override
