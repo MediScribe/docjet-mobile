@@ -12,8 +12,9 @@ import 'package:shelf_multipart/shelf_multipart.dart';
 import 'package:uuid/uuid.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart'; // Import JWT library
 
-// Import the new debug routes, including the cleanup function
-import 'package:mock_api_server/src/debug_routes.dart';
+// Import the new debug HANDLERS, including the cleanup function
+import 'package:mock_api_server/src/debug_handlers.dart';
+import 'package:mock_api_server/src/debug_helpers.dart';
 // Import the new job store with a prefix
 import 'package:mock_api_server/src/job_store.dart' as job_store;
 // Import the config (provides verboseLoggingEnabled)
@@ -153,7 +154,7 @@ final _router = Router()
   ..patch('/$_versionedApiPath/jobs/<jobId>', _updateJobHandler)
   ..delete('/$_versionedApiPath/jobs/<jobId>', _deleteJobHandler)
 
-  // Debug endpoints for job progression (Use handlers from debug_routes.dart)
+  // Debug endpoints for job progression (Use handlers from debug_handlers.dart)
   ..post('/$_versionedApiPath/debug/jobs/start', startJobProgressionHandler)
   ..post('/$_versionedApiPath/debug/jobs/stop', stopJobProgressionHandler)
   ..post('/$_versionedApiPath/debug/jobs/reset', resetJobProgressionHandler)
@@ -908,9 +909,7 @@ Future<Response> _deleteJobHandler(Request request, String jobId) async {
   }
 
   // --- IMPORTANT: Cancel progression timer before deleting job data ---
-  // We need to call the logic from debug_routes to cancel any timer.
-  // Let's add a dedicated function for this in debug_routes.dart for cleaner separation.
-  // For now, we'll assume such a function exists: cancelProgressionTimerForJob(jobId)
+  // Call the helper function from the imported file
   cancelProgressionTimerForJob(jobId); // Call the cancellation function
 
   try {
