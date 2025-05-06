@@ -203,6 +203,155 @@ void main() {
       await http.delete(deleteUrl, headers: headers);
     });
 
+    test(
+        'POST /start (all jobs) without X-API-Key should return 200 and apply to all jobs',
+        () async {
+      // Arrange: Create another job so we have at least two
+      final jobId2 = await createTestJob(baseUrl, 'progression-user-nokey');
+
+      final url = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?fast_test_mode=true'); // No id
+      // INTENTIONALLY OMIT x-api-key
+      final headers = {
+        'Authorization': 'Bearer $dummyJwt',
+      };
+
+      // Act: Start progression for all jobs
+      final response = await http.post(url, headers: headers);
+
+      // Assert: Response indicates success (SHOULD BE 200, NOT 401)
+      expect(response.statusCode, 200,
+          reason:
+              'Accessing debug endpoint without API key should now be allowed.');
+      expect(response.body, contains('Start Progression applied to'),
+          reason: 'Response should indicate action was applied.');
+
+      // Verify both jobs are completed
+      // To get jobs, we still need API key for the regular /jobs endpoint
+      final getHeaders = {
+        'Authorization': 'Bearer $dummyJwt',
+        'x-api-key': testApiKey,
+      };
+      final getJob1Url = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
+      final getJob2Url = Uri.parse('$baseUrl/api/v1/jobs/$jobId2');
+
+      final job1Response = await http.get(getJob1Url, headers: getHeaders);
+      final job2Response = await http.get(getJob2Url, headers: getHeaders);
+
+      expect(job1Response.statusCode, 200);
+      expect(job2Response.statusCode, 200);
+
+      var job1 = jsonDecode(job1Response.body)['data'] as Map<String, dynamic>;
+      var job2 = jsonDecode(job2Response.body)['data'] as Map<String, dynamic>;
+
+      expect(job1['job_status'], 'completed',
+          reason:
+              'Job 1 should be completed via debug endpoint without API key');
+      expect(job2['job_status'], 'completed',
+          reason:
+              'Job 2 should be completed via debug endpoint without API key');
+
+      // Clean up the additional job
+      final deleteUrl = Uri.parse('$baseUrl/api/v1/jobs/$jobId2');
+      await http.delete(deleteUrl,
+          headers: getHeaders); // Use headers with API key for cleanup
+    });
+
+    test('All debug endpoints should be accessible without X-API-Key',
+        () async {
+      // Create a job for testing
+      final testJobId = await createTestJob(baseUrl, 'api-key-exemption-test');
+
+      // Standard headers WITH API key (for setup and verification only)
+      final apiKeyHeaders = {
+        'Authorization': 'Bearer $dummyJwt',
+        'x-api-key': testApiKey,
+      };
+
+      // Headers WITHOUT API key (for actual test)
+      final noApiKeyHeaders = {
+        'Authorization': 'Bearer $dummyJwt',
+      };
+
+      // Setup - first progress a job to completed using API key
+      final startUrl = Uri.parse(
+          '$baseUrl/api/v1/debug/jobs/start?id=$testJobId&fast_test_mode=true');
+      await http.post(startUrl, headers: apiKeyHeaders);
+
+      // Verify job is completed
+      var jobBefore = await getJob(baseUrl, testJobId);
+      expect(jobBefore['job_status'], 'completed',
+          reason: 'Setup: Job should be completed before exemption test');
+
+      // Define all debug endpoints to test without API key
+      final debugEndpoints = [
+        // Test list endpoint (GET)
+        {
+          'method': 'GET',
+          'url': '$baseUrl/api/v1/debug/jobs/list',
+          'expectedStatus': 200,
+          'expectedBodyContains': 'Debug endpoint:',
+          'description': 'Debug list endpoint'
+        },
+        // Test stop endpoint (POST)
+        {
+          'method': 'POST',
+          'url': '$baseUrl/api/v1/debug/jobs/stop?id=$testJobId',
+          'expectedStatus': 200,
+          'expectedBodyContains': 'no active progression timer was running',
+          'description': 'Debug stop endpoint'
+        },
+        // Test reset endpoint (POST)
+        {
+          'method': 'POST',
+          'url': '$baseUrl/api/v1/debug/jobs/reset?id=$testJobId',
+          'expectedStatus': 200,
+          'expectedBodyContains': 'reset to initial state',
+          'description': 'Debug reset endpoint'
+        },
+        // Test start endpoint again (POST) - was already tested above but including for completeness
+        {
+          'method': 'POST',
+          'url':
+              '$baseUrl/api/v1/debug/jobs/start?id=$testJobId&interval_seconds=0.5',
+          'expectedStatus': 200,
+          'expectedBodyContains': 'progression started',
+          'description': 'Debug start endpoint'
+        }
+      ];
+
+      // Test each endpoint
+      for (final endpoint in debugEndpoints) {
+        final isPost = endpoint['method'] == 'POST';
+        final response = isPost
+            ? await http.post(Uri.parse(endpoint['url'] as String),
+                headers: noApiKeyHeaders)
+            : await http.get(Uri.parse(endpoint['url'] as String),
+                headers: noApiKeyHeaders);
+
+        // Verify response is successful
+        expect(response.statusCode, endpoint['expectedStatus'],
+            reason:
+                '${endpoint['description']} should return 200 without API key, got ${response.statusCode}');
+        expect(
+            response.body, contains(endpoint['expectedBodyContains'] as String),
+            reason:
+                '${endpoint['description']} response should contain expected text');
+
+        if (endpoint['url'].toString().contains('reset')) {
+          // Verify reset worked
+          var jobAfterReset = await getJob(baseUrl, testJobId);
+          expect(jobAfterReset['job_status'], 'submitted',
+              reason:
+                  'Job should be reset to submitted when calling reset endpoint without API key');
+        }
+      }
+
+      // Clean up
+      final deleteUrl = Uri.parse('$baseUrl/api/v1/jobs/$testJobId');
+      await http.delete(deleteUrl, headers: apiKeyHeaders);
+    });
+
     test('POST /start with invalid interval should return 400', () async {
       final url = Uri.parse(
           '$baseUrl/api/v1/debug/jobs/start?id=$jobId&interval_seconds=invalid');

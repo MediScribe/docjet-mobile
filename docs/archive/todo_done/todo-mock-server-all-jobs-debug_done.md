@@ -375,6 +375,10 @@ graph TD
     *   Action: Briefly test the main user flows: start server with script, create jobs, use script options for all-jobs start/stop/reset, check job statuses via `GET /api/v1/jobs` and server logs.
     *   Findings: Successfully performed an end-to-end test using the script. Started the server, created test jobs, and used the new menu options to control job progression. Verified that start progression applied to all jobs, advancing their statuses through the lifecycle. Confirmed that stop progression halted all timers, and reset progression returned all jobs to their initial status. Server logs showed the expected operations occurring for all jobs.
     *   Handover Brief: The end-to-end test confirms that the entire solution works together as expected. The script correctly communicates with the server, and the server properly processes all-jobs operations.
+*   5.5.1. [x] **Task:** Exempt debug endpoints from X-API-Key requirement.
+    *   Action: Modified `_authMiddleware` in `mock_api_server/bin/server.dart` to skip API key checks for paths starting with `/api/v1/debug/`. Added a test in `debug_jobs_progression_test.dart` to verify unauthenticated access to debug endpoints and updated an existing test in `debug_jobs_list_test.dart` that previously expected 401 for such access.
+    *   Findings: All debug endpoints are now accessible without an X-API-Key header. All tests pass after relevant test updates. Code formatted and analyzed.
+    *   Handover Brief: API key exemption for debug paths implemented, tested, and verified. This was an oversight from the initial implementation.
 *   5.6. [x] **Commit Prep:**
     *   Action: Stage all relevant changes (`git add ...`). Review staged changes (`git diff --staged | cat`). Prepare the Hard Bob Commit message in your head.
     *   Findings: Reviewed all changes across the modified files:

@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+APP_PID=""
 
 # Create a temp file for nohup output
 TEMP_NOHUP_FILE=$(mktemp)
@@ -8,9 +10,9 @@ function cleanup {
     echo "Cleaning up..."
     
     # Kill the app if it's still running
-    if [[ -n "$APP_PID" ]] && ps -p $APP_PID > /dev/null; then
+    if [[ -n "$APP_PID" ]] && ps -p "$APP_PID" > /dev/null; then
         echo "Killing app process (PID: $APP_PID)"
-        kill -9 $APP_PID 2>/dev/null || true
+        kill -9 "$APP_PID" 2>/dev/null || true
     fi
     
     # Remove temp file
@@ -41,26 +43,22 @@ echo "=================================="
 
 # Step 1: Run unit tests check
 echo "🔎 Checking for failed unit tests..."
-./scripts/list_failed_tests.dart
-if [[ $? -ne 0 ]]; then
+if ! ./scripts/list_failed_tests.dart; then
     error_exit "Unit tests failed! See output above for details."
 fi
 echo "✅ All unit tests are passing!"
 
 # Step 2: Run mock API server tests
 echo "🔎 Checking mock API server tests..."
-./scripts/list_failed_tests.dart mock_api_server
-if [[ $? -ne 0 ]]; then
+if ! ./scripts/list_failed_tests.dart mock_api_server; then
     error_exit "Mock API server tests failed! See output above for details."
 fi
 echo "✅ All mock API server tests are passing!"
 
 # Step 3: Run E2E tests
 echo "🔎 Running E2E tests..."
-./scripts/run_e2e_tests.sh
-E2E_RESULT=$?
-if [[ $E2E_RESULT -ne 0 ]]; then
-    error_exit "E2E tests failed or were interrupted! Exit code: $E2E_RESULT"
+if ! ./scripts/run_e2e_tests.sh; then
+    error_exit "E2E tests failed or were interrupted!"
 fi
 echo "✅ All E2E tests passed!"
 
@@ -75,7 +73,7 @@ APP_PID=$!
 
 # Check if the app started successfully
 sleep 5
-if ! ps -p $APP_PID > /dev/null; then
+if ! ps -p "$APP_PID" > /dev/null; then
     echo "Process failed to start. Last output:"
     tail -n 20 "$TEMP_NOHUP_FILE"
     error_exit "App failed to start!"
@@ -88,7 +86,7 @@ echo "Checking stability for 5 seconds..."
 sleep 5
 
 # Final check that the app is still running
-if ! ps -p $APP_PID > /dev/null; then
+if ! ps -p "$APP_PID" > /dev/null; then
     echo "Process crashed. Last output:"
     tail -n 20 "$TEMP_NOHUP_FILE"
     error_exit "App crashed during stability check!"
@@ -96,15 +94,15 @@ fi
 
 # Kill the app gracefully (SIGTERM first)
 echo "App is stable! Sending SIGTERM to PID $APP_PID"
-kill $APP_PID
+kill "$APP_PID"
 
 # Wait a bit for graceful shutdown
 sleep 2
 
 # If still running, force kill
-if ps -p $APP_PID > /dev/null; then
+if ps -p "$APP_PID" > /dev/null; then
     echo "App still running, sending SIGKILL to PID $APP_PID"
-    kill -9 $APP_PID
+    kill -9 "$APP_PID"
 fi
 
 echo "=================================="

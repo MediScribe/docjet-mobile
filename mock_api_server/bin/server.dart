@@ -774,10 +774,12 @@ Middleware _authMiddleware() {
     return (request) {
       final path = request.requestedUri.path;
 
-      // Skip API key check only for health endpoint
-      if (path == '/$_versionedApiPath/health') {
+      // Skip API key check for health and ALL debug endpoints
+      if (path == '/$_versionedApiPath/health' ||
+          path.startsWith('/$_versionedApiPath/debug/')) {
         if (verboseLoggingEnabled) {
-          print('DEBUG AUTH MIDDLEWARE: Skipping auth for health endpoint');
+          print(
+              'DEBUG AUTH MIDDLEWARE: Skipping auth for health or debug endpoint: $path');
         }
         return innerHandler(request);
       }

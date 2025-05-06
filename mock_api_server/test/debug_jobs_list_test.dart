@@ -78,7 +78,8 @@ void main() {
       }
     });
 
-    test('GET /debug/jobs/list should return all jobs without authentication',
+    test(
+        'GET /debug/jobs/list should return all jobs successfully even without authentication headers',
         () async {
       // Arrange
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/list');
@@ -86,9 +87,35 @@ void main() {
       // Act: Make request WITHOUT authentication headers
       final response = await http.get(url);
 
-      // Assert: Should return 401 Unauthorized
-      expect(response.statusCode, 401,
-          reason: 'Should return 401 Unauthorized without auth headers');
+      // Assert: Should now return 200 OK as debug endpoints are exempt from API key
+      expect(response.statusCode, 200,
+          reason:
+              'Debug list endpoint should now be accessible without API key and return 200');
+
+      // Assert: Basic content check
+      final jsonResponse = jsonDecode(response.body);
+      expect(jsonResponse['jobs'], isA<List>(),
+          reason: 'Response jobs should be a list');
+
+      // Check response structure
+      expect(jsonResponse, contains('jobs'),
+          reason: 'Response should contain jobs key');
+      expect(jsonResponse, contains('count'),
+          reason: 'Response should contain count key');
+      expect(jsonResponse, contains('message'),
+          reason: 'Response should contain message key');
+
+      // Check that our test jobs are in the list (created in setUp)
+      final jobs = jsonResponse['jobs'] as List;
+      final jobIds = jobs.map((job) => job['id']).toList();
+      expect(jobIds, contains(jobId1),
+          reason: 'Response should contain jobId1 (from setUp)');
+      expect(jobIds, contains(jobId2),
+          reason: 'Response should contain jobId2 (from setUp)');
+
+      // Count should match the number of jobs returned
+      expect(jsonResponse['count'], equals(jobs.length),
+          reason: 'Count should match the number of jobs returned');
     });
 
     test('GET /api/v1/debug/jobs/list should work with auth headers', () async {
