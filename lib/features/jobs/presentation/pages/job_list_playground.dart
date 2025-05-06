@@ -2,19 +2,20 @@ import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/widgets/record_button.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
+import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
+import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
-import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
-import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
-import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:get_it/get_it.dart';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
 /// This doesn't require tests as it's purely for UI experimentation.
@@ -69,6 +70,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
       title: 'This is a mock job (not from data source)',
       text: 'This is displayed when no real jobs exist yet',
       syncStatus: SyncStatus.synced,
+      jobStatus: JobStatus.submitted, // Add jobStatus
       hasFileIssue: false,
       displayDate: DateTime.now().subtract(const Duration(hours: 2)),
     ),
@@ -79,6 +81,8 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
       _logger.i('$_tag Job creation skipped because offline');
       return;
     }
+
+    _logger.i('$_tag Starting job creation process...');
 
     try {
       // Get FileSystem instance
@@ -99,8 +103,12 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
             'Job: $timestamp: Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.', // Formatted as requested
       );
 
+      _logger.d('$_tag Job params created: $params');
+
       // Check if the widget is still mounted before using context
       if (!mounted) return;
+
+      _logger.i('$_tag About to call Cubit to create job...');
 
       // Get Cubit from context and call its createJob method
       context.read<JobListCubit>().createJob(params);
@@ -108,9 +116,28 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
       _logger.i(
         '$_tag Called Cubit to create new Lorem Ipsum job with temp file: $tempFilename',
       );
-    } catch (e) {
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Creating new job... Check status at the bottom!'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
       _logger.e('$_tag Error creating job: $e');
-      // Optionally show an error message to the user
+      _logger.e('$_tag Stack trace: $stackTrace');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating job: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -131,6 +158,11 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     } catch (e) {
       _logger.e('$_tag Error during manual sync: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -208,6 +240,14 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                                 return JobListItem(
                                   job: jobs[index],
                                   isOffline: isOffline,
+                                  // No job tap action needed - purely passive viewer
+                                  onTapJob: (_) {
+                                    // Log for debugging
+                                    _logger.i(
+                                      '$_tag Tapped on job: ${jobs[index].localId}',
+                                    );
+                                    // No action needed - UI is reactive to Hive changes
+                                  },
                                 );
                               },
                             );
@@ -243,6 +283,10 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                               return JobListItem(
                                 job: _mockJobs[index],
                                 isOffline: isOffline,
+                                // No job tap action needed - purely passive viewer
+                                onTapJob: (_) {
+                                  // No action needed
+                                },
                               );
                             },
                           );
