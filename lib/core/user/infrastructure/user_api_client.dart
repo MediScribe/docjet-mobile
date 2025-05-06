@@ -1,9 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
 import 'package:docjet_mobile/core/config/api_config.dart';
 import 'package:docjet_mobile/core/network/connectivity_error.dart';
-import 'package:docjet_mobile/core/user/infrastructure/hack_profile_endpoint_workaround.dart';
 import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 
@@ -29,17 +27,10 @@ class UserApiClient {
   /// for JWT token management. Using basicDio will result in auth failures.
   final Dio authenticatedHttpClient;
 
-  /// Provider for authentication credentials
-  final AuthCredentialsProvider credentialsProvider;
-
   /// Creates a new UserApiClient
   ///
   /// @param authenticatedHttpClient A Dio instance with authentication interceptors
-  /// @param credentialsProvider Provider for accessing authentication credentials
-  UserApiClient({
-    required this.authenticatedHttpClient,
-    required this.credentialsProvider,
-  });
+  UserApiClient({required this.authenticatedHttpClient});
 
   /// Checks if a specific DioException type represents a network connectivity issue
   ///
@@ -64,7 +55,7 @@ class UserApiClient {
   /// @returns UserProfileDto containing the user's profile information
   Future<UserProfileDto> getUserProfile() async {
     // Get the endpoint path once, either default or from workaround
-    final endpointPath = await _resolveProfileEndpoint();
+    final endpointPath = _resolveProfileEndpoint();
 
     _logger.d('$_tag Getting user profile from $endpointPath');
 
@@ -137,20 +128,10 @@ class UserApiClient {
     }
   }
 
-  /// ⚠️ TEMPORARY HACK-TODO: Resolves the profile endpoint
+  /// Resolves the endpoint for fetching the user profile.
   ///
-  /// Either returns the standard endpoint from ApiConfig or uses the workaround
-  /// to get a user-specific endpoint. Tests will still work because they mock
-  /// the HTTP call, not this internal method.
-  Future<String> _resolveProfileEndpoint() async {
-    // HACK-TODO: This is a temporary workaround for the missing /users/profile endpoint
-    // TODO: Remove this workaround once the proper endpoint is implemented
-    return ProfileEndpointWorkaround.transformProfileEndpoint(
-      ApiConfig.userProfileEndpoint,
-      credentialsProvider,
-    );
-
-    // Standard endpoint - uncomment this and remove the above when API is fixed:
-    // return ApiConfig.userProfileEndpoint;
+  /// Returns the configured user profile endpoint, typically 'users/me'.
+  String _resolveProfileEndpoint() {
+    return ApiConfig.userProfileEndpoint;
   }
 }

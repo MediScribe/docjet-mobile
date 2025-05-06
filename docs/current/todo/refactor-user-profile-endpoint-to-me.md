@@ -132,50 +132,49 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle.
 
-* 2.1. [ ] **Research:** Review `test/core/user/infrastructure/user_api_client_test.dart`. Understand how it currently mocks dependencies and verifies calls, especially concerning the transformed endpoint.
-    * Findings: [e.g., Tests mock `authenticatedDio.get()` with the *hacked* path `users/<userId>`. This will need to change to expect `users/me` (unprefixed) or the full path depending on how `ApiConfig` is used.]
-* 2.2. [ ] **Tests RED:**
+* 2.1. [x] **Research:** Review `test/core/user/infrastructure/user_api_client_test.dart`. Understand how it currently mocks dependencies and verifies calls, especially concerning the transformed endpoint.
+    * Findings: [Tests currently mock `authenticatedDio.get()` with the *hacked* path `users/<userId>`, which is derived by mocking `AuthCredentialsProvider.getUserId()` and `AuthCredentialsProvider.getAccessToken()` (for JWT decoding by the workaround). The tests explicitly verify that this transformed path is called. This will need to change to expect `users/me` (the raw value from `ApiConfig.userProfileEndpoint`) and the JWT decoding mock for path construction will become obsolete for this part of the test.]
+* 2.2. [x] **Tests RED:**
     * Test File: `test/core/user/infrastructure/user_api_client_test.dart`
     * Test Description: Modify existing tests for `UserApiClient.getUserProfile()`. They should now:
         *   Expect `ApiConfig.userProfileEndpoint` to be called (which will soon be `users/me`).
         *   No longer need to mock or account for `ProfileEndpointWorkaround` or JWT decoding for path construction.
         *   These tests should fail because `ApiConfig` and `UserApiClient` are still on the old system.
     * Run the tests: `./scripts/list_failed_tests.dart test/core/user/infrastructure/user_api_client_test.dart --except`
-    * Findings: [Tests fail, likely because `authenticatedDio.get()` is still being called with the old hacked path, or `ApiConfig.userProfileEndpoint` isn't updated yet, and the mocks expect the new path.]
-* 2.3. [ ] **Implement GREEN:**
+    * Findings: [Test `UserApiClient getUserProfile should use authenticatedDio` fails as expected. The test now stubs `authenticatedDio.get('users/profile')` (current `ApiConfig.userProfileEndpoint`) but the actual call is to `authenticatedDio.get('users/user-123')` due to the active `ProfileEndpointWorkaround` and mocked user ID. This confirms the RED state: the client code needs to change to align with the test's new expectation of using `ApiConfig.userProfileEndpoint` directly.]
+* 2.3. [x] **Implement GREEN:**
     * Files:
         *   `lib/core/config/api_config.dart`
         *   `lib/core/user/infrastructure/user_api_client.dart`
         *   `lib/core/user/infrastructure/hack_profile_endpoint_workaround.dart` (for deletion)
     * Action:
         1.  In `lib/core/config/api_config.dart`:
-            *   Change `static const String userProfileEndpoint = 'users/profile';`
+            *   Changed `static const String userProfileEndpoint = 'users/profile';`
             *   To `static const String userProfileEndpoint = 'users/me';`
         2.  In `lib/core/user/infrastructure/user_api_client.dart`:
-            *   In `_resolveProfileEndpoint()`, delete the entire call to `ProfileEndpointWorkaround.transformProfileEndpoint(...)`.
-            *   Uncomment and use: `return ApiConfig.userProfileEndpoint;` (this will now return 'users/me').
-            *   Remove the `HACK-TODO` comments.
-            *   Remove the import for `hack_profile_endpoint_workaround.dart`.
-        3.  Delete the file `lib/core/user/infrastructure/hack_profile_endpoint_workaround.dart`. Send it to the fucking void. (Verify any utility logic within it, e.g., JWT parsing, is not needed elsewhere or is migrated if it was a general utility – though it appears self-contained for this specific path transformation hack).
-    * Findings: [Client code updated. `hack_profile_endpoint_workaround.dart` is now sleeping with the fishes. Tests in `user_api_client_test.dart` should pass.]
-* 2.4. [ ] **Refactor:** Clean up `UserApiClient` and its tests. Ensure clarity and remove any lingering HACK comments related to the old endpoint.
-    * Findings: [Client code is now as clean and direct as a sniper shot.]
-* 2.5. [ ] **Run Cycle-Specific Tests:**
+            *   In `_resolveProfileEndpoint()`, deleted the call to `ProfileEndpointWorkaround.transformProfileEndpoint(...)`.
+            *   Set it to `return ApiConfig.userProfileEndpoint;` (now returns 'users/me').
+            *   Removed `HACK-TODO` comments and the import for `hack_profile_endpoint_workaround.dart`.
+        3.  Deleted `lib/core/user/infrastructure/hack_profile_endpoint_workaround.dart`.
+    * Findings: [Client code updated as planned. `ApiConfig.userProfileEndpoint` is now 'users/me'. `UserApiClient._resolveProfileEndpoint` now directly returns this value. The `hack_profile_endpoint_workaround.dart` file has been deleted. Re-running `user_api_client_test.dart` confirms all tests pass. GREEN achieved.]
+* 2.4. [x] **Refactor:** Clean up `UserApiClient` and its tests. Ensure clarity and remove any lingering HACK comments related to the old endpoint.
+    * Findings: [Updated doc comment for `_resolveProfileEndpoint()` in `user_api_client.dart` to accurately reflect its new, simpler behavior. Removed an outdated `HACK-TODO` comment from `user_api_client_test.dart`. Removed the unnecessary mock for `credentialsProvider.getUserId()` from the `setUp` block in `user_api_client_test.dart`, as it was only required by the deleted workaround. All tests remain green. Client code is now as clean and direct as a sniper shot.]
+* 2.5. [x] **Run Cycle-Specific Tests:**
     * Command: `./scripts/list_failed_tests.dart test/core/user/infrastructure/user_api_client_test.dart --except`
-    * Findings: [All tests for `UserApiClient` pass. It knows the new truth.]
-* 2.6. [ ] **Run ALL Unit/Integration Tests:**
+    * Findings: [All 4 tests in `user_api_client_test.dart` pass. The `UserApiClient` correctly interacts with the new `users/me` endpoint configuration and its tests are clean and focused.]
+* 2.6. [x] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings: `[Confirm ALL unit/integration tests pass. FIX if not. Pay attention to any tests that might have relied on the old profile fetching behavior indirectly.]`
-* 2.7. [ ] **Format, Analyze, and Fix:**
+    * Findings: [All 843 unit/integration tests pass. The client-side changes to use `/api/v1/users/me` and the removal of `ProfileEndpointWorkaround` have not introduced any regressions. The force is strong with this one.]
+* 2.7. [x] **Format, Analyze, and Fix:**
     * Command: `./scripts/fix_format_analyze.sh`
-    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
-* 2.8. [ ] **Run ALL E2E & Stability Tests:**
+    * Findings: [The `./scripts/fix_format_analyze.sh` script completed successfully. `dart fix` found nothing to fix, `dart format` reported 0 changed files, and `dart analyze` found no issues. The codebase is clean and adheres to all linting and formatting rules.]
+* 2.8. [x] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings: `[Confirm ALL tests pass, including E2E and stability checks. This is crucial as profile fetching is fundamental. FIX if not.]`
-* 2.9. [ ] **Handover Brief:**
-    * Status: [Client-side hack has been exorcised. `UserApiClient` now correctly calls the new `/api/v1/users/me` endpoint via `ApiConfig`. All relevant client tests pass.]
-    * Gotchas: [Double-check E2E tests if any explicitly set up mock responses for the old profile endpoints; they might need adjustment.]
-    * Recommendations: [Proceed to Cycle 3: Final Cleanup & Documentation. Sweep the leg, Johnny.]
+    * Findings: [The `./scripts/run_all_tests.sh` script completed successfully. All unit tests (843), mock server tests (105), and E2E tests passed. App stability checks also passed. The new user profile endpoint integration is solid and has not introduced any user-facing regressions.]
+* 2.9. [x] **Handover Brief:**
+    * Status: [Client-side hack has been exorcised. `UserApiClient` now correctly calls the new `/api/v1/users/me` endpoint via `ApiConfig`. All unit, integration, E2E, and stability tests pass, confirming the change is robust. The mock server is aligned from Cycle 1.]
+    * Gotchas: [Ensure any manual QA or non-standard E2E test setups that might have hardcoded mock responses for old profile endpoints (`/users/profile`, `/users/<userId>`) are updated. The primary E2E suite (`run_all_tests.sh`) is confirmed green.]
+    * Recommendations: [Proceed to Cycle 3: Final Cleanup & Documentation. Key tasks will be to review `ApiPathMatcher` for obsolescence/updates, ensure all documentation reflects the `/api/v1/users/me` endpoint, and conduct a final code review. Sweep the leg, Johnny.]
 
 ---
 

@@ -225,7 +225,6 @@ class AuthModule {
       getIt.registerLazySingleton<UserApiClient>(
         () => UserApiClient(
           authenticatedHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
-          credentialsProvider: finalCredentialsProvider,
         ),
       );
       _logger.d('$_tag Registered UserApiClient with authenticatedDio.');

@@ -69,7 +69,7 @@ class ApiConfig {
   static const String refreshEndpoint = 'auth/refresh-session';
 
   /// User profile endpoint (unprefixed)
-  static const String userProfileEndpoint = 'users/profile';
+  static const String userProfileEndpoint = 'users/me';
 
   /// Jobs listing endpoint (unprefixed)
   static const String jobsEndpoint = 'jobs';

@@ -42,7 +42,6 @@ void main() {
     userApiClient = UserApiClient(
       authenticatedHttpClient:
           mockBasicDio, // Using mockBasicDio to demonstrate the issue
-      credentialsProvider: mockCredentialsProvider,
     );
 
     // Setup auth service with both clients and the new cache
@@ -156,7 +155,6 @@ void main() {
 
       final fixedUserApiClient = UserApiClient(
         authenticatedHttpClient: mockAuthenticatedDio,
-        credentialsProvider: mockCredentialsProvider,
       );
 
       // 2. Create auth service with both API clients AND CACHE
@@ -211,7 +209,6 @@ void main() {
 
       final mockUserApiClient = UserApiClient(
         authenticatedHttpClient: mockAuthenticatedDio,
-        credentialsProvider: mockCredentialsProvider,
       );
 
       final testAuthService = AuthServiceImpl(
@@ -295,7 +292,6 @@ void main() {
 
         final testUserApiClient = UserApiClient(
           authenticatedHttpClient: mockAuthenticatedDio,
-          credentialsProvider: mockCredentialsProvider,
         );
 
         // Create auth service with proper API clients AND CACHE
@@ -432,7 +428,6 @@ void main() {
 
       final testUserApiClient = UserApiClient(
         authenticatedHttpClient: mockAuthenticatedDio,
-        credentialsProvider: mockCredentialsProvider,
       );
 
       final testAuthService = AuthServiceImpl(

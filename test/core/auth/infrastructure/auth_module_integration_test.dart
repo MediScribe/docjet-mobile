@@ -236,7 +236,6 @@ void main() {
       getIt.registerSingleton<UserApiClient>(
         UserApiClient(
           authenticatedHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
-          credentialsProvider: getIt<AuthCredentialsProvider>(),
         ),
       );
 
@@ -329,7 +328,6 @@ void main() {
       getIt.registerSingleton<UserApiClient>(
         UserApiClient(
           authenticatedHttpClient: getIt<Dio>(instanceName: 'authenticatedDio'),
-          credentialsProvider: getIt<AuthCredentialsProvider>(),
         ),
       );
 
