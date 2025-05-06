@@ -122,6 +122,13 @@ void main() {
     verifyNoMoreInteractions(mockDeleterService);
     verifyNoMoreInteractions(mockNetworkInfo);
   }
+
+  // Helper function for verifying zero interactions on remoteDataSource, deleterService, and networkInfo
+  void verifyZeroInteractionsAll() {
+    verifyZeroInteractions(mockRemoteDataSource);
+    verifyZeroInteractions(mockDeleterService);
+    verifyZeroInteractions(mockNetworkInfo);
+  }
   // --- End Test Data Setup ---
 
   group('JobReaderService', () {
@@ -309,6 +316,260 @@ void main() {
           verifyNoMoreInteractionsAll();
         },
       );
+
+      test(
+        'should delete local jobs missing from server using serverId comparison',
+        () async {
+          // Arrange
+          when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+          // Local synced jobs - we'll set up one that exists on server and one missing from server
+          final localJobExistsOnServer = Job(
+            localId: 'local-id-1',
+            serverId: 'server-id-1', // This ID exists on server
+            userId: 'test-user-id',
+            status: JobStatus.completed,
+            syncStatus: SyncStatus.synced,
+            createdAt: DateTime(2023, 1, 1),
+            updatedAt: DateTime(2023, 1, 1),
+          );
+
+          final localJobDeletedOnServer = Job(
+            localId: 'local-id-2',
+            serverId: 'server-id-2', // This ID missing from server
+            userId: 'test-user-id',
+            status: JobStatus.completed,
+            syncStatus: SyncStatus.synced,
+            createdAt: DateTime(2023, 1, 1),
+            updatedAt: DateTime(2023, 1, 1),
+          );
+
+          final localSyncedJobs = [
+            localJobExistsOnServer,
+            localJobDeletedOnServer,
+          ];
+
+          // Remote data - only contains one of the server IDs
+          final remoteDto = JobApiDTO(
+            id: 'server-id-1', // Only this one exists on server
+            userId: 'test-user-id',
+            jobStatus: 'completed',
+            createdAt: DateTime(2023, 1, 1),
+            updatedAt: DateTime(2023, 1, 1),
+          );
+
+          // Setup mocks
+          when(
+            mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
+          ).thenAnswer((_) async => localSyncedJobs);
+          when(
+            mockRemoteDataSource.fetchJobs(),
+          ).thenAnswer((_) async => [remoteDto]);
+
+          // Act
+          await service.getJobs();
+
+          // Assert
+          // Verify that permanentlyDeleteJob was called ONLY for the job missing from server
+          verify(
+            mockDeleterService.permanentlyDeleteJob('local-id-2'),
+          ).called(1);
+
+          // Also verify we DIDN'T try to delete the job that exists on server
+          verifyNever(mockDeleterService.permanentlyDeleteJob('local-id-1'));
+
+          // Verify other expected interactions
+          verify(mockNetworkInfo.isConnected).called(1);
+          verify(
+            mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
+          ).called(1);
+          verify(mockRemoteDataSource.fetchJobs()).called(1);
+          verify(
+            mockLocalDataSource.saveJob(any),
+          ).called(1); // Should save the mapped job
+        },
+      );
+
+      test('should save all mapped remote jobs to local storage', () async {
+        // Arrange
+        when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+        // Remote DTOs representing multiple jobs from server
+        final remoteDto1 = JobApiDTO(
+          id: 'server-id-1',
+          userId: 'test-user-id',
+          jobStatus: 'completed',
+          createdAt: DateTime(2023, 1, 1),
+          updatedAt: DateTime(2023, 1, 1),
+        );
+
+        final remoteDto2 = JobApiDTO(
+          id: 'server-id-2',
+          userId: 'test-user-id',
+          jobStatus: 'created',
+          createdAt: DateTime(2023, 1, 2),
+          updatedAt: DateTime(2023, 1, 2),
+        );
+
+        final remoteDto3 = JobApiDTO(
+          id: 'server-id-3',
+          userId: 'test-user-id',
+          jobStatus: 'error',
+          createdAt: DateTime(2023, 1, 3),
+          updatedAt: DateTime(2023, 1, 3),
+        );
+
+        // Local jobs for ID mapping
+        final localJob1 = Job(
+          localId: 'local-id-1',
+          serverId: 'server-id-1',
+          userId: 'test-user-id',
+          status: JobStatus.completed,
+          syncStatus: SyncStatus.synced,
+          createdAt: DateTime(2023, 1, 1),
+          updatedAt: DateTime(2023, 1, 1),
+        );
+
+        // Setup mocks
+        when(
+          mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
+        ).thenAnswer((_) async => [localJob1]);
+        when(
+          mockRemoteDataSource.fetchJobs(),
+        ).thenAnswer((_) async => [remoteDto1, remoteDto2, remoteDto3]);
+
+        // We need to capture the jobs being saved to verify them
+        final savedJobs = <Job>[];
+        when(mockLocalDataSource.saveJob(any)).thenAnswer((invocation) {
+          savedJobs.add(invocation.positionalArguments[0] as Job);
+          return Future.value(unit);
+        });
+
+        // Act
+        final result = await service.getJobs();
+
+        // Assert
+        // Verify saveJob was called exactly 3 times (once for each remote job)
+        verify(mockLocalDataSource.saveJob(any)).called(3);
+
+        // Verify the contents of the saved jobs
+        expect(savedJobs.length, 3);
+
+        // First job should have the mapped local ID
+        expect(savedJobs[0].localId, 'local-id-1');
+        expect(savedJobs[0].serverId, 'server-id-1');
+
+        // Other jobs should have generated UUIDs but correct server IDs
+        expect(savedJobs[1].localId, isNotEmpty);
+        expect(savedJobs[1].serverId, 'server-id-2');
+
+        expect(savedJobs[2].localId, isNotEmpty);
+        expect(savedJobs[2].serverId, 'server-id-3');
+
+        // All jobs should be marked as synced
+        for (final job in savedJobs) {
+          expect(job.syncStatus, SyncStatus.synced);
+        }
+
+        // The result should return the same jobs
+        final resultJobs = result.getOrElse(() => []);
+        expect(resultJobs.length, 3);
+        expect(resultJobs.map((j) => j.serverId).toList()..sort(), [
+          'server-id-1',
+          'server-id-2',
+          'server-id-3',
+        ]);
+      });
+
+      test(
+        'should use correct serverId set from DTOs for server deletion detection',
+        () async {
+          // Arrange
+          when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+
+          // Create several local synced jobs
+          final localJobs = [
+            Job(
+              localId: 'local-id-1',
+              serverId: 'server-id-1',
+              userId: 'test-user-id',
+              status: JobStatus.completed,
+              syncStatus: SyncStatus.synced,
+              createdAt: DateTime(2023, 1, 1),
+              updatedAt: DateTime(2023, 1, 1),
+            ),
+            Job(
+              localId: 'local-id-2',
+              serverId: 'server-id-2',
+              userId: 'test-user-id',
+              status: JobStatus.completed,
+              syncStatus: SyncStatus.synced,
+              createdAt: DateTime(2023, 1, 1),
+              updatedAt: DateTime(2023, 1, 1),
+            ),
+            Job(
+              localId: 'local-id-3',
+              serverId: 'server-id-3',
+              userId: 'test-user-id',
+              status: JobStatus.error,
+              syncStatus: SyncStatus.synced,
+              createdAt: DateTime(2023, 1, 1),
+              updatedAt: DateTime(2023, 1, 1),
+            ),
+          ];
+
+          // Only return some IDs from the server (to simulate deletions)
+          final remoteDtos = [
+            JobApiDTO(
+              id: 'server-id-1',
+              userId: 'test-user-id',
+              jobStatus: 'completed',
+              createdAt: DateTime(2023, 1, 1),
+              updatedAt: DateTime(2023, 1, 1),
+            ),
+            // server-id-2 is "deleted" on server
+            JobApiDTO(
+              id: 'server-id-3',
+              userId: 'test-user-id',
+              jobStatus: 'completed',
+              createdAt: DateTime(2023, 1, 1),
+              updatedAt: DateTime(2023, 1, 1),
+            ),
+            // Add a completely new ID from server
+            JobApiDTO(
+              id: 'server-id-4',
+              userId: 'test-user-id',
+              jobStatus: 'created',
+              createdAt: DateTime(2023, 1, 1),
+              updatedAt: DateTime(2023, 1, 1),
+            ),
+          ];
+
+          // Setup mocks
+          when(
+            mockLocalDataSource.getJobsByStatus(SyncStatus.synced),
+          ).thenAnswer((_) async => localJobs);
+          when(
+            mockRemoteDataSource.fetchJobs(),
+          ).thenAnswer((_) async => remoteDtos);
+
+          // Act
+          await service.getJobs();
+
+          // Assert
+          // Verify deletion was called only for the missing server ID
+          verify(
+            mockDeleterService.permanentlyDeleteJob('local-id-2'),
+          ).called(1);
+
+          // Verify the others were NOT deleted
+          verifyNever(mockDeleterService.permanentlyDeleteJob('local-id-1'));
+          verifyNever(mockDeleterService.permanentlyDeleteJob('local-id-3'));
+
+          // Verify the service saved ALL remote jobs (including the new one)
+          verify(mockLocalDataSource.saveJob(any)).called(3);
+        },
+      );
     });
 
     group('getJobById', () {
@@ -329,12 +590,10 @@ void main() {
           expect(result.getOrElse(() => throw 'Test failed'), tJobSynced);
           // Verify the correct entity-based method was called
           verify(mockLocalDataSource.getJobById(tLocalId));
+
+          // Use helper function for verification
           verifyNoMoreInteractions(mockLocalDataSource);
-          verifyZeroInteractions(mockRemoteDataSource);
-          verifyZeroInteractions(mockDeleterService);
-          verifyZeroInteractions(
-            mockNetworkInfo,
-          ); // No network check needed for getById
+          verifyZeroInteractionsAll(); // Use the helper function
         },
       );
 
@@ -355,10 +614,10 @@ void main() {
           );
           // Verify the correct entity-based method was called
           verify(mockLocalDataSource.getJobById(tLocalId));
+
+          // Use helper function for verification
           verifyNoMoreInteractions(mockLocalDataSource);
-          verifyZeroInteractions(mockRemoteDataSource);
-          verifyZeroInteractions(mockDeleterService);
-          verifyZeroInteractions(mockNetworkInfo);
+          verifyZeroInteractionsAll(); // Use the helper function
         },
       );
 
@@ -378,10 +637,10 @@ void main() {
             Left(CacheFailure(exception.message ?? 'Local cache error')),
           );
           verify(mockLocalDataSource.getJobById(tLocalId));
+
+          // Use helper function for verification
           verifyNoMoreInteractions(mockLocalDataSource);
-          verifyZeroInteractions(mockRemoteDataSource);
-          verifyZeroInteractions(mockDeleterService);
-          verifyZeroInteractions(mockNetworkInfo);
+          verifyZeroInteractionsAll(); // Use the helper function
         },
       );
     });
@@ -400,12 +659,10 @@ void main() {
         expect(result.getOrElse(() => []), tJobsListPendingOnly);
         // Verify the correct entity-based method was called
         verify(mockLocalDataSource.getJobsByStatus(SyncStatus.pending));
+
+        // Use helper function for verification
         verifyNoMoreInteractions(mockLocalDataSource);
-        verifyZeroInteractions(mockRemoteDataSource);
-        verifyZeroInteractions(mockDeleterService);
-        verifyZeroInteractions(
-          mockNetworkInfo,
-        ); // No network check needed for getByStatus
+        verifyZeroInteractionsAll(); // Use the helper function
       });
 
       test('should return empty list if no jobs match the status', () async {
@@ -421,10 +678,10 @@ void main() {
         expect(result.getOrElse(() => []), isEmpty);
         // Verify the correct entity-based method was called
         verify(mockLocalDataSource.getJobsByStatus(SyncStatus.pending));
+
+        // Use helper function for verification
         verifyNoMoreInteractions(mockLocalDataSource);
-        verifyZeroInteractions(mockRemoteDataSource);
-        verifyZeroInteractions(mockDeleterService);
-        verifyZeroInteractions(mockNetworkInfo);
+        verifyZeroInteractionsAll(); // Use the helper function
       });
 
       test(
@@ -446,10 +703,10 @@ void main() {
           );
           // Verify the correct entity-based method was called
           verify(mockLocalDataSource.getJobsByStatus(SyncStatus.pending));
+
+          // Use helper function for verification
           verifyNoMoreInteractions(mockLocalDataSource);
-          verifyZeroInteractions(mockRemoteDataSource);
-          verifyZeroInteractions(mockDeleterService);
-          verifyZeroInteractions(mockNetworkInfo);
+          verifyZeroInteractionsAll(); // Use the helper function
         },
       );
     });

@@ -4,6 +4,7 @@ import 'package:docjet_mobile/core/auth/auth_session_provider.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/api_job_remote_data_source_impl.dart';
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -276,5 +277,145 @@ void main() {
         );
       },
     );
+  });
+
+  group('fetchJobs', () {
+    test(
+      'should return a List<JobApiDTO> with all fields correctly parsed when fetchJobs is called',
+      () async {
+        // Arrange
+        // Setup mock response with multiple jobs
+        final jobsListJson = {
+          'data': [
+            {
+              'id': 'server-id-1',
+              'user_id': tUserId,
+              'job_status': 'submitted',
+              'created_at': '2023-01-01T00:00:00.000Z',
+              'updated_at': '2023-01-01T00:00:00.000Z',
+              'display_title': 'Job 1 Title',
+              'display_text': 'Job 1 Text',
+              'text': 'Transcription 1',
+              'additional_text': 'Additional 1',
+            },
+            {
+              'id': 'server-id-2',
+              'user_id': tUserId,
+              'job_status': 'completed',
+              'created_at': '2023-01-02T00:00:00.000Z',
+              'updated_at': '2023-01-02T00:00:00.000Z',
+              'display_title': 'Job 2 Title',
+              'display_text': 'Job 2 Text',
+              'text': 'Transcription 2',
+              'error_code': 0,
+              'error_message': null,
+            },
+            {
+              'id': 'server-id-3',
+              'user_id': tUserId,
+              'job_status': 'error',
+              'created_at': '2023-01-03T00:00:00.000Z',
+              'updated_at': '2023-01-03T00:00:00.000Z',
+              'display_title': null,
+              'display_text': null,
+              'text': null,
+              'error_code': 500,
+              'error_message': 'Processing failed',
+            },
+          ],
+        };
+
+        // Setup the dio mock with the correct matcher
+        when(
+          mockDio.get(argThat(equals('/jobs')), options: anyNamed('options')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: jobsListJson,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: '/jobs'),
+          ),
+        );
+
+        // Act
+        final result = await remoteDataSource.fetchJobs();
+
+        // Assert
+        // 1. Verify the result type
+        expect(result, isA<List<JobApiDTO>>());
+        expect(result.length, 3);
+
+        // 2. Verify the first DTO has correct values
+        expect(result[0].id, 'server-id-1');
+        expect(result[0].userId, tUserId);
+        expect(result[0].jobStatus, 'submitted');
+        expect(result[0].createdAt, DateTime.parse('2023-01-01T00:00:00.000Z'));
+        expect(result[0].updatedAt, DateTime.parse('2023-01-01T00:00:00.000Z'));
+        expect(result[0].displayTitle, 'Job 1 Title');
+        expect(result[0].displayText, 'Job 1 Text');
+        expect(result[0].text, 'Transcription 1');
+        expect(result[0].additionalText, 'Additional 1');
+
+        // 3. Verify the second DTO has correct values
+        expect(result[1].id, 'server-id-2');
+        expect(result[1].jobStatus, 'completed');
+        expect(result[1].errorCode, 0);
+        expect(result[1].errorMessage, null);
+
+        // 4. Verify the third DTO has correct values (with error fields)
+        expect(result[2].id, 'server-id-3');
+        expect(result[2].jobStatus, 'error');
+        expect(result[2].displayTitle, null);
+        expect(result[2].text, null);
+        expect(result[2].errorCode, 500);
+        expect(result[2].errorMessage, 'Processing failed');
+      },
+    );
+
+    test(
+      'should throw ApiException when the API returns a non-200 status code',
+      () async {
+        // Arrange
+        when(
+          mockDio.get(argThat(equals('/jobs')), options: anyNamed('options')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'error': 'Server error'},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: '/jobs'),
+          ),
+        );
+
+        // Act & Assert
+        expect(
+          () => remoteDataSource.fetchJobs(),
+          throwsA(isA<ApiException>()),
+        );
+      },
+    );
+
+    test('should throw ApiException when Dio throws a DioException', () async {
+      // Arrange
+      when(
+        mockDio.get(argThat(equals('/jobs')), options: anyNamed('options')),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/jobs'),
+          message: 'Network error',
+        ),
+      );
+
+      // Act & Assert
+      expect(() => remoteDataSource.fetchJobs(), throwsA(isA<ApiException>()));
+    });
+
+    test('should throw ApiException when user is not authenticated', () async {
+      // Arrange
+      when(
+        mockAuthSessionProvider.isAuthenticated(),
+      ).thenAnswer((_) async => false);
+
+      // Act & Assert
+      expect(() => remoteDataSource.fetchJobs(), throwsA(isA<ApiException>()));
+    });
   });
 }

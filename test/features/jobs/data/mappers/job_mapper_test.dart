@@ -13,7 +13,7 @@ void main() {
   group('JobMapper: API DTO <-> Entity', () {
     test('should map JobApiDTO to Job entity correctly (Server ID)', () {
       // Arrange: Create a sample JobApiDTO (represents data FROM server)
-      final now = DateTime.now();
+      final now = DateTime(2023, 1, 1, 10, 30);
       const serverId = 'server-job-123';
       final jobApiDto = JobApiDTO(
         id: serverId, // API DTO's id IS the serverId
@@ -57,8 +57,8 @@ void main() {
 
     test('should map a list of JobApiDTOs to a list of Job entities', () {
       // Arrange: Create a list of sample JobApiDTOs
-      final now1 = DateTime.now();
-      final now2 = now1.add(const Duration(minutes: 1));
+      final now1 = DateTime(2023, 1, 1, 10, 30);
+      final now2 = DateTime(2023, 1, 1, 10, 31);
       const serverId1 = 'server-job-1';
       const serverId2 = 'server-job-2';
       final dtoList = [
@@ -104,6 +104,115 @@ void main() {
       expect(jobList[1].displayTitle, 'Completed Job');
       expect(jobList[1].text, 'Some text');
       expect(jobList[1].syncStatus, SyncStatus.synced);
+    });
+
+    test(
+      'should reuse existing localIds from serverIdToLocalIdMap when mapping DTOs',
+      () {
+        // Arrange: Create a list of sample JobApiDTOs and a mapping
+        final now = DateTime(2023, 1, 1, 10, 30);
+        const serverId1 = 'server-job-1';
+        const serverId2 = 'server-job-2';
+        const existingLocalId1 = 'existing-local-id-1';
+        const existingLocalId2 = 'existing-local-id-2';
+
+        final dtoList = [
+          JobApiDTO(
+            id: serverId1,
+            userId: 'user-1',
+            jobStatus: 'submitted',
+            createdAt: now,
+            updatedAt: now,
+          ),
+          JobApiDTO(
+            id: serverId2,
+            userId: 'user-1',
+            jobStatus: 'completed',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ];
+
+        final serverIdToLocalIdMap = {
+          serverId1: existingLocalId1,
+          serverId2: existingLocalId2,
+        };
+
+        // Act: Call mapper with the mapping
+        final jobList = JobMapper.fromApiDtoList(
+          dtoList,
+          serverIdToLocalIdMap: serverIdToLocalIdMap,
+        );
+
+        // Assert: Check if existing localIds were reused
+        expect(jobList[0].localId, existingLocalId1);
+        expect(jobList[0].serverId, serverId1);
+        expect(jobList[0].syncStatus, SyncStatus.synced);
+        expect(jobList[1].localId, existingLocalId2);
+        expect(jobList[1].serverId, serverId2);
+        expect(jobList[1].syncStatus, SyncStatus.synced);
+      },
+    );
+
+    test('should generate new UUIDs when no mapping exists for server IDs', () {
+      // Arrange: Create a list of sample JobApiDTOs with no matching mapping
+      final now = DateTime(2023, 1, 1, 10, 30);
+      const serverId1 = 'server-job-1';
+      const serverId2 = 'server-job-2';
+      const serverId3 = 'server-job-3';
+      const existingLocalId1 = 'existing-local-id-1';
+
+      final dtoList = [
+        JobApiDTO(
+          id: serverId1,
+          userId: 'user-1',
+          jobStatus: 'submitted',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        JobApiDTO(
+          id: serverId2,
+          userId: 'user-1',
+          jobStatus: 'completed',
+          createdAt: now,
+          updatedAt: now,
+        ),
+        JobApiDTO(
+          id: serverId3,
+          userId: 'user-1',
+          jobStatus: 'error',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+
+      // Only map one of the three server IDs
+      final serverIdToLocalIdMap = {serverId1: existingLocalId1};
+
+      // Act: Call mapper with partial mapping
+      final jobList = JobMapper.fromApiDtoList(
+        dtoList,
+        serverIdToLocalIdMap: serverIdToLocalIdMap,
+      );
+
+      // Assert: Check first job uses existing ID
+      expect(jobList[0].localId, existingLocalId1);
+      expect(jobList[0].serverId, serverId1);
+      expect(jobList[0].syncStatus, SyncStatus.synced);
+
+      // Assert: Check other jobs have new generated UUIDs
+      expect(jobList[1].localId, isNotNull);
+      expect(jobList[1].localId, isNot(equals(existingLocalId1)));
+      expect(jobList[1].serverId, serverId2);
+      expect(jobList[1].syncStatus, SyncStatus.synced);
+
+      expect(jobList[2].localId, isNotNull);
+      expect(jobList[2].localId, isNot(equals(existingLocalId1)));
+      expect(jobList[2].serverId, serverId3);
+      expect(jobList[2].syncStatus, SyncStatus.synced);
+
+      // Also check the two generated IDs are different from each other
+      expect(jobList[1].localId, isNot(equals(jobList[2].localId)));
     });
 
     test(
