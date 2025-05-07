@@ -2,6 +2,7 @@ import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart'; // Import JobStatus
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
+import 'package:docjet_mobile/features/jobs/presentation/models/job_ui_icon.dart'; // Added import
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
@@ -48,28 +49,48 @@ class JobListItem extends StatelessWidget {
     }
   }
 
-  /// Get the appropriate icon for the job item
-  static IconData _getJobItemIcon(JobViewModel job) {
-    // Show warning icon if there are file issues, regardless of sync status
-    if (job.hasFileIssue) {
-      return CupertinoIcons.exclamationmark_triangle_fill;
+  /// Builds the appropriate Icon widget based on the JobUIIcon.
+  static Widget _buildIcon(BuildContext context, JobUIIcon uiIcon) {
+    final appTokens = getAppColors(context);
+
+    switch (uiIcon) {
+      case JobUIIcon.created:
+        return Icon(CupertinoIcons.doc_plaintext, color: appTokens.infoFg);
+      case JobUIIcon
+          .pendingSync: // Currently covered by created in ViewModel logic
+        return Icon(CupertinoIcons.arrow_up_circle, color: appTokens.infoFg);
+      case JobUIIcon.syncError:
+        return Icon(
+          CupertinoIcons.wifi_exclamationmark,
+          color: appTokens.warningFg,
+        );
+      case JobUIIcon.syncFailed:
+        return Icon(CupertinoIcons.xmark_seal_fill, color: appTokens.dangerFg);
+      case JobUIIcon.fileIssue:
+        return Icon(
+          CupertinoIcons.exclamationmark_triangle_fill,
+          color: appTokens.warningFg,
+        );
+      case JobUIIcon.processing:
+        return Icon(CupertinoIcons.time, color: appTokens.infoFg);
+      case JobUIIcon.serverError:
+        return Icon(
+          CupertinoIcons.exclamationmark_shield_fill,
+          color: appTokens.dangerFg,
+        );
+      case JobUIIcon.completed:
+        return Icon(
+          CupertinoIcons.check_mark_circled_solid,
+          color: appTokens.successFg,
+        );
+      case JobUIIcon.pendingDeletion:
+        return Icon(CupertinoIcons.trash, color: appTokens.warningFg);
+      default: // Fallback for JobUIIcon.unknown and any unhandled or future states
+        return Icon(
+          CupertinoIcons.question_circle_fill,
+          color: appTokens.infoFg,
+        );
     }
-
-    // Default job icon
-    return CupertinoIcons.doc_text;
-  }
-
-  /// Get the appropriate icon color for the job item
-  static Color _getIconColor(BuildContext context, JobViewModel job) {
-    final tokens = getAppColors(context);
-
-    // Use warning color for file issues
-    if (job.hasFileIssue) {
-      return tokens.warningFg; // Semantic token for warnings
-    }
-
-    // Default icon color
-    return tokens.infoFg; // Semantic token for info/neutral content
   }
 
   @override
@@ -98,10 +119,7 @@ class JobListItem extends StatelessWidget {
             MainAxisSize.min, // Prevent Column from expanding vertically
         children: [
           ListTile(
-            leading: Icon(
-              _getJobItemIcon(job),
-              color: _getIconColor(context, job),
-            ),
+            leading: _buildIcon(context, job.uiIcon),
             title: Text(
               job.title,
               maxLines: 1,
