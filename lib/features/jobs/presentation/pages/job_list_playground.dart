@@ -1,9 +1,10 @@
-import 'dart:io'; // For Directory type
+import 'dart:io'; // For File type
 
 import 'package:docjet_mobile/core/audio/audio_cubit.dart';
 import 'package:docjet_mobile/core/audio/audio_player_service_impl.dart';
 import 'package:docjet_mobile/core/audio/audio_recorder_service_impl.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
+import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/widgets/record_button.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -98,48 +99,70 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     );
 
     try {
+      // Get FileSystem instance from DI
+      final fileSystem = GetIt.instance<FileSystem>();
+
+      // Create audio subdirectory in app docs
+      final String audioDir = 'audio';
+      await fileSystem.createDirectory(audioDir, recursive: true);
+
+      // Extract filename from absolute path
+      final String filename = path_pkg.basename(absoluteAudioPath);
+
+      // Target path will be 'audio/<filename>' - FileSystem will resolve this relative to app docs
+      final String relativeTargetPath = path_pkg.join(audioDir, filename);
+
+      // Get app documents directory for path comparison
       final Directory appDocDir =
           await path_provider_pkg.getApplicationDocumentsDirectory();
 
-      // Ensure the file ends up inside <docs>/audio/<filename>
-      final String persistentDir = path_pkg.join(appDocDir.path, 'audio');
-      await Directory(persistentDir).create(recursive: true);
+      // Determine if file needs to be moved:
+      // 1. It's not already within app documents directory, OR
+      // 2. It's in app docs but not in the 'audio' subdirectory
+      final bool isInAppDocs = path_pkg.isWithin(
+        appDocDir.path,
+        absoluteAudioPath,
+      );
+      final bool isInAudioDir =
+          isInAppDocs &&
+          path_pkg
+              .normalize(absoluteAudioPath)
+              .contains('${path_pkg.separator}audio${path_pkg.separator}');
+      final bool needsMove = !isInAppDocs || !isInAudioDir;
 
-      String finalAbsPath = absoluteAudioPath;
+      _logger.d(
+        '$_tag File path analysis: isInAppDocs=$isInAppDocs, isInAudioDir=$isInAudioDir, needsMove=$needsMove',
+      );
 
-      if (!path_pkg.isWithin(appDocDir.path, absoluteAudioPath)) {
-        // Move the file for persistence. Prefer rename; fall back to copy+delete.
-        final String filename = path_pkg.basename(absoluteAudioPath);
-        final String targetPath = path_pkg.join(persistentDir, filename);
+      if (needsMove) {
+        _logger.i('$_tag Moving audio file to app docs directory');
 
         try {
-          finalAbsPath =
-              (await File(absoluteAudioPath).rename(targetPath)).path;
-        } on FileSystemException {
-          _logger.w('$_tag rename failed, falling back to copy+delete.');
-          await File(absoluteAudioPath).copy(targetPath);
-          await File(absoluteAudioPath).delete();
-          finalAbsPath = targetPath;
+          // Read the file contents
+          final sourceFile = File(absoluteAudioPath);
+          final Uint8List bytes = await sourceFile.readAsBytes();
+
+          // Write to new location via FileSystem (handles security)
+          await fileSystem.writeFile(relativeTargetPath, bytes);
+
+          // Clean up source file
+          await sourceFile.delete();
+
+          _logger.i(
+            '$_tag Moved recording to persistent path: $relativeTargetPath',
+          );
+        } catch (e) {
+          _logger.e('$_tag Failed to move audio file: $e');
+          throw Exception('Failed to move audio recording to app directory');
         }
-
-        _logger.i('$_tag Moved recording to persistent path: $finalAbsPath');
+      } else {
+        _logger.i('$_tag File already in app docs directory, using as-is');
       }
-
-      // Compute path relative to docs dir; guard against edge-cases.
-      String relativeAudioPath = path_pkg.relative(
-        finalAbsPath,
-        from: appDocDir.path,
-      );
-      if (relativeAudioPath == '.' || relativeAudioPath.isEmpty) {
-        relativeAudioPath = path_pkg.basename(finalAbsPath);
-      }
-
-      _logger.i('$_tag Using relative audio path: $relativeAudioPath');
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
 
       final params = CreateJobParams(
-        audioFilePath: relativeAudioPath,
+        audioFilePath: relativeTargetPath,
         text: 'Audio Job: $timestamp - recorded audio.',
       );
 
