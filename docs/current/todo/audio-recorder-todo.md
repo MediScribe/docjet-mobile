@@ -71,23 +71,23 @@ sequenceDiagram
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 0.1. [ ] **Task:** Add dependencies `record`, `just_audio`, `audio_session`
+* 0.1. [x] **Task:** Add dependencies `record`, `just_audio`, `audio_session`
     * Action: `flutter pub add record just_audio audio_session`
     * Note: **Do _NOT_** add `just_audio_background` yet – keep the dep tree lean until background playback is a real requirement.
-    * Findings: [ ]
-* 0.2. [ ] **Task:** Create abstract interfaces
+    * Findings: Successfully added all three dependencies. No conflicts detected with existing packages. These packages brought in several platform-specific implementations (Android, iOS, web, etc.) which should handle cross-platform compatibility well.
+* 0.2. [x] **Task:** Create abstract interfaces
     * Files: `lib/core/audio/audio_recorder_service.dart`, `lib/core/audio/audio_player_service.dart`, `lib/core/audio/audio_facade.dart`
     * Action: add minimal method signatures + TODO comments
-    * Findings: [ ]
-* 0.3. [ ] **Update Plan:**
+    * Findings: Created all three interfaces with comprehensive method signatures and documentation. AudioRecorderService handles recording with required methods (start, pause, resume, stop) and elapsed time stream. AudioPlayerService manages playback with position and duration streams. AudioFacade combines both services into a unified interface with clear separation of concerns.
+* 0.3. [x] **Update Plan:**
     * Validate no conflicting packages.
     * **Document platform permissions** – mic (iOS & Android), storage (Android < Q).
     * Specify the file-path normalisation rule (absolute → relative) in README so future devs don't screw it up.
-    * Findings: [ ]
-* 0.4. [ ] **Handover Brief:**
-    * Status: [ ]
-    * Gotchas: [ ]
-    * Recommendations: [ ]
+    * Findings: Confirmed no package conflicts with `flutter pub outdated`. Updated README.md with comprehensive platform permissions documentation for both iOS and Android. Added detailed documentation on file path normalization to convert absolute paths to relative paths within the app's document directory. Verified that platform permissions are already in place in AndroidManifest.xml and Info.plist.
+* 0.4. [x] **Handover Brief:**
+    * Status: Cycle 0 completed successfully. All required dependencies are installed, abstract interfaces are defined with comprehensive documentation, and platform-specific requirements are documented in the README. Following code review feedback, interfaces were improved to use Duration instead of raw int milliseconds, specify broadcast stream requirements, and make dispose methods async.
+    * Gotchas: iOS < 13 has a quirk with pause functionality where the record plugin silently no-ops on pause(). We've documented this in the service interface and will need to handle it in the implementation.
+    * Recommendations: Ready to proceed to Cycle 1 (Implement Core Recorder Service). The interfaces provide a solid foundation for implementation. Maintain strict adherence to the stream throttling requirements (250ms for recorder, 200ms for player) as specified in the plan.
 
 ---
 

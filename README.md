@@ -15,6 +15,11 @@ A mobile app for the DocJet platform.
   - [End-to-End (E2E) Tests (integration_test)](#end-to-end-e2e-tests-integration_test)
   - [Configuring the App (API Key & Domain)](#configuring-the-app-api-key--domain)
   - [Linting](#linting)
+- [Audio Recording](#audio-recording)
+  - [Platform Setup](#platform-setup)
+    - [iOS](#ios)
+    - [Android](#android)
+  - [File Path Normalization](#file-path-normalization)
 
 ## Features
 
@@ -320,3 +325,49 @@ We use a centralized approach to API versioning with `ApiConfig`. The version is
     ./scripts/run_e2e_tests.sh
     ```
     Ensure you have copied `secrets.test.json.example` to `
+
+## Audio Recording
+
+### Platform Setup
+
+#### iOS
+- Add microphone usage description to `ios/Runner/Info.plist`:
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>This app needs access to the microphone to record audio.</string>
+```
+
+#### Android
+- Add microphone permission to `android/app/src/main/AndroidManifest.xml`:
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
+- For Android < Q (API level 29), also add storage permissions:
+```xml
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+```
+
+### File Path Normalization
+The `record` package provides absolute file paths when recording is stopped. To ensure proper file handling within the app:
+
+1. **Always convert absolute paths** to relative paths within the app's documents directory before passing to other components.
+2. Use `FileSystem.resolvePath()` for all file operations to prevent path traversal issues.
+3. Example conversion:
+   ```dart
+   // Convert absolute path to relative path within app documents directory
+   String getRelativePath(String absolutePath) {
+     final docsDir = getApplicationDocumentsDirectory().path;
+     if (absolutePath.startsWith(docsDir)) {
+       // Return path relative to docs directory WITHOUT leading slash
+       // e.g., "recordings/audio_123.m4a" instead of "/recordings/audio_123.m4a"
+       return absolutePath.substring(docsDir.length + 1); // +1 to remove leading slash
+     }
+     throw Exception('File is outside of app documents directory');
+   }
+   
+   // When using the relative path with FileSystem:
+   final String relativePath = getRelativePath(absoluteRecordingPath);
+   // FileSystem.resolvePath() will properly handle this relative path format
+   final String resolvedPath = FileSystem.resolvePath(relativePath);
+   ```

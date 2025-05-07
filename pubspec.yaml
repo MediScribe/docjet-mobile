@@ -73,6 +73,9 @@ dependencies:
   mockito:
   shared_preferences: 
   meta: # Moved from dev_dependencies for @visibleForTesting
+  record: ^6.0.0
+  just_audio: ^0.10.2
+  audio_session: ^0.2.1
 
 dev_dependencies:
   flutter_test:
