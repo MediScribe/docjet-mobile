@@ -1,3 +1,5 @@
+/// Defines core constants used throughout the mock API server,
+/// including API versioning, paths, security keys, and token durations.
 // API version (should match ApiConfig.apiVersion in the app)
 const String apiVersion = 'v1';
 const String apiPrefix = 'api';

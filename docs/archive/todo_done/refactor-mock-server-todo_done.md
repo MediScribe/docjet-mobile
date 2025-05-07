@@ -249,28 +249,28 @@ mock_api_server/
 
 **MANDATORY REPORTING RULE:** ...
 
-* N.1. [ ] **Task:** Add file-level comments (purpose of each new file).
+* N.1. [x] **Task:** Add file-level comments (purpose of each new file).
     * Action: Add `/// ...` comments to top of each new `.dart` file.
-    * Findings:
-* N.2. [ ] **Task:** Review all imports for absolute vs. relative paths, unused imports.
+    * Findings: Added file-level `///` documentation comments to all newly created `.dart` files in `mock_api_server/lib/src/` (core/constants.dart, core/utils.dart, handlers/auth_handlers.dart, handlers/job_handlers.dart, middleware/middleware.dart, routes/api_router.dart). The `handlers/health_handlers.dart` file already had a suitable, albeit brief, file-level comment which was retained. The user also refined an import comment in `routes/api_router.dart`.
+* N.2. [x] **Task:** Review all imports for absolute vs. relative paths, unused imports.
     * Action: Clean up imports in all modified/new files.
-    * Findings:
-* N.3. [ ] **Task:** Run `dart format .` within `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart format .) | cat`
-    * Findings:
-* N.4. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
-    * Findings:
-* N.4.1. [ ] **Task:** Run final tests.
+    * Findings: All files previously in `mock_api_server/src/` were moved to `mock_api_server/lib/src/` by the user. Imports in `bin/server.dart`, `lib/src/routes/api_router.dart`, and all handler, middleware, and core files (`lib/src/handlers/*`, `lib/src/middleware/*`, `lib/src/core/*`) were systematically updated to use `package:mock_api_server/src/...` for local package imports. The `debugHandler` function was moved from `bin/server.dart` to `lib/src/debug_handlers.dart`, and its import in `api_router.dart` was corrected. This resolved 75 initial test failures. The `./scripts/fix_format_analyze.sh` script ran successfully, fixing one unused import in `bin/server.dart`, and `dart analyze` reported no issues for `mock_api_server`. Imports are now clean and correct.
+* N.3. [x] **Task:** Run `dart format .` within `mock_api_server/`.
+    * Action: `(cd mock_api_server && dart format .) | cat` (executed via `./scripts/fix_format_analyze.sh`)
+    * Findings: The `./scripts/fix_format_analyze.sh` script, which includes `dart format`, was run. The formatter made no changes in the latest execution, indicating the `mock_api_server/` codebase adheres to formatting standards.
+* N.4. [x] **Task:** Run `dart analyze` on `mock_api_server/`.
+    * Action: `(cd mock_api_server && dart analyze .) | cat` (executed via `./scripts/fix_format_analyze.sh`)
+    * Findings: The `./scripts/fix_format_analyze.sh` script, which includes `dart analyze`, was run. `dart analyze` reported "No issues found!" for `mock_api_server/`.
+* N.4.1. [x] **Task:** Run final tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
-    * Findings:
-* N.5. [ ] **Code Review & Commit Prep:**
+    * Findings: Ran `./scripts/list_failed_tests.dart mock_api_server --debug | cat`. All 105 tests passed successfully.
+* N.5. [x] **Code Review & Commit Prep:**
     * Action: `git status | cat`, `git diff --staged | cat`.
-    * Findings:
-* N.6. [ ] **Handover Brief:**
-    * Status: Refactoring complete. Code is clean, formatted, analyzed. All tests passing. Ready for Hard Bob Commit.
-    * Gotchas:
-    * Recommendations: Ship this fucking masterpiece.
+    * Findings: File renames from `src/` to `lib/src/` are staged. Modifications to `bin/server.dart`, `lib/src/debug_handlers.dart`, `lib/src/routes/api_router.dart`, and various other handler, middleware, and core files in `lib/src/` (primarily import fixes and the `debugHandler` relocation) are staged. File-level documentation comments were added to all new/refactored Dart files in `lib/src/` (user is to ensure these are staged). Code structure is significantly improved, adhering to the target architecture. Imports are clean. All tests pass and `dart analyze` is clean. The codebase is in excellent shape for commit.
+* N.6. [x] **Handover Brief:**
+    * Status: Cycle N (Final Polish, Documentation & Cleanup) is complete. All new/refactored files have file-level documentation comments. Imports have been thoroughly reviewed and corrected, primarily to use the `package:` scheme due to the `src/` to `lib/src/` move, resolving previous mass test failures. The `debugHandler` was successfully relocated from `bin/server.dart` to `lib/src/debug_handlers.dart`. `dart format` and `dart analyze` run clean for `mock_api_server`. All 105 tests are passing.
+    * Gotchas: The initial refactoring of the directory structure (user moving files from `src` to `lib/src`) caused widespread import errors that required systematic correction across multiple files. The `debugHandler`'s original location in `bin/server.dart` and its usage in `lib/src/routes/api_router.dart` created an import smell that was resolved by moving it to `lib/src/debug_handlers.dart`. User needs to ensure comment additions are staged.
+    * Recommendations: The `mock_api_server` refactor is now complete. The codebase is significantly cleaner, more organized, and adheres to Dart best practices and the planned architecture. It's ready for a "Hard Bob Commit".
 
 ---
 

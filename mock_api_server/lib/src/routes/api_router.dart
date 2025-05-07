@@ -1,3 +1,6 @@
+/// Configures and defines the main API router for the mock API server.
+/// It maps URL paths to their respective request handlers for health checks,
+/// authentication, job management, and debugging endpoints.
 import 'package:shelf_router/shelf_router.dart';
 
 // Import new health handler
@@ -9,8 +12,9 @@ import 'package:mock_api_server/src/handlers/auth_handlers.dart';
 // Import new job handlers
 import 'package:mock_api_server/src/handlers/job_handlers.dart';
 
-// Import handlers from debug_handlers.dart (already in its correct location)
-// This now also provides the generic debugHandler
+// Import handlers from debug_handlers.dart.
+// This includes specialized debug utilities and the generic 'debugHandler'
+// (previously located in server.dart).
 import 'package:mock_api_server/src/debug_handlers.dart';
 
 // Import constants (versionedApiPath)

@@ -1,3 +1,5 @@
+/// Defines request handlers for authentication-related endpoints,
+/// including login, token refresh, and user profile retrieval.
 // ignore_for_file: avoid_print
 
 import 'dart:async';
