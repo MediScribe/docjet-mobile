@@ -11,10 +11,9 @@ import 'package:dio/src/dio.dart' as _i7;
 import 'package:dio/src/dio_mixin.dart' as _i5;
 import 'package:dio/src/headers.dart' as _i8;
 import 'package:dio/src/options.dart' as _i2;
-import 'package:dio/src/redirect_record.dart' as _i12;
+import 'package:dio/src/redirect_record.dart' as _i11;
 import 'package:dio/src/response.dart' as _i6;
 import 'package:dio/src/transformer.dart' as _i4;
-import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart' as _i11;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint
@@ -869,120 +868,6 @@ class MockDio extends _i1.Mock implements _i7.Dio {
       ) as _i7.Dio);
 }
 
-/// A class which mocks [AuthCredentialsProvider].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockAuthCredentialsProvider extends _i1.Mock
-    implements _i11.AuthCredentialsProvider {
-  MockAuthCredentialsProvider() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i9.Future<String?> getApiKey() => (super.noSuchMethod(
-        Invocation.method(
-          #getApiKey,
-          [],
-        ),
-        returnValue: _i9.Future<String?>.value(),
-      ) as _i9.Future<String?>);
-
-  @override
-  _i9.Future<void> setAccessToken(String? token) => (super.noSuchMethod(
-        Invocation.method(
-          #setAccessToken,
-          [token],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<String?> getAccessToken() => (super.noSuchMethod(
-        Invocation.method(
-          #getAccessToken,
-          [],
-        ),
-        returnValue: _i9.Future<String?>.value(),
-      ) as _i9.Future<String?>);
-
-  @override
-  _i9.Future<void> deleteAccessToken() => (super.noSuchMethod(
-        Invocation.method(
-          #deleteAccessToken,
-          [],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<void> setRefreshToken(String? token) => (super.noSuchMethod(
-        Invocation.method(
-          #setRefreshToken,
-          [token],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<String?> getRefreshToken() => (super.noSuchMethod(
-        Invocation.method(
-          #getRefreshToken,
-          [],
-        ),
-        returnValue: _i9.Future<String?>.value(),
-      ) as _i9.Future<String?>);
-
-  @override
-  _i9.Future<void> deleteRefreshToken() => (super.noSuchMethod(
-        Invocation.method(
-          #deleteRefreshToken,
-          [],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<void> setUserId(String? userId) => (super.noSuchMethod(
-        Invocation.method(
-          #setUserId,
-          [userId],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<String?> getUserId() => (super.noSuchMethod(
-        Invocation.method(
-          #getUserId,
-          [],
-        ),
-        returnValue: _i9.Future<String?>.value(),
-      ) as _i9.Future<String?>);
-
-  @override
-  _i9.Future<bool> isAccessTokenValid() => (super.noSuchMethod(
-        Invocation.method(
-          #isAccessTokenValid,
-          [],
-        ),
-        returnValue: _i9.Future<bool>.value(false),
-      ) as _i9.Future<bool>);
-
-  @override
-  _i9.Future<bool> isRefreshTokenValid() => (super.noSuchMethod(
-        Invocation.method(
-          #isRefreshTokenValid,
-          [],
-        ),
-        returnValue: _i9.Future<bool>.value(false),
-      ) as _i9.Future<bool>);
-}
-
 /// A class which mocks [Response].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -1070,13 +955,13 @@ class MockResponse<T> extends _i1.Mock implements _i6.Response<T> {
       );
 
   @override
-  List<_i12.RedirectRecord> get redirects => (super.noSuchMethod(
+  List<_i11.RedirectRecord> get redirects => (super.noSuchMethod(
         Invocation.getter(#redirects),
-        returnValue: <_i12.RedirectRecord>[],
-      ) as List<_i12.RedirectRecord>);
+        returnValue: <_i11.RedirectRecord>[],
+      ) as List<_i11.RedirectRecord>);
 
   @override
-  set redirects(List<_i12.RedirectRecord>? _redirects) => super.noSuchMethod(
+  set redirects(List<_i11.RedirectRecord>? _redirects) => super.noSuchMethod(
         Invocation.setter(
           #redirects,
           _redirects,

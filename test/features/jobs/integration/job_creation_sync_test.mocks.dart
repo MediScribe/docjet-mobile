@@ -6,19 +6,14 @@
 import 'dart:async' as _i5;
 
 import 'package:dartz/dartz.dart' as _i2;
-import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i13;
-import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i15;
-import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i16;
+import 'package:docjet_mobile/core/auth/auth_session_provider.dart' as _i12;
+import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart' as _i14;
+import 'package:docjet_mobile/core/auth/events/auth_events.dart' as _i15;
 import 'package:docjet_mobile/core/error/failures.dart' as _i6;
-import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i17;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
-    as _i18;
-import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
-    as _i20;
-import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'
-    as _i21;
+    as _i16;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
-    as _i19;
+    as _i17;
 import 'package:docjet_mobile/features/jobs/data/models/job_update_data.dart'
     as _i9;
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart'
@@ -27,15 +22,13 @@ import 'package:docjet_mobile/features/jobs/data/services/job_reader_service.dar
     as _i4;
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'
     as _i11;
-import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart'
-    as _i12;
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart'
     as _i8;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i3;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i7;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i14;
+import 'package:mockito/src/dummies.dart' as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -373,56 +366,11 @@ class MockJobSyncOrchestratorService extends _i1.Mock
       );
 }
 
-/// A class which mocks [JobSyncProcessorService].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockJobSyncProcessorService extends _i1.Mock
-    implements _i12.JobSyncProcessorService {
-  MockJobSyncProcessorService() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> processJobSync(_i3.Job? job) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #processJobSync,
-          [job],
-        ),
-        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i6.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #processJobSync,
-            [job],
-          ),
-        )),
-      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
-
-  @override
-  _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> processJobDeletion(
-          _i3.Job? jobToDelete) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #processJobDeletion,
-          [jobToDelete],
-        ),
-        returnValue: _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>.value(
-            _FakeEither_0<_i6.Failure, _i2.Unit>(
-          this,
-          Invocation.method(
-            #processJobDeletion,
-            [jobToDelete],
-          ),
-        )),
-      ) as _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>>);
-}
-
 /// A class which mocks [AuthSessionProvider].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAuthSessionProvider extends _i1.Mock
-    implements _i13.AuthSessionProvider {
+    implements _i12.AuthSessionProvider {
   MockAuthSessionProvider() {
     _i1.throwOnMissingStub(this);
   }
@@ -433,7 +381,7 @@ class MockAuthSessionProvider extends _i1.Mock
           #getCurrentUserId,
           [],
         ),
-        returnValue: _i5.Future<String>.value(_i14.dummyValue<String>(
+        returnValue: _i5.Future<String>.value(_i13.dummyValue<String>(
           this,
           Invocation.method(
             #getCurrentUserId,
@@ -455,19 +403,19 @@ class MockAuthSessionProvider extends _i1.Mock
 /// A class which mocks [AuthEventBus].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthEventBus extends _i1.Mock implements _i15.AuthEventBus {
+class MockAuthEventBus extends _i1.Mock implements _i14.AuthEventBus {
   MockAuthEventBus() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Stream<_i16.AuthEvent> get stream => (super.noSuchMethod(
+  _i5.Stream<_i15.AuthEvent> get stream => (super.noSuchMethod(
         Invocation.getter(#stream),
-        returnValue: _i5.Stream<_i16.AuthEvent>.empty(),
-      ) as _i5.Stream<_i16.AuthEvent>);
+        returnValue: _i5.Stream<_i15.AuthEvent>.empty(),
+      ) as _i5.Stream<_i15.AuthEvent>);
 
   @override
-  void add(_i16.AuthEvent? event) => super.noSuchMethod(
+  void add(_i15.AuthEvent? event) => super.noSuchMethod(
         Invocation.method(
           #add,
           [event],
@@ -485,59 +433,38 @@ class MockAuthEventBus extends _i1.Mock implements _i15.AuthEventBus {
       );
 }
 
-/// A class which mocks [NetworkInfo].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockNetworkInfo extends _i1.Mock implements _i17.NetworkInfo {
-  MockNetworkInfo() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i5.Future<bool> get isConnected => (super.noSuchMethod(
-        Invocation.getter(#isConnected),
-        returnValue: _i5.Future<bool>.value(false),
-      ) as _i5.Future<bool>);
-
-  @override
-  _i5.Stream<bool> get onConnectivityChanged => (super.noSuchMethod(
-        Invocation.getter(#onConnectivityChanged),
-        returnValue: _i5.Stream<bool>.empty(),
-      ) as _i5.Stream<bool>);
-}
-
 /// A class which mocks [JobLocalDataSource].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobLocalDataSource extends _i1.Mock
-    implements _i18.JobLocalDataSource {
+    implements _i16.JobLocalDataSource {
   MockJobLocalDataSource() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<List<_i19.JobHiveModel>> getAllJobHiveModels() =>
+  _i5.Future<List<_i17.JobHiveModel>> getAllJobHiveModels() =>
       (super.noSuchMethod(
         Invocation.method(
           #getAllJobHiveModels,
           [],
         ),
         returnValue:
-            _i5.Future<List<_i19.JobHiveModel>>.value(<_i19.JobHiveModel>[]),
-      ) as _i5.Future<List<_i19.JobHiveModel>>);
+            _i5.Future<List<_i17.JobHiveModel>>.value(<_i17.JobHiveModel>[]),
+      ) as _i5.Future<List<_i17.JobHiveModel>>);
 
   @override
-  _i5.Future<_i19.JobHiveModel?> getJobHiveModelById(String? id) =>
+  _i5.Future<_i17.JobHiveModel?> getJobHiveModelById(String? id) =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobHiveModelById,
           [id],
         ),
-        returnValue: _i5.Future<_i19.JobHiveModel?>.value(),
-      ) as _i5.Future<_i19.JobHiveModel?>);
+        returnValue: _i5.Future<_i17.JobHiveModel?>.value(),
+      ) as _i5.Future<_i17.JobHiveModel?>);
 
   @override
-  _i5.Future<void> saveJobHiveModel(_i19.JobHiveModel? model) =>
+  _i5.Future<void> saveJobHiveModel(_i17.JobHiveModel? model) =>
       (super.noSuchMethod(
         Invocation.method(
           #saveJobHiveModel,
@@ -712,15 +639,15 @@ class MockJobLocalDataSource extends _i1.Mock
       ) as _i5.Stream<_i2.Either<_i6.Failure, _i3.Job?>>);
 
   @override
-  _i5.Future<List<_i19.JobHiveModel>> getJobsPendingSync() =>
+  _i5.Future<List<_i17.JobHiveModel>> getJobsPendingSync() =>
       (super.noSuchMethod(
         Invocation.method(
           #getJobsPendingSync,
           [],
         ),
         returnValue:
-            _i5.Future<List<_i19.JobHiveModel>>.value(<_i19.JobHiveModel>[]),
-      ) as _i5.Future<List<_i19.JobHiveModel>>);
+            _i5.Future<List<_i17.JobHiveModel>>.value(<_i17.JobHiveModel>[]),
+      ) as _i5.Future<List<_i17.JobHiveModel>>);
 
   @override
   _i5.Future<void> clearUserData() => (super.noSuchMethod(
@@ -731,120 +658,4 @@ class MockJobLocalDataSource extends _i1.Mock
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),
       ) as _i5.Future<void>);
-}
-
-/// A class which mocks [JobRemoteDataSource].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockJobRemoteDataSource extends _i1.Mock
-    implements _i20.JobRemoteDataSource {
-  MockJobRemoteDataSource() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i5.Future<List<_i21.JobApiDTO>> fetchJobs() => (super.noSuchMethod(
-        Invocation.method(
-          #fetchJobs,
-          [],
-        ),
-        returnValue: _i5.Future<List<_i21.JobApiDTO>>.value(<_i21.JobApiDTO>[]),
-      ) as _i5.Future<List<_i21.JobApiDTO>>);
-
-  @override
-  _i5.Future<_i3.Job> fetchJobById(String? id) => (super.noSuchMethod(
-        Invocation.method(
-          #fetchJobById,
-          [id],
-        ),
-        returnValue: _i5.Future<_i3.Job>.value(_FakeJob_1(
-          this,
-          Invocation.method(
-            #fetchJobById,
-            [id],
-          ),
-        )),
-      ) as _i5.Future<_i3.Job>);
-
-  @override
-  _i5.Future<_i3.Job> createJob({
-    required String? audioFilePath,
-    String? text,
-    String? additionalText,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #createJob,
-          [],
-          {
-            #audioFilePath: audioFilePath,
-            #text: text,
-            #additionalText: additionalText,
-          },
-        ),
-        returnValue: _i5.Future<_i3.Job>.value(_FakeJob_1(
-          this,
-          Invocation.method(
-            #createJob,
-            [],
-            {
-              #audioFilePath: audioFilePath,
-              #text: text,
-              #additionalText: additionalText,
-            },
-          ),
-        )),
-      ) as _i5.Future<_i3.Job>);
-
-  @override
-  _i5.Future<_i3.Job> updateJob({
-    required String? jobId,
-    required Map<String, dynamic>? updates,
-  }) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #updateJob,
-          [],
-          {
-            #jobId: jobId,
-            #updates: updates,
-          },
-        ),
-        returnValue: _i5.Future<_i3.Job>.value(_FakeJob_1(
-          this,
-          Invocation.method(
-            #updateJob,
-            [],
-            {
-              #jobId: jobId,
-              #updates: updates,
-            },
-          ),
-        )),
-      ) as _i5.Future<_i3.Job>);
-
-  @override
-  _i5.Future<List<_i3.Job>> syncJobs(List<_i3.Job>? jobsToSync) =>
-      (super.noSuchMethod(
-        Invocation.method(
-          #syncJobs,
-          [jobsToSync],
-        ),
-        returnValue: _i5.Future<List<_i3.Job>>.value(<_i3.Job>[]),
-      ) as _i5.Future<List<_i3.Job>>);
-
-  @override
-  _i5.Future<_i2.Unit> deleteJob(String? serverId) => (super.noSuchMethod(
-        Invocation.method(
-          #deleteJob,
-          [serverId],
-        ),
-        returnValue: _i5.Future<_i2.Unit>.value(_FakeUnit_2(
-          this,
-          Invocation.method(
-            #deleteJob,
-            [serverId],
-          ),
-        )),
-      ) as _i5.Future<_i2.Unit>);
 }

@@ -1454,15 +1454,6 @@ class MockUserApiClient extends _i1.Mock implements _i17.UserApiClient {
       ) as _i2.Dio);
 
   @override
-  _i4.AuthCredentialsProvider get credentialsProvider => (super.noSuchMethod(
-        Invocation.getter(#credentialsProvider),
-        returnValue: _FakeAuthCredentialsProvider_7(
-          this,
-          Invocation.getter(#credentialsProvider),
-        ),
-      ) as _i4.AuthCredentialsProvider);
-
-  @override
   _i8.Future<_i7.UserProfileDto> getUserProfile() => (super.noSuchMethod(
         Invocation.method(
           #getUserProfile,
