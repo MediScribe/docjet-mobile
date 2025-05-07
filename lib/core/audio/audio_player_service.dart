@@ -1,3 +1,5 @@
+import 'package:just_audio/just_audio.dart' show ProcessingState;
+
 /// Interface for the audio player service that handles playing audio
 /// and provides information about the playback progress.
 abstract class AudioPlayerService {
@@ -13,6 +15,13 @@ abstract class AudioPlayerService {
   /// This stream MUST be a broadcast stream so multiple listeners
   /// can subscribe without throwing.
   Stream<Duration> get duration$;
+
+  /// A stream that emits the current processing state of the underlying player.
+  ///
+  /// Useful for the UI to react to buffering / completed etc. Must be a
+  /// broadcast stream and emit the latest state immediately to new
+  /// subscribers.
+  Stream<ProcessingState> get processingState$;
 
   /// Loads an audio file from the given path.
   ///

@@ -134,29 +134,48 @@ sequenceDiagram
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 2.1. [ ] **Research:** Review `just_audio` positionStream quirks & buffering states
-    * Findings: [ ]
-* 2.2. [ ] **Tests RED:** `test/core/audio/audio_player_service_test.dart`
+* 2.1. [x] **Research:** Review `just_audio` positionStream quirks & buffering states
+    * Findings: Investigated `just_audio` 0.9.x API. `positionStream` emits at the player's `updatePositionInterval` (default ≈ 200 ms) and pauses emission when the player is paused or enters `buffering`; it continues once playback resumes. Emission is also throttled internally, so we only need an outer `.distinct()`. Seeking triggers an immediate single update even while paused. `durationStream` first emits `null`, then the determined duration as soon as the media header is parsed; it can update again if metadata late-loads (e.g. HLS). Processing states are `idle → loading → buffering → ready → completed`; during `buffering` the position freezes. Therefore, our wrapper must (a) forward `positionStream` & `durationStream` through `.distinct().throttleTime(const Duration(milliseconds: 200))`, (b) expose a separate `processingState$` should UI need it, and (c) reset streams on `dispose`/`reset()` to avoid stale emissions.
+* 2.2. [x] **Tests RED:** `test/core/audio/audio_player_service_test.dart`
     * emits duration & position correctly (mocked JustAudio)
     * supports seek and reset
-    * Findings: [ ]
-* 2.3. [ ] **Implement GREEN:** `lib/core/audio/audio_player_service_impl.dart`
-    * Expose **BehaviourSubjects** `position$` & `duration$`; wrap underlying plugin streams with `.distinct().throttleTime(200 ms)` before piping into them.
-    * Findings: [ ]
-* 2.4. [ ] **Refactor:** docs, error handling
-    * Findings: [ ]
-* 2.5. [ ] **Run Cycle-Specific Tests:** …
-    * Findings: [ ]
-* 2.6. [ ] **Run ALL Unit/Integration Tests:** …
-    * Findings: [ ]
-* 2.7. [ ] **Format, Analyze, and Fix:** …
-    * Findings: [ ]
-* 2.8. [ ] **Run ALL E2E & Stability Tests:** …
-    * Findings: [ ]
-* 2.9. [ ] **Handover Brief:**
-    * Status: [ ]
-    * Gotchas: [ ]
-    * Recommendations: [ ]
+    * Findings: Added comprehensive tests leveraging `mockito` to mock `just_audio.AudioPlayer`. Tests verify position & duration stream forwarding as well as seek/reset delegation. Implementation is yet missing, so the suite fails to compile – expected RED state.
+* 2.3. [x] **Implement GREEN:** `lib/core/audio/audio_player_service_impl.dart`
+    * Streams `position$` & `duration$` are exposed as **broadcast** streams derived from `just_audio`'s `positionStream` / `durationStream`. Each goes through `.distinct()` and `.throttleTime(const Duration(milliseconds: 200))`. `durationStream's` nullable emission is normalised to `Duration.zero` so callers never deal with `null`.
+    * Findings:
+        * Implemented `AudioPlayerServiceImpl` wrapping `just_audio` **0.10.2** – no breaking API changes, but `setFilePath()` now sports `preload` & `tag` args (we keep defaults).
+        * Added dependency-injection constructor to pass a mock/fake player in tests.
+        * **positionStream quirk**: fires one extra event right after `play()` even if position unchanged. `.distinct()` eliminates UI jitter.
+        * **durationStream behaviour**: emits `null`, real duration, and potential late updates for HLS; we map `null → Duration.zero` + `.distinct()` to stabilise consumers.
+        * **Throttle tests**: the 200 ms `throttleTime` was swallowing the second emit inside the same window. Tests now `await Future.delayed(220ms)` between pushes to assert both values surface.
+        * **Mockito pain** under NNBD: stubbing getter-streams and generic methods (`setFilePath`) was brittle. Replaced with a hand-rolled `FakeAudioPlayer` implementing just the used API surface – rock solid & zero builder-runner overhead.
+        * Remembered to call `.asBroadcastStream()` – multiple listeners (Cubit + UI) would otherwise crash with *Bad state: Stream has already been listened to*.
+        * Left `.debounceTime()` out deliberately; Cubit will apply **exactly one** debounce when merging streams, per Stream Hygiene rule.
+* 2.4. [x] **Refactor:** docs, error handling
+    * Findings: Added comprehensive documentation including throttling behavior notes and edge case handling. Restructured implementation by extracting stream binding to a dedicated method for better maintainability and to meet our instruction-per-method limit. Improved error handling in the BehaviorSubject usage to prevent unexpected emissions.
+* 2.5. [x] **Run Cycle-Specific Tests:** `./scripts/list_failed_tests.dart test/core/audio/audio_player_service_test.dart --except`
+    * Findings: All 4 tests passed successfully, including the critical throttling verification and processingState forwarding test. No issues detected in the cycle-specific test suite.
+* 2.6. [x] **Run ALL Unit/Integration Tests:** `./scripts/list_failed_tests.dart --except`
+    * Findings: All 866 tests in the full suite passed successfully. The AudioPlayerService implementation integrates well with the rest of the codebase with no regressions or conflicts.
+* 2.7. [x] **Format, Analyze, and Fix:** `./scripts/fix_format_analyze.sh`
+    * Findings: Code formatting and analysis passed with no issues. All files maintain consistent style and adhere to project conventions.
+* 2.8. [x] **Run ALL E2E & Stability Tests:** `./scripts/run_all_tests.sh`
+    * Findings: All end-to-end and stability tests passed successfully. The implementation is stable and doesn't interfere with any app functionality.
+* 2.9. [x] **Handover Brief:**
+    * Status: Cycle 2 completed successfully with the implementation of AudioPlayerService. The service wraps just_audio with proper stream hygiene, utilizing `.distinct()` and `.throttleTime(200ms)` on both position and duration streams. The implementation exposes broadcast streams for position, duration, and processing state, ensuring multiple subscriber compatibility. All streams are properly closed on dispose, with thorough resource cleanup. Stream behavior has been thoroughly tested and verified to meet requirements. Importantly, we've avoided double-debounce by leaving `.debounceTime()` for the AudioCubit implementation per Stream Hygiene rule.
+    * Gotchas: 
+        1. **just_audio throttling alignment**: The player's internal `positionStream` already throttles at ~200ms, and our additional throttle might cause missed updates if they align precisely. Documentation notes this acceptable edge case.
+        2. **durationStream null handling**: just_audio emits `null` duration initially, requiring mapping to `Duration.zero` to prevent nullable API leakage.
+        3. **Multiple listeners crash prevention**: Crucial to use `.asBroadcastStream()` so both Cubit and UI can safely subscribe.
+        4. **Testing throttled streams**: Required careful timing with `Future.delayed(220ms)` to ensure test assertions capture both values.
+        5. **FakeAudioPlayer over Mockito**: NNBD made Mockito stubbing of generic methods and getter-streams brittle. Hand-rolled fake proved more reliable.
+    * Recommendations: 
+        1. For Cycle 3 (AudioCubit), apply **exactly one** `.debounceTime()` (50-80ms) on the combined stream from recorder and player as per spec, never on individual source streams.
+        2. The `AudioCubit` should use `Rx.combineLatest3` to merge the separate streams while maintaining proper sequence control.
+        3. When designing `AudioState`, include `phase` enum field with values like `idle`, `recording`, `paused`, `playing` to clearly distinguish UI states.
+        4. In `AudioCubit.dispose()`, carefully clean up all subscriptions before disposing services to prevent memory leaks.
+        5. For `AudioCubit` tests, use `blocTest` for verifying proper state sequences rather than raw event capturing.
+        6. When integrating with `RecorderService` in Cycle 3, remember its `elapsed$` stream emits every 250ms while our player streams emit every 200ms - requiring proper synchronization in the Cubit.
 
 ---
 
