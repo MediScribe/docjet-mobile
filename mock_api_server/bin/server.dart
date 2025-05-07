@@ -9,8 +9,11 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
-import 'package:uuid/uuid.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart'; // Import JWT library
+
+// Import new core modules
+import '../src/core/constants.dart';
+import '../src/core/utils.dart';
 
 // Import the new debug HANDLERS, including the cleanup function
 import 'package:mock_api_server/src/debug_handlers.dart';
@@ -21,31 +24,31 @@ import 'package:mock_api_server/src/job_store.dart' as job_store;
 import 'package:mock_api_server/src/config.dart';
 
 // API version (should match ApiConfig.apiVersion in the app)
-const String _apiVersion = 'v1';
-const String _apiPrefix = 'api';
-const String _versionedApiPath = '$_apiPrefix/$_apiVersion';
+// const String _apiVersion = 'v1';
+// const String _apiPrefix = 'api';
+// const String _versionedApiPath = '$_apiPrefix/$_apiVersion';
 
 // Hardcoded API key for mock validation, matching the test
-const String _expectedApiKey = 'test-api-key';
+// const String _expectedApiKey = 'test-api-key';
 
-const String _mockJwtSecret = 'mock-secret-key'; // Define JWT secret
-const Duration _accessTokenDuration =
-    Duration(seconds: 10); // Access token lifetime
-const Duration _refreshTokenDuration =
-    Duration(minutes: 5); // Refresh token lifetime
+// const String _mockJwtSecret = 'mock-secret-key'; // Define JWT secret
+// const Duration _accessTokenDuration =
+// Duration(seconds: 10); // Access token lifetime
+// const Duration _refreshTokenDuration =
+// Duration(minutes: 5); // Refresh token lifetime
 
-const Uuid _uuid = Uuid();
+// const Uuid _uuid = Uuid(); // This line should be removed
 
 // Helper function to read MimeMultipart as string
-Future<String> readAsString(Stream<List<int>> stream) async {
-  // MimeMultipart is a Stream<List<int>>, so collect all chunks and decode
-  final chunks = await stream.toList();
-  final allBytes = <int>[];
-  for (var chunk in chunks) {
-    allBytes.addAll(chunk);
-  }
-  return utf8.decode(allBytes);
-}
+// Future<String> readAsString(Stream<List<int>> stream) async { // This block should be removed
+// // MimeMultipart is a Stream<List<int>>, so collect all chunks and decode
+// final chunks = await stream.toList();
+// final allBytes = <int>[];
+// for (var chunk in chunks) {
+// allBytes.addAll(chunk);
+// }
+// return utf8.decode(allBytes);
+// }
 
 // Debug middleware to log request details
 Middleware _debugMiddleware() {
@@ -136,30 +139,30 @@ Middleware _debugMiddleware() {
 // Define the router with versioned endpoints
 final _router = Router()
   // Health check (prefixed)
-  ..get('/$_versionedApiPath/health', _healthHandler)
+  ..get('/$versionedApiPath/health', _healthHandler)
 
   // Authentication endpoints (prefixed)
-  ..post('/$_versionedApiPath/auth/login', _loginHandler)
-  ..post('/$_versionedApiPath/auth/refresh-session', _refreshHandler)
+  ..post('/$versionedApiPath/auth/login', _loginHandler)
+  ..post('/$versionedApiPath/auth/refresh-session', _refreshHandler)
 
   // User profile endpoints (prefixed)
-  ..get('/$_versionedApiPath/users/me', _getUserMeHandler)
+  ..get('/$versionedApiPath/users/me', _getUserMeHandler)
 
   // Job endpoints (prefixed)
-  ..post('/$_versionedApiPath/jobs', _createJobHandler)
-  ..get('/$_versionedApiPath/jobs', _listJobsHandler)
-  ..get('/$_versionedApiPath/jobs/<jobId>', _getJobByIdHandler)
-  ..get('/$_versionedApiPath/jobs/<jobId>/documents', _getJobDocumentsHandler)
-  ..patch('/$_versionedApiPath/jobs/<jobId>', _updateJobHandler)
-  ..delete('/$_versionedApiPath/jobs/<jobId>', _deleteJobHandler)
+  ..post('/$versionedApiPath/jobs', _createJobHandler)
+  ..get('/$versionedApiPath/jobs', _listJobsHandler)
+  ..get('/$versionedApiPath/jobs/<jobId>', _getJobByIdHandler)
+  ..get('/$versionedApiPath/jobs/<jobId>/documents', _getJobDocumentsHandler)
+  ..patch('/$versionedApiPath/jobs/<jobId>', _updateJobHandler)
+  ..delete('/$versionedApiPath/jobs/<jobId>', _deleteJobHandler)
 
   // Debug endpoints for job progression (Use handlers from debug_handlers.dart)
-  ..post('/$_versionedApiPath/debug/jobs/start', startJobProgressionHandler)
-  ..post('/$_versionedApiPath/debug/jobs/stop', stopJobProgressionHandler)
-  ..post('/$_versionedApiPath/debug/jobs/reset', resetJobProgressionHandler)
+  ..post('/$versionedApiPath/debug/jobs/start', startJobProgressionHandler)
+  ..post('/$versionedApiPath/debug/jobs/stop', stopJobProgressionHandler)
+  ..post('/$versionedApiPath/debug/jobs/reset', resetJobProgressionHandler)
 
   // Debug endpoint for listing all jobs - requires standard API key auth
-  ..get('/$_versionedApiPath/debug/jobs/list', listAllJobsHandler);
+  ..get('/$versionedApiPath/debug/jobs/list', listAllJobsHandler);
 
 // Health check handler
 Response _healthHandler(Request request) {
@@ -214,24 +217,24 @@ Future<Response> _loginHandler(Request request) async {
       {
         'sub': userId,
         'iat': now.millisecondsSinceEpoch ~/ 1000,
-        'exp': now.add(_accessTokenDuration).millisecondsSinceEpoch ~/ 1000,
+        'exp': now.add(accessTokenDuration).millisecondsSinceEpoch ~/ 1000,
         // Add other claims if needed, e.g., roles
       },
       issuer: 'mock-api-server',
     );
-    final accessToken = accessJwt.sign(SecretKey(_mockJwtSecret));
+    final accessToken = accessJwt.sign(SecretKey(mockJwtSecret));
 
     // Create Refresh Token
     final refreshJwt = JWT(
       {
         'sub': userId,
         'iat': now.millisecondsSinceEpoch ~/ 1000,
-        'exp': now.add(_refreshTokenDuration).millisecondsSinceEpoch ~/ 1000,
+        'exp': now.add(refreshTokenDuration).millisecondsSinceEpoch ~/ 1000,
         // Optionally add a unique ID (jti) for refresh token revocation (not implemented here)
       },
       issuer: 'mock-api-server',
     );
-    final refreshToken = refreshJwt.sign(SecretKey(_mockJwtSecret));
+    final refreshToken = refreshJwt.sign(SecretKey(mockJwtSecret));
 
     // Create success response with real JWTs
     final responseBody = jsonEncode({
@@ -315,23 +318,23 @@ Future<Response> _refreshHandler(Request request) async {
     {
       'sub': userId,
       'iat': nowEpochSeconds,
-      'exp': nowEpochSeconds + _accessTokenDuration.inSeconds,
+      'exp': nowEpochSeconds + accessTokenDuration.inSeconds,
       // Add any other claims if needed for testing
     },
     // Use a standard JWT header if needed, default is HS256
     // header: {'alg': 'HS256', 'typ': 'JWT'},
   );
-  final newAccessToken = accessJwt.sign(SecretKey(_mockJwtSecret));
+  final newAccessToken = accessJwt.sign(SecretKey(mockJwtSecret));
 
   // Create Refresh Token
   final refreshJwt = JWT(
     {
       'sub': userId,
       'iat': nowEpochSeconds,
-      'exp': nowEpochSeconds + _refreshTokenDuration.inSeconds,
+      'exp': nowEpochSeconds + refreshTokenDuration.inSeconds,
     },
   );
-  final newRefreshToken = refreshJwt.sign(SecretKey(_mockJwtSecret));
+  final newRefreshToken = refreshJwt.sign(SecretKey(mockJwtSecret));
 
   if (verboseLoggingEnabled) {
     print('DEBUG: Generated new access token: $newAccessToken');
@@ -370,7 +373,7 @@ Future<Response> _getUserMeHandler(Request request) async {
         authorizationHeader.substring(7); // Extract token after "Bearer "
 
     // Verify the token
-    final jwt = JWT.verify(token, SecretKey(_mockJwtSecret));
+    final jwt = JWT.verify(token, SecretKey(mockJwtSecret));
     final userId = jwt.payload['sub'] as String?;
 
     if (userId == null || userId.isEmpty) {
@@ -558,7 +561,7 @@ Future<Response> _createJobHandler(Request request) async {
     // Create and store the job
     final now = DateTime.now().toUtc().toIso8601String();
     final newJob = {
-      'id': _uuid.v4(),
+      'id': uuid.v4(),
       'user_id': userId,
       'job_status': 'submitted',
       'error_code': null,
@@ -690,16 +693,16 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
   // URLs should be relative to the API base known by the client.
   final mockDocuments = [
     {
-      'id': 'doc-${_uuid.v4()}',
+      'id': 'doc-${uuid.v4()}',
       'type': 'transcript',
       // Return a relative path from the API base
-      'url': '/$_versionedApiPath/documents/doc-transcript-$jobId.txt'
+      'url': '/$versionedApiPath/documents/doc-transcript-$jobId.txt'
     },
     {
-      'id': 'doc-${_uuid.v4()}',
+      'id': 'doc-${uuid.v4()}',
       'type': 'summary',
       // Return a relative path from the API base
-      'url': '/$_versionedApiPath/documents/doc-summary-$jobId.pdf'
+      'url': '/$versionedApiPath/documents/doc-summary-$jobId.pdf'
     }
   ];
 
@@ -712,13 +715,13 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
 // Middleware for handling authorization (both API key and potentially JWT later)
 // Apply API Key check globally here, simplifying the pipeline
 Middleware _authMiddleware() {
-  return (innerHandler) {
-    return (request) {
+  return (Handler innerHandler) {
+    return (Request request) async {
       final path = request.requestedUri.path;
 
       // Skip API key check for health and ALL debug endpoints
-      if (path == '/$_versionedApiPath/health' ||
-          path.startsWith('/$_versionedApiPath/debug/')) {
+      if (path == '/$versionedApiPath/health' ||
+          path.startsWith('/$versionedApiPath/debug/')) {
         if (verboseLoggingEnabled) {
           print(
               'DEBUG AUTH MIDDLEWARE: Skipping auth for health or debug endpoint: $path');
@@ -732,10 +735,10 @@ Middleware _authMiddleware() {
       }
 
       final apiKey = request.headers['x-api-key'];
-      if (apiKey != _expectedApiKey) {
+      if (apiKey != expectedApiKey) {
         if (verboseLoggingEnabled) {
           print(
-              'DEBUG AUTH MIDDLEWARE: API Key validation FAILED. Expected \'$_expectedApiKey\', got \'$apiKey\'');
+              'DEBUG AUTH MIDDLEWARE: API Key validation FAILED. Expected \'$expectedApiKey\', got \'$apiKey\'');
         }
         return Response(
           HttpStatus.unauthorized, // 401
@@ -884,16 +887,19 @@ Future<Response> _deleteJobHandler(Request request, String jobId) async {
 }
 
 // Main function now just adds the router, as middleware is applied per-route or globally
-void main(List<String> args) async {
+Future<void> main(List<String> args) async {
   // Define argument parser
   final parser = ArgParser()
-    ..addOption('port', abbr: 'p', defaultsTo: '8080')
+    ..addOption('port',
+        abbr: 'p', defaultsTo: '8080', help: 'Port to listen on.')
     ..addFlag('verbose',
         abbr: 'v', defaultsTo: false, help: 'Enable verbose logging');
-  final argResults = parser.parse(args);
-  final port = int.tryParse(argResults['port'] as String) ?? 8080;
-  // Assign the parsed flag to the global config variable
-  verboseLoggingEnabled = argResults['verbose'] as bool;
+  final results = parser.parse(args);
+  verboseLoggingEnabled = results['verbose'] as bool;
+
+  // Use the port from command-line arguments. ArgParser handles the default.
+  final String portString = results['port'] as String;
+  final port = int.parse(portString);
 
   try {
     // Simplified Main server pipeline

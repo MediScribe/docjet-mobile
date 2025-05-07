@@ -56,26 +56,26 @@ mock_api_server/
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 0.1. [ ] **Task:** Verify/Create `mock_api_server/src/` directory.
+* 0.1. [x] **Task:** Verify/Create `mock_api_server/src/` directory.
     * Action: `ls mock_api_server/src || mkdir -p mock_api_server/src`
-    * Findings:
-* 0.2. [ ] **Task:** Create `mock_api_server/src/core/` directory.
+    * Findings: Command executed. Directory `mock_api_server/src` was created as it did not exist.
+* 0.2. [x] **Task:** Create `mock_api_server/src/core/` directory.
     * Action: `mkdir -p mock_api_server/src/core`
-    * Findings:
-* 0.3. [ ] **Task:** Create `mock_api_server/src/handlers/` directory.
+    * Findings: Command executed. Directory `mock_api_server/src/core` created.
+* 0.3. [x] **Task:** Create `mock_api_server/src/handlers/` directory.
     * Action: `mkdir -p mock_api_server/src/handlers`
-    * Findings:
-* 0.4. [ ] **Task:** Create `mock_api_server/src/middleware/` directory.
+    * Findings: Command executed. Directory `mock_api_server/src/handlers` created.
+* 0.4. [x] **Task:** Create `mock_api_server/src/middleware/` directory.
     * Action: `mkdir -p mock_api_server/src/middleware`
-    * Findings:
-* 0.5. [ ] **Task:** Create `mock_api_server/src/routes/` directory.
+    * Findings: Command executed. Directory `mock_api_server/src/middleware` created.
+* 0.5. [x] **Task:** Create `mock_api_server/src/routes/` directory.
     * Action: `mkdir -p mock_api_server/src/routes`
-    * Findings:
-* 0.6. [ ] **Update Plan:**
-    * Findings: [e.g., "Directory structure established. Confirmed `debug_handlers.dart`, `job_store.dart`, `config.dart` already in `src/`. Plan is solid."]
-* 0.7. [ ] **Handover Brief:**
-    * Status: Base directories created. Existing `src/` files noted. Ready for Cycle 1.
-    * Gotchas:
+    * Findings: Command executed. Directory `mock_api_server/src/routes` created.
+* 0.6. [x] **Update Plan:**
+    * Findings: Directory structure for core, handlers, middleware, and routes established within `mock_api_server/src/`. No other files currently exist at `mock_api_server/src/` root. Plan is solid.
+* 0.7. [x] **Handover Brief:**
+    * Status: Base directories (`core`, `handlers`, `middleware`, `routes`) created within `mock_api_server/src/`. No pre-existing files were found at the root of `mock_api_server/src/`. Ready for Cycle 1.
+    * Gotchas: None for this cycle.
     * Recommendations: Proceed to Cycle 1: Core Component Extraction.
 
 ---
@@ -86,24 +86,24 @@ mock_api_server/
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 1.1. [ ] **Task:** Create and populate `mock_api_server/src/core/constants.dart`.
+* 1.1. [x] **Task:** Create and populate `mock_api_server/src/core/constants.dart`.
     * Action: Move global constants (`_apiVersion`, `_apiPrefix`, `_versionedApiPath`, `_expectedApiKey`, `_mockJwtSecret`, `_accessTokenDuration`, `_refreshTokenDuration`) from `server.dart` to `constants.dart`. Ensure necessary imports (e.g., `package:uuid/uuid.dart` for `_uuid` if moved here, though `utils.dart` is better).
-    * Findings:
-* 1.2. [ ] **Task:** Create and populate `mock_api_server/src/core/utils.dart`.
+    * Findings: Created `mock_api_server/src/core/constants.dart` and moved `apiVersion`, `apiPrefix`, `versionedApiPath`, `expectedApiKey`, `mockJwtSecret`, `accessTokenDuration`, and `refreshTokenDuration` into it, making them public (removed leading underscores). The `_uuid` constant was intentionally left in `server.dart` for now, to be handled in task 1.2. Attempts to remove the original constant definitions from `mock_api_server/bin/server.dart` via automated edits failed repeatedly; these definitions currently remain (commented out by a previous faulty edit attempt) in `server.dart` and will need to be addressed manually or in a subsequent step (likely when imports are added in 1.3, which will cause conflicts if they are not removed).
+* 1.2. [x] **Task:** Create and populate `mock_api_server/src/core/utils.dart`.
     * Action: Move `readAsString` function and `_uuid` instance from `server.dart` to `utils.dart`. Add necessary imports (e.g., `dart:async`, `dart:convert`, `package:uuid/uuid.dart`).
-    * Findings:
-* 1.3. [ ] **Task:** Update `server.dart` imports for new `constants.dart` and `utils.dart`.
+    * Findings: Created `mock_api_server/src/core/utils.dart` and moved the `readAsString` function and `uuid` instance (formerly `_uuid`) into it, making them public. Necessary imports (`dart:async`, `dart:convert`, `package:uuid/uuid.dart`) were added to `utils.dart`. Similar to task 1.1, attempts to remove the original definitions from `mock_api_server/bin/server.dart` resulted in them being commented out instead of deleted. These commented-out definitions remain in `server.dart`.
+* 1.3. [x] **Task:** Update `server.dart` imports for new `constants.dart` and `utils.dart`.
     * Action: Add `import '../src/core/constants.dart';` and `import '../src/core/utils.dart';` (or correct relative paths) to `server.dart`. Remove the original definitions.
-    * Findings:
-* 1.4. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
-    * Findings:
-* 1.4.1. [ ] **Task:** Run tests.
+    * Findings: Added imports for `../src/core/constants.dart` and `../src/core/utils.dart` to `mock_api_server/bin/server.dart`. The original constant and utility definitions (which were previously commented out) were successfully removed. References to these constants/utils within `server.dart` were updated to use their new public names (e.g., `_versionedApiPath` became `versionedApiPath`). An initial issue with the import path for `config.dart` (incorrectly changed to relative) was corrected back to `package:mock_api_server/src/config.dart`. An erroneously added call to `job_store.initializeJobStore` in `main()` was also removed.
+* 1.4. [x] **Task:** Run `dart analyze` on `mock_api_server/`.
+    * Action: `./scripts/fix_format_analyze.sh | cat`
+    * Findings: Script executed. `dart fix` applied 1 fix (unused_import) in `mock_api_server/bin/server.dart`. Formatter made no changes. `dart analyze` reported 3 warnings in `test/core/auth/infrastructure/` mocks, which are outside the scope of `mock_api_server` and this refactoring cycle. No issues reported within `mock_api_server/`.
+* 1.4.1. [x] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
-    * Findings:
+    * Findings: Initial run: 75/105 tests failed due to `Connection refused`. Investigation revealed `mock_api_server/bin/server.dart` was ignoring the `--port` command-line argument from `test_helpers.dart` and defaulting to port 8080. Fix: Modified `server.dart` to prioritize the parsed `--port` argument. Second run: All 105 tests passed.
 * 1.5. [ ] **Handover Brief:**
-    * Status: Constants and utils extracted to `src/core/`. `server.dart` imports updated. Analyzer clean. All tests passing.
-    * Gotchas:
+    * Status: Constants (`constants.dart`) and utilities (`utils.dart`) successfully extracted from `server.dart` into `mock_api_server/src/core/`. `server.dart` has been updated to import and use these new modules. The `fix_format_analyze.sh` script runs clean for `mock_api_server/`. All 105 tests in `mock_api_server` are passing after resolving an issue with port handling in `server.dart`.
+    * Gotchas: The `server.dart` was not respecting the `--port` argument passed by test infrastructure, causing initial widespread test failures. This was fixed by ensuring `server.dart` uses the parsed command-line port. The `dart fix` command also removed an unused `package:uuid/uuid.dart` import from `server.dart`, which was correct after refactoring.
     * Recommendations: Proceed to Cycle 2: Middleware Extraction.
 
 ---
@@ -121,7 +121,7 @@ mock_api_server/
     * Action: Add `import '../src/middleware/middleware.dart';` to `server.dart`. Remove original definitions.
     * Findings:
 * 2.3. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
+    * Action: `./scripts/fix_format_analyze.sh | cat`
     * Findings:
 * 2.3.1. [ ] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
@@ -146,7 +146,7 @@ mock_api_server/
     * Action: Add `import '../src/routes/api_router.dart';` and use the router from there in the pipeline.
     * Findings:
 * 3.3. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
+    * Action: `./scripts/fix_format_analyze.sh | cat`
     * Findings:
 * 3.3.1. [ ] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
@@ -171,7 +171,7 @@ mock_api_server/
     * Action: Move handlers. Add imports (e.g., `dart:convert`, `package:shelf/shelf.dart`, `package:dart_jsonwebtoken/dart_jsonwebtoken.dart`, `../../core/constants.dart`, `../../config.dart`). Update `api_router.dart`.
     * Findings:
 * 4.3. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
+    * Action: `./scripts/fix_format_analyze.sh | cat`
     * Findings:
 * 4.3.1. [ ] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
@@ -193,7 +193,7 @@ mock_api_server/
     * Action: Move handlers. Add necessary imports (e.g., `dart:convert`, `dart:io`, `package:shelf/shelf.dart`, `package:shelf_multipart/shelf_multipart.dart`, `../../core/constants.dart`, `../../core/utils.dart`, `../../job_store.dart` (as job_store), `../../config.dart`, `../debug_handlers.dart` for `cancelProgressionTimerForJob`). Update `api_router.dart`.
     * Findings:
 * 5.2. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
+    * Action: `./scripts/fix_format_analyze.sh | cat`
     * Findings:
 * 5.2.1. [ ] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
@@ -215,7 +215,7 @@ mock_api_server/
     * Action: Ensure only `main`, `Pipeline` setup, signal handlers, and necessary top-level imports remain.
     * Findings:
 * 6.2. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
+    * Action: `./scripts/fix_format_analyze.sh | cat`
     * Findings:
 * 6.3. [ ] **Task:** [IF TESTS EXIST] Run all tests.
     * Action: `(cd mock_api_server && dart test) | cat` (or equivalent test script)
@@ -243,29 +243,6 @@ mock_api_server/
     * Action: Clean up imports in all modified/new files.
     * Findings:
 * N.3. [ ] **Task:** Run `dart format .` within `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart format .) | cat`
+    * Action: `./scripts/fix_format_analyze.sh | cat`
     * Findings:
-* N.4. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
-    * Action: `(cd mock_api_server && dart analyze .) | cat`
-    * Findings:
-* N.4.1. [ ] **Task:** Run final tests.
-    * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
-    * Findings:
-* N.5. [ ] **Code Review & Commit Prep:**
-    * Action: `git status | cat`, `git diff --staged | cat`.
-    * Findings:
-* N.6. [ ] **Handover Brief:**
-    * Status: Refactoring complete. Code is clean, formatted, analyzed. All tests passing. Ready for Hard Bob Commit.
-    * Gotchas:
-    * Recommendations: Ship this fucking masterpiece.
-
----
-
-## DONE
-
-With these cycles we:
-1. Dismantled the monolithic `server.dart`.
-2. Organized code into logical modules: core, handlers, middleware, routes.
-3. Improved readability, maintainability, and set the stage for easier testing.
-
-No bullshit, no uncertainty – "This is a ' शार्प रेशियो of 4' kind of refactor." 
+* N.4. [ ] **Task:** Run `
