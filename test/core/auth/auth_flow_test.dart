@@ -109,9 +109,9 @@ void main() {
         // Setup mockBasicDio to fail on getUserProfile with 401
         when(mockBasicDio.get(any)).thenThrow(
           DioException(
-            requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+            requestOptions: RequestOptions(path: '/api/v1/users/me'),
             response: Response(
-              requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+              requestOptions: RequestOptions(path: '/api/v1/users/me'),
               statusCode: 401,
               data: {'error': 'Missing or invalid Authorization header'},
             ),
@@ -177,7 +177,7 @@ void main() {
       // Setup mockAuthenticatedDio with any response
       when(mockAuthenticatedDio.get(any)).thenAnswer((_) async {
         return Response(
-          requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+          requestOptions: RequestOptions(path: '/api/v1/users/me'),
           data: {'id': 'test-user-id', 'email': 'test@example.com'},
           statusCode: 200,
         );
@@ -245,7 +245,7 @@ void main() {
       ).thenAnswer((_) async => 'test-user-id');
       when(mockAuthenticatedDio.get(any)).thenAnswer(
         (_) async => Response(
-          requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+          requestOptions: RequestOptions(path: '/api/v1/users/me'),
           data: {
             'id': 'test-user-id',
             'email': 'test@example.com',
@@ -342,7 +342,7 @@ void main() {
 
           return Future.value(
             Response(
-              requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+              requestOptions: RequestOptions(path: '/api/v1/users/me'),
               data: {
                 'id': 'test-user-id',
                 'email': 'test@example.com',
@@ -489,9 +489,9 @@ void main() {
         mockAuthenticatedDio.get(any, options: anyNamed('options')),
       ).thenThrow(
         DioException(
-          requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+          requestOptions: RequestOptions(path: '/api/v1/users/me'),
           response: Response(
-            requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+            requestOptions: RequestOptions(path: '/api/v1/users/me'),
             statusCode: 401,
             data: {'error': 'Missing or invalid JWT token'},
           ),
@@ -534,7 +534,7 @@ void main() {
         mockAuthenticatedDio.get(any, options: anyNamed('options')),
       ).thenThrow(
         DioException(
-          requestOptions: RequestOptions(path: '/api/v1/users/profile'),
+          requestOptions: RequestOptions(path: '/api/v1/users/me'),
           type: DioExceptionType.connectionError,
           error: 'Network connection failed',
         ),

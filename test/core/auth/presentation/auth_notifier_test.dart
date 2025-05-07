@@ -47,9 +47,9 @@ class FakeAppNotifierService extends AppNotifierService {
 
 // Additional DioExceptions for testing
 final profile404DioException = DioException(
-  requestOptions: RequestOptions(path: '/users/profile'),
+  requestOptions: RequestOptions(path: '/users/me'),
   response: Response(
-    requestOptions: RequestOptions(path: '/users/profile'),
+    requestOptions: RequestOptions(path: '/users/me'),
     statusCode: 404,
   ),
   type: DioExceptionType.badResponse,
@@ -66,18 +66,18 @@ final otherDioException = DioException(
 
 // Additional specialized DioExceptions for testing path matcher
 final profile404DioExceptionWithVersion = DioException(
-  requestOptions: RequestOptions(path: '/v1/users/profile'),
+  requestOptions: RequestOptions(path: '/v1/users/me'),
   response: Response(
-    requestOptions: RequestOptions(path: '/v1/users/profile'),
+    requestOptions: RequestOptions(path: '/v1/users/me'),
     statusCode: 404,
   ),
   type: DioExceptionType.badResponse,
 );
 
 final profile404DioExceptionWithQuery = DioException(
-  requestOptions: RequestOptions(path: '/users/profile?param=value'),
+  requestOptions: RequestOptions(path: '/users/me?param=value'),
   response: Response(
-    requestOptions: RequestOptions(path: '/users/profile?param=value'),
+    requestOptions: RequestOptions(path: '/users/me?param=value'),
     statusCode: 404,
   ),
   type: DioExceptionType.badResponse,

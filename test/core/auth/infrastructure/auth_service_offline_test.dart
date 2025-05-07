@@ -58,7 +58,7 @@ void main() {
       test('SHOULD classify connection errors as offlineOperation', () async {
         // Arrange
         final connectionError = DioException(
-          requestOptions: RequestOptions(path: '/users/profile'),
+          requestOptions: RequestOptions(path: '/users/me'),
           error: 'Connection refused',
           type: DioExceptionType.connectionError,
         );
@@ -79,7 +79,7 @@ void main() {
       test('SHOULD classify send timeout as offlineOperation', () async {
         // Arrange
         final timeoutError = DioException(
-          requestOptions: RequestOptions(path: '/users/profile'),
+          requestOptions: RequestOptions(path: '/users/me'),
           error: 'Send timeout',
           type: DioExceptionType.sendTimeout,
         );
@@ -100,7 +100,7 @@ void main() {
       test('SHOULD classify receive timeout as offlineOperation', () async {
         // Arrange
         final timeoutError = DioException(
-          requestOptions: RequestOptions(path: '/users/profile'),
+          requestOptions: RequestOptions(path: '/users/me'),
           error: 'Receive timeout',
           type: DioExceptionType.receiveTimeout,
         );
@@ -121,7 +121,7 @@ void main() {
       test('SHOULD classify connection timeout as offlineOperation', () async {
         // Arrange
         final timeoutError = DioException(
-          requestOptions: RequestOptions(path: '/users/profile'),
+          requestOptions: RequestOptions(path: '/users/me'),
           error: 'Connection timeout',
           type: DioExceptionType.connectionTimeout,
         );
@@ -144,7 +144,7 @@ void main() {
         () async {
           // Arrange
           final certError = DioException(
-            requestOptions: RequestOptions(path: '/users/profile'),
+            requestOptions: RequestOptions(path: '/users/me'),
             error: 'Bad certificate',
             type: DioExceptionType.badCertificate,
           );
@@ -168,10 +168,10 @@ void main() {
         () async {
           // Arrange
           final serverError = DioException(
-            requestOptions: RequestOptions(path: '/users/profile'),
+            requestOptions: RequestOptions(path: '/users/me'),
             response: Response(
               statusCode: 500,
-              requestOptions: RequestOptions(path: '/users/profile'),
+              requestOptions: RequestOptions(path: '/users/me'),
             ),
             type: DioExceptionType.badResponse,
           );

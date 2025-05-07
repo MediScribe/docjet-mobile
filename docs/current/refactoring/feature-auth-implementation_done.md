@@ -363,8 +363,8 @@ Critical TODOs to ensure proper authentication works with both real API and mock
          - `/api/v1/auth/login` returns JWT tokens with access_token, refresh_token, and user_id
          - `/api/v1/auth/login` correctly validates X-API-Key header and JSON body  
          - `/api/v1/auth/refresh-session` returns new tokens with proper validation
-         - `/api/v1/users/profile` returns user profile data and validates both API key and Authorization headers
-       - Tests cover both success and error cases (401, 400) for each endpoint
+         - `/api/v1/users/me` returns user profile data and validates both API key and Authorization headers
+        - Tests cover both success and error cases (401, 400) for each endpoint
        - These tests run directly against the real mock server using dynamic ports for isolation
     
     13.3.2. [x] **GREEN**: Verify mock server auth endpoints implementation

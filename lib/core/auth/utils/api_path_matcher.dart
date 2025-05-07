@@ -9,22 +9,22 @@ class ApiPathMatcher {
   static final Logger _logger = LoggerFactory.getLogger(ApiPathMatcher);
 
   /// Precompiled regex for user profile path
-  /// Matches /users/profile with optional:
+  /// Matches /users/me with optional:
   /// - Path prefix (like /v1/)
   /// - Trailing slash
   /// - Query parameters
-  static final RegExp _profileRegex = RegExp(r'\/users\/profile(\/?(\?.*)?)?$');
+  static final RegExp _profileRegex = RegExp(r'^.*\/users\/me(\/?(\?.*)?)?$');
 
-  /// Matches paths that end with /users/profile
+  /// Matches paths that end with /users/me
   ///
   /// This will match endpoints like:
-  /// - /users/profile
-  /// - /users/profile/ (with trailing slash)
-  /// - /v1/users/profile
-  /// - /api/v2/users/profile
-  /// - /users/profile?param=value
+  /// - /users/me
+  /// - /users/me/ (with trailing slash)
+  /// - /v1/users/me
+  /// - /api/v2/users/me
+  /// - /users/me?param=value
   ///
-  /// It's anchored at the end to avoid matching /users/profile/other-things
+  /// It's anchored at the end to avoid matching /users/me/other-things
   static bool isUserProfile(String path) {
     final isMatch = _profileRegex.hasMatch(path);
 

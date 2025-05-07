@@ -238,7 +238,7 @@ void main() {
             // Act: Create exception using fromStatusCode
             final exception = AuthException.fromStatusCode(
               401,
-              'api/v1/users/profile',
+              'api/v1/users/me',
               isProfileEndpoint: true,
             );
 
@@ -303,7 +303,7 @@ void main() {
             // Act: Create exceptions for server errors
             final profileException = AuthException.fromStatusCode(
               500,
-              'api/v1/users/profile',
+              'api/v1/users/me',
               isProfileEndpoint: true,
             );
 

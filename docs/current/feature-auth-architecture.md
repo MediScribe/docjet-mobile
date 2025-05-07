@@ -63,7 +63,7 @@ graph TD
         AuthInterceptor -->|Listens to| AuthEventBus
 
         basicDio -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/auth/login&#41;}
-        authenticatedDio -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/users/profile&#41;}
+        authenticatedDio -->|Makes Requests to| AuthAPI{REST API<br>Endpoints defined in ApiConfig<br>&#40;e.g., /api/v1/users/me&#41;}
 
     end
 
@@ -99,7 +99,7 @@ sequenceDiagram
     AuthSvc->>CredProvider: setAccessToken(token)
     AuthSvc->>CredProvider: setRefreshToken(token)
     AuthSvc->>ApiClient: getUserProfile()
-    ApiClient->>API: GET /api/v1/users/profile
+    ApiClient->>API: GET /api/v1/users/me
     API-->>ApiClient: {id, name, email, settings, etc}
     ApiClient-->>AuthSvc: User Profile DTO
     AuthSvc->>AuthSvc: Create User entity
