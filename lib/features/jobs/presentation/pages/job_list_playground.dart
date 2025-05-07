@@ -63,14 +63,14 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
   static final Logger _logger = LoggerFactory.getLogger('JobListPlayground');
   static final String _tag = logTag('JobListPlayground');
 
-  // We'll keep a small set of mock jobs as fallback
+  // Restore original single mock job
   final List<JobViewModel> _mockJobs = [
     JobViewModel(
       localId: 'job_123456789',
       title: 'This is a mock job (not from data source)',
       text: 'This is displayed when no real jobs exist yet',
       syncStatus: SyncStatus.synced,
-      jobStatus: JobStatus.submitted, // Add jobStatus
+      jobStatus: JobStatus.submitted,
       hasFileIssue: false,
       displayDate: DateTime.now().subtract(const Duration(hours: 2)),
     ),
@@ -141,9 +141,13 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     }
   }
 
-  // Helper to handle manual sync
+  // Restore original _handleManualSync function (was _handleMockToggle)
   Future<void> _handleManualSync() async {
     _logger.i('$_tag Manual sync triggered!');
+    if (widget.isOffline) {
+      _logger.i('$_tag Manual sync skipped because offline');
+      return;
+    }
     try {
       // TODO: [ARCH] Direct repository access is BAD PRACTICE.
       // This is only acceptable here because it's a playground
@@ -180,7 +184,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
           children: [
             CupertinoButton(
               padding: EdgeInsets.zero,
-              // Disable sync when offline
+              // Restore original onPressed and icon for the sync button
               onPressed: isOffline ? null : _handleManualSync,
               child: const Icon(CupertinoIcons.cloud_upload),
             ),
@@ -201,13 +205,10 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                           () => context.read<JobListCubit>().refreshJobs(),
                       child: BlocBuilder<JobListCubit, JobListState>(
                         builder: (context, state) {
+                          // Remove the _showMockJobsOverride check
+
+                          // Original logic if not overriding
                           if (state is JobListLoading) {
-                            // Don't show indicator inside RefreshIndicator during initial load triggered by it
-                            // return const Center(
-                            //   child: CupertinoActivityIndicator(),
-                            // );
-                            // Instead, let RefreshIndicator show its own loading spinner
-                            // Return an empty container or the list structure if needed
                             return Container();
                           }
 
@@ -215,6 +216,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                             final jobs = state.jobs;
 
                             if (jobs.isEmpty) {
+                              // Revert to original behavior when no real jobs are loaded
                               return Center(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -240,13 +242,10 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                                 return JobListItem(
                                   job: jobs[index],
                                   isOffline: isOffline,
-                                  // No job tap action needed - purely passive viewer
                                   onTapJob: (_) {
-                                    // Log for debugging
                                     _logger.i(
                                       '$_tag Tapped on job: ${jobs[index].localId}',
                                     );
-                                    // No action needed - UI is reactive to Hive changes
                                   },
                                 );
                               },
@@ -267,7 +266,7 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                                             : () =>
                                                 context
                                                     .read<JobListCubit>()
-                                                    .refreshJobs(), // Update retry button too
+                                                    .refreshJobs(),
                                     child: const Text('Retry'),
                                   ),
                                 ],
@@ -275,18 +274,17 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                             );
                           }
 
-                          // Fallback to mock data if we hit some edge case
+                          // Fallback to mock data if cubit is in an unexpected state
                           return ListView.builder(
                             padding: const EdgeInsets.only(bottom: 120.0),
-                            itemCount: _mockJobs.length,
+                            itemCount:
+                                _mockJobs
+                                    .length, // This now refers to the single original mock
                             itemBuilder: (context, index) {
                               return JobListItem(
                                 job: _mockJobs[index],
                                 isOffline: isOffline,
-                                // No job tap action needed - purely passive viewer
-                                onTapJob: (_) {
-                                  // No action needed
-                                },
+                                onTapJob: (_) {},
                               );
                             },
                           );
