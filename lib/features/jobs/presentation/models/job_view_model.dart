@@ -108,12 +108,65 @@ class JobViewModel extends Equatable {
     // return 0.0;
   }
 
-  /// Determines the appropriate [JobUIIcon] based on the job's state.
+  /// Determines the appropriate [JobUIIcon] based on the job's state,
+  /// crucial for providing clear visual feedback to the user.
   ///
-  /// This getter implements the primary logic for displaying job status icons.
-  /// It prioritizes error states first (to be implemented in Cycle 2),
-  /// then handles happy path states.
+  /// The logic follows a strict order of precedence to ensure that the most critical
+  /// information is always displayed. Error states and pending actions take priority
+  /// over regular operational states.
+  ///
+  /// Note on `syncStatus` nullability: For a `JobStatus.created` job, `syncStatus`
+  /// can be `null` (representing a job not yet attempted to sync) or
+  /// `SyncStatus.pending`. This is handled in the `.created` icon logic.
+  ///
+  /// **Precedence Order:**
+  /// 1.  **`JobUIIcon.fileIssue`**: If `hasFileIssue` is true. This is the highest priority
+  ///     as it indicates a local problem preventing further action.
+  /// 2.  **`JobUIIcon.syncFailed`**: If `syncStatus` is `SyncStatus.failed`. Indicates a
+  ///     critical, unrecoverable synchronization failure.
+  /// 3.  **`JobUIIcon.syncError`**: If `syncStatus` is `SyncStatus.error`. Indicates a
+  ///     recoverable synchronization error.
+  /// 4.  **`JobUIIcon.serverError`**: If `jobStatus` is `JobStatus.error`. Indicates an
+  ///     error reported by the server during processing. (Note: This takes precedence
+  ///     over `pendingDeletion` if both conditions were met).
+  /// 5.  **`JobUIIcon.pendingDeletion`**: If `jobStatus` is `JobStatus.pendingDeletion`
+  ///     or `syncStatus` is `SyncStatus.pendingDeletion`. Indicates the job is
+  ///     marked for deletion locally or via sync.
+  /// 6.  **`JobUIIcon.created`**: If `jobStatus` is `JobStatus.created` AND (`syncStatus`
+  ///     is `SyncStatus.pending` or `syncStatus == null`). Represents a newly created job.
+  /// 7.  **`JobUIIcon.processing`**: If `jobStatus` is one of the states defined in
+  ///     `_processingJobStates` (e.g., `submitted`, `transcribing`, `generated`).
+  ///     Represents a job actively being processed by the server.
+  /// 8.  **`JobUIIcon.completed`**: If `jobStatus` is `JobStatus.completed` AND
+  ///     `syncStatus` is `SyncStatus.synced`. Represents a successfully completed
+  ///     and synced job, assuming no overriding error states are present.
+  /// 9.  **`JobUIIcon.unknown`**: Fallback for any state combination not explicitly
+  ///     handled above. This should ideally not be reached if logic is complete.
   JobUIIcon get uiIcon {
+    // Highest Precedence: Local File Issue
+    if (hasFileIssue) {
+      return JobUIIcon.fileIssue;
+    }
+
+    // Sync Status Errors (before general JobStatus error)
+    if (syncStatus == SyncStatus.failed) {
+      return JobUIIcon.syncFailed;
+    }
+    if (syncStatus == SyncStatus.error) {
+      return JobUIIcon.syncError;
+    }
+
+    // General Job Status Error (server-side)
+    if (jobStatus == JobStatus.error) {
+      return JobUIIcon.serverError;
+    }
+
+    // Pending Deletion (can come from job or sync status)
+    if (jobStatus == JobStatus.pendingDeletion ||
+        syncStatus == SyncStatus.pendingDeletion) {
+      return JobUIIcon.pendingDeletion;
+    }
+
     // Happy path: Created
     if (jobStatus == JobStatus.created &&
         (syncStatus == SyncStatus.pending || syncStatus == null)) {

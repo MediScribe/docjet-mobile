@@ -169,6 +169,133 @@ void main() {
         expect(jobViewModel2.uiIcon, JobUIIcon.unknown);
       },
     );
+
+    // --- Test cases for Cycle 2: Error & Edge States ---
+
+    group('Error States', () {
+      test(
+        'uiIcon should return JobUIIcon.fileIssue if hasFileIssue is true (highest priority)',
+        () {
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus: JobStatus.completed, // Any other status
+            syncStatus: SyncStatus.synced, // Any other status
+            hasFileIssue: true,
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.fileIssue);
+        },
+      );
+
+      test(
+        'uiIcon should return JobUIIcon.syncFailed if syncStatus is failed',
+        () {
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus:
+                JobStatus
+                    .created, // Any other status that isn't an error itself
+            syncStatus: SyncStatus.failed,
+            hasFileIssue: false, // Ensure fileIssue isn't masking this
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.syncFailed);
+        },
+      );
+
+      test(
+        'uiIcon should return JobUIIcon.syncError if syncStatus is error',
+        () {
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus: JobStatus.created, // Any other status
+            syncStatus: SyncStatus.error,
+            hasFileIssue: false, // Ensure fileIssue isn't masking this
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.syncError);
+        },
+      );
+
+      test(
+        'uiIcon should return JobUIIcon.serverError if jobStatus is error (and no higher priority local errors)',
+        () {
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus: JobStatus.error,
+            syncStatus: SyncStatus.synced, // Not a sync error
+            hasFileIssue: false, // Not a file issue
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.serverError);
+        },
+      );
+    });
+
+    group('Edge Cases', () {
+      test(
+        'uiIcon should return JobUIIcon.pendingDeletion if jobStatus is pendingDeletion',
+        () {
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus: JobStatus.pendingDeletion,
+            // Other statuses don't matter as much if it's pending deletion by jobStatus
+            syncStatus: SyncStatus.synced,
+            hasFileIssue: false,
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.pendingDeletion);
+        },
+      );
+
+      test(
+        'uiIcon should return JobUIIcon.pendingDeletion if syncStatus is pendingDeletion',
+        () {
+          // This test assumes that a syncStatus of pendingDeletion should also lead to the pendingDeletion icon,
+          // regardless of jobStatus, unless a higher priority error (like fileIssue) is present.
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus: JobStatus.created, // Any job status
+            syncStatus: SyncStatus.pendingDeletion,
+            hasFileIssue: false, // No higher priority error
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.pendingDeletion);
+
+          // Also test with a completed jobStatus to ensure syncStatus.pendingDeletion takes precedence
+          final jobViewModelCompleted = JobViewModel.forTest(
+            jobStatus: JobStatus.completed,
+            syncStatus: SyncStatus.pendingDeletion,
+            hasFileIssue: false,
+          );
+          expect(jobViewModelCompleted.uiIcon, JobUIIcon.pendingDeletion);
+        },
+      );
+    });
+
+    group('Precedence Rules', () {
+      test('uiIcon should correctly prioritize fileIssue over syncFailed', () {
+        final jobViewModel = JobViewModel.forTest(
+          jobStatus: JobStatus.created,
+          syncStatus: SyncStatus.failed,
+          hasFileIssue: true, // fileIssue takes precedence
+        );
+        expect(jobViewModel.uiIcon, JobUIIcon.fileIssue);
+      });
+
+      test('uiIcon should correctly prioritize syncFailed over syncError', () {
+        final jobViewModelDirect = JobViewModel.forTest(
+          jobStatus: JobStatus.created,
+          syncStatus: SyncStatus.failed, // Explicitly failed
+          // syncError would be another case SyncStatus.error
+          hasFileIssue: false,
+        );
+        expect(jobViewModelDirect.uiIcon, JobUIIcon.syncFailed);
+      });
+
+      test(
+        'uiIcon should correctly prioritize syncError over serverError (jobStatus.error)',
+        () {
+          final jobViewModel = JobViewModel.forTest(
+            jobStatus: JobStatus.error, // Server error
+            syncStatus: SyncStatus.error, // Sync error takes precedence
+            hasFileIssue: false,
+          );
+          expect(jobViewModel.uiIcon, JobUIIcon.syncError);
+        },
+      );
+
+      // Removed placeholder test for unhandled state combinations as it was redundant
+      // and didn't verify specific behavior. Existing tests for `JobUIIcon.unknown` cover fallbacks.
+    });
   });
 }
 
