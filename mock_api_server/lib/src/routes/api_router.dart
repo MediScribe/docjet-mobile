@@ -1,23 +1,20 @@
 import 'package:shelf_router/shelf_router.dart';
 
 // Import new health handler
-import '../handlers/health_handlers.dart';
+import 'package:mock_api_server/src/handlers/health_handlers.dart';
 
 // Import new auth handlers
-import '../handlers/auth_handlers.dart';
+import 'package:mock_api_server/src/handlers/auth_handlers.dart';
 
 // Import new job handlers
-import '../handlers/job_handlers.dart';
-
-// Temporary imports for handlers from server.dart
-// These will be updated in later cycles when handlers are moved.
-import '../../bin/server.dart' show debugHandler;
+import 'package:mock_api_server/src/handlers/job_handlers.dart';
 
 // Import handlers from debug_handlers.dart (already in its correct location)
+// This now also provides the generic debugHandler
 import 'package:mock_api_server/src/debug_handlers.dart';
 
 // Import constants (versionedApiPath)
-import '../core/constants.dart';
+import 'package:mock_api_server/src/core/constants.dart';
 
 // Define the router with versioned endpoints
 final router = Router() // Renamed from _router to router (public)

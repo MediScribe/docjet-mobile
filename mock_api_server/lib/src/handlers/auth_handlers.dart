@@ -6,7 +6,7 @@ import 'dart:io'; // Added for HttpStatus
 import 'package:shelf/shelf.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:mock_api_server/src/config.dart'; // For verboseLoggingEnabled
-import '../core/constants.dart'; // Corrected path for JWT constants
+import 'package:mock_api_server/src/core/constants.dart'; // Corrected path for JWT constants
 
 // Login handler logic
 Future<Response> loginHandler(Request request) async {

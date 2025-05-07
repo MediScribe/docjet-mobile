@@ -2,40 +2,19 @@
 
 import 'dart:async'; // Make sure Timer is imported
 import 'dart:io';
-import 'dart:convert';
 
 import 'package:args/args.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 
 // Import the new middleware module
-import '../src/middleware/middleware.dart';
+import 'package:mock_api_server/src/middleware/middleware.dart';
 
 // Import the new router module
-import '../src/routes/api_router.dart';
+import 'package:mock_api_server/src/routes/api_router.dart';
 
 // Import the config (provides verboseLoggingEnabled)
 import 'package:mock_api_server/src/config.dart';
-
-// Debug handler to get all request details (should be public for router)
-Future<Response> debugHandler(Request request) async {
-  final debugInfo = {
-    'method': request.method,
-    'url': request.url.toString(),
-    'headers': request.headers,
-    'protocolVersion': request.protocolVersion,
-    'contentLength': request.contentLength,
-    // Add more details as needed
-  };
-  if (verboseLoggingEnabled) {
-    print(
-        'DEBUG HANDLER: \n${debugInfo.entries.map((e) => '  ${e.key}: ${e.value}').join('\n')}');
-  }
-  return Response.ok(
-    jsonEncode({'message': 'Debug information collected.', 'data': debugInfo}),
-    headers: {'content-type': 'application/json'},
-  );
-}
 
 // Main function now just adds the router, as middleware is applied per-route or globally
 Future<void> main(List<String> args) async {

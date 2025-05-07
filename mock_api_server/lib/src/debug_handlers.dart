@@ -351,3 +351,24 @@ Future<Response> listAllJobsHandler(Request request) async {
     headers: {'content-type': 'application/json'},
   );
 }
+
+// Debug handler to get all request details (moved from server.dart)
+Future<Response> debugHandler(Request request) async {
+  final debugInfo = {
+    'method': request.method,
+    'url': request.url.toString(),
+    'headers': request.headers,
+    'protocolVersion': request.protocolVersion,
+    'contentLength': request.contentLength,
+    // Add more details as needed
+  };
+  // verboseLoggingEnabled is imported from config.dart
+  if (verboseLoggingEnabled) {
+    print(
+        'DEBUG HANDLER: \n${debugInfo.entries.map((e) => '  ${e.key}: ${e.value}').join('\n')}');
+  }
+  return Response.ok(
+    jsonEncode({'message': 'Debug information collected.', 'data': debugInfo}),
+    headers: {'content-type': 'application/json'},
+  );
+}

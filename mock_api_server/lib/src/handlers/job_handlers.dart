@@ -8,7 +8,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 
 // Core utilities and constants
-import '../core/utils.dart';
+import 'package:mock_api_server/src/core/utils.dart';
 
 // Job store
 import 'package:mock_api_server/src/job_store.dart' as job_store;
