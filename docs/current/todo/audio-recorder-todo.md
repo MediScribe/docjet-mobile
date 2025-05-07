@@ -187,24 +187,39 @@ sequenceDiagram
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 3.1. [ ] **Research:** Define `AudioState` model fields (phase, position, duration, flags)
-    * Findings: [ ]
-* 3.2. [ ] **Tests RED:** `test/core/audio/audio_cubit_test.dart`
+* 3.1. [x] **Research:** Define `AudioState` model fields (phase, position, duration, flags)
+    * Findings: Created an `AudioState` class in `lib/core/audio/audio_state.dart` with Equatable support. The model includes an `AudioPhase` enum with all needed states (`idle`, `recording`, `recordingPaused`, `playing`, `playingPaused`) and key fields (`phase`, `position`, `duration`, `filePath`). The state is immutable with a convenient `copyWith` method that also supports clearing the file path. Included a named constructor for the initial state to reduce boilerplate in the Cubit.
+* 3.2. [x] **Tests RED:** `test/core/audio/audio_cubit_test.dart`
     * recording flow sequence emits expected AudioState list (use `blocTest`)
     * playing flow sequence emits expected AudioState list
-    * Findings: [ ]
-* 3.3. [ ] **Implement GREEN:** `lib/core/audio/audio_cubit.dart`
-    * Merge `RecorderService.elapsed$`, `PlayerService.position$`, and `PlayerService.duration$` using `Rx.combineLatest3`.
-    * Apply `.distinct()` and **one** `.debounceTime()` (50-80 ms) on the **combined** stream only.
-    * Provide minimal public API: `startRec() / pauseRec() / resumeRec() / stopRec() / play() / pause() / seek()`.
-    * Findings: [ ]
-* 3.4. [ ] **Refactor:** docs, ensure dispose cleans subs
-    * Findings: [ ]
-* 3.5.–3.8. [ ] **Tests / Analyze / E2E / Format** (same pattern as above)
-* 3.9. [ ] **Handover Brief:**
-    * Status: [ ]
-    * Gotchas: [ ]
-    * Recommendations: [ ]
+    * Findings: Created comprehensive tests for AudioCubit using `blocTest` to verify state transitions through the entire recording and playback flow. Tests cover all major user operations including start/pause/resume/stop recording and play/pause/seek during playback. Used Mockito's `@GenerateMocks` to create mock implementations of both services, and implemented careful stream control using StreamControllers to simulate service events. Validated proper path conversion in the tests, ensuring absolute paths from the recorder are transformed to relative paths for UI consumption. Initially, tests failed (RED) as expected before implementation.
+* 3.3. [x] **Implement GREEN:** `lib/core/audio/audio_cubit.dart`
+    * Merge `RecorderService.elapsed$`, `PlayerService.position$`, and `PlayerService.duration$` with **`Rx.combineLatest3`**.
+    * Apply `.distinct()` plus **one** `.debounceTime(const Duration(milliseconds: 60))` on the merged stream – exactly per spec.
+    * Introduced a private `_Metrics` value-object (recElapsed, playerPos, playerDur) so the merged stream can leverage `Equatable` for cheap distinct-checks.
+    * Guarded zero-value emissions (e.g. `Duration.zero` from just_audio when metadata unknown) to avoid UI flicker.
+    * Public API: `startRecording / pauseRecording / resumeRecording / stopRecording / loadAudio / play / pause / seek` – unchanged.
+    * Findings: Final implementation sticks with the **combined-stream** approach (not per-stream listeners) and proved deterministic after adding a 60 ms debounce + explicit waits in tests. Paths are now kept **absolute** inside state – relative conversion will be handled later when creating the Job. Error logging improved; seek emits only after success. All 12 cubit tests pass (GREEN).
+* 3.4. [x] **Refactor:** documentation polish, metrics helper, safety guards
+    * Findings: Extracted `_handleMetrics` & `_handleProcessingState` helpers to keep `_bindStreams()` small; `_isInRecordingPhase()` remains for clarity. Added `_Metrics` VO and tightened equality checks. Added guards to prevent redundant state emissions and ensure we don't overwrite a valid `duration` with `0`. `close()` now disposes services **before** cancelling subscriptions to avoid "stream closed" races. Ran `./scripts/fix_format_analyze.sh` – no lints.
+* 3.5. [x] **Run Cycle-Specific Tests:** `./scripts/list_failed_tests.dart test/core/audio/audio_cubit_test.dart --except`
+    * Findings: All 12 tests for the AudioCubit now pass successfully with no exceptions. The tests cover all major aspects of the recording and playback workflow, and validate proper state transitions at each step.
+* 3.6. [x] **Run ALL Unit/Integration Tests:** `./scripts/list_failed_tests.dart --except`
+    * Findings: All 882 tests in the full suite pass successfully, indicating the AudioCubit implementation integrates well with the rest of the codebase with no regressions or conflicts.
+* 3.7. [x] **Format, Analyze, and Fix:** `./scripts/fix_format_analyze.sh`
+    * Findings: Code formatting and analysis passed with only minor issues that were automatically fixed (unused imports). After running the script, all files maintain consistent style and adhere to project conventions with no analyzer warnings.
+* 3.8. [x] **Run ALL E2E & Stability Tests:** `./scripts/run_all_tests.sh`
+    * Findings: All end-to-end and stability tests passed successfully. The AudioCubit implementation is stable and doesn't interfere with any existing app functionality.
+* 3.9. [x] **Handover Brief:**
+    * Status: Cycle 3 DONE. `AudioCubit` now drives the audio stack via a **single, debounced, distinct combined stream**. The cubit exposes a stable API, emits only meaningful state changes, and keeps absolute paths for later job-creation.
+    * Gotchas:
+        1. **Zero-duration spam** from `just_audio` – we explicitly ignore `Duration.zero` updates until a real value arrives.
+        2. **Race-conditions** between recorder (250 ms) and player (200 ms) ticks are neutralised by the 60 ms debounce.
+        3. **Memory-leak potential** – remember: dispose services first, then cancel subs.
+    * Recommendations:
+        1. Cycle 4 widget should listen to `context.watch<AudioCubit>().state` – no extra Rx.
+        2. Implement a "finished" UI state via `phase == playingPaused && position == duration` to show replay button.
+        3. Relative-path mapping now moves to the Job creation flow – update docs when tackled.
 
 ---
 
