@@ -46,6 +46,8 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief**. No silent check-offs. Uncertainty will get you fucking fired.
 
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
+
 [Use this cycle for initial setup, dependency additions, or crucial research *before* the main TDD loops begin.]
 
 * 0.1. [ ] **Task:** [e.g., Add Dependency `some_package`]
@@ -68,6 +70,8 @@ sequenceDiagram
 **Goal** [Clearly articulate the goal of this specific cycle. WHAT & WHY!]
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
+
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
 [Focus on one logical piece of functionality per cycle. Follow the TDD rhythm religiously.]
 
@@ -108,6 +112,8 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
+
 [Repeat the TDD cycle structure. Focus on integration or the next logical step.]
 
 * 2.1. [ ] **Research:** ...
@@ -142,6 +148,8 @@ sequenceDiagram
 **Goal** [Clearly articulate the goal of this specific cycle. WHAT & WHY, especially any gotchas and things to watch out for.]
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
+
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
 [Use the final cycle(s) for documentation updates, removing dead code, final testing, and hardening.]
 
