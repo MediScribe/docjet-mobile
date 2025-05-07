@@ -2,7 +2,7 @@
 
 **Date:** 2025-05-05  
 **Status:** Accepted  
-**Authors:** [Your Name]
+**Authors:** [Eckart Burgwedel]
 
 ## Context
 
