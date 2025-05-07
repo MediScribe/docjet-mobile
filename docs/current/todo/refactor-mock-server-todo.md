@@ -114,21 +114,23 @@ mock_api_server/
 
 **MANDATORY REPORTING RULE:** ...
 
-* 2.1. [ ] **Task:** Create and populate `mock_api_server/src/middleware/middleware.dart`.
+* 2.1. [x] **Task:** Create and populate `mock_api_server/src/middleware/middleware.dart`.
     * Action: Move `_debugMiddleware` and `_authMiddleware` functions from `server.dart` to `middleware.dart`. Add necessary imports (e.g., `package:shelf/shelf.dart`, `dart:convert`, `../core/constants.dart`, `../config.dart`).
-    * Findings:
-* 2.2. [ ] **Task:** Update `server.dart` imports for new `middleware.dart`.
+    * Findings: Created `mock_api_server/src/middleware/middleware.dart`. Moved `_debugMiddleware` and `_authMiddleware` from `mock_api_server/bin/server.dart` into this new file, renaming them to `debugMiddleware` and `authMiddleware` (public). Added necessary imports: `dart:convert`, `package:shelf/shelf.dart`, `../core/constants.dart`, and `package:mock_api_server/src/config.dart` (after discovering `config.dart` is in `lib/src/` not `src/`). The original function definitions were successfully removed from `server.dart` after an initial hiccup where the apply model commented them out instead of deleting, which was resolved by inspecting the file directly.
+* 2.2. [x] **Task:** Update `server.dart` imports for new `middleware.dart`.
     * Action: Add `import '../src/middleware/middleware.dart';` to `server.dart`. Remove original definitions.
-    * Findings:
-* 2.3. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
+    * Findings: Added `import '../src/middleware/middleware.dart';` to `mock_api_server/bin/server.dart`. Updated the `Pipeline` to use `debugMiddleware()` and `authMiddleware()` from the new module. The previous step (2.1) had already removed the original private middleware function calls from the pipeline during the deletion of their definitions.
+* 2.3. [x] **Task:** Run `dart analyze` on `mock_api_server/`.
     * Action: `./scripts/fix_format_analyze.sh | cat`
-    * Findings:
-* 2.3.1. [ ] **Task:** Run tests.
+    * Findings: The script `./scripts/fix_format_analyze.sh` executed successfully. `dart fix` reported nothing to fix. The formatter made no changes. `dart analyze` reported "No issues found!".
+* 2.3.1. [x] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
-    * Findings:
-* 2.4. [ ] **Handover Brief:**
-    * Status: Middleware extracted. `server.dart` imports updated. Analyzer clean. All tests passing.
-    * Gotchas:
+    * Findings: All 105 tests in `mock_api_server` passed successfully.
+* 2.4. [x] **Handover Brief:**
+    * Status: Middleware (`debugMiddleware`, `authMiddleware`) successfully extracted from `server.dart` into `mock_api_server/src/middleware/middleware.dart`. `server.dart` imports and pipeline updated. `fix_format_analyze.sh` runs clean. All 105 tests in `mock_api_server` are passing.
+    * Gotchas: Initial `edit_file` for `middleware.dart` used an incorrect import path for `config.dart` (expected `../config.dart` but it's `package:mock_api_server/src/config.dart` as `config.dart` is in `lib/src/`). String interpolation in a `print` statement in `authMiddleware` was also fixed, and the literal `401` was changed to `HttpStatus.unauthorized`. The `server.dart` edits for removing old middleware initially resulted in commented-out code rather than deletion, and the apply model also prematurely modified the pipeline; direct file inspection confirmed deletions were eventually correct. The `todo.md` apply model had significant issues with large deletions and checkbox updates, requiring multiple reapplies and targeted edits.
+        * **Deliberate Non-Fix 1 (Debug Middleware Body Handling):** The `debugMiddleware` reads the request body and then recreates the request. This is inefficient for large bodies but was deemed acceptable for this mock server's debug-only, verbosity-gated functionality to avoid over-engineering. The potential performance impact is negligible in this context.
+        * **Deliberate Non-Fix 2 (Print Statements):** The use of `print` statements for logging within the mock server was reviewed and accepted as the standard for this specific internal tooling, despite general project guidelines typically favoring more structured logging helpers. Consistency with the existing mock server codebase was prioritized here.
     * Recommendations: Proceed to Cycle 3: Router Extraction.
 
 ---
@@ -243,6 +245,29 @@ mock_api_server/
     * Action: Clean up imports in all modified/new files.
     * Findings:
 * N.3. [ ] **Task:** Run `dart format .` within `mock_api_server/`.
-    * Action: `./scripts/fix_format_analyze.sh | cat`
+    * Action: `(cd mock_api_server && dart format .) | cat`
     * Findings:
-* N.4. [ ] **Task:** Run `
+* N.4. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
+    * Action: `(cd mock_api_server && dart analyze .) | cat`
+    * Findings:
+* N.4.1. [ ] **Task:** Run final tests.
+    * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
+    * Findings:
+* N.5. [ ] **Code Review & Commit Prep:**
+    * Action: `git status | cat`, `git diff --staged | cat`.
+    * Findings:
+* N.6. [ ] **Handover Brief:**
+    * Status: Refactoring complete. Code is clean, formatted, analyzed. All tests passing. Ready for Hard Bob Commit.
+    * Gotchas:
+    * Recommendations: Ship this fucking masterpiece.
+
+---
+
+## DONE
+
+With these cycles we:
+1. Dismantled the monolithic `server.dart`.
+2. Organized code into logical modules: core, handlers, middleware, routes.
+3. Improved readability, maintainability, and set the stage for easier testing.
+
+No bullshit, no uncertainty – "This is a ' शार्प रेशियो of 4' kind of refactor." 
