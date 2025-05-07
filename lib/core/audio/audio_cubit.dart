@@ -91,10 +91,13 @@ class AudioCubit extends Cubit<AudioState> {
   void _handleProcessingState(ProcessingState processingState) {
     if (processingState == ProcessingState.completed &&
         state.phase == AudioPhase.playing) {
+      // Explicitly pause then seek to start so player stays idle.
+      unawaited(_playerService.pause());
+      unawaited(_playerService.seek(Duration.zero));
       emit(
         state.copyWith(
           phase: AudioPhase.playingPaused,
-          position: state.duration,
+          position: Duration.zero,
         ),
       );
     }
@@ -210,11 +213,14 @@ class AudioCubit extends Cubit<AudioState> {
       return;
     }
 
+    // Emit first so UI updates immediately; revert on failure.
+    emit(state.copyWith(phase: AudioPhase.playing));
     try {
       await _playerService.play();
-      emit(state.copyWith(phase: AudioPhase.playing));
     } catch (e) {
       _logger.e('$_tag Error playing audio: $e');
+      // Roll back phase so UI is consistent.
+      emit(state.copyWith(phase: AudioPhase.playingPaused));
     }
   }
 
@@ -225,11 +231,14 @@ class AudioCubit extends Cubit<AudioState> {
       return;
     }
 
+    // Emit first so UI toggles instantly; revert if call fails.
+    emit(state.copyWith(phase: AudioPhase.playingPaused));
     try {
       await _playerService.pause();
-      emit(state.copyWith(phase: AudioPhase.playingPaused));
     } catch (e) {
       _logger.e('$_tag Error pausing playback: $e');
+      // Re-enter playing if pause failed.
+      emit(state.copyWith(phase: AudioPhase.playing));
     }
   }
 

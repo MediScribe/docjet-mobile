@@ -218,7 +218,7 @@ sequenceDiagram
         3. **Memory-leak potential** – remember: dispose services first, then cancel subs.
     * Recommendations:
         1. Cycle 4 widget should listen to `context.watch<AudioCubit>().state` – no extra Rx.
-        2. Implement a "finished" UI state via `phase == playingPaused && position == duration` to show replay button.
+        2. Implement a "finished" UI state via `phase == playingPaused && position == Duration.zero` (we now auto-rewind) to show replay button.
         3. Relative-path mapping now moves to the Job creation flow – update docs when tackled.
 
 ---
@@ -249,7 +249,7 @@ sequenceDiagram
     * Gotchas:
         1. `Slider` uses `duration.inMilliseconds` – ensure non-zero to avoid NaN; widget already guards.
         2. Tests require broadcast stream; remember to seed initial state when mocking cubit.
-        3. If future UI wants "replay" button, condition is `phase == playingPaused && position == duration` (per Cycle 3 note).
+        3. If future UI wants "replay" button, condition is `phase == playingPaused && position == Duration.zero` (auto-rewound playback).
     * Recommendations:
         1. Cycle 5: Inject widget into Recorder Modal; no additional state management needed.
         2. Consider theming the `IconButton` size/colors in final polish cycle.
@@ -260,11 +260,20 @@ sequenceDiagram
 
 **Goal** Wire `JobListPlayground`'s RecordButton to open bottom-sheet modal that hosts Record/Pause/Stop controls and, after stop, the `AudioPlayerWidget`.
 
-* 5.1. [ ] **UI Test RED:** pragmatic widget test that taps record → modal shows, stop reveals player
-* 5.2. [ ] **Implement GREEN:** update `lib/features/jobs/presentation/pages/job_list_playground.dart` + new `RecorderModal` widget
+* 5.1. [x] **UI Test RED:** pragmatic widget test that taps record → modal shows, stop reveals player
+    * Findings: Created `test/features/jobs/presentation/widgets/recorder_modal_test.dart`. The test suite stubs `AudioCubit` and defines a test that expects `RecorderModal` to show relevant controls (record/stop buttons) and reveal `AudioPlayerWidget` upon stopping. The test currently fails due to missing `RecorderModal` implementation and ungenerated mocks, which is the expected RED state. Path to `RecorderModal` is assumed to be `lib/features/jobs/presentation/widgets/recorder_modal.dart`.
+* 5.2. [x] **Implement GREEN:** update `lib/features/jobs/presentation/pages/job_list_playground.dart` + new `RecorderModal` widget
     * Replace dummy empty-file creation: wait for `AudioCubit` to return the **relative** recorded path, then call `CreateJob`.
-    * Findings: [ ]
-* 5.3.–5.9. [ ] Run tests / analyze / polish
+    * Findings: 
+        * Created `lib/features/jobs/presentation/widgets/recorder_modal.dart`. It displays recording controls (record/pause/resume/stop) and the `AudioPlayerWidget` based on `AudioCubit` state. The associated widget test `recorder_modal_test.dart` now passes.
+        * Updated `lib/features/jobs/presentation/pages/job_list_playground.dart`:
+            * The `RecordButton` now calls `_handleRecordButtonTap`.
+            * `_handleRecordButtonTap` instantiates an `AudioCubit` (with `AudioRecorderServiceImpl` and `AudioPlayerServiceImpl`) and shows `RecorderModal` via `showModalBottomSheet`.
+            * The modal returns the absolute path of the recorded audio file.
+            * A new method `_createJobFromAudioFile` takes this absolute path, converts it to a path relative to the app documents directory (using `path_provider` and `path` packages directly), and then calls `context.read<JobListCubit>().createJob()`.
+            * The old `_createLoremIpsumJob` method, which created dummy files, has been removed.
+            * Path conversion includes a check to ensure the recorded file is within the app documents directory.
+* 5.3.–5.9. [x] Run tests / analyze / polish
 
 ---
 

@@ -1,5 +1,9 @@
+import 'dart:io'; // For Directory type
+
+import 'package:docjet_mobile/core/audio/audio_cubit.dart';
+import 'package:docjet_mobile/core/audio/audio_player_service_impl.dart';
+import 'package:docjet_mobile/core/audio/audio_recorder_service_impl.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
-import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/core/widgets/record_button.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -10,12 +14,16 @@ import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.da
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/job_list_item.dart';
+import 'package:docjet_mobile/features/jobs/presentation/widgets/recorder_modal.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:path/path.dart' as path_pkg; // For relative path calculation
+import 'package:path_provider/path_provider.dart'
+    as path_provider_pkg; // For app docs path
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
 /// This doesn't require tests as it's purely for UI experimentation.
@@ -63,6 +71,9 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
   static final Logger _logger = LoggerFactory.getLogger('JobListPlayground');
   static final String _tag = logTag('JobListPlayground');
 
+  // For managing AudioCubit lifecycle within the modal presentation
+  AudioCubit? _audioCubitForModal;
+
   // Restore original single mock job
   final List<JobViewModel> _mockJobs = [
     JobViewModel(
@@ -76,68 +87,136 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     ),
   ];
 
-  Future<void> _createLoremIpsumJob() async {
+  Future<void> _createJobFromAudioFile(String absoluteAudioPath) async {
     if (widget.isOffline) {
-      _logger.i('$_tag Job creation skipped because offline');
+      _logger.i('$_tag Job creation skipped because offline (from audio file)');
       return;
     }
 
-    _logger.i('$_tag Starting job creation process...');
+    _logger.i(
+      '$_tag Starting job creation from audio file: $absoluteAudioPath',
+    );
 
     try {
-      // Get FileSystem instance
-      final fileSystem = GetIt.instance<FileSystem>();
+      final Directory appDocDir =
+          await path_provider_pkg.getApplicationDocumentsDirectory();
+
+      // Ensure the file ends up inside <docs>/audio/<filename>
+      final String persistentDir = path_pkg.join(appDocDir.path, 'audio');
+      await Directory(persistentDir).create(recursive: true);
+
+      String finalAbsPath = absoluteAudioPath;
+
+      if (!path_pkg.isWithin(appDocDir.path, absoluteAudioPath)) {
+        // Move the file for persistence. Prefer rename; fall back to copy+delete.
+        final String filename = path_pkg.basename(absoluteAudioPath);
+        final String targetPath = path_pkg.join(persistentDir, filename);
+
+        try {
+          finalAbsPath =
+              (await File(absoluteAudioPath).rename(targetPath)).path;
+        } on FileSystemException {
+          _logger.w('$_tag rename failed, falling back to copy+delete.');
+          await File(absoluteAudioPath).copy(targetPath);
+          await File(absoluteAudioPath).delete();
+          finalAbsPath = targetPath;
+        }
+
+        _logger.i('$_tag Moved recording to persistent path: $finalAbsPath');
+      }
+
+      // Compute path relative to docs dir; guard against edge-cases.
+      String relativeAudioPath = path_pkg.relative(
+        finalAbsPath,
+        from: appDocDir.path,
+      );
+      if (relativeAudioPath == '.' || relativeAudioPath.isEmpty) {
+        relativeAudioPath = path_pkg.basename(finalAbsPath);
+      }
+
+      _logger.i('$_tag Using relative audio path: $relativeAudioPath');
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      // Define a relative path for the temporary file
-      final tempFilename = 'playground_temp_$timestamp.m4a';
 
-      // Create an empty file
-      await fileSystem.writeFile(tempFilename, Uint8List(0));
-      _logger.i('$_tag Created empty temporary file: $tempFilename');
-
-      // Use the created filename (relative path) in params
       final params = CreateJobParams(
-        audioFilePath: tempFilename, // Pass the valid relative path
-        text:
-            'Job: $timestamp: Lorem ipsum dolor sit amet,\nconsectetur adipiscing elit.', // Formatted as requested
+        audioFilePath: relativeAudioPath,
+        text: 'Audio Job: $timestamp - recorded audio.',
       );
 
-      _logger.d('$_tag Job params created: $params');
-
-      // Check if the widget is still mounted before using context
       if (!mounted) return;
 
-      _logger.i('$_tag About to call Cubit to create job...');
-
-      // Get Cubit from context and call its createJob method
       context.read<JobListCubit>().createJob(params);
-
-      _logger.i(
-        '$_tag Called Cubit to create new Lorem Ipsum job with temp file: $tempFilename',
-      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Creating new job... Check status at the bottom!'),
-            duration: const Duration(seconds: 2),
+          const SnackBar(
+            content: Text('Creating new job from recording... Check status!'),
+            duration: Duration(seconds: 2),
             backgroundColor: Colors.blue,
           ),
         );
       }
     } catch (e, stackTrace) {
-      _logger.e('$_tag Error creating job: $e');
+      _logger.e('$_tag Error creating job from audio file: $e');
       _logger.e('$_tag Stack trace: $stackTrace');
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating job: ${e.toString()}'),
+            content: Text('Error creating job from audio: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    }
+  }
+
+  Future<void> _handleRecordButtonTap() async {
+    _logger.i('$_tag Record button tapped, preparing to show modal.');
+    if (widget.isOffline) {
+      _logger.i('$_tag Record button action skipped because offline');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot record audio while offline.')),
+      );
+      return;
+    }
+
+    // Instantiate services and cubit for the modal
+    // This is clunky for a widget but okay for a playground.
+    // In a real app, these would be provided via GetIt or a higher-level BlocProvider.
+    final recorderService =
+        AudioRecorderServiceImpl(); // ASSUMPTION: Default constructor
+    final playerService =
+        AudioPlayerServiceImpl(); // Assumes default constructor is fine
+
+    _audioCubitForModal = AudioCubit(
+      recorderService: recorderService,
+      playerService: playerService,
+    );
+
+    final String? recordedFilePath = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder:
+          (_) => BlocProvider<AudioCubit>.value(
+            value: _audioCubitForModal!,
+            child: const RecorderModal(),
+          ),
+    );
+
+    // IMPORTANT: Dispose the cubit when the modal is done.
+    // The cubit might still be used by the modal if it was dismissed by dragging,
+    // so a slight delay or ensuring it's fully gone might be needed in complex scenarios.
+    // For now, a simple close and nullify.
+    await _audioCubitForModal?.close();
+    _audioCubitForModal = null;
+    _logger.d('$_tag AudioCubit for modal closed and nulled.');
+
+    if (recordedFilePath != null && recordedFilePath.isNotEmpty) {
+      _logger.i('$_tag Recorder modal returned file path: $recordedFilePath');
+      // Now create a job with this file path
+      await _createJobFromAudioFile(recordedFilePath);
+    } else {
+      _logger.i('$_tag Recorder modal was dismissed or returned no file path.');
     }
   }
 
@@ -166,6 +245,9 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
 
   @override
   void dispose() {
+    // Ensure the modal's AudioCubit is closed if the playground itself is disposed
+    // while the modal might somehow still be active or the cubit instance exists.
+    _audioCubitForModal?.close();
     super.dispose();
   }
 
@@ -223,21 +305,19 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                                     horizontal: 20.0,
                                   ),
                                   child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment
+                                            .center, // Center content vertically
                                     children: <Widget>[
-                                      const Spacer(
-                                        flex: 2,
-                                      ), // Takes 2/3 of available vertical space above
                                       Text(
                                         'No jobs available. Hit the Record Button to create your first Job.',
                                         textAlign: TextAlign.center,
-                                        style:
-                                            Theme.of(
-                                              context,
-                                            ).textTheme.bodyLarge,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge?.copyWith(
+                                          color: CupertinoColors.secondaryLabel,
+                                        ),
                                       ),
-                                      const Spacer(
-                                        flex: 1,
-                                      ), // Takes 1/3 of available vertical space below
                                     ],
                                   ),
                                 ),
@@ -284,6 +364,10 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                           }
 
                           // Fallback to mock data if cubit is in an unexpected state
+                          // This should ideally not be hit if cubit handles all states.
+                          _logger.w(
+                            '$_tag JobListCubit in unexpected state: $state, showing mock jobs as fallback.',
+                          );
                           return ListView.builder(
                             padding: const EdgeInsets.only(bottom: 120.0),
                             itemCount:
@@ -308,7 +392,9 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
           Positioned(
             bottom: 20,
             right: 20,
-            child: RecordButton(onTap: isOffline ? null : _createLoremIpsumJob),
+            child: RecordButton(
+              onTap: isOffline ? null : _handleRecordButtonTap,
+            ),
           ),
         ],
       ),
