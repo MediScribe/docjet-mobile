@@ -93,6 +93,31 @@ List<Map<String, dynamic>> getAllJobs() {
   return List<Map<String, dynamic>>.from(_jobs);
 }
 
+/// Updates a job by its ID with the given fields.
+/// Returns the updated job map if successful, null otherwise.
+Map<String, dynamic>? updateJob(
+    String jobId, Map<String, dynamic> updatedFields) {
+  final jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
+  if (jobIndex != -1) {
+    updatedFields.forEach((key, value) {
+      // Do not allow changing the ID via this method
+      if (key != 'id') {
+        _jobs[jobIndex][key] = value;
+      }
+    });
+    _jobs[jobIndex]['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    if (verboseLoggingEnabled) {
+      print(
+          'DEBUG JOBSTORE: Updated job $jobId with fields: ${updatedFields.keys}');
+    }
+    return Map<String, dynamic>.from(_jobs[jobIndex]); // Return a copy
+  }
+  if (verboseLoggingEnabled) {
+    print('WARN JOBSTORE: Attempted to update non-existent job ID: $jobId');
+  }
+  return null;
+}
+
 /// Finds a job index by ID. Returns -1 if not found.
 int findJobIndexById(String jobId) {
   final index = _jobs.indexWhere((job) => job['id'] == jobId);

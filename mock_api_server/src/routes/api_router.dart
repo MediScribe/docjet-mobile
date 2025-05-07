@@ -6,16 +6,12 @@ import '../handlers/health_handlers.dart';
 // Import new auth handlers
 import '../handlers/auth_handlers.dart';
 
+// Import new job handlers
+import '../handlers/job_handlers.dart';
+
 // Temporary imports for handlers from server.dart
 // These will be updated in later cycles when handlers are moved.
-import '../../bin/server.dart'
-    show
-        createJobHandler,
-        listJobsHandler,
-        getJobByIdHandler,
-        getJobDocumentsHandler,
-        updateJobHandler,
-        deleteJobHandler;
+import '../../bin/server.dart' show debugHandler;
 
 // Import handlers from debug_handlers.dart (already in its correct location)
 import 'package:mock_api_server/src/debug_handlers.dart';
@@ -49,4 +45,7 @@ final router = Router() // Renamed from _router to router (public)
   ..post('/$versionedApiPath/debug/jobs/reset', resetJobProgressionHandler)
 
   // Debug endpoint for listing all jobs - requires standard API key auth
-  ..get('/$versionedApiPath/debug/jobs/list', listAllJobsHandler);
+  ..get('/$versionedApiPath/debug/jobs/list', listAllJobsHandler)
+
+  // Debug endpoints (assuming these are still in server.dart or will be moved)
+  ..get('/$versionedApiPath/debug', debugHandler);
