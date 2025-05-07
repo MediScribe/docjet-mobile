@@ -1,6 +1,8 @@
 /// Configures and defines the main API router for the mock API server.
 /// It maps URL paths to their respective request handlers for health checks,
 /// authentication, job management, and debugging endpoints.
+library;
+
 import 'package:shelf_router/shelf_router.dart';
 
 // Import new health handler

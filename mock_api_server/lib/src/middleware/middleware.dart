@@ -1,6 +1,7 @@
 /// Defines Shelf middleware functions for the mock API server,
 /// including a debug middleware for logging request/response details
 /// and an authentication middleware for API key validation.
+library;
 // ignore_for_file: avoid_print
 
 import 'dart:convert';

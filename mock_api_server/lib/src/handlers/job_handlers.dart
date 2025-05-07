@@ -1,6 +1,7 @@
 /// Defines request handlers for all job-related CRUD (Create, Read, Update, Delete)
 /// operations, including creating new jobs, listing jobs, retrieving job details,
 /// fetching job documents, updating job statuses/attributes, and deleting jobs.
+library;
 // ignore_for_file: avoid_print
 
 import 'dart:async';

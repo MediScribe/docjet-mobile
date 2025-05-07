@@ -53,19 +53,19 @@ graph TD
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-*   0.1. [ ] **Task:** Define `JobUIIcon` Enum.
+*   0.1. [x] **Task:** Define `JobUIIcon` Enum.
     *   Action: Create `lib/features/jobs/presentation/models/job_ui_icon.dart` and define the `JobUIIcon` enum with the following initial values: `created`, `pendingSync`, `syncError`, `syncFailed`, `fileIssue`, `processing`, `serverError`, `completed`, `pendingDeletion`, `unknown` (as a fallback).
     *   Remember to use proper documentation for each enum value.
-    *   Findings:
-*   0.2. [ ] **Task:** Confirm Error Icon Strategy.
+    *   Findings: Created `lib/features/jobs/presentation/models/job_ui_icon.dart` with the `JobUIIcon` enum and all specified values (`created`, `pendingSync`, `syncError`, `syncFailed`, `fileIssue`, `processing`, `serverError`, `completed`, `pendingDeletion`, `unknown`). Added JSDoc comments for each enum value as requested.
+*   0.2. [x] **Task:** Confirm Error Icon Strategy.
     *   Action: Review the proposed specific error icons (`syncError`, `syncFailed`, `fileIssue`, `serverError`). Decide if this level of granularity is desired or if a single generic `error` icon (merging these) is preferred. For now, we proceed with specific icons.
-    *   Findings:
-*   0.3. [ ] **Update Plan:** Based on findings (especially from 0.2), confirm or adjust the plan for subsequent cycles. The current plan assumes specific error icons.
-    *   Findings:
-*   0.4. [ ] **Handover Brief:**
-    *   Status:
-    *   Gotchas:
-    *   Recommendations:
+    *   Findings: Confirmed the strategy to use specific error icons (`syncError`, `syncFailed`, `fileIssue`, `serverError`) as planned. This provides better granularity for the user.
+*   0.3. [x] **Update Plan:** Based on findings (especially from 0.2), confirm or adjust the plan for subsequent cycles. The current plan assumes specific error icons.
+    *   Findings: The plan for subsequent cycles, which assumes specific error icons, is confirmed and requires no adjustments based on the decision in 0.2.
+*   0.4. [x] **Handover Brief:**
+    *   Status: Cycle 0 is complete. `JobUIIcon` enum defined in `lib/features/jobs/presentation/models/job_ui_icon.dart`. Error icon strategy confirmed (specific icons). Plan for subsequent cycles is locked in.
+    *   Gotchas: None. Smooth sailing, like Wags on a Friday afternoon.
+    *   Recommendations: Proceed to Cycle 1: Implement `JobViewModel.uiIcon` Getter - Happy Paths & Basic States (TDD).
 
 ---
 
@@ -75,9 +75,12 @@ graph TD
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
-*   1.1. [ ] **Research:** Review `JobStatus` and `SyncStatus` enums to ensure accurate mapping to `JobUIIcon.created`, `JobUIIcon.processing`, and `JobUIIcon.completed`.
-    *   Findings:
-*   1.2. [ ] **Tests RED:** Write unit tests for `JobViewModel.uiIcon`.
+*   1.1. [x] **Research:** Review `JobStatus` and `SyncStatus` enums to ensure accurate mapping to `JobUIIcon.created`, `JobUIIcon.processing`, and `JobUIIcon.completed`.
+    *   Findings: Reviewed `JobStatus` and `SyncStatus` enums. The planned mappings are confirmed:
+        *   `JobUIIcon.created`: Maps to `JobStatus.created` when `SyncStatus` is `pending` or `null` (for a new, unsynced job).
+        *   `JobUIIcon.processing`: Maps to `JobStatus.submitted`, `transcribing`, `transcribed`, `generating`, `generated`. `SyncStatus` should ideally be `synced`.
+        *   `JobUIIcon.completed`: Maps to `JobStatus.completed` when `SyncStatus` is `synced` and there are no overriding errors.
+*   1.2. [x] **Tests RED:** Write unit tests for `JobViewModel.uiIcon`.
     *   Test File: `test/features/jobs/presentation/models/job_view_model_test.dart` (create if it doesn't exist, or add to it).
     *   Add a new test group `'JobViewModel - uiIcon Getter'` to clearly separate from existing tests.
     *   Test Description:
@@ -90,28 +93,28 @@ graph TD
         *   `uiIcon should return JobUIIcon.completed when jobStatus is completed and no errors`
     *   Use absolute imports: `import 'package:docjet_mobile/features/jobs/presentation/models/job_ui_icon.dart';`
     *   Run the tests: `./scripts/list_failed_tests.dart test/features/jobs/presentation/models/job_view_model_test.dart --except`
-    *   Findings:
-*   1.3. [ ] **Implement GREEN:** Add the `uiIcon` getter to `JobViewModel` in `lib/features/jobs/presentation/models/job_view_model.dart`. Implement the *minimum* logic to make the tests pass.
+    *   Findings: Added the specified tests to `job_view_model_test.dart`. Made `JobViewModel.syncStatus` nullable to support test cases. Ran tests; they are RED as `uiIcon` is not yet implemented. All according to the fucking plan.
+*   1.3. [x] **Implement GREEN:** Add the `uiIcon` getter to `JobViewModel` in `lib/features/jobs/presentation/models/job_view_model.dart`. Implement the *minimum* logic to make the tests pass.
     *   Use early returns for clearer precedence rather than nested if-else statements.
     *   Add proper documentation explaining the getter's purpose and logic.
     *   Implementation File: `lib/features/jobs/presentation/models/job_view_model.dart`
     *   Remember to use absolute imports for `job_ui_icon.dart`.
-    *   Findings:
-*   1.4. [ ] **Refactor:** Clean up the `uiIcon` getter logic and tests. Ensure clarity and adherence to style guides.
-    *   Findings:
-*   1.5. [ ] **Run Cycle-Specific Tests:**
+    *   Findings: Implemented the `uiIcon` getter in `JobViewModel.dart` with logic for `created`, `processing`, and `completed` states, using early returns and a fallback to `unknown`. Corrected an import path for `JobUIIcon`. Ran tests, all green. Beautiful.
+*   1.4. [x] **Refactor:** Clean up the `uiIcon` getter logic and tests. Ensure clarity and adherence to style guides.
+    *   Findings: Refactored the `uiIcon` getter in `JobViewModel.dart` to use a list and `contains` for checking processing states, improving readability. Tests for happy paths remain clear and did not require refactoring. All tests remain GREEN.
+*   1.5. [x] **Run Cycle-Specific Tests:**
     *   Command: `./scripts/list_failed_tests.dart test/features/jobs/presentation/models/job_view_model_test.dart --except`
-    *   Findings:
-*   1.6. [ ] **Run ALL Unit/Integration Tests:**
+    *   Findings: All 18 tests in `job_view_model_test.dart` passed successfully. The happy path logic for `uiIcon` is correctly implemented and tested.
+*   1.6. [x] **Run ALL Unit/Integration Tests:**
     *   Command: `./scripts/list_failed_tests.dart --except`
-    *   Findings:
-*   1.7. [ ] **Format, Analyze, and Fix:**
+    *   Findings: All 852 unit/integration tests passed. The changes made for `uiIcon` happy paths did not introduce any regressions in other parts of the application. Rock solid.
+*   1.7. [x] **Format, Analyze, and Fix:**
     *   Command: `./scripts/fix_format_analyze.sh`
-    *   Findings:
-*   1.8. [ ] **Handover Brief:**
-    *   Status:
-    *   Gotchas:
-    *   Recommendations:
+    *   Findings: Ran `./scripts/fix_format_analyze.sh`. Script completed successfully. It fixed 5 unrelated dangling library doc comments and formatted 2 files. No analysis issues found related to our work. The codebase is clean.
+*   1.8. [x] **Handover Brief:**
+    *   Status: Cycle 1 is complete. The `uiIcon` getter has been added to `JobViewModel.dart` and successfully implements the happy path logic for `created`, `processing`, and `completed` states. All associated unit tests (`job_view_model_test.dart`) are passing, and all integration tests pass. Code is formatted and analyzed.
+    *   Gotchas: Initially fucked up the import path for `JobUIIcon` in `JobViewModel.dart` (pointed to domain instead of presentation/models), but corrected it swiftly. Confirmed `JobViewModel` needed to accept nullable `SyncStatus` for the `created` (null syncStatus) test case.
+    *   Recommendations: Proceed to Cycle 2: Implement `JobViewModel.uiIcon` Getter - Error & Edge States (TDD). The foundation for happy paths is solid.
 
 ---
 
@@ -120,6 +123,8 @@ graph TD
 **Goal:** Extend `JobViewModel.uiIcon` to correctly identify and prioritize all error states (`fileIssue`, `syncFailed`, `syncError`, `serverError`) and other edge cases like `pendingDeletion`. Ensure robust test coverage for precedence.
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
+
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
 *   2.1. [ ] **Tests RED:** Add unit tests for error states and precedence to `JobViewModel.uiIcon`.
     *   Test File: `test/features/jobs/presentation/models/job_view_model_test.dart`
@@ -171,6 +176,8 @@ graph TD
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
+
 *   3.1. [ ] **Research:** Identify suitable `CupertinoIcons` and appropriate semantic colors for each `JobUIIcon` state.
     *   Findings:
 *   3.2. [ ] **Implement:** Add a private helper method `_buildIcon(JobUIIcon uiIcon)` to `JobListItem` that returns a `Widget` based on the `JobUIIcon`.
@@ -200,6 +207,8 @@ graph TD
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
+
 *   4.1. [ ] **Task:** Modify `_mockJobs` in `JobListPlayground`.
     *   Action: Add new `JobViewModel` instances to the `_mockJobs` list in `lib/features/jobs/presentation/pages/job_list_playground.dart` to cover all defined `JobUIIcon` states. Ensure each mock job has the necessary `jobStatus`, `syncStatus`, and `hasFileIssue` to trigger the desired icon.
     *   Create at least one example for each icon state.
@@ -226,6 +235,8 @@ graph TD
 **Goal:** Ensure all code is pristine, documentation is updated, and all tests pass before considering the feature complete.
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
+
+**APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
 *   N.1. [ ] **Task:** Update Architecture Docs.
     *   File: Add a section to `docs/current/feature-job-presentation.md` about the new `uiIcon` pattern and icon state derivation.

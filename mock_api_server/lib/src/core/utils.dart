@@ -1,5 +1,7 @@
 /// Provides core utility functions and instances, such as UUID generation
 /// and stream reading helpers, for the mock API server.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 
