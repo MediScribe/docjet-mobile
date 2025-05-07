@@ -1,13 +1,15 @@
 import 'package:shelf_router/shelf_router.dart';
 
+// Import new health handler
+import '../handlers/health_handlers.dart';
+
+// Import new auth handlers
+import '../handlers/auth_handlers.dart';
+
 // Temporary imports for handlers from server.dart
 // These will be updated in later cycles when handlers are moved.
 import '../../bin/server.dart'
     show
-        healthHandler,
-        loginHandler,
-        refreshHandler,
-        getUserMeHandler,
         createJobHandler,
         listJobsHandler,
         getJobByIdHandler,
