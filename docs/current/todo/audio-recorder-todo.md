@@ -227,10 +227,32 @@ sequenceDiagram
 
 **Goal** Build slick, reusable Flutter widget displaying Play/Pause button & seek slider tied to `AudioState`, usable anywhere in app.
 
-* 4.1. [ ] **Widget Test RED:** `test/widgets/audio_player_widget_test.dart`
+* 4.1. [x] **Widget Test RED:** `test/widgets/audio_player_widget_test.dart`
     * thumb moves with state updates; drag emits seek
-* 4.2. [ ] **Implement GREEN:** `lib/widgets/audio_player_widget.dart`
-* 4.3.–4.9. [ ] Follow same TDD / Refactor / Test pattern
+    * Findings: Authored a comprehensive 8-test suite (icon rendering, slider ratio, play/pause/seek delegation, reactive rebuild). Used `mockito` to mock `AudioCubit`; initial run failed (RED) as expected.
+* 4.2. [x] **Implement GREEN:** `lib/widgets/audio_player_widget.dart`
+    * Built stateless widget with:
+        1. `BlocBuilder` → `AudioState` subscription (no extra Rx).
+        2. Play/Pause `IconButton`, duration text `mm:ss`, `Slider` with `value = position/duration`.
+        3. Delegates to cubit: `play() / pause() / seek()`.
+    * Findings: After implementation and minor test tweaks, all widget tests turned GREEN.
+* 4.3. [x] **Refactor & Stream Safety**
+    * Switched test `StreamController` to `broadcast`, emitted initial state for late listeners, stubbed `close()` / `isClosed` on mock cubit to silence warnings. Added `_formatDuration` helper & clamped slider value.
+* 4.4. [x] **Run Cycle-Specific Tests:** `./scripts/list_failed_tests.dart test/widgets/audio_player_widget_test.dart --except`
+    * Findings: 0/8 failures; widget behaves as specified.
+* 4.5. [x] **Run ALL Unit/Integration Tests:** `./scripts/list_failed_tests.dart --except`
+    * Findings: Full suite passes; no regressions introduced.
+* 4.6. [x] **Format, Analyze, Fix:** `./scripts/fix_format_analyze.sh`
+    * Findings: No lints; auto-formatter untouched.
+* 4.7. [x] **Handover Brief:**
+    * Status: Cycle 4 DONE. `AudioPlayerWidget` is production-ready & fully covered by 8 widget tests. Re-usable anywhere a `BlocProvider<AudioCubit>` exists – no extra plumbing.
+    * Gotchas:
+        1. `Slider` uses `duration.inMilliseconds` – ensure non-zero to avoid NaN; widget already guards.
+        2. Tests require broadcast stream; remember to seed initial state when mocking cubit.
+        3. If future UI wants "replay" button, condition is `phase == playingPaused && position == duration` (per Cycle 3 note).
+    * Recommendations:
+        1. Cycle 5: Inject widget into Recorder Modal; no additional state management needed.
+        2. Consider theming the `IconButton` size/colors in final polish cycle.
 
 ---
 
