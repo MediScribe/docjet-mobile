@@ -134,6 +134,31 @@ See [Logging Guide](docs/logging_guide.md) for comprehensive examples and implem
 4. Run `flutter run` to start the app in debug mode.
    *Note: For configuring API keys and endpoints (e.g., using the mock server), see the "Configuring the App (API Key & Domain)" section below.*
 
+> **⚠️ IMPORTANT FOR iOS DEVICE TESTING:** The app is configured without special entitlements to allow running on physical iOS devices without a paid Apple Developer account. If you restore any entitlements to `ios/Runner/Runner.entitlements` (such as Autofill Provider capabilities), you will need a paid Apple Developer Program membership to run on physical devices. If you encounter "not eligible for this feature" errors, check that file for entitlements that require paid membership.
+
+## iOS Development Gotchas
+
+### Debug Build Crashes on Standalone Launch
+
+**Symptom:** Your app runs perfectly when launched from Xcode or `flutter run` directly to an iOS device. However, if you stop the app (or disconnect the debugger) and then try to launch it by tapping the app icon on the device, it crashes immediately.
+
+**Cause:** This is expected behavior for **debug builds** on iOS. Debug builds maintain an active connection to the Flutter tooling (Dart VM service) on your development machine for features like hot reload. When this connection is severed and the app is launched standalone, it crashes because it cannot find the required VM service.
+
+**Solution:** This issue does **not** affect `profile` or `release` builds.
+
+*   **For regular development and testing where you want the app to run independently on the device:**
+    Build and run in **release mode**:
+    ```bash
+    flutter run --release
+    ```
+*   **For performance profiling on the device:**
+    Build and run in **profile mode**:
+    ```bash
+    flutter run --profile
+    ```
+
+**Key Takeaway:** If you need to hand off a build to someone to run on their device, or if you want to test the app's cold launch behavior as a user would experience it, **always use a release build (`flutter run --release`)**. Don't be alarmed if a debug build crashes when launched directly on the device after the debugger is detached.
+
 ### Linting
 
 We use the standard `dart analyze` for basic analysis, but we also have custom lint rules (e.g., to prevent misuse of the service locator). To run these custom rules, use the `custom_lint` package runner:
