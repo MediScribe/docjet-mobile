@@ -218,19 +218,28 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                             if (jobs.isEmpty) {
                               // Revert to original behavior when no real jobs are loaded
                               return Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text('No jobs available'),
-                                    const SizedBox(height: 16),
-                                    CupertinoButton(
-                                      onPressed:
-                                          isOffline
-                                              ? null
-                                              : _createLoremIpsumJob,
-                                      child: const Text('Create First Job'),
-                                    ),
-                                  ],
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20.0,
+                                  ),
+                                  child: Column(
+                                    children: <Widget>[
+                                      const Spacer(
+                                        flex: 2,
+                                      ), // Takes 2/3 of available vertical space above
+                                      Text(
+                                        'No jobs available. Hit the Record Button to create your first Job.',
+                                        textAlign: TextAlign.center,
+                                        style:
+                                            Theme.of(
+                                              context,
+                                            ).textTheme.bodyLarge,
+                                      ),
+                                      const Spacer(
+                                        flex: 1,
+                                      ), // Takes 1/3 of available vertical space below
+                                    ],
+                                  ),
                                 ),
                               );
                             }
