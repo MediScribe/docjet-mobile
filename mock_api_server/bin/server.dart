@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
-import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_multipart/shelf_multipart.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart'; // Import JWT library
 
@@ -18,8 +17,10 @@ import '../src/core/utils.dart';
 // Import the new middleware module
 import '../src/middleware/middleware.dart';
 
+// Import the new router module
+import '../src/routes/api_router.dart';
+
 // Import the new debug HANDLERS, including the cleanup function
-import 'package:mock_api_server/src/debug_handlers.dart';
 import 'package:mock_api_server/src/debug_helpers.dart';
 // Import the new job store with a prefix
 import 'package:mock_api_server/src/job_store.dart' as job_store;
@@ -53,41 +54,13 @@ import 'package:mock_api_server/src/config.dart';
 // return utf8.decode(allBytes);
 // }
 
-// Define the router with versioned endpoints
-final _router = Router()
-  // Health check (prefixed)
-  ..get('/$versionedApiPath/health', _healthHandler)
-
-  // Authentication endpoints (prefixed)
-  ..post('/$versionedApiPath/auth/login', _loginHandler)
-  ..post('/$versionedApiPath/auth/refresh-session', _refreshHandler)
-
-  // User profile endpoints (prefixed)
-  ..get('/$versionedApiPath/users/me', _getUserMeHandler)
-
-  // Job endpoints (prefixed)
-  ..post('/$versionedApiPath/jobs', _createJobHandler)
-  ..get('/$versionedApiPath/jobs', _listJobsHandler)
-  ..get('/$versionedApiPath/jobs/<jobId>', _getJobByIdHandler)
-  ..get('/$versionedApiPath/jobs/<jobId>/documents', _getJobDocumentsHandler)
-  ..patch('/$versionedApiPath/jobs/<jobId>', _updateJobHandler)
-  ..delete('/$versionedApiPath/jobs/<jobId>', _deleteJobHandler)
-
-  // Debug endpoints for job progression (Use handlers from debug_handlers.dart)
-  ..post('/$versionedApiPath/debug/jobs/start', startJobProgressionHandler)
-  ..post('/$versionedApiPath/debug/jobs/stop', stopJobProgressionHandler)
-  ..post('/$versionedApiPath/debug/jobs/reset', resetJobProgressionHandler)
-
-  // Debug endpoint for listing all jobs - requires standard API key auth
-  ..get('/$versionedApiPath/debug/jobs/list', listAllJobsHandler);
-
 // Health check handler
-Response _healthHandler(Request request) {
+Response healthHandler(Request request) {
   return Response.ok('OK');
 }
 
 // Login handler logic
-Future<Response> _loginHandler(Request request) async {
+Future<Response> loginHandler(Request request) async {
   if (verboseLoggingEnabled) print('DEBUG: Login handler called');
   // Content-Type check (middleware could also do this, but fine here for simplicity)
   if (request.headers['content-type']
@@ -179,7 +152,7 @@ Future<Response> _loginHandler(Request request) async {
 }
 
 // Refresh handler logic
-Future<Response> _refreshHandler(Request request) async {
+Future<Response> refreshHandler(Request request) async {
   if (verboseLoggingEnabled) print('DEBUG: Refresh handler called');
 
   // Content-Type check
@@ -271,7 +244,7 @@ Future<Response> _refreshHandler(Request request) async {
 }
 
 // NEW Get User Me handler logic
-Future<Response> _getUserMeHandler(Request request) async {
+Future<Response> getUserMeHandler(Request request) async {
   if (verboseLoggingEnabled) print('DEBUG: Get User Me handler called');
 
   // --- JWT Validation ---
@@ -343,7 +316,7 @@ Future<Response> _getUserMeHandler(Request request) async {
 }
 
 // Create Job handler logic
-Future<Response> _createJobHandler(Request request) async {
+Future<Response> createJobHandler(Request request) async {
   if (verboseLoggingEnabled) {
     print(
         'DEBUG CREATE JOB: Content-Type is ${request.headers['content-type']}');
@@ -525,7 +498,7 @@ Future<Response> _createJobHandler(Request request) async {
 }
 
 // List Jobs handler logic
-Future<Response> _listJobsHandler(Request request) async {
+Future<Response> listJobsHandler(Request request) async {
   // Authentication and API key are already handled by middleware
 
   // Prepare the response data - we need to return a list of job summaries.
@@ -553,7 +526,7 @@ Future<Response> _listJobsHandler(Request request) async {
 }
 
 // Get Job by ID handler logic
-Future<Response> _getJobByIdHandler(Request request, String jobId) async {
+Future<Response> getJobByIdHandler(Request request, String jobId) async {
   // Authentication and API key are already handled by middleware
 
   // Find the job by ID
@@ -591,7 +564,7 @@ Future<Response> _getJobByIdHandler(Request request, String jobId) async {
 }
 
 // Get Job Documents handler logic
-Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
+Future<Response> getJobDocumentsHandler(Request request, String jobId) async {
   // Authentication and API key are already handled by middleware
 
   // Find the job by ID first
@@ -630,7 +603,7 @@ Future<Response> _getJobDocumentsHandler(Request request, String jobId) async {
 }
 
 // Update Job handler logic
-Future<Response> _updateJobHandler(Request request, String jobId) async {
+Future<Response> updateJobHandler(Request request, String jobId) async {
   if (verboseLoggingEnabled) {
     print(
         'DEBUG UPDATE JOB: Handler called for jobId: $jobId, Path: ${request.requestedUri.path}, Content-Type: ${request.headers['content-type']}');
@@ -722,7 +695,7 @@ Future<Response> _updateJobHandler(Request request, String jobId) async {
 }
 
 // Job deletion handler
-Future<Response> _deleteJobHandler(Request request, String jobId) async {
+Future<Response> deleteJobHandler(Request request, String jobId) async {
   if (verboseLoggingEnabled) {
     print('DEBUG: Delete job handler called for $jobId');
   }
@@ -776,11 +749,10 @@ Future<void> main(List<String> args) async {
   try {
     // Simplified Main server pipeline
     final handler = const Pipeline()
-        .addMiddleware(logRequests()) // Log requests first
-        .addMiddleware(debugMiddleware()) // Add new debug middleware
-        .addMiddleware(authMiddleware()) // Add new auth middleware
-        // Add the router handler at the end to handle all matched routes
-        .addHandler(_router.call);
+        .addMiddleware(logRequests())
+        .addMiddleware(debugMiddleware())
+        .addMiddleware(authMiddleware())
+        .addHandler(router.call); // Use the new public router
 
     // Create server
     final server = await io.serve(handler, 'localhost', port);

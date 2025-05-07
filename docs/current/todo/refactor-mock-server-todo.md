@@ -141,35 +141,38 @@ mock_api_server/
 
 **MANDATORY REPORTING RULE:** ...
 
-* 3.1. [ ] **Task:** Create and populate `mock_api_server/src/routes/api_router.dart`.
+* 3.1. [x] **Task:** Create and populate `mock_api_server/src/routes/api_router.dart`.
     * Action: Move `_router` instance and its route definitions from `server.dart` to `api_router.dart`. This file will need to import all handler functions.
-    * Findings:
-* 3.2. [ ] **Task:** Update `server.dart` to import and use the new `api_router.dart`.
+    * Findings: Created `mock_api_server/src/routes/api_router.dart` and moved the router definition into it, renaming it from `_router` to `router` (public). Handler functions in `mock_api_server/bin/server.dart` (e.g., `_healthHandler`) were made public (e.g., `healthHandler`) to allow them to be imported via a `show` directive in `api_router.dart`. The `api_router.dart` now imports these public handlers from `../../bin/server.dart` as a temporary measure until handlers are moved in Cycles 4 & 5. The original `_router` definition was removed from `server.dart`. An initial apply model error that commented out the router instead of deleting it was corrected.
+* 3.2. [x] **Task:** Update `server.dart` to import and use the new `api_router.dart`.
     * Action: Add `import '../src/routes/api_router.dart';` and use the router from there in the pipeline.
-    * Findings:
-* 3.3. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
+    * Findings: Added `import '../src/routes/api_router.dart';` to `mock_api_server/bin/server.dart`. The server's `Pipeline` was updated to use `router.call` (from the new module) instead of the previous internal `_router.call`.
+* 3.3. [x] **Task:** Run `dart analyze` on `mock_api_server/`.
     * Action: `./scripts/fix_format_analyze.sh | cat`
-    * Findings:
-* 3.3.1. [ ] **Task:** Run tests.
+    * Findings: The script `./scripts/fix_format_analyze.sh mock_api_server` executed successfully. `dart fix` applied 2 fixes for `unused_import` in `mock_api_server/bin/server.dart`. The formatter made no changes. `dart analyze` reported "No issues found!".
+* 3.3.1. [x] **Task:** Run tests.
     * Action: `./scripts/list_failed_tests.dart mock_api_server --debug | cat`
-    * Findings:
-* 3.4. [ ] **Handover Brief:**
-    * Status: Router logic extracted. `server.dart` imports updated. Analyzer clean. All tests passing.
-    * Gotchas: This is a critical step. Double-check all handler imports in `api_router.dart`.
+    * Findings: All 105 tests in `mock_api_server` passed successfully.
+* 3.4. [x] **Handover Brief:**
+    * Status: Router logic (formerly `_router`) successfully extracted from `mock_api_server/bin/server.dart` into `mock_api_server/src/routes/api_router.dart` (now public as `router`). Handler functions in `server.dart` were made public to allow `api_router.dart` to import them temporarily. `server.dart` was updated to import and use the new `router`. `fix_format_analyze.sh` ran clean (2 unused imports fixed). All 105 tests in `mock_api_server` are passing.
+    * Gotchas:
+        * Initial creation of `api_router.dart` had linter errors because handler functions in `server.dart` were private; this was resolved by making them public in `server.dart` and updating `api_router.dart` to import the public names.
+        * An apply model error occurred when removing the old router definition from `server.dart`, initially commenting it out instead of deleting. This was corrected.
+        * The apply model also previously deleted a large portion of this TODO file (Cycles 4, 5, 6, N), which is being restored with this update.
     * Recommendations: Proceed to Cycle 4: Handler Extraction (Health & Auth).
 
 ---
 
 ## Cycle 4: Extract Health & Auth Handlers
 
-**Goal:** Move `_healthHandler`, `_loginHandler`, `_refreshHandler`, and `_getUserMeHandler` into their respective files in `src/handlers/`.
+**Goal:** Move `healthHandler`, `loginHandler`, `refreshHandler`, and `getUserMeHandler` into their respective files in `src/handlers/`.
 
 **MANDATORY REPORTING RULE:** ...
 
-* 4.1. [ ] **Task:** Create `mock_api_server/src/handlers/health_handlers.dart` and move `_healthHandler`.
-    * Action: Move `_healthHandler`. Add imports (e.g., `package:shelf/shelf.dart`). Update `api_router.dart` to import from here.
+* 4.1. [ ] **Task:** Create `mock_api_server/src/handlers/health_handlers.dart` and move `healthHandler`.
+    * Action: Move `healthHandler`. Add imports (e.g., `package:shelf/shelf.dart`). Update `api_router.dart` to import from here.
     * Findings:
-* 4.2. [ ] **Task:** Create `mock_api_server/src/handlers/auth_handlers.dart` and move `_loginHandler`, `_refreshHandler`, `_getUserMeHandler`.
+* 4.2. [ ] **Task:** Create `mock_api_server/src/handlers/auth_handlers.dart` and move `loginHandler`, `refreshHandler`, `getUserMeHandler`.
     * Action: Move handlers. Add imports (e.g., `dart:convert`, `package:shelf/shelf.dart`, `package:dart_jsonwebtoken/dart_jsonwebtoken.dart`, `../../core/constants.dart`, `../../config.dart`). Update `api_router.dart`.
     * Findings:
 * 4.3. [ ] **Task:** Run `dart analyze` on `mock_api_server/`.
@@ -187,7 +190,7 @@ mock_api_server/
 
 ## Cycle 5: Extract Job Handlers
 
-**Goal:** Move all job-related handlers (`_createJobHandler`, `_listJobsHandler`, `_getJobByIdHandler`, `_getJobDocumentsHandler`, `_updateJobHandler`, `_deleteJobHandler`) to `mock_api_server/src/handlers/job_handlers.dart`.
+**Goal:** Move all job-related handlers (`createJobHandler`, `listJobsHandler`, `getJobByIdHandler`, `getJobDocumentsHandler`, `updateJobHandler`, `deleteJobHandler`) to `mock_api_server/src/handlers/job_handlers.dart`.
 
 **MANDATORY REPORTING RULE:** ...
 
@@ -270,4 +273,4 @@ With these cycles we:
 2. Organized code into logical modules: core, handlers, middleware, routes.
 3. Improved readability, maintainability, and set the stage for easier testing.
 
-No bullshit, no uncertainty – "This is a ' शार्प रेशियो of 4' kind of refactor." 
+No bullshit, no uncertainty – "This is a ' शार्प रेशियो of 4' kind of refactor."
