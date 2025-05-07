@@ -132,11 +132,12 @@ void main() {
       // Act: Pump the widget
       await tester.pumpWidget(createTestWidget(jobViewModel: jobViewModel));
 
-      // Assert: Document icon should be shown
+      // Assert: Check for appropriate icon based on the JobUIIcon that would be generated
+      // For a completed job with no file issues, this should be a check mark circle
       expect(
-        find.byIcon(CupertinoIcons.doc_text),
+        find.byIcon(CupertinoIcons.check_mark_circled_solid),
         findsOneWidget,
-        reason: 'Should show document icon for normal jobs',
+        reason: 'Should show completed icon for normal completed jobs',
       );
     });
   });

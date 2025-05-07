@@ -99,30 +99,30 @@ sequenceDiagram
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 1.1. [ ] **Research:** Study `record` API specifics (pause support timing, path retrieval)
-    * Findings: [ ]
-* 1.2. [ ] **Tests RED:** `test/core/audio/audio_recorder_service_test.dart`
+* 1.1. [x] **Research:** Study `record` API specifics (pause support timing, path retrieval)
+    * Findings: Confirmed `AudioRecorder.start` returns immediately while underlying recording continues, `pause` is supported on all modern platforms but silently no-ops on iOS < 13. `stop()` returns the absolute file path or `null` on failure; therefore we throw on null in impl. No built-in elapsed stream so we roll our own timer.
+* 1.2. [x] **Tests RED:** `test/core/audio/audio_recorder_service_test.dart`
     * should emit elapsed time every 250 ms (mock timer)
     * should return final file path on stop
-    * Findings: [ ]
-* 1.3. [ ] **Implement GREEN:** `lib/core/audio/audio_recorder_service_impl.dart`
+    * Findings: Added four behaviour-centric tests (elapsed stream cadence, pause/resume blocking, stop/ reset, path return). Used an injectable `TestTimer` instead of poking private methods; streams captured via broadcast subscription; no Mockito verification of internals.
+* 1.3. [x] **Implement GREEN:** `lib/core/audio/audio_recorder_service_impl.dart`
     * Throttle elapsed emission to 250 ms.
     * Handle the **iOS pause quirk**: if `pause()` doesn't change plugin state, emit our own `paused` phase so UI stays in sync.
-    * Findings: [ ]
-* 1.4. [ ] **Refactor:** ensure no lints, add docs
-    * Findings: [ ]
-* 1.5. [ ] **Run Cycle-Specific Tests:** `./scripts/list_failed_tests.dart test/core/audio/audio_recorder_service_test.dart --except`
-    * Findings: [ ]
-* 1.6. [ ] **Run ALL Unit/Integration Tests:** `./scripts/list_failed_tests.dart --except`
-    * Findings: [ ]
-* 1.7. [ ] **Format, Analyze, and Fix:** `./scripts/fix_format_analyze.sh`
-    * Findings: [ ]
-* 1.8. [ ] **Run ALL E2E & Stability Tests:** `./scripts/run_all_tests.sh`
-    * Findings: [ ]
-* 1.9. [ ] **Handover Brief:**
-    * Status: [ ]
-    * Gotchas: [ ]
-    * Recommendations: [ ]
+    * Findings: Implemented `_emitElapsed()` called by injectable timer, guarded by `_isPaused`; resets counters on `stop`; throws if `stop` returns null; all public API `Future`s await `record` plugin calls.
+* 1.4. [x] **Refactor:** ensure no lints, add docs
+    * Findings: Removed Mockito `verify` noise, eliminated private-method access in tests, added dart-doc comments to impl & tests; ran `dart analyze`—no warnings; public API unchanged.
+* 1.5. [x] **Run Cycle-Specific Tests:** `./scripts/list_failed_tests.dart test/core/audio/audio_recorder_service_test.dart --except`
+    * Findings: All four tests passed (0 failures, 14 events).
+* 1.6. [x] **Run ALL Unit/Integration Tests:** `./scripts/list_failed_tests.dart --except`
+    * Findings: Found and fixed unrelated test failure in `job_list_item_test.dart` which was checking for an old icon that's been updated. After fixing, all 866 tests pass with no failures.
+* 1.7. [x] **Format, Analyze, and Fix:** `./scripts/fix_format_analyze.sh`
+    * Findings: Code was already properly formatted and all analyzer checks passed without issues.
+* 1.8. [x] **Run ALL E2E & Stability Tests:** `./scripts/run_all_tests.sh`
+    * Findings: All end-to-end tests passed successfully. The audio recorder implementation is stable and does not interfere with any existing functionality.
+* 1.9. [x] **Handover Brief:**
+    * Status: Cycle 1 completed with all tests passing. The `AudioRecorderServiceImpl` provides a robust implementation of the recorder service with proper encapsulation of the `record` package. The elapsed time stream is correctly throttled to emit every 250ms as required. The iOS < 13 pause quirk is properly handled by using our own internal pause state tracking. Error handling is implemented for failed recordings. All tests (unit, integration, E2E) now pass.
+    * Gotchas: 1) Remember that `stop()` returns an absolute path that must be converted to app-relative for storage; 2) Timer must be carefully managed (cancelled in dispose); 3) The record package will silently no-op on `pause()` for iOS < 13, but our implementation correctly handles this by maintaining internal state.
+    * Recommendations: Ready to proceed to Cycle 2 (Implement Core Player Service). The AudioRecorderService implementation is complete, well-tested, and follows the architectural guidelines, including proper stream throttling as outlined in `architecture-audio-reactive-guide.md`.
 
 ---
 
