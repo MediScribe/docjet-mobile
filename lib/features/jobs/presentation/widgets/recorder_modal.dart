@@ -62,6 +62,10 @@ class RecorderModal extends StatelessWidget {
 
         // Use Container for background color and AnimatedSize for content to prevent layout jumps
         return Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(
+            minHeight: 220,
+          ), // Min height instead of fixed height
           decoration: BoxDecoration(color: currentBgColor),
           child: AnimatedSize(
             duration: const Duration(milliseconds: 300),
@@ -71,10 +75,11 @@ class RecorderModal extends StatelessWidget {
                 left: 20,
                 right: 20,
                 top: 20,
-                bottom: 50,
+                bottom: 50, // Restored bottom padding
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (isAudioLoaded)
                     const AudioPlayerWidget()
@@ -87,7 +92,11 @@ class RecorderModal extends StatelessWidget {
                       defaultTextColor,
                     )
                   else
-                    RecordStartButton(onTap: audioCubit.startRecording),
+                    Center(
+                      child: RecordStartButton(
+                        onTap: audioCubit.startRecording,
+                      ),
+                    ),
 
                   if (isAudioLoaded) ...[
                     const SizedBox(height: 16),
