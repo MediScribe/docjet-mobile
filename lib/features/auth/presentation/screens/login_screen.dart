@@ -1,10 +1,20 @@
-import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
-import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
-import 'package:docjet_mobile/features/auth/presentation/widgets/auth_error_message.dart';
-import 'package:docjet_mobile/features/auth/presentation/widgets/auth_loading_indicator.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:docjet_mobile/core/theme/app_theme.dart'; // Import theme utilities
+
+import 'package:docjet_mobile/core/auth/auth_error_type.dart';
+import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
+import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
+import 'package:docjet_mobile/features/auth/presentation/widgets/auth_error_message.dart';
+import 'package:docjet_mobile/features/auth/presentation/widgets/auth_loading_indicator.dart';
+
+// ---------------------------------------------------------------------------
+// String literals extracted for future localisation.
+// ---------------------------------------------------------------------------
+
+const String _kLoginTitle = 'DocJet Login';
+const String _kOfflineButtonText = 'Login Disabled - Your Device is Offline';
+const String _kLoginButtonText = 'Login';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -88,25 +98,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     // Watch the auth state
     final authState = ref.watch(authNotifierProvider);
+    final bool isOffline = authState.isOffline;
     final bool isLoading = authState.status == AuthStatus.loading;
 
     // Get app color tokens
     final appColors = getAppColors(context);
 
-    // Disable button if loading or form is invalid
-    final bool isButtonDisabled = isLoading || !_formValid;
+    // Disable button if loading, form is invalid, or offline
+    final bool isButtonDisabled = isLoading || !_formValid || isOffline;
+
+    // Calculate spacing ~15 % of the available height. Adjust if design changes.
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double topSpacing = screenHeight * 0.15;
 
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('DocJet Login')),
+      // No navigation bar – this page owns the entire screen.
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
             child: AutofillGroup(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Add spacing at the top
+                  SizedBox(height: topSpacing),
+
+                  // Add the title inside the form layout
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: Text(
+                      _kLoginTitle,
+                      style: TextStyle(
+                        fontSize: 26.0,
+                        fontWeight: FontWeight.bold,
+                        color: appColors.brandInteractive.colorBrandPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
                   CupertinoTextField(
                     controller: _emailController,
                     placeholder: 'Email',
@@ -193,13 +225,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // Show server/auth error messages if present
+                  // Show error messages for auth errors only (non-offline errors)
                   if (authState.status == AuthStatus.error &&
-                      authState.errorMessage != null)
+                      authState.errorMessage != null &&
+                      authState.errorType != AuthErrorType.offlineOperation)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 10.0),
+                      padding: const EdgeInsets.only(bottom: 16.0),
                       child: _buildErrorMessage(authState),
                     ),
 
@@ -207,13 +240,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   isLoading
                       ? const AuthLoadingIndicator()
                       : CupertinoButton.filled(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0),
                         onPressed: isButtonDisabled ? null : _handleLogin,
-                        child: const Text('Login'),
+                        disabledColor:
+                            appColors
+                                .brandInteractive
+                                .colorInteractiveSecondaryBackground,
+                        child: Text(
+                          isOffline ? _kOfflineButtonText : _kLoginButtonText,
+                        ),
                       ),
 
-                  // Conditionally display offline indicator
-                  if (authState.isOffline) const SizedBox(height: 10),
-                  if (authState.isOffline) AuthErrorMessage.offlineMode(),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
@@ -224,16 +262,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildErrorMessage(AuthState authState) {
-    // If we have an error type, use it directly
-    if (authState.errorType != null) {
-      return AuthErrorMessage.fromErrorType(
-        authState.errorType!,
-        authState.errorMessage,
-      );
-    }
-
     // Legacy fallback using string matching (should rarely be needed now)
-    final errorMessage = authState.errorMessage!;
+    final String errorMessage = authState.errorMessage ?? '';
 
     if (errorMessage.contains('Invalid credentials') ||
         errorMessage.contains('email or password')) {
@@ -245,7 +275,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return AuthErrorMessage.networkError();
     }
 
-    // Default error message
-    return AuthErrorMessage(errorMessage: errorMessage);
+    // Default error message (for non-offline, unknown cases)
+    return errorMessage.isEmpty
+        ? const SizedBox.shrink()
+        : AuthErrorMessage(errorMessage: errorMessage);
   }
 }

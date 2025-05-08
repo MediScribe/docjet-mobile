@@ -68,9 +68,14 @@ void main() {
       // Act: Let the UI rebuild
       await tester.pump();
 
-      // Assert: Check for the login UI elements AND the offline indicator
+      // Assert: Check for the login UI elements
       expect(find.text('DocJet Login'), findsOneWidget);
-      expect(find.text('Offline Mode'), findsOneWidget);
+
+      // Check for offline status in the button text
+      expect(
+        find.text('Login Disabled - Your Device is Offline'),
+        findsOneWidget,
+      );
     },
   );
 
@@ -135,4 +140,24 @@ void main() {
     // Assert: Check for the loading indicator
     expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
   });
+
+  testWidgets(
+    'Login button is disabled and shows offline label when device is offline',
+    (WidgetTester tester) async {
+      // Arrange: unauthenticated offline state
+      final offlineState = AuthState.initial().copyWith(isOffline: true);
+
+      // Act: Build widget
+      await tester.pumpWidget(createTestWidget(null, offlineState));
+      await tester.pump();
+
+      // Assert: Button is disabled and label reflects offline state
+      final btn = tester.widget<CupertinoButton>(find.byType(CupertinoButton));
+      expect(btn.onPressed, isNull);
+      expect(
+        find.text('Login Disabled - Your Device is Offline'),
+        findsOneWidget,
+      );
+    },
+  );
 }
