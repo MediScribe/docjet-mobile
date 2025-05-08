@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/audio/audio_cubit.dart';
 import 'package:docjet_mobile/core/audio/audio_state.dart';
 import 'package:docjet_mobile/widgets/audio_player_widget.dart';
+import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -75,14 +76,10 @@ class RecorderModal extends StatelessWidget {
                 )
               else
                 // Idle – nothing recorded yet.
-                IconButton(
-                  iconSize: 64,
-                  tooltip: 'Start Recording',
-                  icon: const Icon(
-                    Icons.fiber_manual_record,
-                    color: Colors.red,
-                  ),
-                  onPressed: audioCubit.startRecording,
+                CircleIconButton(
+                  size: 96,
+                  iconSize: 56,
+                  onTap: audioCubit.startRecording,
                 ),
 
               const SizedBox(height: 20),

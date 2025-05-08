@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:docjet_mobile/core/audio/audio_cubit.dart';
 import 'package:docjet_mobile/core/audio/audio_state.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart'; // Import for createLightTheme
+import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/recorder_modal.dart'; // Assuming this will be the location
 import 'package:docjet_mobile/widgets/audio_player_widget.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +11,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'dart:async';
 
 import 'recorder_modal_test.mocks.dart';
 
@@ -56,6 +59,7 @@ void main() {
 
   Widget createTestWidget(Widget child) {
     return MaterialApp(
+      theme: createLightTheme(), // Added theme
       home: Scaffold(
         body: BlocProvider<AudioCubit>.value(
           value: mockAudioCubit,
@@ -88,22 +92,19 @@ void main() {
     await tester.pumpAndSettle(); // Let the widget build
 
     // Assert: Modal is visible (or at least its specific record button)
-    // This is a placeholder assertion. The actual finders will depend on RecorderModal's content.
     expect(
-      find.byIcon(Icons.fiber_manual_record),
+      find.byType(CircleIconButton),
       findsOneWidget,
-      reason: "Record button should be visible in the modal initially",
+      reason: "CircleIconButton should be visible in the modal initially",
     );
     expect(
       find.byType(AudioPlayerWidget),
       findsNothing,
-      reason: "AudioPlayerWidget should not be visible initially",
+      reason: "AudioPlayer should not be visible initially",
     );
 
     // Act: Simulate tapping the record button within the modal
-    // This assumes RecorderModal has a record button that calls mockAudioCubit.startRecording()
-    // Let's say it's an IconButton with Icons.mic
-    await tester.tap(find.byIcon(Icons.fiber_manual_record));
+    await tester.tap(find.byType(CircleIconButton));
     await tester
         .pumpAndSettle(); // Reflect state change from starting recording
 
@@ -155,10 +156,10 @@ void main() {
     );
     // And the record button might be gone or changed
     expect(
-      find.byIcon(Icons.fiber_manual_record),
+      find.byType(CircleIconButton),
       findsNothing,
       reason:
-          "Record button should ideally be gone or changed after stopping and player is visible",
+          "CircleIconButton should be replaced by AudioPlayerWidget after recording is stopped",
     );
   });
 }

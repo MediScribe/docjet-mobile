@@ -1,5 +1,5 @@
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/features/home/presentation/widgets/record_button.dart';
+import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
 import 'package:flutter/material.dart';
 
 // Renamed from MyHomePage
@@ -37,7 +37,7 @@ class TranscriptionsPage extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 40.0),
-              child: RecordButton(
+              child: CircleIconButton(
                 onTap: () {
                   _logger.i('$_tag Record button tapped!');
                   // TODO: Implement recording logic

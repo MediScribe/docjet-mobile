@@ -6,7 +6,7 @@ import 'package:docjet_mobile/core/audio/audio_recorder_service_impl.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/core/widgets/record_button.dart';
+import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
@@ -415,7 +415,8 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
           Positioned(
             bottom: 20,
             right: 20,
-            child: RecordButton(
+            child: CircleIconButton(
+              icon: CupertinoIcons.add,
               onTap: isOffline ? null : _handleRecordButtonTap,
             ),
           ),
