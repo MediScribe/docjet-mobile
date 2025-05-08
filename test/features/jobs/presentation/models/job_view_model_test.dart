@@ -50,13 +50,10 @@ void main() {
     });
 
     // TODO: Update this test when error progress logic is refined
-    test(
-      'should return placeholder 0.7 for error status (pending proper implementation)',
-      () {
-        final viewModel = createProgressViewModel(JobStatus.error);
-        expect(viewModel.progressValue, 0.7); // Reflects current placeholder
-      },
-    );
+    test('should return 1.0 for error status', () {
+      final viewModel = createProgressViewModel(JobStatus.error);
+      expect(viewModel.progressValue, 1.0);
+    });
 
     test('should return 0.0 for pendingDeletion status', () {
       final viewModel = createProgressViewModel(JobStatus.pendingDeletion);

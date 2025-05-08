@@ -58,26 +58,26 @@ class ConfigurableTransientBanner extends StatelessWidget {
     switch (type) {
       case MessageType.info:
         return (
-          background: colors.notificationInfoBackground,
-          foreground: colors.notificationInfoForeground,
+          background: colors.notificationBanners.notificationInfoBackground,
+          foreground: colors.notificationBanners.notificationInfoForeground,
           icon: _typeIcons[type]!,
         );
       case MessageType.success:
         return (
-          background: colors.notificationSuccessBackground,
-          foreground: colors.notificationSuccessForeground,
+          background: colors.notificationBanners.notificationSuccessBackground,
+          foreground: colors.notificationBanners.notificationSuccessForeground,
           icon: _typeIcons[type]!,
         );
       case MessageType.warning:
         return (
-          background: colors.notificationWarningBackground,
-          foreground: colors.notificationWarningForeground,
+          background: colors.notificationBanners.notificationWarningBackground,
+          foreground: colors.notificationBanners.notificationWarningForeground,
           icon: _typeIcons[type]!,
         );
       case MessageType.error:
         return (
-          background: colors.notificationErrorBackground,
-          foreground: colors.notificationErrorForeground,
+          background: colors.notificationBanners.notificationErrorBackground,
+          foreground: colors.notificationBanners.notificationErrorForeground,
           icon: _typeIcons[type]!,
         );
     }

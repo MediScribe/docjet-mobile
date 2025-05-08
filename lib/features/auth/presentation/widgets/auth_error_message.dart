@@ -136,18 +136,18 @@ class AuthErrorMessage extends StatelessWidget {
     if (errorType != null) {
       // Offline mode uses info color
       if (errorType == AuthErrorType.offlineOperation) {
-        return appColors.infoFg;
+        return appColors.baseStatus.infoFg;
       }
 
       // All other errors use danger color
-      return appColors.dangerFg;
+      return appColors.baseStatus.dangerFg;
     }
 
     // Fallback based on message content (legacy support)
     if (errorMessage == 'Offline Mode') {
-      return appColors.infoFg;
+      return appColors.baseStatus.infoFg;
     }
 
-    return appColors.dangerFg;
+    return appColors.baseStatus.dangerFg;
   }
 }

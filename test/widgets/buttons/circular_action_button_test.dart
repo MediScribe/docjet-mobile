@@ -102,9 +102,12 @@ void main() {
 
       // Assert - Verify size is applied
       final SizedBox sizedBox = tester.widget<SizedBox>(
-        find.descendant(
-          of: find.byType(CircularActionButton),
-          matching: find.byType(SizedBox),
+        find.byWidgetPredicate(
+          (Widget widget) =>
+              widget is SizedBox &&
+              widget.width == customSize &&
+              widget.height == customSize,
+          description: 'SizedBox with width and height of $customSize',
         ),
       );
 

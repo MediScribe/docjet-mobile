@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:docjet_mobile/core/audio/audio_cubit.dart';
 import 'package:docjet_mobile/core/audio/audio_state.dart';
 import 'package:docjet_mobile/core/theme/app_theme.dart'; // Import for createLightTheme
-import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
+import 'package:docjet_mobile/core/widgets/buttons/record_start_button.dart';
 import 'package:docjet_mobile/features/jobs/presentation/widgets/recorder_modal.dart'; // Assuming this will be the location
 import 'package:docjet_mobile/widgets/audio_player_widget.dart';
 import 'package:flutter/material.dart';
@@ -93,9 +93,9 @@ void main() {
 
     // Assert: Modal is visible (or at least its specific record button)
     expect(
-      find.byType(CircleIconButton),
+      find.byType(RecordStartButton),
       findsOneWidget,
-      reason: "CircleIconButton should be visible in the modal initially",
+      reason: "RecordStartButton should be visible in the modal initially",
     );
     expect(
       find.byType(AudioPlayerWidget),
@@ -104,7 +104,7 @@ void main() {
     );
 
     // Act: Simulate tapping the record button within the modal
-    await tester.tap(find.byType(CircleIconButton));
+    await tester.tap(find.byType(RecordStartButton));
     await tester
         .pumpAndSettle(); // Reflect state change from starting recording
 
@@ -126,11 +126,12 @@ void main() {
     // We'll need to find it. For now, let's assume it's an icon.
     // If stop button is not present initially, this test will fail here, which is good.
     expect(
-      find.byIcon(Icons.stop),
+      find.byTooltip('Stop Recording'),
       findsOneWidget,
-      reason: "Stop button should be visible after starting recording",
+      reason:
+          "Stop button (via tooltip) should be visible after starting recording",
     );
-    await tester.tap(find.byIcon(Icons.stop));
+    await tester.tap(find.byTooltip('Stop Recording'));
     await tester
         .pumpAndSettle(); // Reflect state change from stopping recording and revealing player
 
@@ -156,10 +157,9 @@ void main() {
     );
     // And the record button might be gone or changed
     expect(
-      find.byType(CircleIconButton),
+      find.byType(RecordStartButton),
       findsNothing,
-      reason:
-          "CircleIconButton should be replaced by AudioPlayerWidget after recording is stopped",
+      reason: "RecordStartButton should be replaced after recording is stopped",
     );
   });
 }

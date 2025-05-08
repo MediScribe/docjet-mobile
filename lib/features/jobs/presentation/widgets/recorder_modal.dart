@@ -39,11 +39,13 @@ class RecorderModal extends StatelessWidget {
 
         switch (audioState.phase) {
           case AudioPhase.recording:
-            currentBgColor = appColors.colorSemanticRecordBackground;
+            currentBgColor =
+                appColors.semanticStatus.colorSemanticRecordBackground;
             isActivelyRecordingOrPaused = true;
             break;
           case AudioPhase.recordingPaused:
-            currentBgColor = appColors.colorSemanticPausedBackground;
+            currentBgColor =
+                appColors.semanticStatus.colorSemanticPausedBackground;
             isActivelyRecordingOrPaused = true;
             break;
           default: // idle, loading, playing, playingPaused
@@ -180,8 +182,10 @@ class RecorderModal extends StatelessWidget {
           icon: const Icon(Icons.check_circle),
           label: const Text('Accept'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: appColors.colorInteractivePrimaryBackground,
-            foregroundColor: appColors.colorInteractivePrimaryForeground,
+            backgroundColor:
+                appColors.brandInteractive.colorInteractivePrimaryBackground,
+            foregroundColor:
+                appColors.brandInteractive.colorInteractivePrimaryForeground,
           ),
           onPressed: () {
             Navigator.of(context).pop(audioCubit.state.filePath);
@@ -191,8 +195,10 @@ class RecorderModal extends StatelessWidget {
           icon: const Icon(Icons.cancel),
           label: const Text('Cancel'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: appColors.colorInteractiveSecondaryBackground,
-            foregroundColor: appColors.colorInteractiveSecondaryForeground,
+            backgroundColor:
+                appColors.brandInteractive.colorInteractiveSecondaryBackground,
+            foregroundColor:
+                appColors.brandInteractive.colorInteractiveSecondaryForeground,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),

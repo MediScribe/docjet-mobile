@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:docjet_mobile/core/audio/audio_cubit.dart';
 import 'package:docjet_mobile/core/audio/audio_state.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/widgets/audio_player_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -46,6 +47,7 @@ void main() {
     // Pump the widget tree
     await tester.pumpWidget(
       MaterialApp(
+        theme: createLightTheme(),
         home: Scaffold(
           body: BlocProvider<AudioCubit>.value(
             value: mockAudioCubit,

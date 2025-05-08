@@ -23,13 +23,13 @@ class OfflineBannerTheme {
   /// Uses theme tokens for consistent offline styling
   static Color getBackgroundColor(BuildContext context) {
     // Use the app's color tokens instead of direct ColorScheme access
-    return getAppColors(context).offlineBg;
+    return getAppColors(context).baseStatus.offlineBg;
   }
 
   /// Get a color scheme adapted foreground color for text and icons
   static Color getForegroundColor(BuildContext context) {
     // Use the app's color tokens instead of direct ColorScheme access
-    return getAppColors(context).offlineFg;
+    return getAppColors(context).baseStatus.offlineFg;
   }
 
   /// Get text style for the banner message, using theme colors

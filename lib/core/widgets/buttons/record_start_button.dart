@@ -37,12 +37,12 @@ class RecordStartButton extends StatelessWidget {
 
     return CircularActionButton(
       size: size,
-      buttonColor: appColors.colorSemanticRecordBackground,
+      buttonColor: appColors.semanticStatus.colorSemanticRecordBackground,
       onTap: onTap,
       tooltip: 'Start recording',
       child: Icon(
         micIcon,
-        color: appColors.colorSemanticRecordForeground,
+        color: appColors.semanticStatus.colorSemanticRecordForeground,
         size: iconSize,
       ),
     );

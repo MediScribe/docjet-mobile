@@ -55,40 +55,52 @@ class JobListItem extends StatelessWidget {
 
     switch (uiIcon) {
       case JobUIIcon.created:
-        return Icon(CupertinoIcons.doc_plaintext, color: appTokens.infoFg);
+        return Icon(
+          CupertinoIcons.doc_plaintext,
+          color: appTokens.baseStatus.infoFg,
+        );
       case JobUIIcon
           .pendingSync: // Currently covered by created in ViewModel logic
-        return Icon(CupertinoIcons.arrow_up_circle, color: appTokens.infoFg);
+        return Icon(
+          CupertinoIcons.arrow_up_circle,
+          color: appTokens.baseStatus.infoFg,
+        );
       case JobUIIcon.syncError:
         return Icon(
           CupertinoIcons.wifi_exclamationmark,
-          color: appTokens.warningFg,
+          color: appTokens.baseStatus.warningFg,
         );
       case JobUIIcon.syncFailed:
-        return Icon(CupertinoIcons.xmark_seal_fill, color: appTokens.dangerFg);
+        return Icon(
+          CupertinoIcons.xmark_seal_fill,
+          color: appTokens.baseStatus.dangerFg,
+        );
       case JobUIIcon.fileIssue:
         return Icon(
           CupertinoIcons.exclamationmark_triangle_fill,
-          color: appTokens.warningFg,
+          color: appTokens.baseStatus.warningFg,
         );
       case JobUIIcon.processing:
-        return Icon(CupertinoIcons.time, color: appTokens.infoFg);
+        return Icon(CupertinoIcons.time, color: appTokens.baseStatus.infoFg);
       case JobUIIcon.serverError:
         return Icon(
           CupertinoIcons.exclamationmark_shield_fill,
-          color: appTokens.dangerFg,
+          color: appTokens.baseStatus.dangerFg,
         );
       case JobUIIcon.completed:
         return Icon(
           CupertinoIcons.check_mark_circled_solid,
-          color: appTokens.successFg,
+          color: appTokens.baseStatus.successFg,
         );
       case JobUIIcon.pendingDeletion:
-        return Icon(CupertinoIcons.trash, color: appTokens.warningFg);
+        return Icon(
+          CupertinoIcons.trash,
+          color: appTokens.baseStatus.warningFg,
+        );
       default: // Fallback for JobUIIcon.unknown and any unhandled or future states
         return Icon(
           CupertinoIcons.question_circle_fill,
-          color: appTokens.infoFg,
+          color: appTokens.baseStatus.infoFg,
         );
     }
   }
@@ -106,8 +118,9 @@ class JobListItem extends StatelessWidget {
     final progressColor =
         job.jobStatus == JobStatus.error
             ? appTokens
+                .baseStatus
                 .dangerFg // Use danger color for errors
-            : appTokens.successFg; // Use success color otherwise
+            : appTokens.baseStatus.successFg; // Use success color otherwise
 
     // WRAP ListTile with Material to provide context needed for ink splashes etc.
     // Use MaterialType.transparency to avoid drawing a Material background.

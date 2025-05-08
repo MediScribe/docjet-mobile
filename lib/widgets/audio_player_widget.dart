@@ -49,7 +49,7 @@ class AudioPlayerWidget extends StatelessWidget {
                       state.phase == AudioPhase.playing
                           ? Icons.pause
                           : Icons.play_arrow,
-                      color: appColors.colorBrandPrimary,
+                      color: appColors.brandInteractive.colorBrandPrimary,
                     ),
                     onPressed: () => _onPlayPausePressed(context, state),
                   ),
@@ -67,11 +67,13 @@ class AudioPlayerWidget extends StatelessWidget {
                 label: 'Seek position',
                 child: SliderTheme(
                   data: SliderThemeData(
-                    activeTrackColor: appColors.colorBrandPrimary,
-                    inactiveTrackColor: appColors.colorBrandSecondary.withAlpha(
-                      76,
-                    ), // 0.3 * 255 = 76
-                    thumbColor: appColors.colorBrandPrimary,
+                    activeTrackColor:
+                        appColors.brandInteractive.colorBrandPrimary,
+                    inactiveTrackColor: appColors
+                        .brandInteractive
+                        .colorBrandSecondary
+                        .withAlpha(76), // 0.3 * 255 = 76
+                    thumbColor: appColors.brandInteractive.colorBrandPrimary,
                   ),
                   child: Slider(
                     value: progress.clamp(0.0, 1.0),

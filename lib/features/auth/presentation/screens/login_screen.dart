@@ -127,6 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         color:
                             _emailError != null
                                 ? appColors
+                                    .baseStatus
                                     .dangerFg // Use theme token for error
                                 : appColors
                                     .outlineColor, // Use outline token for normal state
@@ -141,7 +142,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         _emailError!,
                         style: TextStyle(
                           color:
-                              appColors.dangerFg, // Use theme token for error
+                              appColors
+                                  .baseStatus
+                                  .dangerFg, // Use theme token for error
                           fontSize: 12,
                         ),
                       ),
@@ -168,6 +171,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         color:
                             _passwordError != null
                                 ? appColors
+                                    .baseStatus
                                     .dangerFg // Use theme token for error
                                 : appColors
                                     .outlineColor, // Use outline token for normal state
@@ -182,7 +186,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         _passwordError!,
                         style: TextStyle(
                           color:
-                              appColors.dangerFg, // Use theme token for error
+                              appColors
+                                  .baseStatus
+                                  .dangerFg, // Use theme token for error
                           fontSize: 12,
                         ),
                       ),
