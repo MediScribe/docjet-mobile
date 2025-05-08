@@ -31,6 +31,8 @@ The playground system consists of:
   - Job creation with Lorem Ipsum content
   - Manual sync triggering
   - Offline state simulation (via auth state)
+  - Audio recording and playback via RecorderModal
+  - File persistence with secure path management
 
 ### Notification System Playground
 
@@ -39,6 +41,14 @@ The playground system consists of:
   - Trigger notifications of all types (info, success, warning, error)
   - Test auto-dismiss and manual dismiss behaviors
   - Experiment with rapid sequential notifications
+
+## File Storage in Playground
+
+Files created during playground testing are stored in the application's document directory using the same structure as production:
+
+- **Audio Recordings**: Stored in `<app_documents>/audio/` directory
+- **Test Files**: Although persisted to disk, these files are not synced to the server until explicitly triggered
+- **Cleanup**: Files created in the playground *are* real files consuming device storage and should be cleaned up periodically during development
 
 ## Setup Status
 

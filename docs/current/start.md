@@ -13,11 +13,12 @@ This document serves as the central index for the project documentation.
 
 ### Architecture & Core Concepts
 *   [Overall Architecture](./architecture-overview.md)
-*   [Riverpod Guide](./architecture-riverpod-guide.md)
 *   [API Versioning](./architecture-api-versioning.md)
 *   [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
-*   [UI Theming System](./feature-ui-theming.md)
+*   [Audio Recorder & Player System](./audio-recorder-player.md)
 *   [Offline Detection System](./feature-offline-detection.md)
+*   [Riverpod Guide](./architecture-riverpod-guide.md)
+*   [UI Theming System](./feature-ui-theming.md)
 *   [General Notification System](./todo/feature-general-notifier.md)
 
 ### Feature Deep Dive: Authentication
@@ -66,20 +67,23 @@ This document serves as the central index for the project documentation.
 #### [Overall Architecture](./architecture-overview.md)
 *   **Description**: Outlines the Clean Architecture principles and layered structure (Presentation, Use Cases, Domain, Data, Core) of the DocJet Mobile application, including specific feature architectures, offline profile caching system, and the centralized theming system for consistent UI.
 
-#### [Riverpod Guide](./architecture-riverpod-guide.md)
-*   **Description**: Outlines the approach to using Riverpod with code generation (`@riverpod`) for state management, covering provider definition, generation, the override pattern using GetIt for dependency injection, and best practices.
-
 #### [API Versioning](./architecture-api-versioning.md)
 *   **Description**: Describes the centralized API versioning strategy using `ApiConfig` and environment variables, ensuring consistency across the app and mock server.
 
 #### [Audio Playback & Reactive State](./architecture-audio-reactive-guide.md)
 *   **Description**: Hard-won lessons and guidelines for handling audio playback complexities, reactive stream management (debouncing), state synchronization, and testing to avoid UI flickering and integration issues, based on past failures (`docs/old_system/audio_player_analysis.md`).
 
-#### [UI Theming System](./feature-ui-theming.md)
-*   **Description**: Documents the application's theming architecture based on Flutter's `ThemeExtension` mechanism, detailing `AppColorTokens`, `app_theme.dart`, semantic color usage, light/dark theme support, and how to add new theme tokens.
+#### [Audio Recorder & Player System](./audio-recorder-player.md)
+*   **Description**: Details the comprehensive audio recording and playback system, including the layered architecture (RecorderService, PlayerService, AudioCubit), UI components (RecorderModal, AudioPlayerWidget), file persistence strategies, integration patterns, and implementation best practices. Includes sequence diagrams, component explanations, testing approaches, and known edge-cases like iOS pause quirks and path management.
 
 #### [Offline Detection System](./feature-offline-detection.md)
 *   **Description**: Details the system for detecting network connectivity changes, integrating with the authentication state (`AuthNotifier`), and propagating `OfflineDetected` / `OnlineRestored` events via the `AuthEventBus` for components like the Job sync service to react accordingly.
+
+#### [Riverpod Guide](./architecture-riverpod-guide.md)
+*   **Description**: Outlines the approach to using Riverpod with code generation (`@riverpod`) for state management, covering provider definition, generation, the override pattern using GetIt for dependency injection, and best practices.
+
+#### [UI Theming System](./feature-ui-theming.md)
+*   **Description**: Documents the application's theming architecture based on Flutter's `ThemeExtension` mechanism, detailing `AppColorTokens`, `app_theme.dart`, semantic color usage, light/dark theme support, and how to add new theme tokens.
 
 #### [General Notification System](./todo/feature-general-notifier.md)
 *   **Description**: Details the flexible, application-wide notification system for displaying transient messages (info, success, warning, error) triggered from anywhere in the app. Documents the `AppMessage` data model, `AppNotifierService` for state management, and `ConfigurableTransientBanner` UI component with semantic-color styling and accessibility support.

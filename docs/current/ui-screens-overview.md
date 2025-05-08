@@ -205,6 +205,7 @@ sequenceDiagram
   - Accessible via the central Playground Home
   - Includes offline-aware UI elements that disable actions when offline
   - Uses BlocProvider.value to reuse the existing JobListCubit from the parent context
+  - Integrates audio recording/playback with RecorderModal and FileSystem for persistence
 
 ### NotifierPlaygroundScreen
 - **Path**: `lib/features/playground/notifier_playground.dart`
@@ -262,6 +263,29 @@ The application uses a simple routing approach:
   - Uses Cupertino styling for consistent iOS-like appearance
   - Adapts to the app's theme system for consistent colors
   - Responds to offline state to disable interactions when appropriate
+
+### RecorderModal
+- **Path**: `lib/features/jobs/presentation/widgets/recorder_modal.dart`
+- **Purpose**: Bottom sheet modal for recording audio and providing immediate playback
+- **Current State**: Fully implemented with adaptive UI based on recording/playback state
+- **Key Features**:
+  - Displays recording controls (record/pause/resume/stop) with appropriate state transitions
+  - Shows elapsed time during recording
+  - Reveals AudioPlayerWidget after recording is stopped
+  - Provides Accept/Cancel actions for saving or discarding the recording
+  - Returns absolute file path when accepted, to be used for job creation
+  - Adapts UI based on AudioState from AudioCubit
+
+### AudioPlayerWidget
+- **Path**: `lib/widgets/audio_player_widget.dart`
+- **Purpose**: Reusable widget for audio playback with seek control
+- **Current State**: Fully implemented with reactive UI based on playback state
+- **Key Features**:
+  - Displays play/pause toggle button that adapts to current state
+  - Shows seek slider reflecting current position and allowing drag-to-seek
+  - Displays formatted position and duration text
+  - Updates reactively via BlocBuilder with AudioCubit
+  - Auto-resets to beginning when playback completes
 
 ## Offline Behavior
 
