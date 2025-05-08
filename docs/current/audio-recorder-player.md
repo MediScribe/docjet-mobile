@@ -234,6 +234,10 @@ Reusable UI component displaying:
 - Seek slider showing position and allowing drag-to-seek
 - Current position and duration display
 
+#### Key Implementation Details
+- **Color Theming**: All visual elements (icons, text, slider) derive their colors from `AppColorTokens` to ensure theme consistency.
+- **Accessibility**: Interactive elements within `AudioPlayerWidget`, such as play/pause and seek controls, include appropriate `Semantics` properties (labels, roles, states) to support assistive technologies. This is often achieved by using base components like `CircularActionButton` which have these semantics built-in.
+
 ```dart
 class AudioPlayerWidget extends StatelessWidget {
   const AudioPlayerWidget({super.key});
@@ -249,14 +253,38 @@ class AudioPlayerWidget extends StatelessWidget {
 }
 ```
 
-### 6. RecorderModal
+### 6. Theming and Color System
 
-Bottom sheet modal showing:
-- Record button (transforms to pause when recording)
-- Stop button (appears after recording starts)
-- Elapsed time display during recording
-- `AudioPlayerWidget` after recording is stopped
-- Accept/Cancel buttons for saving or discarding the recording
+The audio UI components leverage a centralized theming system managed by `AppColorTokens`. This class provides a consistent set of color definitions for both light and dark themes, ensuring visual harmony across the application.
+
+**Key Features:**
+
+-   **Centralized Tokens**: `AppColorTokens` defines all primary, interactive, semantic, and status colors used by the audio widgets.
+-   **Composable Structure**: To enhance maintainability and clarity, `AppColorTokens` is composed of several specialized token classes:
+    -   `BaseStatusTokens`: Defines general status colors (e.g., danger, warning, success, info).
+    -   `BrandInteractiveTokens`: Defines CI brand colors and colors for interactive elements.
+    -   `NotificationBannerTokens`: Defines colors specifically for notification banners.
+    -   `SemanticStatusTokens`: Defines colors for semantic states within the UI (e.g., recording, playing).
+-   **Theme Awareness**: Widgets access these tokens via `Theme.of(context).extension<AppColorTokens>()`, ensuring they adapt to the current theme (light/dark).
+-   **Accessibility**: Color choices are made with accessibility contrast ratios in mind.
+
+Widgets like `RecorderModal` and `AudioPlayerWidget` source their background colors, icon colors, and text colors directly from `AppColorTokens`, ensuring a consistent look and feel that aligns with the overall application theme.
+
+### 7. RecorderModal
+
+The `RecorderModal` provides the primary user interface for creating new audio recordings. It's typically presented as a bottom sheet and manages the different phases of audio capture and review.
+
+**Key Features & Implementation Details:**
+
+-   **State-Driven UI**: The modal displays different controls based on the current `AudioPhase` from `AudioCubit`:
+    -   **Idle**: Shows a prominent "Record" button (`RecordStartButton`).
+    -   **Recording**: Displays a timer, along with "Pause" and "Stop" buttons.
+    -   **Paused**: Shows the timer, "Resume," and "Stop" buttons.
+    -   **Loaded (Review)**: Presents the `AudioPlayerWidget` for playback, along with "Accept" and "Cancel/Retake" actions.
+-   **Color Theming**: Consistent with other UI elements, `RecorderModal` sources its background, button, and icon colors from `AppColorTokens`.
+-   **Accessibility**: All interactive controls within the modal (e.g., record, pause, stop, play, accept buttons) are wrapped with appropriate `Semantics` widgets, providing clear labels, button roles, and state information for assistive technologies. This relies on underlying components like `CircularActionButton` and `RecordStartButton`.
+-   **Smooth Transitions**: When transitioning between states (e.g., from recording to paused), the modal uses `AnimatedSize` in conjunction with `Container` background color animations to provide smooth visual feedback without abrupt layout jumps.
+-   **Helper Methods**: Internal UI building logic is encapsulated in private, `static` helper methods (e.g., `_buildRecordingControls`, `_buildActionButtons`) for clarity and efficiency.
 
 ## File Path Management
 
@@ -284,7 +312,7 @@ The `JobListPlayground` demonstrates audio recording/playback integration:
 
 1. Tapping record button opens `RecorderModal` as a bottom sheet
 2. After recording, the modal returns the absolute file path
-3. The path is processed, moved to docs dir, and used to create a job
+3. The path is processed and moved into the app's documents directory (via `FileSystem`), then used to create a job
 
 ```dart
 // Basic integration pattern

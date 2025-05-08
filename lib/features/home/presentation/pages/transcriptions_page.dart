@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
-import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
+import 'package:docjet_mobile/core/widgets/buttons/circular_action_button.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 // Renamed from MyHomePage
@@ -13,6 +14,7 @@ class TranscriptionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appColors = getAppColors(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Transcriptions')),
       body: Stack(
@@ -37,11 +39,14 @@ class TranscriptionsPage extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 40.0),
-              child: CircleIconButton(
+              child: CircularActionButton(
                 onTap: () {
                   _logger.i('$_tag Record button tapped!');
                   // TODO: Implement recording logic
                 },
+                tooltip: 'Start new recording',
+                buttonColor: appColors.primaryActionBg,
+                child: Icon(Icons.mic, color: appColors.primaryActionFg),
               ),
             ),
           ),

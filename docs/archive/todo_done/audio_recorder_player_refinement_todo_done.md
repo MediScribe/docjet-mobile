@@ -254,13 +254,50 @@ By end-game, every state transition above is visually & semantically correct, co
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 5.1. [ ] **Task:** Update `docs/current/audio-recorder-player.md` with new theming semantics & widget hierarchy.
-* 5.2. [ ] **Task:** Purge any dead code (`CircleIconButton` obsolete).
-* 5.3. [ ] **Task:** Ensure license headers present on all new files.
-* 5.4 → 5.5. Run full test & stability suite.
-* 5.6. [ ] **Manual Smoke Test:** Record → play → accept on both iOS & Android simulators.
-* 5.7. [ ] **Code Review & Commit Prep:** Follow Rule 10 & 11 of Hard Bob Workflow.
-* 5.8. [ ] **Handover Brief:** Everything green, ready for a Hard Bob commit.
+* 5.1. [x] **Task:** Update `docs/current/audio-recorder-player.md` with new theming semantics & widget hierarchy.
+    * Findings: Updated `docs/current/audio-recorder-player.md` to reflect the new theming structure and widget enhancements.
+        *   Added a new "Core Components" subsection: `### 6. Theming and Color System`. This section details `AppColorTokens`, its new composable structure (`BaseStatusTokens`, `BrandInteractiveTokens`, `NotificationBannerTokens`, `SemanticStatusTokens`), and how widgets access it.
+        *   Added a new "Core Components" subsection: `### 7. RecorderModal`. This section provides a detailed breakdown of `RecorderModal`'s features, including its state-driven UI, color theming, accessibility features (leveraging `CircularActionButton`), smooth transitions using `AnimatedSize`, and use of static helper methods.
+        *   Enhanced the existing `### 5. AudioPlayerWidget` subsection to include details on its color theming via `AppColorTokens` and its accessibility features, noting its reliance on `CircularActionButton` for semantics.
+        The document now accurately reflects the architectural changes from Cycles 1-3.
+    * Handover Brief: The main audio system documentation (`docs/current/audio-recorder-player.md`) has been updated to include the new `AppColorTokens` structure (composed of `BaseStatusTokens`, `BrandInteractiveTokens`, `NotificationBannerTokens`, `SemanticStatusTokens`) under a new "Theming and Color System" section. Detailed descriptions for `RecorderModal` (including `AnimatedSize` for transitions and accessibility notes) and `AudioPlayerWidget` (including theming and accessibility) have also been added or updated. The document now accurately reflects the current state of the audio components and their theming.
+* 5.2. [x] **Task:** Purge any dead code (`CircleIconButton` obsolete).
+    * Findings: 
+        *   Identified remaining usages of `CircleIconButton` in `lib/features/jobs/presentation/pages/job_list_playground.dart` and `lib/features/home/presentation/pages/transcriptions_page.dart`.
+        *   Refactored these usages to `CircularActionButton`, ensuring they correctly use themed colors (`appColors.primaryActionBg` for `buttonColor` and `appColors.primaryActionFg` for icon color via the `child` parameter) and have appropriate tooltips. This required adding `appColors = getAppColors(context);` to the build methods of both files.
+        *   Determined that the test file `test/core/theme/theme_sensitive_widget_test.dart` (which specifically tested `CircleIconButton`'s theme color usage and custom icon/tooltip) became redundant. `CircularActionButton` receives its colors and icon (as a child) directly, and its own tests cover tooltip functionality.
+        *   Deleted the obsolete `CircleIconButton` source file: `lib/core/widgets/buttons/circle_icon_button.dart`.
+        *   Deleted the obsolete `CircleIconButton` test file: `test/core/theme/theme_sensitive_widget_test.dart`.
+    * Handover Brief: Successfully purged the obsolete `CircleIconButton`. All its usages in `job_list_playground.dart` and `transcriptions_page.dart` have been refactored to use the modern `CircularActionButton`, correctly applying themed colors and tooltips. The dedicated test file for `CircleIconButton` (`test/core/theme/theme_sensitive_widget_test.dart`) was also deleted as its relevant checks are either handled by the new implementation pattern (caller provides themed colors) or covered by `CircularActionButton`'s own tests. The codebase is now cleaner and uses the intended button component.
+* 5.3. [x] **Task:** Ensure license headers present on all new files. ##DELETED##
+    * Findings: User has opted to skip adding license headers. Task deleted.
+    * Handover Brief: Task 5.3 regarding license headers has been removed as per user request.
+* 5.4 → 5.5. [x] Run full test & stability suite.
+    * Findings:
+        *   `./scripts/fix_format_analyze.sh` ran successfully:
+            *   `dart fix`: Nothing to fix.
+            *   `dart format`: 0 files changed.
+            *   `dart analyze`: No issues found.
+        *   `./scripts/run_all_tests.sh` ran successfully:
+            *   All 941 unit tests passed.
+            *   All 105 mock API server tests passed.
+            *   All E2E integration tests passed.
+            *   App stability check (5 seconds with no crashes) passed.
+        The codebase is clean, formatted, analyzed, and all automated tests are green.
+    * Handover Brief: The full test and stability suite has been executed successfully. Code formatting, analysis, unit tests, mock API server tests, E2E tests, and app stability checks all passed without any issues. The application is stable and all verifications are green.
+* 5.6. [x] **Manual Smoke Test:** Record → play → accept on both iOS & Android simulators.
+    * Findings: User confirmed manual smoke test (Record → play → accept on both iOS & Android simulators) was successful.
+    * Handover Brief: Manual smoke testing on simulators passed successfully.
+* 5.7. [x] **Code Review & Commit Prep:** Follow Rule 10 & 11 of Hard Bob Workflow.
+    * Findings:
+        *   User opted to skip explicit `git add .` and `git diff --staged` for detailed review, proceeding directly to final checks.
+        *   `./scripts/fix_format_analyze.sh` passed in the previous step (Task 5.4-5.5).
+        *   User confirmed `./scripts/list_failed_tests.dart --except` passed.
+        *   Code review and commit preparation are considered complete based on these checks and user's green light.
+    * Handover Brief: Code review and commit preparation steps are complete. All automated checks (`fix_format_analyze.sh` and `list_failed_tests.dart`) have passed. The codebase is deemed ready for commit as per user confirmation.
+* 5.8. [x] **Handover Brief:** Everything green, ready for a Hard Bob commit.
+    * Findings: All tasks in Cycle 5 (Documentation Update, Dead Code Purge, Full Test Suite, Manual Smoke Test, and Code Review Prep) are complete. All automated checks and manual verifications passed. The audio recorder/player refinement is feature-complete and stable.
+    * Handover Brief: Cycle 5 is complete. All documentation is updated, obsolete code removed, and the full battery of tests (automated and manual) has passed. The system is green across the board. We are now ready for the "Hard Bob Commit" to integrate all these changes.
 
 ---
 
