@@ -2,6 +2,7 @@ import 'package:docjet_mobile/core/theme/app_color_tokens.dart';
 import 'package:docjet_mobile/core/widgets/buttons/circular_action_button.dart';
 import 'package:docjet_mobile/core/widgets/buttons/record_start_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode, SemanticsFlag;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -108,6 +109,46 @@ void main() {
 
       // Assert
       expect(find.byTooltip('Start recording'), findsOneWidget);
+    });
+
+    testWidgets('exposes Semantics with correct label and enabled state', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      await tester.pumpWidget(createWidgetWithTheme(onTap: () {})); // Enabled
+      // Enable semantics for testing
+      final SemanticsHandle semanticsHandle = tester.ensureSemantics();
+
+      // Find the SemanticsNode for RecordStartButton
+      final SemanticsNode node = tester.getSemantics(
+        find.byType(RecordStartButton),
+      );
+
+      // Assert
+      expect(node.label, 'Start recording');
+      expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+      expect(node.hasFlag(SemanticsFlag.isEnabled), isTrue);
+      semanticsHandle.dispose();
+    });
+
+    testWidgets('exposes Semantics with disabled state when onTap is null', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      await tester.pumpWidget(createWidgetWithTheme(onTap: null)); // Disabled
+      // Enable semantics for testing
+      final SemanticsHandle semanticsHandle = tester.ensureSemantics();
+
+      // Find the SemanticsNode for RecordStartButton
+      final SemanticsNode node = tester.getSemantics(
+        find.byType(RecordStartButton),
+      );
+
+      // Assert
+      expect(node.label, 'Start recording'); // Label should still be present
+      expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+      expect(node.hasFlag(SemanticsFlag.isEnabled), isFalse);
+      semanticsHandle.dispose();
     });
   });
 }

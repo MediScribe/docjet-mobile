@@ -227,5 +227,62 @@ void main() {
       expect(find.byIcon(Icons.pause), findsOneWidget);
       expect(find.byIcon(Icons.play_arrow), findsNothing);
     });
+
+    group('Accessibility Tests', () {
+      testWidgets('Play/Pause button has correct semantics when paused', (
+        WidgetTester tester,
+      ) async {
+        final initialState = AudioState(
+          phase: AudioPhase.playingPaused, // Paused state
+          filePath: 'test.m4a',
+          duration: const Duration(seconds: 60),
+          position: Duration.zero,
+        );
+        await pumpTestWidget(tester, initialState);
+
+        // Retrieve the Tooltip widget and verify its message
+        final Tooltip tooltipWidget = tester.widget<Tooltip>(
+          find.byTooltip('Play'),
+        );
+        expect(tooltipWidget.message, equals('Play'));
+      });
+
+      testWidgets('Play/Pause button has correct semantics when playing', (
+        WidgetTester tester,
+      ) async {
+        final initialState = AudioState(
+          phase: AudioPhase.playing, // Playing state
+          filePath: 'test.m4a',
+          duration: const Duration(seconds: 60),
+          position: Duration.zero,
+        );
+        await pumpTestWidget(tester, initialState);
+
+        // Retrieve the Tooltip widget and verify its message
+        final Tooltip tooltipWidget = tester.widget<Tooltip>(
+          find.byTooltip('Pause'),
+        );
+        expect(tooltipWidget.message, equals('Pause'));
+      });
+
+      testWidgets('Slider has correct accessibility label', (
+        WidgetTester tester,
+      ) async {
+        final initialState = AudioState(
+          phase: AudioPhase.playingPaused,
+          filePath: 'test.m4a',
+          duration: const Duration(seconds: 60),
+          position: Duration.zero,
+        );
+        await pumpTestWidget(tester, initialState);
+
+        // Verify a semantics widget with our label exists in the hierarchy
+        expect(find.bySemanticsLabel('Seek position'), findsOneWidget);
+
+        // Verify the slider itself is present and enabled
+        final Slider slider = tester.widget<Slider>(find.byType(Slider));
+        expect(slider.onChanged != null, isTrue); // Slider is enabled
+      });
+    });
   });
 }

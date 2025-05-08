@@ -81,9 +81,11 @@ class MyApp extends ConsumerWidget {
         themeMode: ThemeMode.system,
         // Use builder to wrap all routes with AppShell
         builder: (context, child) {
-          // This ensures every screen, including those navigated to with push,
-          // are wrapped with AppShell and have access to the offline banner
-          return AppShell(child: child ?? const SizedBox.shrink());
+          // Wrap in Material to provide default text styles for Text widgets
+          return Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: AppShell(child: child ?? const SizedBox.shrink()),
+          );
         },
         // Conditionally show screens based on auth state
         home: _buildHomeBasedOnAuthState(authState),

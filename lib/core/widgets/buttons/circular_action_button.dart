@@ -19,19 +19,23 @@ class CircularActionButton extends StatelessWidget {
   /// Optional tooltip for accessibility.
   final String? tooltip;
 
+  /// Default semantic label when no tooltip is provided.
+  static const String _defaultLabel = 'Action button';
+
   /// Creates a CircularActionButton.
   const CircularActionButton({
     super.key,
     required this.child,
     required this.buttonColor,
     this.onTap,
-    this.size = 64.0,
+    this.size = 64.0, // Default size is >= 48x48
     this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
-    final button = Material(
+    // Build the core button (Material + InkWell)
+    Widget coreButton = Material(
       color: buttonColor,
       shape: const CircleBorder(),
       child: InkWell(
@@ -41,11 +45,23 @@ class CircularActionButton extends StatelessWidget {
       ),
     );
 
-    // Include tooltip if provided
+    Widget visualOutput;
     if (tooltip != null) {
-      return Tooltip(message: tooltip!, child: button);
+      visualOutput = Tooltip(
+        message: tooltip!,
+        excludeFromSemantics: true,
+        child: coreButton,
+      );
+    } else {
+      visualOutput = coreButton;
     }
 
-    return button;
+    return Semantics(
+      label: tooltip ?? _defaultLabel,
+      button: true,
+      enabled: onTap != null,
+      onTap: onTap,
+      child: visualOutput,
+    );
   }
 }
