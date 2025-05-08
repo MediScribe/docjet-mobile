@@ -6,6 +6,19 @@ import 'package:flutter/material.dart';
 /// to the current theme brightness (light/dark) without hardcoding specific color values.
 @immutable
 class AppColorTokens extends ThemeExtension<AppColorTokens> {
+  // --------------------------------------------------------------------------
+  // Brand Color Constants
+  // --------------------------------------------------------------------------
+
+  /// Core brand primary color (CI Blue: #004199).
+  static const Color kBrandPrimaryValue = Color(0xFF004199);
+
+  /// Text/icon color for elements on brand primary background.
+  static const Color kBrandOnPrimaryValue = Colors.white;
+
+  /// Core brand secondary color (CI Light Blue: #65A5FF).
+  static const Color kBrandSecondaryValue = Color(0xFF65A5FF);
+
   /// Primary background color for error/danger states
   final Color dangerBg;
 
@@ -76,6 +89,44 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
   /// Text/Icon color for error notification banners.
   final Color notificationErrorForeground;
 
+  // --------------------------------------------------------------------------
+  // CI Brand & Interactive Colors
+  // --------------------------------------------------------------------------
+
+  /// Core brand primary color (CI Blue: #004199).
+  final Color colorBrandPrimary;
+
+  /// Text/icon color for elements on [colorBrandPrimary] background.
+  final Color colorBrandOnPrimary;
+
+  /// Core brand secondary color (CI Light Blue: #65A5FF).
+  final Color colorBrandSecondary;
+
+  /// Background color for primary interactive elements (e.g., Accept button).
+  final Color colorInteractivePrimaryBackground;
+
+  /// Foreground (text/icon) color for primary interactive elements.
+  final Color colorInteractivePrimaryForeground;
+
+  /// Background color for secondary interactive elements (e.g., Cancel button).
+  final Color colorInteractiveSecondaryBackground;
+
+  /// Foreground (text/icon) color for secondary interactive elements.
+  final Color colorInteractiveSecondaryForeground;
+
+  // --------------------------------------------------------------------------
+  // Semantic Status/Action Colors (Beyond standard interactive)
+  // --------------------------------------------------------------------------
+
+  /// Background color for record action elements.
+  final Color colorSemanticRecordBackground;
+
+  /// Foreground (text/icon) color for record action elements.
+  final Color colorSemanticRecordForeground;
+
+  /// Background color for paused state elements.
+  final Color colorSemanticPausedBackground;
+
   /// Creates an instance of [AppColorTokens] with the given colors.
   const AppColorTokens({
     required this.dangerBg,
@@ -100,6 +151,19 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
     required this.notificationWarningForeground,
     required this.notificationErrorBackground,
     required this.notificationErrorForeground,
+    // Brand Colors
+    required this.colorBrandPrimary,
+    required this.colorBrandOnPrimary,
+    required this.colorBrandSecondary,
+    // Interactive Colors
+    required this.colorInteractivePrimaryBackground,
+    required this.colorInteractivePrimaryForeground,
+    required this.colorInteractiveSecondaryBackground,
+    required this.colorInteractiveSecondaryForeground,
+    // New Semantic Colors
+    required this.colorSemanticRecordBackground,
+    required this.colorSemanticRecordForeground,
+    required this.colorSemanticPausedBackground,
   });
 
   /// Creates the light theme version of [AppColorTokens].
@@ -125,9 +189,9 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       offlineBg: colorScheme.error.withAlpha((255 * 0.1).round()),
       offlineFg: colorScheme.onError.withAlpha((255 * 0.7).round()),
 
-      // Primary action button colors (was record button colors)
-      primaryActionBg: colorScheme.error,
-      primaryActionFg: colorScheme.onError,
+      // Primary action button colors (circular icon buttons)
+      primaryActionBg: kBrandPrimaryValue,
+      primaryActionFg: kBrandOnPrimaryValue,
 
       // Outline color for input fields and borders
       outlineColor: colorScheme.outline,
@@ -144,6 +208,20 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       notificationWarningForeground: Colors.white,
       notificationErrorBackground: Colors.red.shade700,
       notificationErrorForeground: Colors.white,
+
+      // CI Brand & Interactive Colors - Light Theme
+      colorBrandPrimary: kBrandPrimaryValue,
+      colorBrandOnPrimary: kBrandOnPrimaryValue,
+      colorBrandSecondary: kBrandSecondaryValue,
+      colorInteractivePrimaryBackground: kBrandPrimaryValue,
+      colorInteractivePrimaryForeground: kBrandOnPrimaryValue,
+      colorInteractiveSecondaryBackground: Colors.grey.shade600,
+      colorInteractiveSecondaryForeground: Colors.white,
+
+      // Semantic Colors - Light Theme
+      colorSemanticRecordBackground: Colors.red.shade600,
+      colorSemanticRecordForeground: Colors.white,
+      colorSemanticPausedBackground: Colors.blue.shade800,
     );
   }
 
@@ -170,9 +248,9 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
         (0.92 * 255).round(),
       ), // Match iOS system bar opacity
       offlineFg: Colors.white, // White for maximum contrast
-      // Primary action button colors (was record button colors)
-      primaryActionBg: colorScheme.errorContainer,
-      primaryActionFg: colorScheme.onErrorContainer,
+      // Primary action button colors (circular icon buttons)
+      primaryActionBg: kBrandPrimaryValue,
+      primaryActionFg: kBrandOnPrimaryValue,
 
       // Outline color for input fields and borders - darker in dark mode
       outlineColor: colorScheme.outline,
@@ -189,6 +267,20 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
       notificationWarningForeground: Colors.black87,
       notificationErrorBackground: Colors.red.shade800,
       notificationErrorForeground: Colors.white,
+
+      // CI Brand & Interactive Colors - Dark Theme
+      colorBrandPrimary: kBrandPrimaryValue,
+      colorBrandOnPrimary: kBrandOnPrimaryValue,
+      colorBrandSecondary: kBrandSecondaryValue,
+      colorInteractivePrimaryBackground: kBrandPrimaryValue,
+      colorInteractivePrimaryForeground: kBrandOnPrimaryValue,
+      colorInteractiveSecondaryBackground: Colors.grey.shade800,
+      colorInteractiveSecondaryForeground: Colors.white,
+
+      // Semantic Colors - Dark Theme
+      colorSemanticRecordBackground: Colors.red.shade600,
+      colorSemanticRecordForeground: Colors.white,
+      colorSemanticPausedBackground: Colors.blue.shade800,
     );
   }
 
@@ -216,6 +308,16 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
     Color? notificationWarningForeground,
     Color? notificationErrorBackground,
     Color? notificationErrorForeground,
+    Color? colorInteractivePrimaryBackground,
+    Color? colorInteractivePrimaryForeground,
+    Color? colorInteractiveSecondaryBackground,
+    Color? colorInteractiveSecondaryForeground,
+    Color? colorSemanticRecordBackground,
+    Color? colorSemanticRecordForeground,
+    Color? colorSemanticPausedBackground,
+    Color? colorBrandPrimary,
+    Color? colorBrandOnPrimary,
+    Color? colorBrandSecondary,
   }) {
     return AppColorTokens(
       dangerBg: dangerBg ?? this.dangerBg,
@@ -248,6 +350,27 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
           notificationErrorBackground ?? this.notificationErrorBackground,
       notificationErrorForeground:
           notificationErrorForeground ?? this.notificationErrorForeground,
+      colorInteractivePrimaryBackground:
+          colorInteractivePrimaryBackground ??
+          this.colorInteractivePrimaryBackground,
+      colorInteractivePrimaryForeground:
+          colorInteractivePrimaryForeground ??
+          this.colorInteractivePrimaryForeground,
+      colorInteractiveSecondaryBackground:
+          colorInteractiveSecondaryBackground ??
+          this.colorInteractiveSecondaryBackground,
+      colorInteractiveSecondaryForeground:
+          colorInteractiveSecondaryForeground ??
+          this.colorInteractiveSecondaryForeground,
+      colorSemanticRecordBackground:
+          colorSemanticRecordBackground ?? this.colorSemanticRecordBackground,
+      colorSemanticRecordForeground:
+          colorSemanticRecordForeground ?? this.colorSemanticRecordForeground,
+      colorSemanticPausedBackground:
+          colorSemanticPausedBackground ?? this.colorSemanticPausedBackground,
+      colorBrandPrimary: colorBrandPrimary ?? this.colorBrandPrimary,
+      colorBrandOnPrimary: colorBrandOnPrimary ?? this.colorBrandOnPrimary,
+      colorBrandSecondary: colorBrandSecondary ?? this.colorBrandSecondary,
     );
   }
 
@@ -319,6 +442,54 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
             other.notificationErrorForeground,
             t,
           )!,
+      colorInteractivePrimaryBackground:
+          Color.lerp(
+            colorInteractivePrimaryBackground,
+            other.colorInteractivePrimaryBackground,
+            t,
+          )!,
+      colorInteractivePrimaryForeground:
+          Color.lerp(
+            colorInteractivePrimaryForeground,
+            other.colorInteractivePrimaryForeground,
+            t,
+          )!,
+      colorInteractiveSecondaryBackground:
+          Color.lerp(
+            colorInteractiveSecondaryBackground,
+            other.colorInteractiveSecondaryBackground,
+            t,
+          )!,
+      colorInteractiveSecondaryForeground:
+          Color.lerp(
+            colorInteractiveSecondaryForeground,
+            other.colorInteractiveSecondaryForeground,
+            t,
+          )!,
+      colorSemanticRecordBackground:
+          Color.lerp(
+            colorSemanticRecordBackground,
+            other.colorSemanticRecordBackground,
+            t,
+          )!,
+      colorSemanticRecordForeground:
+          Color.lerp(
+            colorSemanticRecordForeground,
+            other.colorSemanticRecordForeground,
+            t,
+          )!,
+      colorSemanticPausedBackground:
+          Color.lerp(
+            colorSemanticPausedBackground,
+            other.colorSemanticPausedBackground,
+            t,
+          )!,
+      colorBrandPrimary:
+          Color.lerp(colorBrandPrimary, other.colorBrandPrimary, t)!,
+      colorBrandOnPrimary:
+          Color.lerp(colorBrandOnPrimary, other.colorBrandOnPrimary, t)!,
+      colorBrandSecondary:
+          Color.lerp(colorBrandSecondary, other.colorBrandSecondary, t)!,
     );
   }
 
@@ -346,6 +517,16 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
     notificationWarningForeground,
     notificationErrorBackground,
     notificationErrorForeground,
+    colorInteractivePrimaryBackground,
+    colorInteractivePrimaryForeground,
+    colorInteractiveSecondaryBackground,
+    colorInteractiveSecondaryForeground,
+    colorSemanticRecordBackground,
+    colorSemanticRecordForeground,
+    colorSemanticPausedBackground,
+    colorBrandPrimary,
+    colorBrandOnPrimary,
+    colorBrandSecondary,
   ]);
 
   @override
@@ -378,5 +559,22 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
           notificationWarningForeground ==
               other.notificationWarningForeground &&
           notificationErrorBackground == other.notificationErrorBackground &&
-          notificationErrorForeground == other.notificationErrorForeground;
+          notificationErrorForeground == other.notificationErrorForeground &&
+          colorInteractivePrimaryBackground ==
+              other.colorInteractivePrimaryBackground &&
+          colorInteractivePrimaryForeground ==
+              other.colorInteractivePrimaryForeground &&
+          colorInteractiveSecondaryBackground ==
+              other.colorInteractiveSecondaryBackground &&
+          colorInteractiveSecondaryForeground ==
+              other.colorInteractiveSecondaryForeground &&
+          colorSemanticRecordBackground ==
+              other.colorSemanticRecordBackground &&
+          colorSemanticRecordForeground ==
+              other.colorSemanticRecordForeground &&
+          colorSemanticPausedBackground ==
+              other.colorSemanticPausedBackground &&
+          colorBrandPrimary == other.colorBrandPrimary &&
+          colorBrandOnPrimary == other.colorBrandOnPrimary &&
+          colorBrandSecondary == other.colorBrandSecondary;
 }

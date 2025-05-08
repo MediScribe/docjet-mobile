@@ -1,6 +1,7 @@
 import 'package:docjet_mobile/core/auth/presentation/auth_notifier.dart';
 import 'package:docjet_mobile/core/auth/presentation/auth_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_page.dart';
+import 'package:docjet_mobile/features/jobs/presentation/pages/job_list_playground.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -65,6 +66,18 @@ class HomeScreen extends ConsumerWidget {
                         );
                       },
               child: const Text('Go to Jobs List'),
+            ),
+            const SizedBox(height: 16),
+            CupertinoButton.filled(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (context) => const JobListPlayground(),
+                  ),
+                );
+              },
+              child: const Text('Go to Job List Playground'),
             ),
           ],
         ),

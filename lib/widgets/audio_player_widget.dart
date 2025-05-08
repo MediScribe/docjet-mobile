@@ -1,5 +1,6 @@
 import 'package:docjet_mobile/core/audio/audio_cubit.dart';
 import 'package:docjet_mobile/core/audio/audio_state.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,6 +18,8 @@ class AudioPlayerWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AudioCubit, AudioState>(
       builder: (context, state) {
+        final appColors = getAppColors(context);
+
         // Don't show player if no file loaded
         if (state.filePath == null) {
           return const SizedBox.shrink();
@@ -46,6 +49,7 @@ class AudioPlayerWidget extends StatelessWidget {
                       state.phase == AudioPhase.playing
                           ? Icons.pause
                           : Icons.play_arrow,
+                      color: appColors.colorBrandPrimary,
                     ),
                     onPressed: () => _onPlayPausePressed(context, state),
                   ),
@@ -58,14 +62,23 @@ class AudioPlayerWidget extends StatelessWidget {
                 ],
               ),
 
-              // Seek Slider with semantics and onChangeEnd (reduce seek spam)
+              // Audio Progress Slider
               Semantics(
                 label: 'Seek position',
-                child: Slider(
-                  value: progress.clamp(0.0, 1.0),
-                  onChanged: (_) {}, // Allow thumb to move
-                  onChangeEnd:
-                      (value) => _onSliderChanged(context, value, state),
+                child: SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: appColors.colorBrandPrimary,
+                    inactiveTrackColor: appColors.colorBrandSecondary.withAlpha(
+                      76,
+                    ), // 0.3 * 255 = 76
+                    thumbColor: appColors.colorBrandPrimary,
+                  ),
+                  child: Slider(
+                    value: progress.clamp(0.0, 1.0),
+                    onChanged: (_) {}, // Allow thumb to move
+                    onChangeEnd:
+                        (value) => _onSliderChanged(context, value, state),
+                  ),
                 ),
               ),
             ],

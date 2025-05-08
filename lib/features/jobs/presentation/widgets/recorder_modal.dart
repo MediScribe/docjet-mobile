@@ -1,12 +1,15 @@
-import 'package:docjet_mobile/core/audio/audio_cubit.dart';
-import 'package:docjet_mobile/core/audio/audio_state.dart';
-import 'package:docjet_mobile/widgets/audio_player_widget.dart';
-import 'package:docjet_mobile/core/widgets/buttons/circle_icon_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Bottom-sheet modal that orchestrates recording & quick playback.
-/// Pops with the **absolute** file path so the caller can persist it.
+import 'package:docjet_mobile/core/audio/audio_cubit.dart';
+import 'package:docjet_mobile/core/audio/audio_state.dart';
+import 'package:docjet_mobile/core/theme/app_color_tokens.dart';
+import 'package:docjet_mobile/core/theme/app_theme.dart';
+import 'package:docjet_mobile/core/widgets/buttons/circular_action_button.dart';
+import 'package:docjet_mobile/core/widgets/buttons/record_start_button.dart';
+import 'package:docjet_mobile/widgets/audio_player_widget.dart';
+
+/// A modal bottom sheet for recording and previewing audio
 class RecorderModal extends StatelessWidget {
   const RecorderModal({super.key});
 
@@ -15,118 +18,192 @@ class RecorderModal extends StatelessWidget {
     return BlocBuilder<AudioCubit, AudioState>(
       builder: (context, audioState) {
         final audioCubit = context.read<AudioCubit>();
+        final appColors = getAppColors(context);
+        final ThemeData theme = Theme.of(context);
+        final Color defaultBgColor =
+            theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface;
 
-        // Are we currently recording or paused?
+        // Determine the state of recording
         final bool isRecordingPhase =
             audioState.phase == AudioPhase.recording ||
             audioState.phase == AudioPhase.recordingPaused;
 
-        // Has a recording finished & been loaded into the player?
         final bool isAudioLoaded =
             audioState.filePath != null &&
             audioState.filePath!.isNotEmpty &&
             !isRecordingPhase;
 
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isAudioLoaded)
-                const AudioPlayerWidget()
-              else if (isRecordingPhase)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Pause / Resume (record) toggle
-                    IconButton(
-                      iconSize: 48,
-                      tooltip:
-                          audioState.phase == AudioPhase.recording
-                              ? 'Pause'
-                              : 'Resume',
-                      icon: Icon(
-                        audioState.phase == AudioPhase.recording
-                            ? Icons.pause
-                            : Icons.fiber_manual_record,
-                        color:
-                            audioState.phase == AudioPhase.recording
-                                ? null
-                                : Colors.red,
-                      ),
-                      onPressed: () {
-                        if (audioState.phase == AudioPhase.recording) {
-                          audioCubit.pauseRecording();
-                        } else {
-                          audioCubit.resumeRecording();
-                        }
-                      },
-                    ),
-                    // Stop button → finalises recording, keep modal open so user can review playback.
-                    IconButton(
-                      iconSize: 48,
-                      tooltip: 'Stop Recording',
-                      icon: const Icon(Icons.stop),
-                      onPressed: () async {
-                        await audioCubit.stopRecording();
-                        // The modal stays open; when user dismisses, WillPopScope will pop with file path.
-                      },
-                    ),
-                  ],
-                )
-              else
-                // Idle – nothing recorded yet.
-                CircleIconButton(
-                  size: 96,
-                  iconSize: 56,
-                  onTap: audioCubit.startRecording,
-                ),
+        // Determine background color based on state using theme tokens
+        Color currentBgColor;
+        bool isActivelyRecordingOrPaused = false;
 
-              const SizedBox(height: 20),
+        switch (audioState.phase) {
+          case AudioPhase.recording:
+            currentBgColor = appColors.colorSemanticRecordBackground;
+            isActivelyRecordingOrPaused = true;
+            break;
+          case AudioPhase.recordingPaused:
+            currentBgColor = appColors.colorSemanticPausedBackground;
+            isActivelyRecordingOrPaused = true;
+            break;
+          default: // idle, loading, playing, playingPaused
+            currentBgColor = defaultBgColor;
+            isActivelyRecordingOrPaused = false;
+        }
 
-              if (isRecordingPhase)
-                Text(
-                  'Recording: ${_formatDuration(audioState.position)}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+        // Determine default text color based on background
+        final Color defaultTextColor =
+            isActivelyRecordingOrPaused
+                ? Colors
+                    .white // Keep white for red/blue semantic backgrounds
+                : theme.textTheme.bodyMedium?.color ?? Colors.black;
 
-              if (isAudioLoaded) ...[
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.check_circle, color: Colors.white),
-                      label: const Text('Accept'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).pop(audioCubit.state.filePath);
-                      },
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.cancel),
-                      label: const Text('Cancel'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          color: currentBgColor,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: 50,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isAudioLoaded)
+                  const AudioPlayerWidget()
+                else if (isRecordingPhase)
+                  _buildRecordingControls(
+                    context,
+                    audioState,
+                    audioCubit,
+                    theme,
+                    defaultTextColor,
+                  )
+                else
+                  RecordStartButton(onTap: audioCubit.startRecording),
+
+                if (isAudioLoaded) ...[
+                  const SizedBox(height: 16),
+                  _buildActionButtons(context, audioCubit, appColors),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },
     );
   }
 
+  /// Builds the recording controls UI section
+  Widget _buildRecordingControls(
+    BuildContext context,
+    AudioState audioState,
+    AudioCubit audioCubit,
+    ThemeData theme,
+    Color textColor,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          _formatDuration(audioState.position),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8.0),
+        Text(
+          audioState.phase == AudioPhase.recording
+              ? 'Recording'
+              : 'Recording paused',
+          style: theme.textTheme.titleMedium?.copyWith(color: textColor),
+        ),
+        const SizedBox(height: 24.0),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            if (audioState.phase == AudioPhase.recording)
+              CircularActionButton(
+                tooltip: 'Pause',
+                buttonColor: Colors.white,
+                size: 64.0,
+                onTap: audioCubit.pauseRecording,
+                child: const Icon(Icons.pause, size: 32.0, color: Colors.red),
+              )
+            else if (audioState.phase == AudioPhase.recordingPaused)
+              CircularActionButton(
+                tooltip: 'Resume',
+                buttonColor: Colors.white,
+                size: 64.0,
+                onTap: audioCubit.resumeRecording,
+                child: const Icon(
+                  Icons.play_arrow,
+                  size: 40.0,
+                  color: Colors.red,
+                ),
+              ),
+            CircularActionButton(
+              tooltip: 'Stop Recording',
+              buttonColor: Colors.white,
+              size: 64.0,
+              onTap: () async {
+                await audioCubit.stopRecording();
+              },
+              child: Container(
+                width: 28.0,
+                height: 28.0,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Builds the action buttons (Accept/Cancel) for the audio playback UI
+  Widget _buildActionButtons(
+    BuildContext context,
+    AudioCubit audioCubit,
+    AppColorTokens appColors,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton.icon(
+          icon: const Icon(Icons.check_circle),
+          label: const Text('Accept'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: appColors.colorInteractivePrimaryBackground,
+            foregroundColor: appColors.colorInteractivePrimaryForeground,
+          ),
+          onPressed: () {
+            Navigator.of(context).pop(audioCubit.state.filePath);
+          },
+        ),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.cancel),
+          label: const Text('Cancel'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: appColors.colorInteractiveSecondaryBackground,
+            foregroundColor: appColors.colorInteractiveSecondaryForeground,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+
+  /// Formats duration for display
   String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    final twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$twoDigitMinutes:$twoDigitSeconds';
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 }

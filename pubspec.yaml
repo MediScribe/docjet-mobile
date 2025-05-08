@@ -70,7 +70,6 @@ dependencies:
   intl:
   jwt_decoder:
   stack_trace:
-  mockito:
   shared_preferences: 
   meta: # Moved from dev_dependencies for @visibleForTesting
   record: ^6.0.0
@@ -83,6 +82,7 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   test:
+  mockito:
 
   # Dev Dependencies from old project
   bloc_test: # Testing for bloc/cubit state management
