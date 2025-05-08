@@ -275,6 +275,23 @@ sequenceDiagram
             * Path conversion includes a check to ensure the recorded file is within the app documents directory.
 * 5.3.–5.9. [x] Run tests / analyze / polish
 
+* 5.9. [x] **Handover Brief:**
+     * Status: Cycle 5 fully integrated into JobListPlayground. Modal opens, records, auto-rewinds on completion, returns absolute path; playground converts to app-relative path via FileSystem abstraction and creates a Job.
+     * Gotchas & Workarounds (KEEP for posterity):
+        * **Direct dart:io vs FileSystem** – our first implementation wrote straight to `dart:io` which bypassed traversal guards and made tests brittle. We refactored to the DI-backed `FileSystem` API; remember to always fetch it via `GetIt.instance<FileSystem>()`.
+        * **Cache → Docs Move** – `record` saves to `/tmp` or `/Caches` on iOS; we now _move_ the file into `<docs>/audio/` with `FileSystem.writeFile()` + source delete. This prevents cache eviction and keeps paths relative for sync.
+        * **Relative Path Edge-Case** – when the recording already lives _inside_ the docs dir, `path.relative()` can return `'.'`. Guard it and fall back to `basename`.
+        * **Auto-Rewind Behaviour** – when `ProcessingState.completed` fires we auto-pause and seek(0). UI finished-state predicate is now `phase == playingPaused && position == Duration.zero` – docs updated.
+        * **Widget Test Flakes** – throttled streams need explicit `pump(Duration(milliseconds:250))` rather than `pumpAndSettle()` to avoid random timeouts.
+        * **Mockito Pain** – generic stubbing for `just_audio` is unreliable under NNBD; prefer hand-rolled `FakeAudioPlayer`.
+        * **Generated Mock Bloat** – `.mocks.dart` files balloon to 800 LOC; keep them but ensure they're git-ignored if not required in review diffs.
+        * **Navigator Lifecycle** – always `await cubit.close()` AFTER modal is popped to avoid race conditions where the modal rebuilds on dispose.
+        * **Logger PII** – absolute paths in prod logs are a privacy leak; truncate or hash before shipping.
+     * Recommendations:
+         * Run `./scripts/fix_format_analyze.sh` after every Dart-side refactor – the `foundation.dart` import already exposes `Uint8List`, so keep imports minimal.
+         * Before tackling background playback (if ever), extract the move-to-docs logic into `FileSystem.moveToPersistent()` helper to avoid repetition.
+         * Keep widget tests small; one behaviour per test, mock Cubit stream with `broadcast`.
+
 ---
 
 ## Cycle N: Final Polish, Documentation & Cleanup
