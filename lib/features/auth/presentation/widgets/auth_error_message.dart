@@ -117,6 +117,30 @@ class AuthErrorMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appColors = getAppColors(context); // Get app colors
+
+    // Special handling for offline mode to include a background
+    if (errorType == AuthErrorType.offlineOperation) {
+      return Container(
+        color: appColors.baseStatus.offlineBg, // Use offlineBg for background
+        width: double.infinity, // Ensure container takes full width
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 8.0,
+            horizontal: 16.0,
+          ), // Adjusted padding
+          child: Text(
+            errorMessage,
+            style: TextStyle(
+              color: appColors.baseStatus.offlineFg,
+            ), // Use offlineFg for text
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    // Default rendering for other error types
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
       child: Text(
@@ -134,18 +158,28 @@ class AuthErrorMessage extends StatelessWidget {
 
     // If explicit error type is provided, use it
     if (errorType != null) {
-      // Offline mode uses info color
+      // Offline mode uses its specific foreground color
       if (errorType == AuthErrorType.offlineOperation) {
-        return appColors.baseStatus.infoFg;
+        // This case should ideally be handled by the main build method's dedicated offline UI,
+        // but if called directly, use the correct offline foreground.
+        return appColors.baseStatus.offlineFg;
       }
+      // Info messages (if we had a generic info type separate from offline)
+      // else if (errorType == AuthErrorType.info) { // Example
+      //   return appColors.baseStatus.infoFg;
+      // }
 
       // All other errors use danger color
       return appColors.baseStatus.dangerFg;
     }
 
     // Fallback based on message content (legacy support)
+    // This section might need review if "Offline Mode" text is still possible
+    // without errorType being AuthErrorType.offlineOperation.
     if (errorMessage == 'Offline Mode') {
-      return appColors.baseStatus.infoFg;
+      // Assuming this also implies an offline state, use offlineFg.
+      // However, relying on errorType is more robust.
+      return appColors.baseStatus.offlineFg;
     }
 
     return appColors.baseStatus.dangerFg;

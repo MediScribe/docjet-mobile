@@ -80,8 +80,8 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
         successFg: Colors.green.shade700,
         infoBg: colorScheme.primary.withAlpha((255 * 0.1).round()),
         infoFg: colorScheme.primary,
-        offlineBg: colorScheme.error.withAlpha((255 * 0.1).round()),
-        offlineFg: colorScheme.onError.withAlpha((255 * 0.7).round()),
+        offlineBg: colorScheme.error,
+        offlineFg: colorScheme.onError,
       ),
       // Primary action button colors (circular icon buttons)
       primaryActionBg: kBrandPrimaryValue,
@@ -138,10 +138,8 @@ class AppColorTokens extends ThemeExtension<AppColorTokens> {
         successFg: Colors.green.shade100, // Lighter color for contrast
         infoBg: colorScheme.primaryContainer.withAlpha((255 * 0.7).round()),
         infoFg: colorScheme.onPrimaryContainer,
-        offlineBg: colorScheme.error.withAlpha(
-          (0.92 * 255).round(),
-        ), // Match iOS system bar opacity
-        offlineFg: Colors.white, // White for maximum contrast
+        offlineBg: colorScheme.error,
+        offlineFg: colorScheme.onError,
       ),
 
       // Primary action button colors (circular icon buttons)
