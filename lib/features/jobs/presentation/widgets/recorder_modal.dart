@@ -60,37 +60,41 @@ class RecorderModal extends StatelessWidget {
                     .white // Keep white for red/blue semantic backgrounds
                 : theme.textTheme.bodyMedium?.color ?? Colors.black;
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          color: currentBgColor,
-          child: Padding(
-            padding: const EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: 50,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isAudioLoaded)
-                  const AudioPlayerWidget()
-                else if (isRecordingPhase)
-                  _buildRecordingControls(
-                    context,
-                    audioState,
-                    audioCubit,
-                    theme,
-                    defaultTextColor,
-                  )
-                else
-                  RecordStartButton(onTap: audioCubit.startRecording),
+        // Use Container for background color and AnimatedSize for content to prevent layout jumps
+        return Container(
+          decoration: BoxDecoration(color: currentBgColor),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: 50,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isAudioLoaded)
+                    const AudioPlayerWidget()
+                  else if (isRecordingPhase)
+                    _buildRecordingControls(
+                      context,
+                      audioState,
+                      audioCubit,
+                      theme,
+                      defaultTextColor,
+                    )
+                  else
+                    RecordStartButton(onTap: audioCubit.startRecording),
 
-                if (isAudioLoaded) ...[
-                  const SizedBox(height: 16),
-                  _buildActionButtons(context, audioCubit, appColors),
+                  if (isAudioLoaded) ...[
+                    const SizedBox(height: 16),
+                    _buildActionButtons(context, audioCubit, appColors),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -99,7 +103,7 @@ class RecorderModal extends StatelessWidget {
   }
 
   /// Builds the recording controls UI section
-  Widget _buildRecordingControls(
+  static Widget _buildRecordingControls(
     BuildContext context,
     AudioState audioState,
     AudioCubit audioCubit,
@@ -170,7 +174,7 @@ class RecorderModal extends StatelessWidget {
   }
 
   /// Builds the action buttons (Accept/Cancel) for the audio playback UI
-  Widget _buildActionButtons(
+  static Widget _buildActionButtons(
     BuildContext context,
     AudioCubit audioCubit,
     AppColorTokens appColors,
@@ -207,7 +211,7 @@ class RecorderModal extends StatelessWidget {
   }
 
   /// Formats duration for display
-  String _formatDuration(Duration duration) {
+  static String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';

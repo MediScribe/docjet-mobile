@@ -16,33 +16,45 @@ import 'recorder_modal_test.mocks.dart';
 
 // ignore_for_file: void_checks
 
+// Manual Navigator Observer mock
+class MockNavigatorObserver extends Mock implements NavigatorObserver {
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {}
+}
+
 @GenerateMocks([AudioCubit, Stream])
 void main() {
   late MockAudioCubit mockAudioCubit;
   late StreamController<AudioState> audioStateController;
+  late MockNavigatorObserver mockNavigatorObserver;
 
   setUp(() {
     mockAudioCubit = MockAudioCubit();
     audioStateController = StreamController<AudioState>.broadcast();
+    mockNavigatorObserver = MockNavigatorObserver();
 
     // Stub the stream getter
     when(mockAudioCubit.stream).thenAnswer((_) => audioStateController.stream);
-    // Stub the state getter
+    // Stub the state getter with the initial state
     when(mockAudioCubit.state).thenReturn(const AudioState.initial());
 
-    // Stub other methods that might be called during interactions
-    when(mockAudioCubit.startRecording()).thenAnswer((_) async {});
-    when(mockAudioCubit.stopRecording()).thenAnswer((_) async {
-      // Simulate file path being available after stopping
-      audioStateController.add(
-        const AudioState(
-          phase: AudioPhase.idle,
-          filePath: '/fake/path/to/audio.m4a',
-          position: Duration.zero,
-          duration: Duration(seconds: 10),
-        ),
-      );
+    // Stub methods that might be called during interactions
+    when(mockAudioCubit.startRecording()).thenAnswer((_) async {
+      // We don't emit from here as tests will control state transitions
     });
+
+    when(mockAudioCubit.pauseRecording()).thenAnswer((_) async {
+      // We don't emit from here as tests will control state transitions
+    });
+
+    when(mockAudioCubit.resumeRecording()).thenAnswer((_) async {
+      // We don't emit from here as tests will control state transitions
+    });
+
+    when(mockAudioCubit.stopRecording()).thenAnswer((_) async {
+      // We don't emit from here as tests will control state transitions
+    });
+
     when(mockAudioCubit.loadAudio(any)).thenAnswer((_) async {});
     when(mockAudioCubit.play()).thenAnswer((_) async {});
     when(mockAudioCubit.pause()).thenAnswer((_) async {});
@@ -53,13 +65,33 @@ void main() {
 
   tearDown(() {
     audioStateController.close();
-    // It's good practice to close the mock cubit if it had a close method,
-    // but since we're mocking it with thenAnswer for close(), it's fine.
   });
+
+  /// Helper function to emit a specific AudioState and update mockAudioCubit.state
+  void emitAudioState(AudioState state) {
+    when(mockAudioCubit.state).thenReturn(state);
+    audioStateController.add(state);
+  }
+
+  /// Helper function to create test states for each AudioPhase
+  AudioState createAudioState({
+    AudioPhase phase = AudioPhase.idle,
+    Duration position = Duration.zero,
+    Duration duration = Duration.zero,
+    String? filePath,
+  }) {
+    return AudioState(
+      phase: phase,
+      position: position,
+      duration: duration,
+      filePath: filePath,
+    );
+  }
 
   Widget createTestWidget(Widget child) {
     return MaterialApp(
       theme: createLightTheme(), // Added theme
+      navigatorObservers: [mockNavigatorObserver],
       home: Scaffold(
         body: BlocProvider<AudioCubit>.value(
           value: mockAudioCubit,
@@ -68,9 +100,6 @@ void main() {
       ),
     );
   }
-
-  // Removed unused openRecorderModal function
-  // Future<void> openRecorderModal(WidgetTester tester) async { ... }
 
   testWidgets('tapping record shows modal, stopping reveals player', (
     WidgetTester tester,
@@ -162,4 +191,282 @@ void main() {
       reason: "RecordStartButton should be replaced after recording is stopped",
     );
   });
+
+  // Testing IDLE state (no recording)
+  testWidgets('in idle state, only RecordStartButton is visible', (
+    WidgetTester tester,
+  ) async {
+    // Set up initial idle state (no file)
+    emitAudioState(createAudioState(phase: AudioPhase.idle));
+
+    // Build modal
+    await tester.pumpWidget(createTestWidget(const RecorderModal()));
+    await tester.pumpAndSettle();
+
+    // Verify only RecordStartButton is visible
+    expect(
+      find.byType(RecordStartButton),
+      findsOneWidget,
+      reason: "RecordStartButton should be visible in idle state",
+    );
+
+    // Verify other elements are not visible
+    expect(
+      find.byType(AudioPlayerWidget),
+      findsNothing,
+      reason: "AudioPlayerWidget should not be visible in idle state",
+    );
+    expect(
+      find.text("Recording"),
+      findsNothing,
+      reason: "Recording text should not be visible in idle state",
+    );
+    expect(
+      find.text("Recording paused"),
+      findsNothing,
+      reason: "Recording paused text should not be visible in idle state",
+    );
+    expect(
+      find.byTooltip("Pause"),
+      findsNothing,
+      reason: "Pause button should not be visible in idle state",
+    );
+    expect(
+      find.byTooltip("Resume"),
+      findsNothing,
+      reason: "Resume button should not be visible in idle state",
+    );
+    expect(
+      find.byTooltip("Stop Recording"),
+      findsNothing,
+      reason: "Stop button should not be visible in idle state",
+    );
+
+    // Verify no action buttons
+    expect(
+      find.text("Accept"),
+      findsNothing,
+      reason: "Accept button should not be visible in idle state",
+    );
+    expect(
+      find.text("Cancel"),
+      findsNothing,
+      reason: "Cancel button should not be visible in idle state",
+    );
+  });
+
+  // Testing RECORDING state
+  testWidgets('in recording state, shows timer, pause and stop buttons', (
+    WidgetTester tester,
+  ) async {
+    // Set up recording state
+    final recordingState = createAudioState(
+      phase: AudioPhase.recording,
+      position: const Duration(minutes: 1, seconds: 30),
+    );
+    emitAudioState(recordingState);
+
+    // Build modal
+    await tester.pumpWidget(createTestWidget(const RecorderModal()));
+    await tester.pumpAndSettle();
+
+    // Verify timer is displayed with correct format
+    expect(
+      find.text("01:30"),
+      findsOneWidget,
+      reason: "Timer should show correct duration in recording state",
+    );
+
+    // Verify "Recording" text is displayed
+    expect(
+      find.text("Recording"),
+      findsOneWidget,
+      reason: "'Recording' text should be displayed in recording state",
+    );
+
+    // Verify correct buttons are shown
+    expect(
+      find.byTooltip("Pause"),
+      findsOneWidget,
+      reason: "Pause button should be visible in recording state",
+    );
+    expect(
+      find.byTooltip("Stop Recording"),
+      findsOneWidget,
+      reason: "Stop button should be visible in recording state",
+    );
+
+    // Verify other elements are not visible
+    expect(
+      find.byType(RecordStartButton),
+      findsNothing,
+      reason: "RecordStartButton should not be visible in recording state",
+    );
+    expect(
+      find.byType(AudioPlayerWidget),
+      findsNothing,
+      reason: "AudioPlayerWidget should not be visible in recording state",
+    );
+    expect(
+      find.byTooltip("Resume"),
+      findsNothing,
+      reason: "Resume button should not be visible in recording state",
+    );
+
+    // Verify action buttons are not visible
+    expect(
+      find.text("Accept"),
+      findsNothing,
+      reason: "Accept button should not be visible in recording state",
+    );
+    expect(
+      find.text("Cancel"),
+      findsNothing,
+      reason: "Cancel button should not be visible in recording state",
+    );
+
+    // Verify tapping pause button calls pauseRecording
+    await tester.tap(find.byTooltip("Pause"));
+    verify(mockAudioCubit.pauseRecording()).called(1);
+
+    // Verify tapping stop button calls stopRecording
+    await tester.tap(find.byTooltip("Stop Recording"));
+    verify(mockAudioCubit.stopRecording()).called(1);
+  });
+
+  // Testing RECORDING PAUSED state
+  testWidgets(
+    'in recording paused state, shows timer, resume and stop buttons',
+    (WidgetTester tester) async {
+      // Set up recording paused state
+      final pausedState = createAudioState(
+        phase: AudioPhase.recordingPaused,
+        position: const Duration(minutes: 2, seconds: 15),
+      );
+      emitAudioState(pausedState);
+
+      // Build modal
+      await tester.pumpWidget(createTestWidget(const RecorderModal()));
+      await tester.pumpAndSettle();
+
+      // Verify timer is displayed with correct format
+      expect(
+        find.text("02:15"),
+        findsOneWidget,
+        reason: "Timer should show correct duration in paused state",
+      );
+
+      // Verify "Recording paused" text is displayed
+      expect(
+        find.text("Recording paused"),
+        findsOneWidget,
+        reason: "'Recording paused' text should be displayed in paused state",
+      );
+
+      // Verify correct buttons are shown
+      expect(
+        find.byTooltip("Resume"),
+        findsOneWidget,
+        reason: "Resume button should be visible in paused state",
+      );
+      expect(
+        find.byTooltip("Stop Recording"),
+        findsOneWidget,
+        reason: "Stop button should be visible in paused state",
+      );
+
+      // Verify other elements are not visible
+      expect(
+        find.byType(RecordStartButton),
+        findsNothing,
+        reason: "RecordStartButton should not be visible in paused state",
+      );
+      expect(
+        find.byType(AudioPlayerWidget),
+        findsNothing,
+        reason: "AudioPlayerWidget should not be visible in paused state",
+      );
+      expect(
+        find.byTooltip("Pause"),
+        findsNothing,
+        reason: "Pause button should not be visible in paused state",
+      );
+
+      // Verify action buttons are not visible
+      expect(
+        find.text("Accept"),
+        findsNothing,
+        reason: "Accept button should not be visible in paused state",
+      );
+      expect(
+        find.text("Cancel"),
+        findsNothing,
+        reason: "Cancel button should not be visible in paused state",
+      );
+
+      // Verify tapping resume button calls resumeRecording
+      await tester.tap(find.byTooltip("Resume"));
+      verify(mockAudioCubit.resumeRecording()).called(1);
+
+      // Verify tapping stop button calls stopRecording
+      await tester.tap(find.byTooltip("Stop Recording"));
+      verify(mockAudioCubit.stopRecording()).called(1);
+    },
+  );
+
+  // Testing LOADED state (idle with filePath)
+  testWidgets(
+    'in loaded state, shows AudioPlayerWidget and accept/cancel buttons',
+    (WidgetTester tester) async {
+      // Set up loaded state (idle with filePath)
+      final loadedState = createAudioState(
+        phase: AudioPhase.idle,
+        filePath: '/fake/path/to/audio.m4a',
+        duration: const Duration(seconds: 45),
+      );
+      emitAudioState(loadedState);
+
+      // Build modal
+      await tester.pumpWidget(createTestWidget(const RecorderModal()));
+      await tester.pumpAndSettle();
+
+      // Verify AudioPlayerWidget is displayed
+      expect(
+        find.byType(AudioPlayerWidget),
+        findsOneWidget,
+        reason: "AudioPlayerWidget should be visible in loaded state",
+      );
+
+      // Verify action buttons are visible
+      expect(
+        find.text("Accept"),
+        findsOneWidget,
+        reason: "Accept button should be visible in loaded state",
+      );
+      expect(
+        find.text("Cancel"),
+        findsOneWidget,
+        reason: "Cancel button should be visible in loaded state",
+      );
+
+      // Verify other elements are not visible
+      expect(
+        find.byType(RecordStartButton),
+        findsNothing,
+        reason: "RecordStartButton should not be visible in loaded state",
+      );
+      expect(
+        find.text("Recording"),
+        findsNothing,
+        reason: "Recording text should not be visible in loaded state",
+      );
+      expect(
+        find.text("Recording paused"),
+        findsNothing,
+        reason: "Recording paused text should not be visible in loaded state",
+      );
+
+      // TODO: navigation pop assertions require integration testing via NavigatorObserver.
+    },
+  );
 }
