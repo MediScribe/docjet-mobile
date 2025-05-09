@@ -10,6 +10,7 @@ This document serves as the central index for the project documentation.
 ### Setup & Configuration
 *   [Environment Configuration](./setup-environment-config.md)
 *   [Mock Server Integration](./setup-mock-server.md)
+*   [Startup Performance Guide](./performance-startup-guide.md)
 
 ### Architecture & Core Concepts
 *   [Overall Architecture](./architecture-overview.md)
@@ -62,6 +63,9 @@ This document serves as the central index for the project documentation.
 
 #### [Mock Server Integration](./setup-mock-server.md)
 *   **Description**: Explains how to use the mock API server for development and testing, covering setup (like `run_with_mock.sh`), configuration (`secrets.test.json`), testing integration, and common troubleshooting steps.
+
+#### [Startup Performance Guide](./performance-startup-guide.md)
+*   **Description**: Provides guidance on optimizing the startup performance of the DocJet platform.
 
 ### Architecture & Core Concepts
 #### [Overall Architecture](./architecture-overview.md)
