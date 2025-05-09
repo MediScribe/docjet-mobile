@@ -1,7 +1,6 @@
 // Features - Jobs - Data
 import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart'; // Actual implementation (IoFileSystem) & Interface
-import 'package:docjet_mobile/features/jobs/data/datasources/hive_job_local_data_source_impl.dart';
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // Add Hive Flutter import
 
@@ -29,6 +28,8 @@ import 'package:docjet_mobile/core/di/core_module.dart'; // Import CoreModule
 // Import HiveInterface
 // Keep HiveInterface
 import 'package:dio/dio.dart'; // Import Dio
+import 'package:docjet_mobile/core/di/lazy_hive_service.dart'; // Import LazyHiveService
+import 'package:path_provider/path_provider.dart'; // Import for documents dir path
 
 final sl = GetIt.instance;
 
@@ -73,14 +74,13 @@ Future<void> init() async {
   }
   // TODO: Register any other Hive adapters needed for your models here (with checks)
 
-  // --- Open Hive Boxes ---
-  // Open boxes needed by the application BEFORE registering dependencies that use them.
-  // Using the constants from HiveJobLocalDataSourceImpl
-  await Hive.openBox<JobHiveModel>(HiveJobLocalDataSourceImpl.jobsBoxName);
-  await Hive.openBox<dynamic>(HiveJobLocalDataSourceImpl.metadataBoxName);
-  // ---------------------------
+  // --- Kick off background Hive initialisation via LazyHiveService ---
+  // This *replaces* synchronous box opening to keep the UI thread free during
+  // cold-start. Boxes will be opened lazily on first use.
+  final appDocDir = await getApplicationDocumentsDirectory();
+  await LazyHiveService.init(path: appDocDir.path);
 
-  logger.d('$tag Hive initialization complete');
+  logger.d('$tag Hive (lazy) initialization complete');
 
   // --- Register AppConfig ---
   final isRegisteredBeforeCheck = sl.isRegistered<AppConfig>();
