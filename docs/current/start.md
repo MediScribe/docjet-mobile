@@ -41,6 +41,7 @@ This document serves as the central index for the project documentation.
 *   [Auth Issues TODO](./refactoring/auth-issues-todo_done.md)
 *   [Feature Auth Implementation](./refactoring/feature-auth-implementation_done.md)
 *   [Explicit DI Revisited](./refactoring/explicit-di-revisited_done.md)
+*   [Startup Performance Optimizations](../archive/todo_done/startup-performance-unblock-todo_done.md)
 
 ### TODOs
 *   [iOS Password AutoFill Setup](./todo/ios-autofill-setup-todo.md)
@@ -64,7 +65,7 @@ This document serves as the central index for the project documentation.
 *   **Description**: Explains how to use the mock API server for development and testing, covering setup (like `run_with_mock.sh`), configuration (`secrets.test.json`), testing integration, and common troubleshooting steps.
 
 #### [Startup Performance Guide](./performance-startup-guide.md)
-*   **Description**: Provides guidance on optimizing the startup performance of the DocJet platform.
+*   **Description**: Provides guidance on measuring, analyzing, and automatically guarding the app's startup performance. Covers key metrics, manual measurement, CI guard workflow, and optimization approaches established through the startup performance initiative.
 
 ### Architecture & Core Concepts
 #### [Overall Architecture](./architecture-overview.md)
@@ -137,6 +138,9 @@ This document serves as the central index for the project documentation.
 
 #### [Explicit DI Revisited](./refactoring/explicit-di-revisited_done.md)
 *   **Description**: Documents the completed migration towards a more explicit dependency injection pattern throughout the application. *(Note: Completed refactoring log)*
+
+#### [Startup Performance Optimizations](../archive/todo_done/startup-performance-unblock-todo_done.md)
+*   **Description**: Comprehensive log of performance optimizations to eliminate cold-start freezes by: (1) deferring heavyweight Hive initialization to a background isolate, (2) gating job sync behind authenticated state, (3) skipping unnecessary network requests for expired tokens, and (4) ensuring nothing heavy runs on the UI thread before first frame rendering.
 
 ### Research
 #### [Sync Frameworks](./research/sync_framworks.md)

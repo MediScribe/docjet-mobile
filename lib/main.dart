@@ -16,6 +16,11 @@ import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
 
 // Access GetIt for convenience
 final getIt = di.sl;
@@ -78,8 +83,17 @@ class MyApp extends ConsumerWidget {
         // Create the JobListCubit once at the app level
         // This ensures the same instance is used throughout the app lifecycle
         BlocProvider<JobListCubit>(
-          create: (context) => getIt<JobListCubit>(),
-          lazy: false, // Load immediately instead of when first accessed
+          create:
+              (context) => JobListCubit(
+                watchJobsUseCase: getIt<WatchJobsUseCase>(),
+                mapper: getIt<JobViewModelMapper>(),
+                createJobUseCase: getIt<CreateJobUseCase>(),
+                deleteJobUseCase: getIt<DeleteJobUseCase>(),
+                appNotifierService: ref.watch(
+                  appNotifierServiceProvider.notifier,
+                ),
+              ),
+          lazy: false,
         ),
       ],
       child: MaterialApp(

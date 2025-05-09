@@ -3,25 +3,29 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i6;
+import 'dart:async' as _i7;
 
 import 'package:dartz/dartz.dart' as _i4;
-import 'package:docjet_mobile/core/error/failures.dart' as _i7;
-import 'package:docjet_mobile/core/usecases/usecase.dart' as _i9;
-import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i8;
+import 'package:docjet_mobile/core/common/models/app_message.dart' as _i15;
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart'
+    as _i14;
+import 'package:docjet_mobile/core/error/failures.dart' as _i8;
+import 'package:docjet_mobile/core/usecases/usecase.dart' as _i10;
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i9;
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart'
     as _i2;
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart'
-    as _i11;
-import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart'
     as _i12;
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart'
+    as _i13;
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart'
-    as _i5;
+    as _i6;
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart'
-    as _i10;
+    as _i11;
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart'
     as _i3;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:riverpod_annotation/riverpod_annotation.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -67,10 +71,21 @@ class _FakeEither_2<L, R> extends _i1.SmartFake implements _i4.Either<L, R> {
         );
 }
 
+class _FakeAutoDisposeNotifierProviderRef_3<T> extends _i1.SmartFake
+    implements _i5.AutoDisposeNotifierProviderRef<T> {
+  _FakeAutoDisposeNotifierProviderRef_3(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
 /// A class which mocks [WatchJobsUseCase].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockWatchJobsUseCase extends _i1.Mock implements _i5.WatchJobsUseCase {
+class MockWatchJobsUseCase extends _i1.Mock implements _i6.WatchJobsUseCase {
   MockWatchJobsUseCase() {
     _i1.throwOnMissingStub(this);
   }
@@ -85,28 +100,28 @@ class MockWatchJobsUseCase extends _i1.Mock implements _i5.WatchJobsUseCase {
       ) as _i2.JobRepository);
 
   @override
-  _i6.Stream<_i4.Either<_i7.Failure, List<_i8.Job>>> call(
-          _i9.NoParams? params) =>
+  _i7.Stream<_i4.Either<_i8.Failure, List<_i9.Job>>> call(
+          _i10.NoParams? params) =>
       (super.noSuchMethod(
         Invocation.method(
           #call,
           [params],
         ),
-        returnValue: _i6.Stream<_i4.Either<_i7.Failure, List<_i8.Job>>>.empty(),
-      ) as _i6.Stream<_i4.Either<_i7.Failure, List<_i8.Job>>>);
+        returnValue: _i7.Stream<_i4.Either<_i8.Failure, List<_i9.Job>>>.empty(),
+      ) as _i7.Stream<_i4.Either<_i8.Failure, List<_i9.Job>>>);
 }
 
 /// A class which mocks [JobViewModelMapper].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockJobViewModelMapper extends _i1.Mock
-    implements _i10.JobViewModelMapper {
+    implements _i11.JobViewModelMapper {
   MockJobViewModelMapper() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.JobViewModel toViewModel(_i8.Job? job) => (super.noSuchMethod(
+  _i3.JobViewModel toViewModel(_i9.Job? job) => (super.noSuchMethod(
         Invocation.method(
           #toViewModel,
           [job],
@@ -124,7 +139,7 @@ class MockJobViewModelMapper extends _i1.Mock
 /// A class which mocks [CreateJobUseCase].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockCreateJobUseCase extends _i1.Mock implements _i11.CreateJobUseCase {
+class MockCreateJobUseCase extends _i1.Mock implements _i12.CreateJobUseCase {
   MockCreateJobUseCase() {
     _i1.throwOnMissingStub(this);
   }
@@ -139,28 +154,28 @@ class MockCreateJobUseCase extends _i1.Mock implements _i11.CreateJobUseCase {
       ) as _i2.JobRepository);
 
   @override
-  _i6.Future<_i4.Either<_i7.Failure, _i8.Job>> call(
-          _i11.CreateJobParams? params) =>
+  _i7.Future<_i4.Either<_i8.Failure, _i9.Job>> call(
+          _i12.CreateJobParams? params) =>
       (super.noSuchMethod(
         Invocation.method(
           #call,
           [params],
         ),
-        returnValue: _i6.Future<_i4.Either<_i7.Failure, _i8.Job>>.value(
-            _FakeEither_2<_i7.Failure, _i8.Job>(
+        returnValue: _i7.Future<_i4.Either<_i8.Failure, _i9.Job>>.value(
+            _FakeEither_2<_i8.Failure, _i9.Job>(
           this,
           Invocation.method(
             #call,
             [params],
           ),
         )),
-      ) as _i6.Future<_i4.Either<_i7.Failure, _i8.Job>>);
+      ) as _i7.Future<_i4.Either<_i8.Failure, _i9.Job>>);
 }
 
 /// A class which mocks [DeleteJobUseCase].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockDeleteJobUseCase extends _i1.Mock implements _i12.DeleteJobUseCase {
+class MockDeleteJobUseCase extends _i1.Mock implements _i13.DeleteJobUseCase {
   MockDeleteJobUseCase() {
     _i1.throwOnMissingStub(this);
   }
@@ -175,20 +190,115 @@ class MockDeleteJobUseCase extends _i1.Mock implements _i12.DeleteJobUseCase {
       ) as _i2.JobRepository);
 
   @override
-  _i6.Future<_i4.Either<_i7.Failure, _i4.Unit>> call(
-          _i12.DeleteJobParams? params) =>
+  _i7.Future<_i4.Either<_i8.Failure, _i4.Unit>> call(
+          _i13.DeleteJobParams? params) =>
       (super.noSuchMethod(
         Invocation.method(
           #call,
           [params],
         ),
-        returnValue: _i6.Future<_i4.Either<_i7.Failure, _i4.Unit>>.value(
-            _FakeEither_2<_i7.Failure, _i4.Unit>(
+        returnValue: _i7.Future<_i4.Either<_i8.Failure, _i4.Unit>>.value(
+            _FakeEither_2<_i8.Failure, _i4.Unit>(
           this,
           Invocation.method(
             #call,
             [params],
           ),
         )),
-      ) as _i6.Future<_i4.Either<_i7.Failure, _i4.Unit>>);
+      ) as _i7.Future<_i4.Either<_i8.Failure, _i4.Unit>>);
+}
+
+/// A class which mocks [AppNotifierService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockAppNotifierService extends _i1.Mock
+    implements _i14.AppNotifierService {
+  MockAppNotifierService() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i5.AutoDisposeNotifierProviderRef<_i15.AppMessage?> get ref =>
+      (super.noSuchMethod(
+        Invocation.getter(#ref),
+        returnValue: _FakeAutoDisposeNotifierProviderRef_3<_i15.AppMessage?>(
+          this,
+          Invocation.getter(#ref),
+        ),
+      ) as _i5.AutoDisposeNotifierProviderRef<_i15.AppMessage?>);
+
+  @override
+  set state(_i15.AppMessage? value) => super.noSuchMethod(
+        Invocation.setter(
+          #state,
+          value,
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void show({
+    required String? message,
+    required _i15.MessageType? type,
+    Duration? duration,
+    String? id,
+  }) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #show,
+          [],
+          {
+            #message: message,
+            #type: type,
+            #duration: duration,
+            #id: id,
+          },
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void dismiss() => super.noSuchMethod(
+        Invocation.method(
+          #dismiss,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void listenSelf(
+    void Function(
+      _i15.AppMessage?,
+      _i15.AppMessage?,
+    )? listener, {
+    void Function(
+      Object,
+      StackTrace,
+    )? onError,
+  }) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #listenSelf,
+          [listener],
+          {#onError: onError},
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  bool updateShouldNotify(
+    _i15.AppMessage? previous,
+    _i15.AppMessage? next,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateShouldNotify,
+          [
+            previous,
+            next,
+          ],
+        ),
+        returnValue: false,
+      ) as bool);
 }

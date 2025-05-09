@@ -17,6 +17,8 @@ import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.d
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
+import 'package:docjet_mobile/core/common/models/app_message.dart';
 
 // Generate mocks (DeleteJobUseCase mocked manually below to avoid build_runner churn)
 @GenerateMocks([
@@ -24,6 +26,7 @@ import 'package:mockito/mockito.dart';
   JobViewModelMapper,
   CreateJobUseCase,
   DeleteJobUseCase,
+  AppNotifierService,
 ])
 import 'job_list_cubit_test.mocks.dart';
 
@@ -34,6 +37,7 @@ void main() {
   late MockJobViewModelMapper mockJobViewModelMapper;
   late MockCreateJobUseCase mockCreateJobUseCase;
   late MockDeleteJobUseCase mockDeleteJobUseCase;
+  late MockAppNotifierService mockAppNotifierService;
   JobListCubit? jobListCubit;
   late StreamController<Either<Failure, List<Job>>> streamController;
 
@@ -99,6 +103,7 @@ void main() {
     mockJobViewModelMapper = MockJobViewModelMapper();
     mockCreateJobUseCase = MockCreateJobUseCase();
     mockDeleteJobUseCase = MockDeleteJobUseCase();
+    mockAppNotifierService = MockAppNotifierService();
     streamController = StreamController<Either<Failure, List<Job>>>.broadcast();
 
     // Default stub for use case stream
@@ -119,6 +124,7 @@ void main() {
       mapper: mockJobViewModelMapper,
       createJobUseCase: mockCreateJobUseCase,
       deleteJobUseCase: mockDeleteJobUseCase,
+      appNotifierService: mockAppNotifierService,
     );
   }
 
@@ -358,11 +364,19 @@ void main() {
         verify(
           mockDeleteJobUseCase.call(DeleteJobParams(localId: tJob1.localId)),
         ).called(1);
+        verifyNever(
+          mockAppNotifierService.show(
+            message: anyNamed('message'),
+            type: anyNamed('type'),
+            duration: anyNamed('duration'),
+            id: anyNamed('id'),
+          ),
+        );
       },
     );
 
     blocTest<JobListCubit, JobListState>(
-      'emits optimistic removal then JobListError and rollback when deletion fails',
+      'emits optimistic removal then rollback when deletion fails and shows error banner',
       build: () {
         const failure = ServerFailure(message: 'delete failed');
         when(
@@ -384,7 +398,6 @@ void main() {
             isA<JobListLoaded>().having((s) => s.jobs, 'jobs after delete', [
               tViewModel2,
             ]),
-            isA<JobListError>(),
             // Rollback
             isA<JobListLoaded>().having((s) => s.jobs, 'jobs rollback', [
               tViewModel2,
@@ -394,6 +407,17 @@ void main() {
       verify: (_) {
         verify(
           mockDeleteJobUseCase.call(DeleteJobParams(localId: tJob1.localId)),
+        ).called(1);
+        verify(
+          mockAppNotifierService.show(
+            message: argThat(
+              startsWith('Failed to delete job'),
+              named: 'message',
+            ),
+            type: MessageType.error,
+            duration: anyNamed('duration'),
+            id: anyNamed('id'),
+          ),
         ).called(1);
       },
     );

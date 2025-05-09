@@ -22,7 +22,6 @@ import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_detail_cubit.dart';
-import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
@@ -204,13 +203,8 @@ class JobsModule {
         jobId: localId,
       ),
     );
-    getIt.registerFactory<JobListCubit>(
-      () => JobListCubit(
-        watchJobsUseCase: getIt<WatchJobsUseCase>(),
-        mapper: getIt<JobViewModelMapper>(),
-        createJobUseCase: getIt<CreateJobUseCase>(),
-        deleteJobUseCase: getIt<DeleteJobUseCase>(),
-      ),
-    );
+    // NOTE: JobListCubit is provided at the app-shell level (see main.dart).
+    // Registering another factory here risks multiple Cubits listening to the
+    // same stream and causing duplicated UI updates.  Intentionally removed.
   }
 }

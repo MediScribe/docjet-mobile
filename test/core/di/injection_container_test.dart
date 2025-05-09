@@ -147,22 +147,21 @@ void main() {
     sl.reset();
   });
 
-  testWidgets('should initialize dependencies and resolve JobListCubit', (
-    WidgetTester tester,
-  ) async {
-    // Arrange: Ensure Flutter bindings are initialized
-    TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'should NOT register JobListCubit directly (provided via Widget tree)',
+    (WidgetTester tester) async {
+      // Arrange
+      TestWidgetsFlutterBinding.ensureInitialized();
 
-    // Act: Initialize the container
-    await tester.runAsync(() async {
-      await di.init();
-    });
+      // Act
+      await tester.runAsync(() async {
+        await di.init();
+      });
 
-    // Assert: Try to resolve JobListCubit and check its type
-    expect(() => sl<JobListCubit>(), returnsNormally);
-    final cubit = sl<JobListCubit>();
-    expect(cubit, isA<JobListCubit>());
-  });
+      // Assert: DI container should not expose JobListCubit anymore
+      expect(sl.isRegistered<JobListCubit>(), isFalse);
+    },
+  );
 
   testWidgets('AppConfig registration and initialization', (
     WidgetTester tester,

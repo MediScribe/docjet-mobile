@@ -9,6 +9,8 @@ import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
+import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
+import 'package:docjet_mobile/core/common/models/app_message.dart';
 
 class JobListCubit extends Cubit<JobListState> {
   // Get logger instance for this class
@@ -20,6 +22,7 @@ class JobListCubit extends Cubit<JobListState> {
   final JobViewModelMapper _mapper;
   final CreateJobUseCase _createJobUseCase;
   final DeleteJobUseCase _deleteJobUseCase;
+  final AppNotifierService? _appNotifierService;
   StreamSubscription? _jobSubscription;
 
   JobListCubit({
@@ -27,10 +30,12 @@ class JobListCubit extends Cubit<JobListState> {
     required JobViewModelMapper mapper,
     required CreateJobUseCase createJobUseCase,
     required DeleteJobUseCase deleteJobUseCase,
+    AppNotifierService? appNotifierService,
   }) : _watchJobsUseCase = watchJobsUseCase,
        _mapper = mapper,
        _createJobUseCase = createJobUseCase,
        _deleteJobUseCase = deleteJobUseCase,
+       _appNotifierService = appNotifierService,
        super(const JobListInitial()) {
     _logger.d('$_tag: Initializing...');
     // Start loading immediately and subscribe to the stream
@@ -124,8 +129,10 @@ class JobListCubit extends Cubit<JobListState> {
   /// 2. The [DeleteJobUseCase] is executed.
   ///    * On **success** we only log – the authoritative list will be pushed
   ///      by the [_watchJobsUseCase] stream shortly afterwards.
-  ///    * On **failure** we emit a [JobListError] **and** roll-back by
-  ///      re-emitting the previously cached list so the UI stays consistent.
+  ///    * On **failure** we surface a user-facing banner via
+  ///      [AppNotifierService.show] **and** roll-back by re-emitting the
+  ///      previously cached list so the UI stays consistent. No `JobListError`
+  ///      state is emitted anymore.
   /// 3. If the Cubit isn't in a loaded state we delegate directly to the use
   ///    case and rely on the watcher stream.
   Future<void> deleteJob(String localId) async {
@@ -144,7 +151,16 @@ class JobListCubit extends Cubit<JobListState> {
       final result = await _deleteJobUseCase(DeleteJobParams(localId: localId));
       result.fold((failure) {
         _logger.e('$_tag: Failed to delete job: $failure');
-        emit(JobListError('Failed to delete job: ${failure.toString()}'));
+
+        final errorMessage =
+            failure.message.isNotEmpty
+                ? 'Failed to delete job: ${failure.message}'
+                : 'Failed to delete job';
+
+        _appNotifierService?.show(
+          message: errorMessage,
+          type: MessageType.error,
+        );
         // Roll-back the optimistic update so the UI reflects actual data
         if (previousJobs != null) {
           emit(JobListLoaded(previousJobs));
@@ -156,7 +172,10 @@ class JobListCubit extends Cubit<JobListState> {
         error: e,
         stackTrace: st,
       );
-      emit(JobListError('Unexpected error deleting job: ${e.toString()}'));
+      _appNotifierService?.show(
+        message: 'Failed to delete job: ${e.toString()}',
+        type: MessageType.error,
+      );
       if (previousJobs != null) {
         emit(JobListLoaded(previousJobs));
       }
