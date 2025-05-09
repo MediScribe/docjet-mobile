@@ -83,7 +83,7 @@ void main() {
             dio.options.receiveTimeout,
             equals(const Duration(seconds: 30)),
           );
-          expect(dio.options.contentType, equals('application/json'));
+          expect(dio.options.contentType, isNull);
           expect(
             dio.options.headers.containsKey('x-api-key'),
             isFalse,

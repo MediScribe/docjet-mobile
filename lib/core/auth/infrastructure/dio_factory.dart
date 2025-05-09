@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/auth_interceptor.dart';
@@ -27,6 +25,10 @@ class DioFactory {
 
   /// Creates a basic Dio instance without authentication interceptors.
   /// Suitable for non-authenticated API calls or initial setup.
+  ///
+  /// Note: We intentionally leave `contentType` unset (`null`) so Dio will
+  /// derive it from each individual `RequestOptions`. Setting it globally to
+  /// `application/json` caused multipart requests to break boundary detection.
   Dio createBasicDio() {
     final baseUrl = ApiConfig.baseUrlFromDomain(_appConfig.apiDomain);
     _logger.i(
@@ -37,7 +39,6 @@ class DioFactory {
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
-      contentType: ContentType.json.value, // Use standard JSON content type
     );
 
     final dio = Dio(options);

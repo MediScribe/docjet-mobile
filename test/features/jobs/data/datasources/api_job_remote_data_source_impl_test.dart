@@ -69,6 +69,11 @@ void main() {
 
     // Default stub for FileSystem
     when(mockFileSystem.resolvePath(any)).thenReturn(tResolvedAudioPath);
+
+    // Provide default BaseOptions so that accessing dio.options works in tests
+    when(
+      mockDio.options,
+    ).thenReturn(BaseOptions(baseUrl: 'https://staging.docjet.ai/api/v1/'));
   });
 
   group('createJob', () {
@@ -275,6 +280,56 @@ void main() {
             ),
           ),
         );
+      },
+    );
+
+    test(
+      'should include an Origin header derived from baseUrl for multipart requests',
+      () async {
+        // Arrange
+        final responseData = {
+          'data': {
+            'id': 'server-123',
+            'user_id': tUserId,
+            'job_status': 'submitted',
+            'created_at': '2023-01-01T00:00:00.000Z',
+            'updated_at': '2023-01-01T00:00:00.000Z',
+            'text': tText,
+          },
+        };
+
+        when(
+          mockDio.post(
+            argThat(anything),
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: responseData,
+            statusCode: 201,
+            requestOptions: RequestOptions(path: '/jobs'),
+          ),
+        );
+
+        // Act
+        await remoteDataSource.createJob(
+          audioFilePath: tAudioFilePath,
+          text: tText,
+        );
+
+        // Assert
+        final capturedOptions =
+            verify(
+                  mockDio.post(
+                    any,
+                    data: anyNamed('data'),
+                    options: captureAnyNamed('options'),
+                  ),
+                ).captured.first
+                as Options;
+
+        expect(capturedOptions.headers?['Origin'], 'https://staging.docjet.ai');
       },
     );
   });

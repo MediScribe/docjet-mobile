@@ -171,26 +171,25 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
 
       context.read<JobListCubit>().createJob(params);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Creating new job from recording... Check status!'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      }
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Creating new job from recording... Check status!'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.blue,
+        ),
+      );
     } catch (e, stackTrace) {
       _logger.e('$_tag Error creating job from audio file: $e');
       _logger.e('$_tag Stack trace: $stackTrace');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating job from audio: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('Error creating job from audio: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -198,7 +197,9 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     _logger.i('$_tag Record button tapped, preparing to show modal.');
     if (widget.isOffline) {
       _logger.i('$_tag Record button action skipped because offline');
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
         const SnackBar(content: Text('Cannot record audio while offline.')),
       );
       return;

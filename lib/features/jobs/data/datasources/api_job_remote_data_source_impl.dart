@@ -86,6 +86,27 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
       // automatically with the correct boundary
       if (isJsonRequest) {
         headers['Content-Type'] = 'application/json';
+      } else {
+        // For non-JSON (e.g. multipart/form-data) requests some back-ends / WAFs
+        // enforce CSRF protection and require a proper `Origin` header. Mobile
+        // clients (Dio) don't add it automatically, so we synthesise it from the
+        // Dio base URL here.
+        final base = dio.options.baseUrl;
+        if (base.isNotEmpty) {
+          try {
+            final uri = Uri.parse(base);
+            if (uri.hasScheme && uri.host.isNotEmpty) {
+              final portPart =
+                  (uri.hasPort && uri.port != 80 && uri.port != 443)
+                      ? ':${uri.port}'
+                      : '';
+              headers['Origin'] = '${uri.scheme}://${uri.host}$portPart';
+            }
+          } catch (_) {
+            // If the base URL is somehow invalid we silently ignore – the request
+            // will proceed without an Origin header, as before.
+          }
+        }
       }
 
       return Options(headers: headers);
