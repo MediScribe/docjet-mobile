@@ -1,0 +1,70 @@
+name: startup-perf-check
+
+on:
+  pull_request:
+    paths:
+      - '**/*.dart'
+      - '.github/workflows/startup-perf.yml'
+  push:
+    branches: [ main ]
+
+jobs:
+  startup-perf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Launch Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          profile: Pixel_4
+          script: |
+            flutter run --profile --trace-startup -d emulator-5554 --trace-to-file build/start_up_timeline.json < /dev/null
+
+      - name: Copy startup info to artifact dir
+        run: |
+          ls -R build
+          cp build/start_up_info.json start_up_info.json || true
+          cp build/start_up_timeline.json start_up_timeline.json || true
+
+      - name: Upload startup json
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-info
+          path: |
+            start_up_info.json
+            start_up_timeline.json
+
+      - name: Compare against baseline thresholds
+        run: |
+          if [ ! -f start_up_info.json ]; then
+            echo "start_up_info.json not found – failing build." && exit 1
+          fi
+          export TTFM=$(jq '.timeToFirstFrameMicros' start_up_info.json)
+          export ENGINE=$(jq '.engineEnterTimestampMicros' start_up_info.json)
+          echo "TimeToFirstFrameMicros: $TTFM"
+          echo "EngineEnterTimestampMicros: $ENGINE"
+          TTFM_MS=$((TTFM/1000))
+          ENGINE_MS=$((ENGINE/1000))
+          echo "TTFM in ms: $TTFM_MS"
+          echo "ENGINE in ms: $ENGINE_MS"
+          if [ "$TTFM_MS" -gt 300 ]; then
+            echo "First frame too slow ($TTFM_MS ms > 300 ms)" && exit 1
+          fi
+          if [ "$ENGINE_MS" -gt 2000 ]; then
+            echo "Cold start too slow ($ENGINE_MS ms > 2000 ms)" && exit 1
+          fi
+          echo "Startup performance within limits." 

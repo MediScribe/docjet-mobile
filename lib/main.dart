@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Import our theme definitions
 import 'package:docjet_mobile/core/theme/app_theme.dart';
 import 'package:docjet_mobile/core/auth/events/auth_event_bus.dart';
+import 'dart:developer';
+import 'package:flutter/foundation.dart';
 
 // Access GetIt for convenience
 final getIt = di.sl;
@@ -23,8 +25,19 @@ final getIt = di.sl;
 // Using the generated provider from auth_notifier.dart instead
 
 void main() async {
-  // Ensure Flutter is initialized
+  // ---- Performance instrumentation – capture cold-start duration ----
+  if (kDebugMode) {
+    // Start the timeline event *as early as possible*.
+    Timeline.startSync('cold_start');
+  }
+
+  // Ensure Flutter is initialized *before* we access WidgetsBinding.instance.
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kDebugMode) {
+    // Finish the timeline event right after the first frame is rendered.
+    WidgetsBinding.instance.addPostFrameCallback((_) => Timeline.finishSync());
+  }
 
   // Initialize dependency injection
   await di.init();
