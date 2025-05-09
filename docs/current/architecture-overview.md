@@ -113,6 +113,20 @@ graph TD
 - Platform abstraction (file system, network)
 - Shared utilities
 - Theme system and semantic color tokens
+- Background storage operations via `LazyHiveService`
+
+#### LazyHiveService
+
+The application uses Hive for local data persistence, optimized through `LazyHiveService`:
+
+- Spawns a dedicated background isolate for Hive operations
+- Registers TypeAdapters in both main and background isolates
+- Provides a simple API (`init()` and `getBox<T>()`) for accessing Hive boxes
+- Implements retry logic with exponential backoff for isolate failures
+- Significantly improves app startup performance by removing I/O from the UI thread
+- Lazily opens boxes on first access rather than during app initialization
+
+This architecture ensures the UI remains responsive during heavy I/O operations.
 
 ## Job Feature Architecture
 

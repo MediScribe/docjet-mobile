@@ -79,7 +79,42 @@ The script fails when **size growth > 1 %**.
 
 ---
 
-## 4. Script Anatomy – `ci/check_startup_regression.sh`
+## 4. Optimization Strategies
+
+The application implements several key strategies to optimize startup performance:
+
+### 4.1 Background Hive Initialization
+
+- **LazyHiveService**: Moves all Hive I/O operations to a background isolate
+- **On-demand Box Opening**: Boxes are opened only when first accessed, not during initialization
+- **First-frame Priority**: Ensures UI rendering isn't blocked by storage I/O
+- **Impact**: ~150ms improvement in first-frame time
+
+### 4.2 Auth-Gated Job Synchronization
+
+- **JobSyncAuthGate**: Wraps the `JobSyncTriggerService` to ensure sync only starts after auth
+- **First-frame Callback**: Defers sync initialization until after the first UI frame is rendered
+- **Authenticated State Requirement**: No timers or sync operations start until the user is authenticated
+- **Impact**: Eliminates premature network calls during startup
+
+### 4.3 Smarter Token Validation 
+
+- **Skew Buffer**: Added a 30-second buffer when checking token expiry
+- **Near-expiry Detection**: Identifies tokens that will expire within 30 seconds
+- **Fast-path Validation**: Early exit from token validation for clearly expired tokens
+- **Impact**: Eliminates unnecessary `/users/me` API calls (~350ms savings)
+
+### 4.4 Instrumentation
+
+- **Timeline Markers**: Strategic placement of `Timeline.startSync()`/`endSync()` markers
+- **Startup Trace Capture**: Automatic capture of startup metrics in CI
+- **Regression Prevention**: Automatic comparison against baseline performance
+
+For complete implementation details, see [Startup Performance Optimizations](../archive/todo_done/startup-performance-unblock-todo_done.md).
+
+---
+
+## 5. Script Anatomy – `ci/check_startup_regression.sh`
 
 ```bash
 Usage: ci/check_startup_regression.sh <current_json> <baseline_json> [current_apk] [baseline_apk_size_file]
@@ -98,7 +133,7 @@ The script prints ✅ / ❌ summaries and is used **locally and by CI**. Keep it
 
 ---
 
-## 5. Updating the Baseline
+## 6. Updating the Baseline
 
 1. Land a change that legitimately improves performance.
 2. Re-measure on the reference device.
@@ -107,7 +142,7 @@ The script prints ✅ / ❌ summaries and is used **locally and by CI**. Keep it
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 * **Sim crash with `SIGSEGV` inside `TimelineEventPerfettoFileRecorder`** – You attempted to write the timeline file to a path not accessible by the sandbox. Use the default output location.
 * **CI emulator fails to launch** – Increase the GitHub action's timeout or change the device profile.

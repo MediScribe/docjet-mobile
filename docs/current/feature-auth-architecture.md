@@ -310,6 +310,20 @@ A utility class that provides:
 - Claims extraction from tokens
 - Proper error handling for malformed tokens
 
+The `JwtValidator` provides utility methods for validating JWT tokens:
+
+- `bool isTokenExpired(String token)`: Checks if a token has expired
+- `Map<String, dynamic> getClaims(String token)`: Extracts the payload claims from a token
+- `DateTime? getExpirationDate(String token)`: Gets the expiration date from a token
+
+The validator implements a 30-second skew buffer when checking token expiry to:
+- Prevent unnecessary network calls when tokens are about to expire
+- Avoid race conditions when tokens expire during request processing
+- Create a window for proactive token refresh
+- Improve startup performance by short-circuiting unnecessary API calls
+
+When a token is near expiry (within 30 seconds of its actual expiration time), it triggers a refresh flow instead of making potentially failing API calls, which significantly improves app startup performance.
+
 #### IUserProfileCache Interface
 An interface that defines methods for caching user profile data locally:
 - `saveProfile(UserProfileDto profileDto, DateTime timestamp)` - Stores a profile with timestamp

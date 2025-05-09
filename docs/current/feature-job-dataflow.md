@@ -796,37 +796,36 @@ This reconciliation process ensures the local cache accurately reflects the serv
 
 ### Authentication Integration
 
-The Job Sync system integrates with the AuthEventBus to respond to authentication-related events and manage synchronization accordingly:
+The job synchronization system integrates closely with the authentication system via the `AuthEventBus`:
 
-1. **Auth Event Handling:** `JobSyncOrchestratorService` subscribes to the `AuthEventBus` to receive auth-related events:
-   - `AuthEvent.offlineDetected`: Pauses sync operations by setting `_isOfflineFromAuth = true`
-   - `AuthEvent.onlineRestored`: Resumes sync operations by setting `_isOfflineFromAuth = false` and triggers an immediate sync to handle pending changes 
-   - `AuthEvent.loggedOut`: Prevents sync operations by setting `_isLoggedOut = true`
-   - `AuthEvent.loggedIn`: Enables sync operations by setting `_isLoggedOut = false`
+1. **JobSyncOrchestratorService** listens to the following auth events:
+   * `onlineRestored`: Triggers an immediate sync
+   * `offlineDetected`: Pauses sync operations
+   * `loggedOut`: Stops all sync operations
 
-2. **Sync Operation Guards:** The `syncPendingJobs()` method includes guards that:
-   - Skip sync when `_isOfflineFromAuth` is true (preventing unnecessary API calls when offline)
-   - Skip sync when `_isLoggedOut` is true (preventing sync with expired/invalid credentials)
-   - These guards operate before any network checks or data retrieval, eliminating unnecessary operations
+2. **JobSyncAuthGate**:
+   * Acts as a wrapper around `JobSyncTriggerService`
+   * Ensures sync only starts after user is authenticated
+   * Subscribes to auth events to:
+     * Initialize sync on `loggedIn`
+     * Dispose sync on `loggedOut` 
+   * Waits for both authentication and first frame rendering before starting sync
 
-3. **In-Flight Abort Protection:** During ongoing sync operations, the service:
-   - Checks the `_isOfflineFromAuth` and `_isLoggedOut` flags after processing each job
-   - Aborts further processing if either flag becomes true during execution
-   - Logs appropriate messages indicating why processing was stopped midway
-   - This prevents continuing sync operations after network or authentication state changes
+3. **JobSyncTriggerService**:
+   * Responsible for periodic sync timer (every 15 seconds)
+   * Uses app lifecycle awareness (foreground/background) for smart timing
+   * Designed for performance optimization:
+     * Defers startup until after first frame is rendered
+     * Only activates when user is authenticated
+     * Avoids UI thread blocking during app initialization
+     
+This authentication integration ensures that:
+* Network requests are only made when the user is authenticated
+* Resources are properly cleaned up during logout
+* App startup performance is optimized (no premature sync)
+* The system adapts to connectivity changes
 
-4. **Resource Management:** The service properly manages its auth event subscription:
-   - Subscribes to auth events when initialized
-   - Stores the subscription in `_authEventSubscription` for later cancellation
-   - Unsubscribes when `dispose()` is called to prevent memory leaks
-   - Logs subscription lifecycle events for debugging
-
-This integration provides several benefits:
-- Prevents unnecessary API calls when the app is offline or not authenticated
-- Automatically triggers sync when connectivity is restored
-- Cleanly separates authentication concerns from synchronization logic
-- Maintains a loose coupling between the auth and job systems through event-based communication
-- Protects against wasted resources by aborting operations when conditions change
+For more details on the startup performance optimizations, see [Startup Performance Optimizations](../archive/todo_done/startup-performance-unblock-todo_done.md).
 
 ## Background Processing Support
 
