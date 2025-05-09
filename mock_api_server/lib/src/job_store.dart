@@ -33,7 +33,7 @@ Map<String, dynamic> findJobById(String jobId) {
 bool updateJobStatus(String jobId, String newStatus) {
   final jobIndex = _jobs.indexWhere((job) => job['id'] == jobId);
   if (jobIndex != -1) {
-    _jobs[jobIndex]['job_status'] = newStatus;
+    _jobs[jobIndex]['status'] = newStatus;
     _jobs[jobIndex]['updated_at'] = DateTime.now().toUtc().toIso8601String();
     // Consider adding verbose logging here if needed
     if (verboseLoggingEnabled) {

@@ -161,7 +161,7 @@ Future<Response> createJobHandler(Request request) async {
     final newJob = {
       'id': uuid.v4(),
       'user_id': userId,
-      'job_status': 'submitted',
+      'status': 'submitted',
       'error_code': null,
       'error_message': null,
       'created_at': now,
@@ -180,7 +180,7 @@ Future<Response> createJobHandler(Request request) async {
     final responseData = {
       'id': newJob['id'],
       'user_id': newJob['user_id'],
-      'job_status': newJob['job_status'],
+      'status': newJob['status'],
       'created_at': newJob['created_at'],
       'updated_at': newJob['updated_at'],
       'text': newJob['text'],
@@ -215,7 +215,7 @@ Future<Response> listJobsHandler(Request request) async {
       .map((job) => {
             'id': job['id'],
             'user_id': job['user_id'],
-            'job_status': job['job_status'],
+            'status': job['status'],
             'error_code': job['error_code'],
             'error_message': job['error_message'],
             'created_at': job['created_at'],
@@ -309,7 +309,7 @@ Future<Response> updateJobHandler(Request request, String id) async {
   }
 
   final payload = jsonDecode(await request.readAsString());
-  final String? newStatus = payload['job_status'] as String?;
+  final String? newStatus = payload['status'] as String?;
   final String? errorCode = payload['error_code'] as String?;
   final String? errorMessage = payload['error_message'] as String?;
   final String? text = payload['text'] as String?;
@@ -328,14 +328,14 @@ Future<Response> updateJobHandler(Request request, String id) async {
       HttpStatus.badRequest,
       body: jsonEncode({
         'error':
-            'At least one field (job_status, error_code, error_message, text, transcript, display_title, display_text) must be provided for update'
+            'At least one field (status, error_code, error_message, text, transcript, display_title, display_text) must be provided for update'
       }),
       headers: {'content-type': 'application/json'},
     );
   }
 
   final updatedFields = <String, dynamic>{};
-  if (newStatus != null) updatedFields['job_status'] = newStatus;
+  if (newStatus != null) updatedFields['status'] = newStatus;
   if (errorCode != null) updatedFields['error_code'] = errorCode;
   if (errorMessage != null) updatedFields['error_message'] = errorMessage;
   if (text != null) updatedFields['text'] = text;

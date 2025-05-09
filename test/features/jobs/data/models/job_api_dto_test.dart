@@ -22,7 +22,7 @@ void main() {
     final tJobJsonMap = {
       'id': 'job-123',
       'user_id': 'user-abc',
-      'job_status': 'COMPLETED', // API key
+      'status': 'COMPLETED', // API key
       'created_at': '2023-01-01T10:00:00.000Z', // ISO 8601 format UTC
       'updated_at': '2023-01-01T12:00:00.000Z', // ISO 8601 format UTC
       'display_title': 'Test Job Title',

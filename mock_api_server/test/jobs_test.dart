@@ -65,7 +65,7 @@ void main() {
       expect(jsonResponse, isA<Map<String, dynamic>>());
       expect(jsonResponse['data']['id'], isA<String>());
       expect(jsonResponse['data']['user_id'], 'test-user-id');
-      expect(jsonResponse['data']['job_status'], 'submitted');
+      expect(jsonResponse['data']['status'], 'submitted');
       expect(jsonResponse['data']['text'], 'Optional text note');
       expect(jsonResponse['data']['additional_text'], 'More metadata');
       expect(jsonResponse['data']['created_at'], isA<String>());
@@ -212,7 +212,7 @@ void main() {
       expect(retrievedJob, isNotNull);
       expect(retrievedJob['id'], createdJob['id']);
       expect(retrievedJob['user_id'], createdJob['user_id']);
-      expect(retrievedJob['job_status'], createdJob['job_status']);
+      expect(retrievedJob['status'], createdJob['status']);
       // Note: Response for GET list might not include all fields like POST
       // Adjust expectations based on spec.md if needed. Assuming same fields for now.
       expect(retrievedJob, isNot(contains('display_title')));
@@ -273,7 +273,7 @@ void main() {
       expect(jsonResponse, isA<Map<String, dynamic>>());
       expect(jsonResponse['data']['id'], jobId);
       expect(jsonResponse['data']['user_id'], 'test-user-get-id');
-      expect(jsonResponse['data']['job_status'], 'submitted');
+      expect(jsonResponse['data']['status'], 'submitted');
       expect(jsonResponse['data']['text'], 'Job for ID lookup');
       // Handler now includes these fields, even if null initially
       expect(jsonResponse['data'], contains('display_title'));
@@ -445,7 +445,7 @@ void main() {
       expect(updatedJob['display_title'], 'Updated Title');
       expect(updatedJob['display_text'], 'Updated snippet...');
       // Check if status was updated (optional, depends on mock logic)
-      // expect(updatedJob['job_status'], 'transcribed');
+      // expect(updatedJob['status'], 'transcribed');
       expect(updatedJob['updated_at'], isNot(originalUpdatedAt));
     });
 
@@ -500,7 +500,7 @@ void main() {
       // Assume some valid job ID exists from previous tests or setup
       const jobId = 'existing-job-id-placeholder';
       final url = Uri.parse('$baseUrl/api/v1/jobs/$jobId');
-      final body = jsonEncode({'job_status': 'cancelled'}); // Example body
+      final body = jsonEncode({'status': 'cancelled'}); // Example body
       // No x-api-key
       final headers = {
         'Content-Type': 'application/json',

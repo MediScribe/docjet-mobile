@@ -9,7 +9,7 @@ part of 'job_api_dto.dart';
 JobApiDTO _$JobApiDTOFromJson(Map<String, dynamic> json) => JobApiDTO(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      jobStatus: json['job_status'] as String,
+      jobStatus: json['status'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       displayTitle: json['display_title'] as String?,
@@ -23,7 +23,7 @@ JobApiDTO _$JobApiDTOFromJson(Map<String, dynamic> json) => JobApiDTO(
 Map<String, dynamic> _$JobApiDTOToJson(JobApiDTO instance) => <String, dynamic>{
       'id': instance.id,
       'user_id': instance.userId,
-      'job_status': instance.jobStatus,
+      'status': instance.jobStatus,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt.toIso8601String(),
       'display_title': instance.displayTitle,

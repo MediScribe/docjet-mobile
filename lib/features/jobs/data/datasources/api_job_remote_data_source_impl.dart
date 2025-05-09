@@ -162,7 +162,7 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         ), // API 'id' IS the serverId
         userId: safeCast<String>(json['user_id'], 'user_id'),
         // Use JobMapper to convert the status string to the enum
-        status: JobMapper.stringToJobStatus(json['job_status'] as String?),
+        status: JobMapper.stringToJobStatus(json['status'] as String?),
         syncStatus: SyncStatus.synced, // API data is considered synced
         createdAt: parseDateTime(json['created_at'], 'created_at'),
         updatedAt: parseDateTime(json['updated_at'], 'updated_at'),
@@ -457,36 +457,13 @@ class ApiJobRemoteDataSourceImpl implements JobRemoteDataSource {
         // API wraps the job object in a "data" key
         final Map<String, dynamic> jobData = response.data['data'];
 
-        // Manually map the response JSON to a Job entity
-        // TODO: Consider using JobApiDTO and JobMapper here for consistency
+        // Parse the response JSON using the existing helper to keep the
+        // mapping logic in a single place.
         try {
-          // IMPORTANT: When creating, the Job returned should represent the SERVER state,
-          // but we DON'T have the original localId here. This function's return value
-          // should probably only contain the fields returned by the server.
-          // The SyncProcessorService will use this data to update the original local Job.
-          return Job(
-            // DO NOT use jobData['id'] as localId. LocalId is client-generated.
-            // Leave localId empty or null here, as this Job represents the remote state.
-            localId: '', // Or null
-            serverId: jobData['id'] as String, // API 'id' IS the serverId
-            userId: jobData['user_id'] as String,
-            status: JobMapper.stringToJobStatus(
-              jobData['job_status'] as String?,
-            ),
-            syncStatus:
-                SyncStatus
-                    .synced, // Newly created job starts as synced since it came from API
-            createdAt: DateTime.parse(jobData['created_at'] as String),
-            updatedAt: DateTime.parse(jobData['updated_at'] as String),
-            text: jobData['text'] as String?,
-            additionalText: jobData['additional_text'] as String?,
-            // Fields not present in create response according to spec
-            displayTitle: null,
-            displayText: null,
-            errorCode: null,
-            errorMessage: null,
-            audioFilePath: audioFilePath, // Keep the original path
-          );
+          final createdJob = _mapJsonToJob(
+            jobData,
+          ).copyWith(audioFilePath: audioFilePath);
+          return createdJob;
         } catch (e, stackTrace) {
           _logger.e(
             '$_tag Failed to parse createJob response JSON: $jobData',

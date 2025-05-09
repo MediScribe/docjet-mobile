@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 
 // Generate mocks for the dependencies
 @GenerateMocks([Dio, AuthCredentialsProvider, AuthSessionProvider, FileSystem])
@@ -85,7 +86,7 @@ void main() {
           'data': {
             'id': 'server-123',
             'user_id': tUserId,
-            'job_status': 'submitted',
+            'status': 'submitted',
             'created_at': '2023-01-01T00:00:00.000Z',
             'updated_at': '2023-01-01T00:00:00.000Z',
             'text': tText,
@@ -107,7 +108,7 @@ void main() {
         );
 
         // Act
-        await remoteDataSource.createJob(
+        final createdJob = await remoteDataSource.createJob(
           audioFilePath: tAudioFilePath,
           text: tText,
         );
@@ -118,6 +119,10 @@ void main() {
 
         // Verify that multipartFileCreator was called with the resolved path
         expect(capturedMultipartPath, equals(tResolvedAudioPath));
+
+        // Verify that the returned Job entity is mapped correctly
+        expect(createdJob.serverId, equals('server-123'));
+        expect(createdJob.status, equals(JobStatus.submitted));
       },
     );
 
@@ -130,7 +135,7 @@ void main() {
           'data': {
             'id': 'server-123',
             'user_id': tUserId,
-            'job_status': 'submitted',
+            'status': 'submitted',
             'created_at': '2023-01-01T00:00:00.000Z',
             'updated_at': '2023-01-01T00:00:00.000Z',
             'text': tText,
@@ -228,7 +233,7 @@ void main() {
           'data': {
             'id': 'server-123',
             'user_id': tUserId,
-            'job_status': 'submitted',
+            'status': 'submitted',
             'created_at': '2023-01-01T00:00:00.000Z',
             'updated_at': '2023-01-01T00:00:00.000Z',
             'text': tText,
@@ -291,7 +296,7 @@ void main() {
           'data': {
             'id': 'server-123',
             'user_id': tUserId,
-            'job_status': 'submitted',
+            'status': 'submitted',
             'created_at': '2023-01-01T00:00:00.000Z',
             'updated_at': '2023-01-01T00:00:00.000Z',
             'text': tText,
@@ -345,7 +350,7 @@ void main() {
             {
               'id': 'server-id-1',
               'user_id': tUserId,
-              'job_status': 'submitted',
+              'status': 'submitted',
               'created_at': '2023-01-01T00:00:00.000Z',
               'updated_at': '2023-01-01T00:00:00.000Z',
               'display_title': 'Job 1 Title',
@@ -356,7 +361,7 @@ void main() {
             {
               'id': 'server-id-2',
               'user_id': tUserId,
-              'job_status': 'completed',
+              'status': 'completed',
               'created_at': '2023-01-02T00:00:00.000Z',
               'updated_at': '2023-01-02T00:00:00.000Z',
               'display_title': 'Job 2 Title',
@@ -368,7 +373,7 @@ void main() {
             {
               'id': 'server-id-3',
               'user_id': tUserId,
-              'job_status': 'error',
+              'status': 'error',
               'created_at': '2023-01-03T00:00:00.000Z',
               'updated_at': '2023-01-03T00:00:00.000Z',
               'display_title': null,

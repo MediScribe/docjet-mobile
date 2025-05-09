@@ -61,7 +61,7 @@ Future<Response> _handleStartAllJobsProgression(
       }
     }
 
-    final jobStatus = jobToProcess['job_status'] as String?;
+    final jobStatus = jobToProcess['status'] as String?;
     if (jobStatus == 'completed') {
       if (verboseLoggingEnabled) {
         print(
@@ -108,7 +108,7 @@ Future<Response> startJobProgressionHandler(Request request) async {
   Future<Response> singleStartHandler(Request req, String jobId) async {
     try {
       final job = job_store.findJobById(jobId); // Throws if not found
-      final jobStatus = job['job_status'] as String?;
+      final jobStatus = job['status'] as String?;
 
       if (jobStatus == 'completed') {
         return Response.ok(

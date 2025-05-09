@@ -10,7 +10,7 @@ class JobApiDTO extends Equatable {
   final String id;
   @JsonKey(name: 'user_id')
   final String userId;
-  @JsonKey(name: 'job_status') // Map API field name
+  @JsonKey(name: 'status') // Map API field name
   final String jobStatus; // Keep as String for JSON serialization
   @JsonKey(name: 'created_at')
   final DateTime createdAt;

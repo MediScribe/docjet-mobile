@@ -69,7 +69,7 @@ void main() {
       jobId = await createTestJob(baseUrl, 'progression-user');
       // Ensure initial status is 'submitted' after creation
       final job = await getJob(baseUrl, jobId);
-      expect(job['job_status'], 'submitted',
+      expect(job['status'], 'submitted',
           reason: 'Job should have initial status submitted');
     });
 
@@ -113,7 +113,7 @@ void main() {
 
       // With fast_test_mode=true, the job should already be completed
       var job = await getJob(baseUrl, jobId);
-      expect(job['job_status'], 'completed',
+      expect(job['status'], 'completed',
           reason: 'Job should be completed immediately in fast test mode');
 
       // Act: Try starting again after completion
@@ -147,7 +147,7 @@ void main() {
       await Future.delayed(
           const Duration(milliseconds: 250)); // Just over 1 interval
       var jobBeforeStop = await getJob(baseUrl, jobId);
-      final statusBeforeStop = jobBeforeStop['job_status'];
+      final statusBeforeStop = jobBeforeStop['status'];
       expect(statusBeforeStop, isNot(equals('submitted')),
           reason: 'Setup: Status should have changed');
       expect(statusBeforeStop, isNot(equals('completed')),
@@ -167,7 +167,7 @@ void main() {
       // Assert: Status remains unchanged after stopping
       await Future.delayed(const Duration(milliseconds: 300));
       var jobAfterStop = await getJob(baseUrl, jobId);
-      expect(jobAfterStop['job_status'], statusBeforeStop,
+      expect(jobAfterStop['status'], statusBeforeStop,
           reason: 'Status should not change after stopping progression');
     });
 
@@ -195,8 +195,8 @@ void main() {
       // Verify both jobs are completed
       var job1 = await getJob(baseUrl, jobId);
       var job2 = await getJob(baseUrl, jobId2);
-      expect(job1['job_status'], 'completed');
-      expect(job2['job_status'], 'completed');
+      expect(job1['status'], 'completed');
+      expect(job2['status'], 'completed');
 
       // Clean up the additional job
       final deleteUrl = Uri.parse('$baseUrl/api/v1/jobs/$jobId2');
@@ -244,10 +244,10 @@ void main() {
       var job1 = jsonDecode(job1Response.body)['data'] as Map<String, dynamic>;
       var job2 = jsonDecode(job2Response.body)['data'] as Map<String, dynamic>;
 
-      expect(job1['job_status'], 'completed',
+      expect(job1['status'], 'completed',
           reason:
               'Job 1 should be completed via debug endpoint without API key');
-      expect(job2['job_status'], 'completed',
+      expect(job2['status'], 'completed',
           reason:
               'Job 2 should be completed via debug endpoint without API key');
 
@@ -280,7 +280,7 @@ void main() {
 
       // Verify job is completed
       var jobBefore = await getJob(baseUrl, testJobId);
-      expect(jobBefore['job_status'], 'completed',
+      expect(jobBefore['status'], 'completed',
           reason: 'Setup: Job should be completed before exemption test');
 
       // Define all debug endpoints to test without API key
@@ -341,7 +341,7 @@ void main() {
         if (endpoint['url'].toString().contains('reset')) {
           // Verify reset worked
           var jobAfterReset = await getJob(baseUrl, testJobId);
-          expect(jobAfterReset['job_status'], 'submitted',
+          expect(jobAfterReset['status'], 'submitted',
               reason:
                   'Job should be reset to submitted when calling reset endpoint without API key');
         }
@@ -419,8 +419,8 @@ void main() {
       // Optional: Check they are progressing (not strictly needed for this test's main assertion)
       // final job1Prog = await getJob(baseUrl, jobId1);
       // final job2Prog = await getJob(baseUrl, jobId2);
-      // expect(job1Prog['job_status'], isNot(equals('submitted')));
-      // expect(job1Prog['job_status'], isNot(equals('completed')));
+      // expect(job1Prog['status'], isNot(equals('submitted')));
+      // expect(job1Prog['status'], isNot(equals('completed')));
 
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/stop'); // No id
 
@@ -445,16 +445,16 @@ void main() {
       // For example, record status now, wait, check status again.
       final job1AfterStop = await getJob(baseUrl, jobId1);
       final job2AfterStop = await getJob(baseUrl, jobId2);
-      final status1AfterStop = job1AfterStop['job_status'];
-      final status2AfterStop = job2AfterStop['job_status'];
+      final status1AfterStop = job1AfterStop['status'];
+      final status2AfterStop = job2AfterStop['status'];
 
       await Future.delayed(const Duration(milliseconds: 700)); // Longer delay
 
       final job1Final = await getJob(baseUrl, jobId1);
       final job2Final = await getJob(baseUrl, jobId2);
-      expect(job1Final['job_status'], status1AfterStop,
+      expect(job1Final['status'], status1AfterStop,
           reason: "Job 1 should have stopped progressing");
-      expect(job2Final['job_status'], status2AfterStop,
+      expect(job2Final['status'], status2AfterStop,
           reason: "Job 2 should have stopped progressing");
 
       // Clean up explicitly created jobs for this test
@@ -509,7 +509,7 @@ void main() {
       // Wait very briefly, status should still be 'submitted'
       await Future.delayed(const Duration(milliseconds: 100));
       var jobAfterSlowStart = await getJob(baseUrl, jobId);
-      expect(jobAfterSlowStart['job_status'], 'submitted',
+      expect(jobAfterSlowStart['status'], 'submitted',
           reason: 'Status should not change yet');
 
       // Act: Start progression again, this time with fast mode
@@ -525,13 +525,13 @@ void main() {
 
       // Assert: Job should be completed immediately due to the second (fast) start
       var jobAfterFastStart = await getJob(baseUrl, jobId);
-      expect(jobAfterFastStart['job_status'], 'completed',
+      expect(jobAfterFastStart['status'], 'completed',
           reason: 'Job should be completed by the overriding fast start');
 
       // Optional: Wait to ensure the slow timer didn't interfere later (difficult to guarantee without server logs/state inspection)
       // await Future.delayed(const Duration(seconds: 11));
       // var jobLater = await getJob(baseUrl, jobId);
-      // expect(jobLater['job_status'], 'completed', reason: 'Job should remain completed');
+      // expect(jobLater['status'], 'completed', reason: 'Job should remain completed');
     });
 
     // --- Tests for /reset endpoint ---
@@ -562,13 +562,13 @@ void main() {
 
       // Assert: Status is reset
       var jobAfterReset = await getJob(baseUrl, jobId);
-      expect(jobAfterReset['job_status'], 'submitted',
+      expect(jobAfterReset['status'], 'submitted',
           reason: 'Status should be reset');
 
       // Assert: Timer is stopped (status should not change anymore)
       await Future.delayed(const Duration(milliseconds: 300));
       jobAfterReset = await getJob(baseUrl, jobId);
-      expect(jobAfterReset['job_status'], 'submitted',
+      expect(jobAfterReset['status'], 'submitted',
           reason: 'Status should remain reset');
     });
 
@@ -586,7 +586,7 @@ void main() {
       expect(startResponse.statusCode, 200,
           reason: 'Setup: Failed to start/complete job');
       var jobBeforeReset = await getJob(baseUrl, jobId);
-      expect(jobBeforeReset['job_status'], 'completed',
+      expect(jobBeforeReset['status'], 'completed',
           reason: 'Setup: Job should be completed');
 
       // Act: Reset the completed job
@@ -597,7 +597,7 @@ void main() {
 
       // Assert: Status is reset
       var jobAfterReset = await getJob(baseUrl, jobId);
-      expect(jobAfterReset['job_status'], 'submitted',
+      expect(jobAfterReset['status'], 'submitted',
           reason: 'Status should be reset from completed');
     });
 
@@ -610,7 +610,7 @@ void main() {
         'x-api-key': testApiKey
       };
       var jobBeforeReset = await getJob(baseUrl, jobId);
-      expect(jobBeforeReset['job_status'], 'submitted',
+      expect(jobBeforeReset['status'], 'submitted',
           reason: 'Setup: Job should be idle');
 
       // Act: Reset the idle job
@@ -621,7 +621,7 @@ void main() {
 
       // Assert: Status remains the same (submitted)
       var jobAfterReset = await getJob(baseUrl, jobId);
-      expect(jobAfterReset['job_status'], 'submitted',
+      expect(jobAfterReset['status'], 'submitted',
           reason: 'Status should remain submitted');
     });
 
@@ -648,7 +648,7 @@ void main() {
 
       // Optional: Verify they have progressed from 'submitted'
       // final job1Prog = await getJob(baseUrl, jobId1);
-      // expect(job1Prog['job_status'], isNot(equals('submitted')));
+      // expect(job1Prog['status'], isNot(equals('submitted')));
 
       final url = Uri.parse('$baseUrl/api/v1/debug/jobs/reset'); // No id
 
@@ -669,18 +669,18 @@ void main() {
       // Verify jobs are reset to 'submitted' and timers are stopped
       final job1AfterReset = await getJob(baseUrl, jobId1);
       final job2AfterReset = await getJob(baseUrl, jobId2);
-      expect(job1AfterReset['job_status'], 'submitted',
+      expect(job1AfterReset['status'], 'submitted',
           reason: "Job 1 should be reset to submitted");
-      expect(job2AfterReset['job_status'], 'submitted',
+      expect(job2AfterReset['status'], 'submitted',
           reason: "Job 2 should be reset to submitted");
 
       // Wait to ensure timers are indeed stopped
       await Future.delayed(const Duration(milliseconds: 700));
       final job1Final = await getJob(baseUrl, jobId1);
       final job2Final = await getJob(baseUrl, jobId2);
-      expect(job1Final['job_status'], 'submitted',
+      expect(job1Final['status'], 'submitted',
           reason: "Job 1 should remain submitted (timer stopped)");
-      expect(job2Final['job_status'], 'submitted',
+      expect(job2Final['status'], 'submitted',
           reason: "Job 2 should remain submitted (timer stopped)");
 
       // Clean up explicitly created jobs for this test

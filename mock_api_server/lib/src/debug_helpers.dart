@@ -50,7 +50,7 @@ Response executeFastModeProgression(String jobId, Map<String, dynamic> job) {
   if (verboseLoggingEnabled) {
     print('DEBUG FAST MODE: Starting immediate progression for job $jobId...');
   }
-  String currentStatus = job['job_status'];
+  String currentStatus = job['status'];
   for (final nextStatus in jobStatusProgression) {
     // Use imported state
     final currentIndex =
@@ -130,7 +130,7 @@ void handleProgressionTick(String jobId, Timer timer) {
     return;
   }
 
-  final currentStatus = currentJob['job_status'];
+  final currentStatus = currentJob['status'];
   final nextStatus = getNextJobStatus(currentStatus); // Use public helper
 
   // 2. Handle progression to next state
