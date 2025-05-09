@@ -7,8 +7,9 @@ import 'package:docjet_mobile/core/usecases/usecase.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
-import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -16,88 +17,86 @@ import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.d
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:uuid/uuid.dart';
 
-// Generate mocks
+// Generate mocks (DeleteJobUseCase mocked manually below to avoid build_runner churn)
 @GenerateMocks([WatchJobsUseCase, JobViewModelMapper, CreateJobUseCase])
 import 'job_list_cubit_test.mocks.dart';
+
+// MANUAL mock for the new dependency to avoid re-running build_runner now.
+class MockDeleteJobUseCase extends Mock implements DeleteJobUseCase {}
+
+// Replace outdated entity/view-model test fixtures with minimal valid ones.
 
 void main() {
   late MockWatchJobsUseCase mockWatchJobsUseCase;
   late MockJobViewModelMapper mockJobViewModelMapper;
   late MockCreateJobUseCase mockCreateJobUseCase;
-  late JobListCubit jobListCubit;
+  late MockDeleteJobUseCase mockDeleteJobUseCase;
+  JobListCubit? jobListCubit;
   late StreamController<Either<Failure, List<Job>>> streamController;
 
-  // Test data
-  final tJobId1 = const Uuid().v4();
+  // Sample timestamps
+  final dateTime1 = DateTime(2023, 1, 15, 10, 30);
+  final dateTime2 = DateTime(2023, 1, 17, 12, 45);
+  final dateTime3 = DateTime(2023, 1, 10, 16, 20);
+
+  const tServerFailure = ServerFailure(message: 'Server error');
+
+  // Minimal domain entities
   final tJob1 = Job(
-    localId: tJobId1,
-    userId: 'user-1',
-    status: JobStatus.completed,
+    localId: '1',
+    status: JobStatus.created,
     syncStatus: SyncStatus.synced,
-    createdAt: DateTime(2023, 1, 1),
-    updatedAt: DateTime(2023, 1, 2),
-    text: 'Job 1 Text',
-  );
-  final tViewModel1 = JobViewModel(
-    localId: tJobId1,
-    title: 'Job 1 Title',
-    text: 'Job 1 Text',
-    syncStatus: SyncStatus.synced,
-    jobStatus: tJob1.status,
-    hasFileIssue: false,
-    displayDate: tJob1.updatedAt,
+    createdAt: dateTime1,
+    updatedAt: dateTime1,
+    userId: 'user1',
   );
 
-  final tJobId2 = const Uuid().v4();
   final tJob2 = Job(
-    localId: tJobId2,
-    userId: 'user-1',
-    status: JobStatus.transcribing,
-    syncStatus: SyncStatus.pending,
-    createdAt: DateTime(2023, 1, 3),
-    updatedAt: DateTime(2023, 1, 4),
-    text: 'Job 2 Text',
-    failedAudioDeletionAttempts: 1,
-  );
-  final tViewModel2 = JobViewModel(
-    localId: tJobId2,
-    title: 'Job 2 Title',
-    text: 'Job 2 Text',
-    syncStatus: SyncStatus.pending,
-    jobStatus: tJob2.status,
-    hasFileIssue: true,
-    displayDate: tJob2.updatedAt,
+    localId: '2',
+    status: JobStatus.created,
+    syncStatus: SyncStatus.synced,
+    createdAt: dateTime2,
+    updatedAt: dateTime2,
+    userId: 'user1',
   );
 
-  // Create a job with an older date for sorting tests
-  final tJobId3 = const Uuid().v4();
   final tJob3 = Job(
-    localId: tJobId3,
-    userId: 'user-1',
-    status: JobStatus.completed,
+    localId: '3',
+    status: JobStatus.created,
     syncStatus: SyncStatus.synced,
-    createdAt: DateTime(2022, 1, 1), // Older date
-    updatedAt: DateTime(2022, 1, 2), // Older date
-    text: 'Job 3 Text',
-  );
-  final tViewModel3 = JobViewModel(
-    localId: tJobId3,
-    title: 'Job 3 Title',
-    text: 'Job 3 Text',
-    syncStatus: SyncStatus.synced,
-    jobStatus: tJob3.status,
-    hasFileIssue: false,
-    displayDate: tJob3.updatedAt,
+    createdAt: dateTime3,
+    updatedAt: dateTime3,
+    userId: 'user1',
   );
 
-  const tServerFailure = ServerFailure(message: 'Something went wrong');
+  // Corresponding view-models (using helper factory)
+  final tViewModel1 = JobViewModel.forTest(
+    localId: '1',
+    title: 'Job 1',
+    text: 'Sample text 1',
+    displayDate: dateTime1,
+  );
+
+  final tViewModel2 = JobViewModel.forTest(
+    localId: '2',
+    title: 'Job 2',
+    text: 'Sample text 2',
+    displayDate: dateTime2,
+  );
+
+  final tViewModel3 = JobViewModel.forTest(
+    localId: '3',
+    title: 'Job 3',
+    text: 'Sample text 3',
+    displayDate: dateTime3,
+  );
 
   setUp(() {
     mockWatchJobsUseCase = MockWatchJobsUseCase();
     mockJobViewModelMapper = MockJobViewModelMapper();
     mockCreateJobUseCase = MockCreateJobUseCase();
+    mockDeleteJobUseCase = MockDeleteJobUseCase();
     streamController = StreamController<Either<Failure, List<Job>>>.broadcast();
 
     // Default stub for use case stream
@@ -117,19 +116,23 @@ void main() {
       watchJobsUseCase: mockWatchJobsUseCase,
       mapper: mockJobViewModelMapper,
       createJobUseCase: mockCreateJobUseCase,
+      deleteJobUseCase: mockDeleteJobUseCase,
     );
   }
 
-  tearDown(() {
+  tearDown(() async {
     streamController.close();
+    if (jobListCubit != null && jobListCubit!.isClosed == false) {
+      await jobListCubit!.close();
+    }
   });
 
-  test('initial state should be JobListInitial', () {
+  test('initial state should be JobListLoading', () async {
     jobListCubit = createCubit();
     // Assert: The state immediately after creation (and subscription start)
-    expect(jobListCubit.state, isA<JobListLoading>());
+    expect(jobListCubit!.state, isA<JobListLoading>());
     verify(mockWatchJobsUseCase.call(NoParams())).called(1);
-    jobListCubit.close(); // Clean up instance created outside blocTest
+    await jobListCubit!.close(); // Clean up instance
   });
 
   group('WatchJobs Stream Handling', () {
@@ -276,7 +279,7 @@ void main() {
       verify(mockWatchJobsUseCase.call(NoParams())).called(1);
 
       // Act
-      await jobListCubit.close();
+      await jobListCubit!.close();
 
       // Assert
       // Check if the stream controller's listener count dropped (indirect check)

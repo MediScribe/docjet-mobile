@@ -45,21 +45,21 @@ sequenceDiagram
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 0.1. [ ] **Task:** Verify existence of `DeleteJobUseCase`.
+* 0.1. [x] **Task:** Verify existence of `DeleteJobUseCase`.
     * Action: Semantic search for "DeleteJobUseCase" and inspect `lib/features/jobs/domain/usecases/delete_job_use_case.dart`.
-    * Findings: [e.g., Confirmed `DeleteJobUseCase` exists, takes `DeleteJobParams`, calls `repository.deleteJob()`.]
-* 0.2. [ ] **Task:** Verify `JobRepository` interface and implementation for `deleteJob`.
+    * Findings: Confirmed `DeleteJobUseCase` exists in `lib/features/jobs/domain/usecases/delete_job_use_case.dart`. It takes a `DeleteJobParams` parameter with a required `localId` field. The use case properly calls the repository's `deleteJob` method and passes the job's local ID. It returns `Either<Failure, Unit>` as expected. Tests for this use case also exist in `test/features/jobs/domain/usecases/delete_job_use_case_test.dart`, confirming both success and failure cases are properly handled.
+* 0.2. [x] **Task:** Verify `JobRepository` interface and implementation for `deleteJob`.
     * Action: Inspect `JobRepository` interface and `JobRepositoryImpl` for the `deleteJob(String localId)` method and its delegation.
-    * Findings: [e.g., Confirmed `JobRepository` has `deleteJob`, and `JobRepositoryImpl` delegates to `JobDeleterService` which calls `JobLocalDataSource`.]
-* 0.3. [ ] **Task:** Confirm `WatchJobsUseCase` stream emits updated list after deletion.
+    * Findings: Confirmed that the `JobRepository` interface in `lib/features/jobs/domain/repositories/job_repository.dart` properly defines the `deleteJob(String localId)` method, which returns `Future<Either<Failure, Unit>>`. The implementation in `JobRepositoryImpl` delegates this call to `_deleterService.deleteJob(localId)`, which is a `JobDeleterService` instance. This service properly marks jobs for deletion by updating their sync status to `SyncStatus.pendingDeletion` and saves them back to the local data source. The actual deletion is handled by the sync process. This architecture is appropriate for the swipe-to-delete feature we need to implement.
+* 0.3. [x] **Task:** Confirm `WatchJobsUseCase` stream emits updated list after deletion.
     * Action: Examine `WatchJobsUseCase` and how it's connected to the underlying stream/data source. Verify that it listens to the data source changes and emits an updated list when jobs are deleted.
-    * Findings: [e.g., Confirmed `WatchJobsUseCase` emits from a reactive stream that updates when jobs are deleted from the repository.]
-* 0.4. [ ] **Update Plan:** Based on findings, confirm plan for Cubit and UI modifications.
-    * Findings: [e.g., "Plan confirmed. Backend support for delete exists. Focus is on Cubit and UI integration."]
-* 0.5. [ ] **Handover Brief:**
-    * Status: [e.g., Prerequisite check complete. Existing architecture supports deletion logic with reactive updates.]
-    * Gotchas: [None anticipated at this stage.]
-    * Recommendations: [Proceed to Cycle 1: Cubit and DI modifications.]
+    * Findings: Confirmed that `WatchJobsUseCase` directly returns the stream from `repository.watchJobs()`, which is implemented in the `HiveJobLocalDataSourceImpl`. The local data source implementation uses a reactive stream pattern through Rx.dart that emits updates whenever there are changes to the underlying data. The implementation specifically `asyncMap`s the events to fetch the current job list on every change event, ensuring that job deletions will be reflected in the emitted list. There's also a test in `watch_jobs_use_case_test.dart` that verifies the stream emits updated data when the underlying collection changes, which should include deletions.
+* 0.4. [x] **Update Plan:** Based on findings, confirm plan for Cubit and UI modifications.
+    * Findings: Our verification confirms the infrastructure for job deletion is already in place. We have a properly implemented `DeleteJobUseCase` that calls through to `JobRepository.deleteJob`. The `JobListCubit` is already listening to a reactive stream from `WatchJobsUseCase` that will automatically emit updated lists when jobs are deleted. Our plan is to: 1) Add the `DeleteJobUseCase` dependency to `JobListCubit`, 2) Implement a `deleteJob(String localId)` method in the cubit that calls the use case, 3) Update the DI registration for `JobListCubit` to include the new dependency, 4) Add a `Dismissible` widget in the UI that calls the cubit's method, and 5) Ensure all tests are updated and pass. This approach maintains our reactive architecture design.
+* 0.5. [x] **Handover Brief:**
+    * Status: Prerequisite check complete. Existing architecture fully supports the deletion logic with reactive updates. All necessary components (DeleteJobUseCase, JobRepository.deleteJob, reactive stream updates) are in place and properly implemented.
+    * Gotchas: The JobDeleterService marks jobs for deletion by updating their sync status rather than immediately deleting them. This is by design to support the sync flow, but it means we should be aware that the actual deletion happens during the sync process.
+    * Recommendations: Proceed to Cycle 1 to implement the JobListCubit changes and update the dependency injection. The foundation is solid for our implementation plan.
 
 ---
 
@@ -69,10 +69,10 @@ sequenceDiagram
 
 **MANDATORY REPORTING RULE:** After *each sub-task* below and *before* ticking its checkbox, you **MUST** add a **Findings** note *and* a **Handover Brief** at the end of the cycle. No silent check-offs. Uncertainty will get you fucking fired.
 
-* 1.1. [ ] **Task:** Add `DeleteJobUseCase` dependency to `JobListCubit`.
+* 1.1. [x] **Task:** Add `DeleteJobUseCase` dependency to `JobListCubit`.
     * Action: Edit `lib/features/jobs/presentation/cubit/job_list_cubit.dart`. Add `final DeleteJobUseCase _deleteJobUseCase;` and update the constructor to require `DeleteJobUseCase deleteJobUseCase` and assign it. Add necessary import using absolute path: `import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';`
-    * Findings: [e.g., Successfully added dependency and updated constructor with absolute imports.]
-* 1.2. [ ] **Task:** Implement `deleteJob(String localId)` method in `JobListCubit`.
+    * Findings: Successfully added the `DeleteJobUseCase` dependency to the `JobListCubit` class. Added a new field `final DeleteJobUseCase _deleteJobUseCase;` and properly updated the constructor to require and assign this dependency. The import was added with the correct absolute path.
+* 1.2. [x] **Task:** Implement `deleteJob(String localId)` method in `JobListCubit`.
     * Action: Edit `lib/features/jobs/presentation/cubit/job_list_cubit.dart`. Add:
       ```dart
       Future<void> deleteJob(String localId) async {
@@ -89,20 +89,20 @@ sequenceDiagram
         // No state emission - UI relies on WatchJobsUseCase stream for updates
       }
       ```
-    * Findings: [e.g., `deleteJob` method implemented with proper error handling. Does not swallow errors silently. Logs both success and failure scenarios.]
-* 1.3. [ ] **Task:** Register `DeleteJobUseCase` in `JobsModule`.
+    * Findings: Successfully implemented the `deleteJob` method in `JobListCubit`. The method properly calls the `DeleteJobUseCase` with the correct parameters, handles both success and failure cases through the Either fold method, and includes comprehensive error handling for any exceptions. As expected, the method doesn't emit any state changes since the UI will be updated through the reactive stream from `WatchJobsUseCase`.
+* 1.3. [x] **Task:** Register `DeleteJobUseCase` in `JobsModule`.
     * Action: Edit `lib/features/jobs/di/jobs_module.dart`. Add import using absolute path: `import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';`. Add registration: `if (!getIt.isRegistered<DeleteJobUseCase>()) { getIt.registerLazySingleton(() => DeleteJobUseCase(getIt())); }`.
-    * Findings: [e.g., `DeleteJobUseCase` successfully registered in DI module with absolute imports.]
-* 1.4. [ ] **Task:** Update `JobListCubit` factory in `JobsModule`.
+    * Findings: Successfully added the import for `DeleteJobUseCase` with the correct absolute path and registered it as a lazy singleton in the `JobsModule`. The registration correctly passes the repository instance from the GetIt container. Initially had a small issue with the constructor parameters, but it was quickly fixed.
+* 1.4. [x] **Task:** Update `JobListCubit` factory in `JobsModule`.
     * Action: Edit `lib/features/jobs/di/jobs_module.dart`. Modify the `getIt.registerFactory<JobListCubit>(...)` to pass the `deleteJobUseCase: getIt<DeleteJobUseCase>()`.
-    * Findings: [e.g., `JobListCubit` factory updated with new dependency.]
-* 1.5. [ ] **Task:** Analyze modified files.
+    * Findings: Successfully updated the `JobListCubit` factory in `JobsModule` to include the `deleteJobUseCase` parameter, properly passing the DeleteJobUseCase instance from GetIt. This ensures that when a new JobListCubit is created, it will have all the required dependencies including the DeleteJobUseCase.
+* 1.5. [x] **Task:** Analyze modified files.
     * Action: Run `dart analyze lib/features/jobs/presentation/cubit/job_list_cubit.dart lib/features/jobs/di/jobs_module.dart`.
-    * Findings: [e.g., "No issues found!" or list issues and how they were fixed.]
-* 1.6. [ ] **Handover Brief:**
-    * Status: `JobListCubit` and DI successfully modified to support deletion. `dart analyze` is clean.
-    * Gotchas: Ensure all imports use absolute paths with package prefix.
-    * Recommendations: Ready for Cycle 2: UI implementation and fixing initial test failures.
+    * Findings: Static analysis ran successfully with no issues found. There were initially some linter errors with the parameter types for `DeleteJobUseCase` constructor, but those were fixed. The final code is properly typed and follows the project's style guidelines.
+* 1.6. [x] **Handover Brief:**
+    * Status: JobListCubit and DI have been successfully modified to support job deletion. The JobListCubit now has a deleteJob method that leverages the DeleteJobUseCase, and all dependencies are properly registered in the DI container. Static analysis is clean with no issues.
+    * Gotchas: The JobListCubit doesn't emit any new states when a job is deleted since it relies on the reactive stream from WatchJobsUseCase to keep the UI in sync. This is an intentional design decision to maintain consistency with the app's reactive architecture.
+    * Recommendations: Ready to proceed to Cycle 2 to implement the UI using the Dismissible widget and fix any test breakages caused by the changes to JobListCubit's constructor. The foundation is solid and aligns with the clean architecture principles.
 
 ---
 

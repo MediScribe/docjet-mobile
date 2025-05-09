@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
-import 'package:docjet_mobile/core/usecases/usecase.dart'; // For NoParams
+import 'package:docjet_mobile/core/usecases/usecase.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
-import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 
 class JobListCubit extends Cubit<JobListState> {
   // Get logger instance for this class
@@ -17,63 +18,23 @@ class JobListCubit extends Cubit<JobListState> {
   final WatchJobsUseCase _watchJobsUseCase;
   final JobViewModelMapper _mapper;
   final CreateJobUseCase _createJobUseCase;
+  final DeleteJobUseCase _deleteJobUseCase;
   StreamSubscription? _jobSubscription;
 
   JobListCubit({
     required WatchJobsUseCase watchJobsUseCase,
     required JobViewModelMapper mapper,
     required CreateJobUseCase createJobUseCase,
+    required DeleteJobUseCase deleteJobUseCase,
   }) : _watchJobsUseCase = watchJobsUseCase,
        _mapper = mapper,
        _createJobUseCase = createJobUseCase,
+       _deleteJobUseCase = deleteJobUseCase,
        super(const JobListInitial()) {
     _logger.d('$_tag: Initializing...');
     // Start loading immediately and subscribe to the stream
     refreshJobs();
   }
-
-  /// Loads and starts watching the job list.
-  // void loadJobs() {
-  //   // Cancel previous subscription if exists
-  //   _jobSubscription?.cancel();
-  //
-  //   emit(state.copyWith(isLoading: true, clearError: true));
-  //
-  //   _jobSubscription = _watchJobsUseCase
-  //       .call(NoParams())
-  //       .listen(
-  //         (eitherResult) {
-  //           eitherResult.fold(
-  //             (failure) {
-  //               emit(
-  //                 state.copyWith(
-  //                   isLoading: false,
-  //                   error:
-  //                       failure
-  //                           .toString(), // Use toString() for generic failure message
-  //                 ),
-  //               );
-  //             },
-  //             (jobs) {
-  //               // Use a local variable for mapping to avoid potential race condition with state access?
-  //               // Though, bloc is single-threaded, so maybe not necessary. Being explicit.
-  //               final viewModels = jobs.map(_mapper.toViewModel).toList();
-  //               emit(state.copyWith(isLoading: false, jobs: viewModels));
-  //             },
-  //           );
-  //         },
-  //         onError: (error) {
-  //           // Handle potential stream errors if the Either doesn't catch them
-  //           // This might indicate a problem in the use case or repository layer
-  //           emit(
-  //             state.copyWith(
-  //               isLoading: false,
-  //               error: 'JobListCubit stream error: ${error.toString()}',
-  //             ),
-  //           );
-  //         },
-  //       );
-  // }
 
   /// Creates a new job using the injected use case.
   Future<void> createJob(CreateJobParams params) async {
@@ -92,8 +53,12 @@ class JobListCubit extends Cubit<JobListState> {
           // List will update via the stream watcher
         },
       );
-    } catch (e) {
-      _logger.e('$_tag: Exception during job creation: $e');
+    } catch (e, st) {
+      _logger.e(
+        '$_tag: Exception during job creation: $e',
+        error: e,
+        stackTrace: st,
+      );
       // Optionally emit a specific creation error state
     }
   }
@@ -147,6 +112,30 @@ class JobListCubit extends Cubit<JobListState> {
 
     // Wait until the first event arrives before completing
     return firstEventCompleter.future;
+  }
+
+  /// Deletes a job using the DeleteJobUseCase.
+  ///
+  /// This method does not emit new job list states as the UI will be updated
+  /// automatically via the WatchJobsUseCase stream when the job is deleted.
+  /// However, it does emit error states if the deletion fails.
+  Future<void> deleteJob(String localId) async {
+    _logger.i('$_tag: Attempting to delete job with ID: $localId');
+    try {
+      final result = await _deleteJobUseCase(DeleteJobParams(localId: localId));
+      result.fold((failure) {
+        _logger.e('$_tag: Failed to delete job: $failure');
+        emit(JobListError('Failed to delete job: ${failure.toString()}'));
+      }, (_) => _logger.i('$_tag: Successfully deleted job with ID: $localId'));
+    } catch (e, st) {
+      _logger.e(
+        '$_tag: Exception while deleting job: $e',
+        error: e,
+        stackTrace: st,
+      );
+      emit(JobListError('Unexpected error deleting job: ${e.toString()}'));
+    }
+    // UI relies on WatchJobsUseCase stream for updates after successful deletion
   }
 
   @override

@@ -8,8 +8,8 @@ import 'dart:ui' as _i3;
 
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart'
     as _i2;
-import 'package:flutter/material.dart' as _i6;
 import 'package:flutter/services.dart' as _i5;
+import 'package:flutter/widgets.dart' as _i6;
 import 'package:mockito/mockito.dart' as _i1;
 
 // ignore_for_file: type=lint

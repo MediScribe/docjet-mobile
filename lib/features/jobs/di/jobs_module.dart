@@ -18,6 +18,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dar
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_auth_gate.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_detail_cubit.dart';
@@ -186,6 +187,9 @@ class JobsModule {
       // We resolve it using getIt() as it's registered just above.
       getIt.registerLazySingleton(() => CreateJobUseCase(getIt()));
     }
+    if (!getIt.isRegistered<DeleteJobUseCase>()) {
+      getIt.registerLazySingleton(() => DeleteJobUseCase(getIt()));
+    }
 
     // Mapper (no dependencies)
     if (!getIt.isRegistered<JobViewModelMapper>()) {
@@ -205,6 +209,7 @@ class JobsModule {
         watchJobsUseCase: getIt<WatchJobsUseCase>(),
         mapper: getIt<JobViewModelMapper>(),
         createJobUseCase: getIt<CreateJobUseCase>(),
+        deleteJobUseCase: getIt<DeleteJobUseCase>(),
       ),
     );
   }

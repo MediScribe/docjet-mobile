@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:dartz/dartz.dart';
@@ -33,6 +34,8 @@ class MockWatchJobsUseCase extends Mock implements WatchJobsUseCase {
 class MockCreateJobUseCase extends Mock implements CreateJobUseCase {}
 
 class MockJobViewModelMapper extends Mock implements JobViewModelMapper {}
+
+class MockDeleteJobUseCase extends Mock implements DeleteJobUseCase {}
 
 void main() {
   group('Spinner Consistency Tests', () {
@@ -91,6 +94,7 @@ void main() {
       final mockWatchJobsUseCase = MockWatchJobsUseCase();
       final mockCreateJobUseCase = MockCreateJobUseCase();
       final mockMapper = MockJobViewModelMapper();
+      final mockDeleteJobUseCase = MockDeleteJobUseCase();
       _testLogger.i('$_tag Mocks created successfully');
 
       // Mock behavior
@@ -107,6 +111,7 @@ void main() {
           watchJobsUseCase: mockWatchJobsUseCase,
           mapper: mockMapper,
           createJobUseCase: mockCreateJobUseCase,
+          deleteJobUseCase: mockDeleteJobUseCase,
         );
         _testLogger.i('$_tag Mock cubit created successfully');
 
