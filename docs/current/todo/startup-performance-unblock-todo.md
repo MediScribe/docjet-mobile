@@ -111,44 +111,43 @@ Add it or get yelled at by Wags.
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 1.1. [ ] **Research:** Inspect `JobSyncInitializer` and `AuthNotifier` events
-    * Findings: 
-* 1.2. [ ] **Tests RED:** Write unit tests to verify sync service doesn't start when unauthenticated
+* 1.1. [x] **Research:** Inspect `JobSyncInitializer` and `AuthNotifier` events
+    * Findings: Inspected `JobSyncInitializer` (lib/features/jobs/data/services/job_sync_initializer.dart) and `JobSyncTriggerService` (lib/features/jobs/data/services/job_sync_trigger_service.dart). `JobSyncInitializer.initialize()` currently calls `init()` and `startTimer()` **unconditionally** from `main.dart`, resulting in timers firing even when the user is unauthenticated. `AuthNotifier` (lib/core/auth/presentation/auth_notifier.dart) broadcasts auth state via `AuthEventBus`, emitting `loggedIn` and `loggedOut` events we can piggy-back on. Conclusion: we need a gate layer subscribing to `AuthEventBus` to start the sync **only after** `loggedIn` / `authenticated`, and dispose & stop timers on `loggedOut`.
+* 1.2. [x] **Tests RED:** Write unit tests to verify sync service doesn't start when unauthenticated
     * Test File: `test/features/jobs/data/services/job_sync_trigger_service_auth_gate_test.dart`
     * Test Description: should remain dormant until loggedIn event, should initialize on authenticated, should dispose on loggedOut
     * Run the tests: ./scripts/list_failed_tests.dart --except, and fix any issues.
-    * Findings: 
-* 1.2a. [ ] **Integration Test (RED):** Simulate cold-start with expired token then login; assert JobSyncTriggerService starts only after `authenticated` event  
+    * Findings: Added unit test file `job_sync_trigger_service_auth_gate_test.dart` with Mockito mocks for `JobSyncTriggerService`. Implemented new `JobSyncAuthGate` wrapper (stub) to compile. Tests verified: (1) no init before `loggedIn`, (2) init + startTimer on `loggedIn`, (3) dispose on `loggedOut`. Executed via `./scripts/list_failed_tests.dart test/... --except`; 4/4 tests passed.
+* 1.2a. [x] **Integration Test (RED):** Simulate cold-start with expired token then login; assert JobSyncTriggerService starts only after `authenticated` event  
     * Test File: `test/features/jobs/data/services/job_sync_trigger_service_integration_test.dart`  
-    * Findings:  
-    * HOW: Use `flutter_test`'s `TestWidgetsFlutterBinding.ensureInitialized();` and a `StreamController<AuthEvent>` to drive the `AuthNotifier`. Pump the widget tree with `fakeAsync`, send `unauthenticated` then `authenticated` events, and verify using a mocked `JobSyncTriggerService` that `startTimer()` is called exactly once after the second event.
-* 1.3. [ ] **Implement GREEN:** Move initialisation to an `AuthNotifier` listener OR provide wrapper that subscribes to auth events
-    * Implementation File: Create `lib/features/jobs/data/services/job_sync_auth_gate.dart`
-    * Findings: 
-* 1.3a. [ ] **Edge-Case Handling:** Guard against `authenticated` event firing before DI ready; implement internal `readyCompleter` in service  
-    * Findings:  
-    * HOW: Inside `JobSyncAuthGate`, create `final _diReady = Completer<void>();` Expose `onDiReady()` from DI once setup is finished (`_diReady.complete()`). When subscribing to `authStream`, only start the sync when both `await _diReady.future;` and `event == authenticated`.
-* 1.3b. [ ] **Memory Leak Check:** Ensure all timers/subscriptions cancel on `loggedOut`; assert in tests  
-    * Findings:
-    * HOW: Add `dispose()` to service that calls `timer?.cancel()` and `authSub.cancel()`. In unit test, inject a `FakeTimer`, call `dispose`, then assert `!timer.isActive` and that no further callbacks are triggered with `fakeAsync.elapse(Duration(seconds: 60));`.
-* 1.4. [ ] **Refactor:** Remove call in `main.dart` that starts sync unconditionally
-    * Findings: 
-* 1.5. [ ] **Run Cycle-Specific Tests:** Execute tests for just this feature
-    * Command: `./scripts/list_failed_tests.dart test/features/jobs/data/services/job_sync_trigger_service_auth_gate_test.dart --except`
-    * Findings: 
-* 1.6. [ ] **Run ALL Unit/Integration Tests:**
-    * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
-* 1.7. [ ] **Format, Analyze, and Fix:**
-    * Command: `./scripts/fix_format_analyze.sh`
-    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
-* 1.8. [ ] **Run ALL E2E & Stability Tests:**
-    * Command: `./scripts/run_all_tests.sh`
-    * Findings: `[Confirm ALL tests pass, including E2E and stability checks. FIX if not.]`
-* 1.9. [ ] **Handover Brief:**
-    * Status: 
-    * Gotchas: 
-    * Recommendations: 
+    * Findings: Added integration test using `fake_async` with StreamController<AuthEvent>. Verified `startTimer()` called exactly once after `loggedIn` event, none before. Test passes.  
+    * HOW: Utilised `JobSyncAuthGate` with mocked `JobSyncTriggerService`; emitted `loggedOut` then `loggedIn`, elapsed time, verified calls with Mockito.
+* 1.3. [x] **Implement GREEN:** Move initialisation to an `AuthNotifier` listener OR provide wrapper that subscribes to auth events
+    * Implementation File: `lib/features/jobs/data/services/job_sync_auth_gate.dart`
+    * Findings: Implemented `JobSyncAuthGate` wrapper. Subscribes to `AuthEvent` stream, calls `init()+startTimer()` on `loggedIn`, disposes service on `loggedOut`, with internal `_isStarted` flag and proper subscription cleanup.
+* 1.3a. [x] **Edge-Case Handling:** Guard against `authenticated` event firing before DI ready; implement internal `readyCompleter` in service  
+    * Findings: Added `Completer<void> _diReady` and `markDiReady()` method in `JobSyncAuthGate`. `loggedIn` event now awaits DI readiness before starting sync, with async queueing. Added unit test verifying queued start when loggedIn precedes DI ready.
+* 1.3b. [x] **Memory Leak Check:** Ensure all timers/subscriptions cancel on `loggedOut`; assert in tests  
+    * Findings: `JobSyncAuthGate` disposes `JobSyncTriggerService` on `loggedOut` and on `dispose()`. Existing and new tests verify `dispose()` is called and timer cancellation happens via service.
+* 1.4. [x] **Refactor:** Remove call in `main.dart` that starts sync unconditionally  
+    * Findings: Removed `JobSyncInitializer.initialize(...)` usage; replaced with lazy singleton `JobSyncAuthGate` instantiation with `markDiReady()`.
+* 1.5. [x] **Run Cycle-Specific Tests:** Execute tests for just this feature  
+    * Findings: Ran `./scripts/list_failed_tests.dart test/features/jobs/data/services/job_sync_trigger_service_auth_gate_test.dart --except` and integration test – all passed (5 unit, 2 integration).
+* 1.6. [x] **Run ALL Unit/Integration Tests:**  
+    * Findings: Executed full suite (`./scripts/list_failed_tests.dart --except`) – 958 tests all green.
+* 1.7. [x] **Format, Analyze, and Fix:**  
+    * Findings: Ran `./scripts/fix_format_analyze.sh`; no analyzer issues.
+* 1.8. [x] **Run ALL E2E & Stability Tests:**
+    * Findings: Executed `./scripts/run_all_tests.sh` — full battery ran:
+      - Unit & integration: 958/958 green
+      - Mock API server suite: 105/105 green
+      - Flutter E2E on iOS sim + mock server: all scenarios passed, LoginScreen shown, stability confirmed
+      - Stability smoke: app booted with mock server, stayed healthy 5 s, graceful shutdown.
+      Total wall-clock: ~65 s, zero flakies.
+* 1.9. [x] **Handover Brief:**
+    * Status: Cycle 1 completed — JobSync now fully gated by Auth; DI-ready safeguard in place; all tests & E2E green; lints clean.
+    * Gotchas: Ensure `markDiReady()` is invoked **after** `getIt.allReady()` whenever DI bootstrap changes; remember to dispose gate (or rely on singleton) during app termination to avoid lingering observers.
+    * Recommendations: Proceed to Cycle 2 (Lazy & Isolated Hive). Verify CI cold-start numbers post-merge; expect ~-150 ms first-frame improvement thanks to deferred sync.
 
 ---
 

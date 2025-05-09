@@ -15,6 +15,7 @@ import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_processor_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_sync_trigger_service.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_writer_service.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_auth_gate.dart';
 import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
@@ -141,6 +142,15 @@ class JobsModule {
         // This allows for proper timing control and avoids premature lifecycle observation
         return service;
       });
+    }
+    if (!getIt.isRegistered<JobSyncAuthGate>()) {
+      // Gate that starts/stops the trigger service based on auth events
+      getIt.registerLazySingleton<JobSyncAuthGate>(
+        () => JobSyncAuthGate(
+          syncService: getIt<JobSyncTriggerService>(),
+          authStream: _authEventBus.stream,
+        ),
+      );
     }
 
     // Data Sources Interfaces
