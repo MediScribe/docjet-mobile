@@ -34,8 +34,19 @@ graph TD
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
 * 0.1. [ ] **Task:** Identify and catalog all code locations where "job_status" is used in API interactions
-    * Action: Execute grep search for "job_status" in all Dart files
-    * Action: Sort findings into categories (API DTOs, data sources, tests, mock server)
+    * Action: Execute comprehensive grep search for "job_status" across the entire codebase
+      ```bash
+      grep -r "job_status" --include="*.dart" --include="*.json" .
+      ```
+    * Action: Create a complete catalog of all instances including:
+      * API DTOs (Request/Response models)
+      * Data sources (API clients, repositories)
+      * Tests (unit, integration, e2e)
+      * Mock server (handlers, stores)
+      * JSON fixtures and examples
+      * Documentation references
+    * Action: Sort findings into categories by file type and usage pattern
+    * Action: Pay special attention to custom serialization/deserialization logic that might not be caught by simple string search
     * Findings: 
 * 0.2. [ ] **Task:** Run the current test suite to establish baseline
     * Action: Run `./scripts/list_failed_tests.dart test/features/jobs/data/models/job_api_dto_test.dart --except`
