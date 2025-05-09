@@ -12,6 +12,7 @@ import 'package:docjet_mobile/core/auth/auth_error_type.dart';
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/network/connectivity_error.dart';
 import 'package:flutter/foundation.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 /// Enum representing token validation states
 enum TokenValidationResult { noneValid, accessOnly, refreshOnly, bothValid }
@@ -168,7 +169,24 @@ class AuthServiceImpl implements AuthService {
   }
 
   @override
+  /// Checks authentication status for the current session.
+  ///
+  /// If [validateTokenLocally] is `true`, performs a *full* local token
+  /// validation (both access & refresh) without any network requests – used by
+  /// offline-aware code paths.
+  ///
+  /// Otherwise follows a lightweight **fast-path**:
+  ///  • Returns `false` when no access token exists or the token is already
+  ///    expired.
+  ///  • If the token expires within the next **30 seconds** (clock-skew
+  ///    buffer) it tries a *single* silent [refreshSession] call and
+  ///    returns that result.
+  ///  • Returns `true` for clearly valid tokens outside the skew window.
+  ///
+  /// Any parsing, storage, or refresh error results in `false` to avoid
+  /// mis-classifying an unauthenticated state.
   Future<bool> isAuthenticated({bool validateTokenLocally = false}) async {
+    // FULL LOCAL VALIDATION ────────────────────────────────────────────────
     if (validateTokenLocally) {
       try {
         final bool isAccessValid =
@@ -186,9 +204,59 @@ class AuthServiceImpl implements AuthService {
       }
     }
 
-    // --- Basic presence check (no local validation) ---
+    // FAST-PATH ROUTE ──────────────────────────────────────────────────────
+    // For calls WITHOUT explicit local validation we only do lightweight JWT
+    // inspection plus optional silent refresh.
+
+    // Fetch token; bail early if none is present.
     final accessToken = await credentialsProvider.getAccessToken();
-    return accessToken != null;
+    if (accessToken == null) {
+      _logger.d('$_tag No access token present – unauthenticated (fast-path).');
+      return false;
+    }
+
+    return _fastPathIsAuthenticated(accessToken);
+  }
+
+  /// Lightweight token inspection used by [isAuthenticated] when
+  /// [validateTokenLocally] is `false`.
+  ///
+  /// Applies a 30-second clock-skew buffer and performs a *single* silent
+  /// refresh if the token is near expiry.  Returns `true` when the token is
+  /// clearly valid, otherwise `false`.
+  Future<bool> _fastPathIsAuthenticated(String accessToken) async {
+    try {
+      final DateTime exp = JwtDecoder.getExpirationDate(accessToken);
+      final DateTime now = DateTime.now();
+      const Duration skew = Duration(seconds: 30);
+
+      // Immediate expiry check.
+      if (now.isAfter(exp)) {
+        _logger.i('$_tag JWT expired at $exp – unauthenticated.');
+        return false;
+      }
+
+      final Duration timeToExpiry = exp.difference(now);
+      if (timeToExpiry <= skew) {
+        _logger.i(
+          '$_tag JWT expires in ${timeToExpiry.inSeconds}s (≤30s). Attempting silent refresh…',
+        );
+        final bool refreshed = await refreshSession();
+        _logger.i(
+          '$_tag Silent refresh ${refreshed ? "succeeded" : "failed"}.',
+        );
+        return refreshed;
+      }
+
+      // Token is definitively valid.
+      _logger.d(
+        '$_tag JWT valid (expires in ${timeToExpiry.inSeconds}s) – authenticated.',
+      );
+      return true;
+    } catch (e) {
+      _logger.w('$_tag Failed to parse JWT exp claim: $e – returning false.');
+      return false;
+    }
   }
 
   @override

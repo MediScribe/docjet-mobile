@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:docjet_mobile/core/auth/auth_credentials_provider.dart';
 import 'package:docjet_mobile/core/auth/auth_exception.dart';
@@ -8,9 +10,9 @@ import 'package:docjet_mobile/core/auth/infrastructure/auth_service_impl.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/authentication_api_client.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/login_response_dto.dart';
 import 'package:docjet_mobile/core/auth/infrastructure/dtos/refresh_response_dto.dart';
-import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/auth/entities/user.dart';
 import 'package:docjet_mobile/core/auth/domain/repositories/i_user_profile_cache.dart';
+import 'package:docjet_mobile/core/user/infrastructure/dtos/user_profile_dto.dart';
 import 'package:docjet_mobile/core/user/infrastructure/user_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -363,24 +365,36 @@ void main() {
   });
 
   group('isAuthenticated', () {
-    test(
-      'should return true when access token exists (no validation)',
-      () async {
-        // Arrange
-        when(
-          mockCredentialsProvider.getAccessToken(),
-        ).thenAnswer((_) async => testAccessToken);
+    test('should return true when access token exists (no validation)', () async {
+      // Arrange
+      // Generate a token that expires in 1 hour to ensure it's outside the 30s skew window
+      String validJwt() {
+        final header = base64Url.encode(
+          utf8.encode('{"alg":"HS256","typ":"JWT"}'),
+        );
+        final payload = base64Url.encode(
+          utf8.encode(
+            '{"exp":${(DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch ~/ 1000)}}',
+          ),
+        );
+        return '$header.$payload.signature';
+      }
 
-        // Act
-        final result =
-            await authService.isAuthenticated(); // Default: validate = false
+      when(
+        mockCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => validJwt());
 
-        // Assert
-        expect(result, isTrue);
-        verify(mockCredentialsProvider.getAccessToken()).called(1);
-        verifyNever(mockCredentialsProvider.isAccessTokenValid());
-      },
-    );
+      // Act
+      final result =
+          await authService.isAuthenticated(); // Default: validate = false
+
+      // Assert
+      expect(result, isTrue);
+      verify(mockCredentialsProvider.getAccessToken()).called(1);
+      verifyNever(mockCredentialsProvider.isAccessTokenValid());
+      verifyNever(mockCredentialsProvider.isRefreshTokenValid());
+      verifyNever(mockAuthenticationApiClient.refreshToken(any));
+    });
 
     test(
       'should return false when access token is missing (no validation)',
@@ -398,6 +412,8 @@ void main() {
         expect(result, isFalse);
         verify(mockCredentialsProvider.getAccessToken()).called(1);
         verifyNever(mockCredentialsProvider.isAccessTokenValid());
+        verifyNever(mockCredentialsProvider.isRefreshTokenValid());
+        verifyNever(mockAuthenticationApiClient.refreshToken(any));
       },
     );
   });
@@ -434,6 +450,135 @@ void main() {
       // Assert
       expect(result, isFalse);
       verify(mockCredentialsProvider.isAccessTokenValid()).called(1);
+    });
+  });
+
+  group('isAuthenticated (expiry fast-path with 30s skew)', () {
+    /// Helper to generate a fake JWT with a given expiration time.
+    String generateJwt({required DateTime exp}) {
+      final header = base64Url.encode(
+        utf8.encode('{"alg":"HS256","typ":"JWT"}'),
+      );
+      final payload = base64Url.encode(
+        utf8.encode('{"exp":${(exp.millisecondsSinceEpoch ~/ 1000)}}'),
+      );
+      // Use a dummy signature – the app never verifies it locally.
+      return '$header.$payload.signature';
+    }
+
+    test(
+      'returns false when access token already expired (>=30s past)',
+      () async {
+        // Arrange – token expired 1 minute ago
+        final expiredToken = generateJwt(
+          exp: DateTime.now().subtract(const Duration(minutes: 1)),
+        );
+        when(
+          mockCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => expiredToken);
+
+        // Act
+        final result = await authService.isAuthenticated();
+
+        // Assert
+        expect(result, isFalse);
+        verify(mockCredentialsProvider.getAccessToken()).called(1);
+        verifyNever(mockCredentialsProvider.isAccessTokenValid());
+        verifyNever(mockCredentialsProvider.isRefreshTokenValid());
+        verifyNever(mockAuthenticationApiClient.refreshToken(any));
+      },
+    );
+
+    test(
+      'triggers refresh when access token expires within next 30s',
+      () async {
+        // Arrange – token expires in 15 seconds (inside skew window)
+        final nearExpiryToken = generateJwt(
+          exp: DateTime.now().add(const Duration(seconds: 15)),
+        );
+        when(
+          mockCredentialsProvider.getAccessToken(),
+        ).thenAnswer((_) async => nearExpiryToken);
+        // Provide refresh token for refresh flow
+        const testRefreshToken = 'dummyRefreshToken';
+        when(
+          mockCredentialsProvider.getRefreshToken(),
+        ).thenAnswer((_) async => testRefreshToken);
+        // Stub refreshToken API response
+        final newTokens = RefreshResponseDto(
+          accessToken: 'newAccess',
+          refreshToken: 'newRefresh',
+        );
+        when(
+          mockAuthenticationApiClient.refreshToken(testRefreshToken),
+        ).thenAnswer((_) async => newTokens);
+        // Allow credential writes to succeed
+        when(
+          mockCredentialsProvider.setAccessToken(any),
+        ).thenAnswer((_) async => {});
+        when(
+          mockCredentialsProvider.setRefreshToken(any),
+        ).thenAnswer((_) async => {});
+
+        // Act
+        final result = await authService.isAuthenticated();
+
+        // Assert
+        expect(result, isTrue);
+        // Verify refresh path triggered exactly once
+        verify(mockCredentialsProvider.getRefreshToken()).called(1);
+        verify(
+          mockAuthenticationApiClient.refreshToken(testRefreshToken),
+        ).called(1);
+      },
+    );
+
+    test('returns false when JWT parsing fails (malformed token)', () async {
+      // Arrange
+      when(
+        mockCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => 'not.a.jwt');
+
+      // Act
+      final result = await authService.isAuthenticated();
+
+      // Assert
+      expect(result, isFalse);
+      verify(mockCredentialsProvider.getAccessToken()).called(1);
+      verifyNever(mockCredentialsProvider.isAccessTokenValid());
+      verifyNever(mockCredentialsProvider.isRefreshTokenValid());
+      verifyNever(mockAuthenticationApiClient.refreshToken(any));
+    });
+
+    test('returns false when near-expiry refresh fails', () async {
+      // Arrange – token expires in 10 seconds (inside skew window)
+      final nearExpiryToken = generateJwt(
+        exp: DateTime.now().add(const Duration(seconds: 10)),
+      );
+      when(
+        mockCredentialsProvider.getAccessToken(),
+      ).thenAnswer((_) async => nearExpiryToken);
+
+      // Provide refresh token but simulate API failure
+      const testRefreshToken = 'dummyRefreshToken';
+      when(
+        mockCredentialsProvider.getRefreshToken(),
+      ).thenAnswer((_) async => testRefreshToken);
+      when(
+        mockAuthenticationApiClient.refreshToken(testRefreshToken),
+      ).thenThrow(AuthException.refreshTokenInvalid());
+
+      // Act
+      final result = await authService.isAuthenticated();
+
+      // Assert
+      expect(result, isFalse);
+      verify(mockCredentialsProvider.getRefreshToken()).called(1);
+      verify(
+        mockAuthenticationApiClient.refreshToken(testRefreshToken),
+      ).called(1);
+      verifyNever(mockCredentialsProvider.isAccessTokenValid());
+      verifyNever(mockCredentialsProvider.isRefreshTokenValid());
     });
   });
 
