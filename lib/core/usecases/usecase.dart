@@ -19,6 +19,8 @@ abstract class StreamUseCase<Type, Params> {
 
 /// Helper class to indicate that a UseCase does not require parameters.
 class NoParams extends Equatable {
+  const NoParams();
+
   @override
   List<Object?> get props => [];
 }

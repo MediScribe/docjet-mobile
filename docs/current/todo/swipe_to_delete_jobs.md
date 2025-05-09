@@ -238,16 +238,23 @@ sequenceDiagram
 
 **Goal** Tighten `JobListCubit` internals for cleanliness & performance, and add missing tests for `createJob`.
 
-* 5.1. [ ] **Refactor:** Extract the two anonymous callbacks inside `refreshJobs()` into private methods `_handleJobEvent` and `_handleStreamError` so the main method is ≤20 LOC. Keep them `@visibleForTesting` if needed.
-* 5.2. [ ] **Micro-Perf:** Replace every `NoParams()` with **`const NoParams()`** (zero-allocation).
-* 5.3. [ ] **Tests RED:**
+* 5.1. [x] **Refactor:** Extract the two anonymous callbacks inside `refreshJobs()` into private methods `_handleJobEvent` and `_handleStreamError` so the main method is ≤20 LOC. Keep them `@visibleForTesting` if needed.
+    * Findings: Extracted `_handleJobEvent` and `_handleStreamError` helper methods, trimmed `refreshJobs()` to **18 LOC**, and introduced a dedicated `_firstEventCompleter` field for cleaner completion logic. Readability + testability both improved.
+* 5.2. [x] **Micro-Perf:** Replace every `NoParams()` with **`const NoParams()`** (zero-allocation).
+    * Findings: Added a `const` constructor to `NoParams` and switched the production instantiation in `JobListCubit` to `const NoParams()` for zero-allocation calls. Tests remain untouched (their dynamic instantiation is still fine due to `Equatable` equality).
+* 5.3. [x] **Tests RED:**
     * File: `test/features/jobs/presentation/cubit/job_list_cubit_create_job_test.dart`
     * Cases:
         1. Success path returns `Right(job)` → expect info log, no error notification.
         2. Failure path returns `Left(failure)` → expect error banner (similar to Cycle 4 pattern).
-* 5.4. [ ] **Implement GREEN:** Ensure tests pass; adjust cubit if logger injection or notifier needed.
-* 5.5. [ ] **Format, Analyze, & Full Test Suite.**
-* 5.6. [ ] **Handover Brief.**
+* 5.4. [x] **Implement GREEN:** Ensure tests pass; adjust cubit if logger injection or notifier needed.
+    * Findings: Updated `JobListCubit.createJob()` to invoke `AppNotifierService.show()` on `Left`/exception with a descriptive error message. Success path logs only. Re-ran tests → all green after banner integration. Mockito stubs generated via `build_runner`.
+* 5.5. [x] **Format, Analyze, & Full Test Suite:**
+    * Findings: `dart analyze` => **0 issues**. `./scripts/list_failed_tests.dart --except` ⇒ **986/986 tests green**.
+* 5.6. [x] **Handover Brief:**
+    * Status: Cycle 5 complete. Cubit callbacks extracted, `NoParams` const-ified, `createJob` banner logic added, and full test + lint coverage maintained.
+    * Gotchas: Ensure any future stream resubscriptions complete `_firstEventCompleter` on *all* exit paths. Keep banner messaging consistent across cubit methods.
+    * Next: On to **Cycle N** for final polish & manual smoke tests.
 
 ---
 

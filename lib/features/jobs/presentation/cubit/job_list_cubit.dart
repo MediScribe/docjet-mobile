@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:dartz/dartz.dart';
+import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:bloc/bloc.dart';
 import 'package:docjet_mobile/core/usecases/usecase.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
@@ -23,6 +26,8 @@ class JobListCubit extends Cubit<JobListState> {
   final CreateJobUseCase _createJobUseCase;
   final DeleteJobUseCase _deleteJobUseCase;
   final AppNotifierService? _appNotifierService;
+  // Completer that signals the arrival of the first data/error event when (re)subscribing
+  Completer<void>? _firstEventCompleter;
   StreamSubscription? _jobSubscription;
 
   JobListCubit({
@@ -52,6 +57,8 @@ class JobListCubit extends Cubit<JobListState> {
       result.fold(
         (failure) {
           _logger.e('$_tag: Failed to create job: $failure');
+          // Surface error to the user via a transient banner
+          _showErrorBanner('Failed to create job', failure);
           // Optionally emit a specific creation error state
         },
         (success) {
@@ -65,6 +72,7 @@ class JobListCubit extends Cubit<JobListState> {
         error: e,
         stackTrace: st,
       );
+      _showErrorBanner('Failed to create job', null, e);
       // Optionally emit a specific creation error state
     }
   }
@@ -76,48 +84,55 @@ class JobListCubit extends Cubit<JobListState> {
     _logger.d('$_tag: Subscribing to job stream...');
 
     // Cancel previous subscription
-    _jobSubscription?.cancel();
+    if (_jobSubscription != null) {
+      await _jobSubscription!.cancel();
+    }
 
-    // Completer that completes on first data or error event
-    final firstEventCompleter = Completer<void>();
+    // Initialise completer for first data/error event
+    _firstEventCompleter = Completer<void>();
 
     _jobSubscription = _watchJobsUseCase
-        .call(NoParams())
+        .call(const NoParams())
         .listen(
-          (eitherResult) {
-            eitherResult.fold(
-              (failure) {
-                _logger.e('$_tag: Error receiving job list: $failure');
-                emit(JobListError(failure.toString()));
-              },
-              (jobs) {
-                _logger.t('$_tag: Received ${jobs.length} jobs.');
-                final viewModels = jobs.map(_mapper.toViewModel).toList();
-                // Sort by displayDate, newest first
-                viewModels.sort(
-                  (a, b) => b.displayDate.compareTo(a.displayDate),
-                );
-                emit(JobListLoaded(viewModels));
-              },
-            );
-            if (!firstEventCompleter.isCompleted) {
-              firstEventCompleter.complete();
-            }
-          },
-          onError: (error) {
-            // Handle potential stream errors if the Either doesn't catch them
-            _logger.e('$_tag: Unhandled stream error: $error');
-            emit(
-              JobListError('JobListCubit stream error: ${error.toString()}'),
-            );
-            if (!firstEventCompleter.isCompleted) {
-              firstEventCompleter.complete();
-            }
-          },
+          _handleJobEvent,
+          onError:
+              (Object error, StackTrace stack) =>
+                  _handleStreamError(error, stack),
         );
 
     // Wait until the first event arrives before completing
-    return firstEventCompleter.future;
+    return _firstEventCompleter!.future;
+  }
+
+  // ----------------- Private Helpers -----------------
+
+  void _handleJobEvent(Either<Failure, List<Job>> eitherResult) {
+    eitherResult.fold(
+      (failure) {
+        _logger.e('$_tag: Error receiving job list: $failure');
+        emit(JobListError(failure.toString()));
+      },
+      (jobs) {
+        _logger.t('$_tag: Received ${jobs.length} jobs.');
+        final viewModels = jobs.map(_mapper.toViewModel).toList();
+        // Sort by displayDate, newest first
+        viewModels.sort((a, b) => b.displayDate.compareTo(a.displayDate));
+        emit(JobListLoaded(viewModels));
+      },
+    );
+
+    if (_firstEventCompleter != null && !_firstEventCompleter!.isCompleted) {
+      _firstEventCompleter!.complete();
+    }
+  }
+
+  void _handleStreamError(Object error, StackTrace stack) {
+    _logger.e('$_tag: Unhandled stream error', error: error, stackTrace: stack);
+    emit(JobListError('JobListCubit stream error: ${error.toString()}'));
+
+    if (_firstEventCompleter != null && !_firstEventCompleter!.isCompleted) {
+      _firstEventCompleter!.complete();
+    }
   }
 
   /// Deletes a job with **optimistic UI updates**.
@@ -151,16 +166,7 @@ class JobListCubit extends Cubit<JobListState> {
       final result = await _deleteJobUseCase(DeleteJobParams(localId: localId));
       result.fold((failure) {
         _logger.e('$_tag: Failed to delete job: $failure');
-
-        final errorMessage =
-            failure.message.isNotEmpty
-                ? 'Failed to delete job: ${failure.message}'
-                : 'Failed to delete job';
-
-        _appNotifierService?.show(
-          message: errorMessage,
-          type: MessageType.error,
-        );
+        _showErrorBanner('Failed to delete job', failure);
         // Roll-back the optimistic update so the UI reflects actual data
         if (previousJobs != null) {
           emit(JobListLoaded(previousJobs));
@@ -172,10 +178,7 @@ class JobListCubit extends Cubit<JobListState> {
         error: e,
         stackTrace: st,
       );
-      _appNotifierService?.show(
-        message: 'Failed to delete job: ${e.toString()}',
-        type: MessageType.error,
-      );
+      _showErrorBanner('Failed to delete job', null, e);
       if (previousJobs != null) {
         emit(JobListLoaded(previousJobs));
       }
@@ -187,5 +190,17 @@ class JobListCubit extends Cubit<JobListState> {
     _logger.d('$_tag: Closing and cancelling subscription');
     _jobSubscription?.cancel();
     return super.close();
+  }
+
+  // Centralised error banner helper to keep messaging consistent.
+  void _showErrorBanner(String baseMessage, [Failure? failure, Object? error]) {
+    final detail =
+        failure?.message.isNotEmpty == true
+            ? failure!.message
+            : error?.toString() ?? '';
+
+    final message = detail.isNotEmpty ? '$baseMessage: $detail' : baseMessage;
+
+    _appNotifierService?.show(message: message, type: MessageType.error);
   }
 }
