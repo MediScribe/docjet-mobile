@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
+import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
 
 class JobListCubit extends Cubit<JobListState> {
   // Get logger instance for this class
@@ -114,18 +115,40 @@ class JobListCubit extends Cubit<JobListState> {
     return firstEventCompleter.future;
   }
 
-  /// Deletes a job using the DeleteJobUseCase.
+  /// Deletes a job with **optimistic UI updates**.
   ///
-  /// This method does not emit new job list states as the UI will be updated
-  /// automatically via the WatchJobsUseCase stream when the job is deleted.
-  /// However, it does emit error states if the deletion fails.
+  /// Behaviour:
+  /// 1. If the current state is [JobListLoaded] the job is **optimistically**
+  ///    removed from the list and a new [JobListLoaded] state is emitted so the
+  ///    UI updates immediately.
+  /// 2. The [DeleteJobUseCase] is executed.
+  ///    * On **success** we only log – the authoritative list will be pushed
+  ///      by the [_watchJobsUseCase] stream shortly afterwards.
+  ///    * On **failure** we emit a [JobListError] **and** roll-back by
+  ///      re-emitting the previously cached list so the UI stays consistent.
+  /// 3. If the Cubit isn't in a loaded state we delegate directly to the use
+  ///    case and rely on the watcher stream.
   Future<void> deleteJob(String localId) async {
     _logger.i('$_tag: Attempting to delete job with ID: $localId');
+
+    // Optimistically remove the job from the current list (if loaded)
+    List<JobViewModel>? previousJobs;
+    if (state is JobListLoaded) {
+      previousJobs = List<JobViewModel>.from((state as JobListLoaded).jobs);
+      final updatedJobs =
+          previousJobs.where((j) => j.localId != localId).toList();
+      emit(JobListLoaded(updatedJobs));
+    }
+
     try {
       final result = await _deleteJobUseCase(DeleteJobParams(localId: localId));
       result.fold((failure) {
         _logger.e('$_tag: Failed to delete job: $failure');
         emit(JobListError('Failed to delete job: ${failure.toString()}'));
+        // Roll-back the optimistic update so the UI reflects actual data
+        if (previousJobs != null) {
+          emit(JobListLoaded(previousJobs));
+        }
       }, (_) => _logger.i('$_tag: Successfully deleted job with ID: $localId'));
     } catch (e, st) {
       _logger.e(
@@ -134,8 +157,10 @@ class JobListCubit extends Cubit<JobListState> {
         stackTrace: st,
       );
       emit(JobListError('Unexpected error deleting job: ${e.toString()}'));
+      if (previousJobs != null) {
+        emit(JobListLoaded(previousJobs));
+      }
     }
-    // UI relies on WatchJobsUseCase stream for updates after successful deletion
   }
 
   @override

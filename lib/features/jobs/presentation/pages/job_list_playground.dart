@@ -89,6 +89,12 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     ),
   ];
 
+  // Locally displayed list for immediate UI updates (optimistic removal for Dismissible)
+  List<JobViewModel> _displayedJobs = [];
+
+  // Track jobs that were removed locally but not yet reflected in Cubit's state
+  final Set<String> _locallyRemovedIds = {};
+
   Future<void> _createJobFromAudioFile(String absoluteAudioPath) async {
     if (widget.isOffline) {
       _logger.i('$_tag Job creation skipped because offline (from audio file)');
@@ -321,9 +327,28 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                           }
 
                           if (state is JobListLoaded) {
-                            final jobs = state.jobs;
+                            // Start from cubit's jobs but filter out any locally removed ids
+                            final syncedJobs =
+                                state.jobs
+                                    .where(
+                                      (j) =>
+                                          !_locallyRemovedIds.contains(
+                                            j.localId,
+                                          ),
+                                    )
+                                    .toList();
 
-                            if (jobs.isEmpty) {
+                            // If the synced list length differs from _displayedJobs, update
+                            if (syncedJobs.length != _displayedJobs.length) {
+                              _displayedJobs = List<JobViewModel>.from(
+                                syncedJobs,
+                              );
+                            } else {
+                              // Also ensure ordering stays consistent with cubit output
+                              _displayedJobs = syncedJobs;
+                            }
+
+                            if (_displayedJobs.isEmpty) {
                               // Revert to original behavior when no real jobs are loaded
                               return Center(
                                 child: Padding(
@@ -352,9 +377,9 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
 
                             return ListView.builder(
                               padding: const EdgeInsets.only(bottom: 120.0),
-                              itemCount: jobs.length,
+                              itemCount: _displayedJobs.length,
                               itemBuilder: (context, index) {
-                                final job = jobs[index];
+                                final job = _displayedJobs[index];
                                 return _buildDismissibleJobItem(
                                   context,
                                   job,
@@ -438,9 +463,21 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
     return Dismissible(
       key: ValueKey(job.localId),
       direction: DismissDirection.endToStart,
-      onDismissed: (direction) {
-        _logger.i('$_tag Job dismissed: ${job.localId}');
+      confirmDismiss: (direction) async {
+        _logger.i('$_tag confirmDismiss for job: ${job.localId}');
+        // Optimistically remove immediately so the widget disappears before animation completes
+        setState(() {
+          _locallyRemovedIds.add(job.localId);
+          _displayedJobs.removeWhere((j) => j.localId == job.localId);
+        });
+        // Trigger the actual deletion on the cubit
         context.read<JobListCubit>().deleteJob(job.localId);
+        // Returning true proceeds with the dismiss animation
+        return true;
+      },
+      onDismissed: (direction) {
+        // No-op; all logic already executed in confirmDismiss. Keep for logging if needed.
+        _logger.i('$_tag onDismissed called for job: ${job.localId}');
       },
       background: Container(
         alignment: Alignment.centerRight,

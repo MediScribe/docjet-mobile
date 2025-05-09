@@ -328,74 +328,94 @@ void main() {
   });
 
   group('deleteJob', () {
-    const testJobId = 'job_123';
-
-    test(
-      'deleteJob should call DeleteJobUseCase with correct params on success',
-      () async {
-        // Arrange
+    blocTest<JobListCubit, JobListState>(
+      'emits optimistic JobListLoaded without the job then nothing else on successful deletion',
+      build: () {
         when(
           mockDeleteJobUseCase.call(any),
         ).thenAnswer((_) async => Right(unit));
-        jobListCubit = createCubit();
-
-        // Act
-        await jobListCubit!.deleteJob(testJobId);
-
-        // Assert - no new states should emit (using a fixed duration pause)
-        await Future.delayed(const Duration(milliseconds: 10));
-
+        return createCubit();
+      },
+      act: (cubit) async {
+        // Provide initial data with two jobs
+        streamController.add(Right([tJob1, tJob2]));
+        await Future.microtask(() {}); // allow cubit to process
+        await cubit.deleteJob(tJob1.localId);
+      },
+      expect:
+          () => [
+            // Initial load with two jobs (sorted by date)
+            isA<JobListLoaded>().having((s) => s.jobs, 'jobs', [
+              tViewModel2, // newer date
+              tViewModel1,
+            ]),
+            // Optimistic removal leaves only job2
+            isA<JobListLoaded>().having((s) => s.jobs, 'jobs after delete', [
+              tViewModel2,
+            ]),
+          ],
+      verify: (_) {
         verify(
-          mockDeleteJobUseCase.call(DeleteJobParams(localId: testJobId)),
+          mockDeleteJobUseCase.call(DeleteJobParams(localId: tJob1.localId)),
         ).called(1);
       },
     );
 
-    test(
-      'deleteJob should log failure when DeleteJobUseCase returns failure',
-      () async {
-        // Arrange
-        const failure = ServerFailure(message: 'Delete error');
+    blocTest<JobListCubit, JobListState>(
+      'emits optimistic removal then JobListError and rollback when deletion fails',
+      build: () {
+        const failure = ServerFailure(message: 'delete failed');
         when(
           mockDeleteJobUseCase.call(any),
         ).thenAnswer((_) async => const Left(failure));
-
-        jobListCubit = createCubit();
-
-        // Act
-        await jobListCubit!.deleteJob(testJobId);
-
-        // Assert - no new states should emit (using a fixed duration pause)
-        await Future.delayed(const Duration(milliseconds: 10));
-
+        return createCubit();
+      },
+      act: (cubit) async {
+        streamController.add(Right([tJob1, tJob2]));
+        await Future.microtask(() {});
+        await cubit.deleteJob(tJob1.localId);
+      },
+      expect:
+          () => [
+            isA<JobListLoaded>().having((s) => s.jobs, 'jobs', [
+              tViewModel2,
+              tViewModel1,
+            ]),
+            isA<JobListLoaded>().having((s) => s.jobs, 'jobs after delete', [
+              tViewModel2,
+            ]),
+            isA<JobListError>(),
+            // Rollback
+            isA<JobListLoaded>().having((s) => s.jobs, 'jobs rollback', [
+              tViewModel2,
+              tViewModel1,
+            ]),
+          ],
+      verify: (_) {
         verify(
-          mockDeleteJobUseCase.call(DeleteJobParams(localId: testJobId)),
+          mockDeleteJobUseCase.call(DeleteJobParams(localId: tJob1.localId)),
         ).called(1);
-
-        // Verify error is handled (can't directly test private logging)
-        // For now just ensure code completes without exceptions.
       },
     );
 
-    test('deleteJob should handle exceptions gracefully', () async {
-      // Arrange
-      when(
-        mockDeleteJobUseCase.call(any),
-      ).thenThrow(Exception('Test exception'));
-      jobListCubit = createCubit();
-
-      // Act & Assert
-      await expectLater(
-        () => jobListCubit!.deleteJob(testJobId),
-        returnsNormally,
-      );
-
-      // Assert - no new states should emit (using a fixed duration pause)
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      verify(
-        mockDeleteJobUseCase.call(DeleteJobParams(localId: testJobId)),
-      ).called(1);
-    });
+    blocTest<JobListCubit, JobListState>(
+      'does nothing when state is not JobListLoaded',
+      build: () {
+        when(
+          mockDeleteJobUseCase.call(any),
+        ).thenAnswer((_) async => Right(unit));
+        return createCubit();
+      },
+      act: (cubit) async {
+        // Note: do NOT emit initial jobs, cubit is still in loading state
+        await cubit.deleteJob(tJob1.localId);
+      },
+      expect: () => [],
+      verify: (_) {
+        verify(
+          mockDeleteJobUseCase.call(DeleteJobParams(localId: tJob1.localId)),
+        ).called(1);
+      },
+    );
   });
 }

@@ -154,6 +154,23 @@ sequenceDiagram
     * Gotchas: The swipe gesture test required careful setup of both the mocked JobListCubit and the AuthNotifier provider. It's important to properly stub the Bloc's stream method in tests to avoid "No stub found" exceptions. Also, remember to use the createLightTheme() when testing widgets that use getAppColors() to avoid runtime assertions.
     * Recommendations: Ready to proceed to Cycle 3 to add specific unit tests for the JobListCubit.deleteJob method. All the groundwork is in place, and the UI is functioning correctly. The architecture is clean and follows the reactive pattern where the UI updates automatically through the stream without explicit state emissions from the deletion operation.
 
+* 2.10. [x] **Hotfix:** Resolve `Dismissible` assertion _"A dismissed Dismissible widget is still part of the tree"_
+    * Action: Two-pronged fix
+        1. **Optimistic Cubit update** – `JobListCubit.deleteJob()` now emits an immediate `JobListLoaded` minus the target job, with rollback on failure.
+        2. **UI Guard** – Added `_displayedJobs` list + `_locallyRemovedIds` set in `job_list_playground.dart`.
+            * On `onDismissed` we `setState` remove the item and push id into `_locallyRemovedIds` before calling `deleteJob()`.
+            * On every `JobListLoaded` we sync `_displayedJobs` from Cubit while filtering any ids still in `_locallyRemovedIds`, guaranteeing the item is absent in the very next frame.
+    * Tests:
+        * Updated bloc tests for optimistic delete success/failure/edge cases.
+        * Widget test adjusted – now passes.
+        * Full suite (`./scripts/list_failed_tests.dart --except`) – 980/980 green.
+    * Findings: The root cause was the frame-timing mismatch: stream update latency left the `Dismissible` in the list. Immediate local removal + Cubit optimism satisfies the widget while keeping single source of truth.
+
+* 2.11. [x] **Handover Brief:**
+    * Status: Assertion eliminated; swipe-to-delete works in runtime & tests. Codebase fully green.
+    * Gotchas: Keep `_locallyRemovedIds` in mind if future screens implement their own optimistic behaviours; clear entries once repository stream confirms deletion to avoid stale filters.
+    * Recommendations: Move on to Cycle 3 – unit-test coverage is already in place, but cycle tasks should be reviewed in light of the new Cubit logic.
+
 ---
 
 ## Cycle 3: Add New Tests for `JobListCubit.deleteJob`
