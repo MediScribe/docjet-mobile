@@ -13,6 +13,8 @@ import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.d
     as _i2;
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart'
     as _i11;
+import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart'
+    as _i12;
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart'
     as _i5;
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart'
@@ -153,4 +155,40 @@ class MockCreateJobUseCase extends _i1.Mock implements _i11.CreateJobUseCase {
           ),
         )),
       ) as _i6.Future<_i4.Either<_i7.Failure, _i8.Job>>);
+}
+
+/// A class which mocks [DeleteJobUseCase].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockDeleteJobUseCase extends _i1.Mock implements _i12.DeleteJobUseCase {
+  MockDeleteJobUseCase() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i2.JobRepository get repository => (super.noSuchMethod(
+        Invocation.getter(#repository),
+        returnValue: _FakeJobRepository_0(
+          this,
+          Invocation.getter(#repository),
+        ),
+      ) as _i2.JobRepository);
+
+  @override
+  _i6.Future<_i4.Either<_i7.Failure, _i4.Unit>> call(
+          _i12.DeleteJobParams? params) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #call,
+          [params],
+        ),
+        returnValue: _i6.Future<_i4.Either<_i7.Failure, _i4.Unit>>.value(
+            _FakeEither_2<_i7.Failure, _i4.Unit>(
+          this,
+          Invocation.method(
+            #call,
+            [params],
+          ),
+        )),
+      ) as _i6.Future<_i4.Either<_i7.Failure, _i4.Unit>>);
 }

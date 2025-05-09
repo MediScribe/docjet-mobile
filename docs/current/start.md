@@ -44,7 +44,6 @@ This document serves as the central index for the project documentation.
 
 ### TODOs
 *   [iOS Password AutoFill Setup](./todo/ios-autofill-setup-todo.md)
-*   [Offline Authentication Caching](./todo/offline_auth_caching.md)
 
 ### Research
 *   [Sync Frameworks](./research/sync_framworks.md)

@@ -19,13 +19,15 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 
 // Generate mocks (DeleteJobUseCase mocked manually below to avoid build_runner churn)
-@GenerateMocks([WatchJobsUseCase, JobViewModelMapper, CreateJobUseCase])
+@GenerateMocks([
+  WatchJobsUseCase,
+  JobViewModelMapper,
+  CreateJobUseCase,
+  DeleteJobUseCase,
+])
 import 'job_list_cubit_test.mocks.dart';
 
-// MANUAL mock for the new dependency to avoid re-running build_runner now.
-class MockDeleteJobUseCase extends Mock implements DeleteJobUseCase {}
-
-// Replace outdated entity/view-model test fixtures with minimal valid ones.
+// Remove the commented out manual mock class
 
 void main() {
   late MockWatchJobsUseCase mockWatchJobsUseCase;
@@ -323,5 +325,77 @@ void main() {
         // We rely on the `expect` block to verify the correct states (including mapped data) were emitted.
       },
     );
+  });
+
+  group('deleteJob', () {
+    const testJobId = 'job_123';
+
+    test(
+      'deleteJob should call DeleteJobUseCase with correct params on success',
+      () async {
+        // Arrange
+        when(
+          mockDeleteJobUseCase.call(any),
+        ).thenAnswer((_) async => Right(unit));
+        jobListCubit = createCubit();
+
+        // Act
+        await jobListCubit!.deleteJob(testJobId);
+
+        // Assert - no new states should emit (using a fixed duration pause)
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        verify(
+          mockDeleteJobUseCase.call(DeleteJobParams(localId: testJobId)),
+        ).called(1);
+      },
+    );
+
+    test(
+      'deleteJob should log failure when DeleteJobUseCase returns failure',
+      () async {
+        // Arrange
+        const failure = ServerFailure(message: 'Delete error');
+        when(
+          mockDeleteJobUseCase.call(any),
+        ).thenAnswer((_) async => const Left(failure));
+
+        jobListCubit = createCubit();
+
+        // Act
+        await jobListCubit!.deleteJob(testJobId);
+
+        // Assert - no new states should emit (using a fixed duration pause)
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        verify(
+          mockDeleteJobUseCase.call(DeleteJobParams(localId: testJobId)),
+        ).called(1);
+
+        // Verify error is handled (can't directly test private logging)
+        // For now just ensure code completes without exceptions.
+      },
+    );
+
+    test('deleteJob should handle exceptions gracefully', () async {
+      // Arrange
+      when(
+        mockDeleteJobUseCase.call(any),
+      ).thenThrow(Exception('Test exception'));
+      jobListCubit = createCubit();
+
+      // Act & Assert
+      await expectLater(
+        () => jobListCubit!.deleteJob(testJobId),
+        returnsNormally,
+      );
+
+      // Assert - no new states should emit (using a fixed duration pause)
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      verify(
+        mockDeleteJobUseCase.call(DeleteJobParams(localId: testJobId)),
+      ).called(1);
+    });
   });
 }

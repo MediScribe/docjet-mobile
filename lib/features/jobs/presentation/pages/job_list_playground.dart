@@ -354,14 +354,11 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
                               padding: const EdgeInsets.only(bottom: 120.0),
                               itemCount: jobs.length,
                               itemBuilder: (context, index) {
-                                return JobListItem(
-                                  job: jobs[index],
-                                  isOffline: isOffline,
-                                  onTapJob: (_) {
-                                    _logger.i(
-                                      '$_tag Tapped on job: ${jobs[index].localId}',
-                                    );
-                                  },
+                                final job = jobs[index];
+                                return _buildDismissibleJobItem(
+                                  context,
+                                  job,
+                                  isOffline,
                                 );
                               },
                             );
@@ -429,6 +426,36 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDismissibleJobItem(
+    BuildContext context,
+    JobViewModel job,
+    bool isOffline,
+  ) {
+    return Dismissible(
+      key: ValueKey(job.localId),
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) {
+        _logger.i('$_tag Job dismissed: ${job.localId}');
+        context.read<JobListCubit>().deleteJob(job.localId);
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: CupertinoColors.destructiveRed,
+        child: const Padding(
+          padding: EdgeInsets.only(right: 16.0),
+          child: Icon(CupertinoIcons.trash, color: CupertinoColors.white),
+        ),
+      ),
+      child: JobListItem(
+        job: job,
+        isOffline: isOffline,
+        onTapJob: (_) {
+          _logger.i('$_tag Tapped on job: ${job.localId}');
+        },
       ),
     );
   }
