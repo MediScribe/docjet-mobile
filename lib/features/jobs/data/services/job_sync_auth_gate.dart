@@ -18,6 +18,7 @@ class JobSyncAuthGate {
 
   bool _isStarted = false;
   final Completer<void> _diReady = Completer<void>();
+  bool _loginPending = false; // Prevent multiple queued logins before DI ready
 
   JobSyncAuthGate({
     required JobSyncTriggerService syncService,
@@ -42,7 +43,7 @@ class JobSyncAuthGate {
       if (!_isStarted) {
         _logger.d('$_tag Authenticated & DI ready – starting sync service');
         _syncService.init();
-        _syncService.startTimer();
+        _syncService.onAuthenticated();
         _isStarted = true;
       }
     } catch (e, st) {
@@ -57,13 +58,19 @@ class JobSyncAuthGate {
   void _handleAuthEvent(AuthEvent event) {
     switch (event) {
       case AuthEvent.loggedIn:
+        // If service already running or a login is enqueued, ignore.
+        if (_isStarted || _loginPending) return;
+
+        // Mark as pending to avoid duplicate awaits while DI boots.
+        _loginPending = true;
+
         // Fire-and-forget async handling so we don't block the event loop.
-        _handleLoggedIn();
+        _handleLoggedIn().whenComplete(() => _loginPending = false);
         break;
       case AuthEvent.loggedOut:
         if (_isStarted) {
-          _logger.d('$_tag LoggedOut – disposing sync service');
-          _syncService.dispose();
+          _logger.d('$_tag LoggedOut – notifying sync service');
+          _syncService.onLoggedOut();
           _isStarted = false;
         }
         break;

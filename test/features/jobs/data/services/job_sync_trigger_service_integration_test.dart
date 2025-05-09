@@ -23,7 +23,8 @@ void main() {
           final mockSyncService = MockJobSyncTriggerService();
 
           when(mockSyncService.init()).thenReturn(null);
-          when(mockSyncService.startTimer()).thenReturn(null);
+          when(mockSyncService.onAuthenticated()).thenReturn(null);
+          when(mockSyncService.onLoggedOut()).thenReturn(null);
 
           final gate = JobSyncAuthGate(
             syncService: mockSyncService,
@@ -35,13 +36,13 @@ void main() {
           authController.add(AuthEvent.loggedOut);
           async.elapse(const Duration(milliseconds: 10));
 
-          verifyNever(mockSyncService.startTimer());
+          verifyNever(mockSyncService.onAuthenticated());
 
           // Now user logs in
           authController.add(AuthEvent.loggedIn);
           async.elapse(const Duration(milliseconds: 10));
 
-          verify(mockSyncService.startTimer()).called(1);
+          verify(mockSyncService.onAuthenticated()).called(1);
           verify(mockSyncService.init()).called(1);
 
           // Clean up

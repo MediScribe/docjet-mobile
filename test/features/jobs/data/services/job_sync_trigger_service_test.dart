@@ -118,6 +118,13 @@ void main() {
         service.init();
         LoggerFactory.clearLogs();
 
+        // Preconditions: mark first frame & authentication
+        service.onFirstFrameDisplayed();
+        service.onAuthenticated();
+
+        // Clear previous interactions before we trigger the lifecycle event
+        clearInteractions(mockJobRepository);
+
         // Act
         service.didChangeAppLifecycleState(AppLifecycleState.resumed);
         await Future.delayed(
@@ -132,7 +139,7 @@ void main() {
         ]);
         expect(
           LoggerFactory.containsLog(
-            'App resumed. Triggering sync and starting timer',
+            'App resumed – attempting to (re)start timer',
           ),
           isTrue,
         );

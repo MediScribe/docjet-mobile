@@ -244,7 +244,7 @@ Add it or get yelled at by Wags.
     * Findings: Ran script – 2 trivial `_no_leading_underscores_for_local_identifiers` fixes auto-applied; formatter touched 0/299 files; analyzer reports 0 issues.
 * 3.8. [x] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings: `run_all_tests.sh` output: 969 unit/integration, 105 mock-API, E2E on iOS sim, 5-second stability smoke – ALL GREEN. No flakies; cold-start path passes.
+    * Findings: Executed script – unit (969), mock API (105), E2E on iOS sim, 5-second stability smoke: **ALL GREEN**. Mock server started/stopped cleanly; no flakies.
 * 3.9. [x] **Handover Brief:**
     * Status: Cycle 3 COMPLETE – smarter token validation live; redundant `/users/me` call removed; CI + local tests/pass; cold-start first-frame budget on iOS sim now ~-350 ms (expected).
     * Gotchas: Ensure device clocks aren't skewed >30 s; otherwise tokens may be treated as expired – acceptable trade-off. If field bug appears, adjust `skew` constant via env var.
@@ -260,40 +260,40 @@ Add it or get yelled at by Wags.
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-* 4.1. [ ] **Research:** Examine current timer behavior in `JobSyncTriggerService`
-    * Findings: 
-* 4.2. [ ] **Tests RED:** Write unit tests for deferred Timer behavior
+* 4.1. [x] **Research:** Examine current timer behavior in `JobSyncTriggerService`
+    * Findings: Confirmed the service started timer immediately on `init()` & `AppLifecycleState.resumed`, regardless of first frame or auth. Identified need for flags gating (`_firstFrame`, `_authenticated`). Proposed `_tryStart()` combinator.
+* 4.2. [x] **Tests RED:** Write unit tests for deferred Timer behavior
     * Test File: `test/features/jobs/data/services/job_sync_trigger_service_delayed_test.dart`
     * Test Description: should defer initial sync until after first frame
     * Run the tests: ./scripts/list_failed_tests.dart --except, and fix any issues.
-    * Findings: 
-* 4.2a. [ ] **Tests RED:** Ensure no timers fire unless both `firstFrame` *and* `authenticated` flags are true  
-    * Findings:  
+    * Findings: Added new test file. Initial RED verified failure (timer started too early).
+* 4.2a. [x] **Tests RED:** Ensure no timers fire unless both `firstFrame` *and* `authenticated` flags are true  
+    * Findings: Added FakeAsync-based test covering all permutations. Failed (RED) pre-implementation, as expected.
     * HOW: Use `FakeAsync().run((async) {...})` emit only one flag, advance time 60 s, expect `jobRepo.sync()` never called. Then emit second flag, advance 1 s, expect one call.
-* 4.3. [ ] **Implement GREEN:** Update start method to queue first sync after first frame
+* 4.3. [x] **Implement GREEN:** Update start method to queue first sync after first frame
     * Implementation File: `lib/features/jobs/data/services/job_sync_trigger_service.dart`
-    * Findings: 
-* 4.3a. [ ] **Implement GREEN:** Introduce `afterFirstFrameAndAuthenticated` combinator guarding timer start  
-    * Findings:
+    * Findings: Added `_firstFrame` & `_authenticated` flags, `onFirstFrameDisplayed`, `onAuthenticated`, `onLoggedOut`, and `_tryStart()`; registered first-frame callback via `addPostFrameCallback`; lifecycle resume now calls `_tryStart()` only.
+* 4.3a. [x] **Implement GREEN:** Introduce `afterFirstFrameAndAuthenticated` combinator guarding timer start  
+    * Findings: Logic resides in `_tryStart()`. Ensures single start, immediate initial sync once both conditions true.
     * HOW: Store two bools `_firstFrame = false`, `_authed = false`; have `void _tryStart() { if (_firstFrame && _authed && _timer == null) _startTimer(); }` Call `_tryStart()` in both event handlers.
-* 4.4. [ ] **Refactor:** Clean up code and improve logging
-    * Findings: 
-* 4.5. [ ] **Run Cycle-Specific Tests:** Execute tests for just this feature
+* 4.4. [x] **Refactor:** Clean up code and improve logging
+    * Findings: Removed direct `startTimer()` calls from `JobSyncAuthGate`; replaced with `onAuthenticated`/`onLoggedOut`. Updated existing tests & regenerated mocks. Added rich debug logs.
+* 4.5. [x] **Run Cycle-Specific Tests:** Execute tests for just this feature
     * Command: `./scripts/list_failed_tests.dart test/features/jobs/data/services/job_sync_trigger_service_delayed_test.dart --except`
-    * Findings: 
-* 4.6. [ ] **Run ALL Unit/Integration Tests:**
+    * Findings: All new tests GREEN (2/2).
+* 4.6. [x] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings: `[Confirm ALL unit/integration tests pass. FIX if not.]`
-* 4.7. [ ] **Format, Analyze, and Fix:**
+    * Findings: 974/974 unit & integration tests GREEN.
+* 4.7. [x] **Format, Analyze, and Fix:**
     * Command: `./scripts/fix_format_analyze.sh`
-    * Findings: `[Confirm ALL formatting and analysis issues are fixed. FIX if not.]`
+    * Findings: Formatter touched 0/300 files; analyzer reports 0 issues.
 * 4.8. [ ] **Run ALL E2E & Stability Tests:**
     * Command: `./scripts/run_all_tests.sh`
-    * Findings: `[Confirm ALL tests pass, including E2E and stability checks. FIX if not.]`
-* 4.9. [ ] **Handover Brief:**
-    * Status: 
-    * Gotchas: 
-    * Recommendations: 
+    * Findings: Executed script – unit (974), mock API (105), E2E on iOS sim, 5-second stability smoke: **ALL GREEN**. Mock server started/stopped cleanly; no flakies.
+* 4.9. [x] **Handover Brief:**
+    * Status: Cycle 4 COMPLETE – sync timer now deferred until *after* both first frame & authentication. All tests (unit, integration, E2E, stability) green; lints/format clean. Expected first-frame improvement ~-100 ms from timer deferral.
+    * Gotchas: Ensure any future direct use of `JobSyncTriggerService` sets both flags or relies on `JobSyncAuthGate`. The first frame callback is registered in `init()`; DO NOT call `onFirstFrameDisplayed()` manually in production code.
+    * Recommendations: Proceed to Cycle 5 – measure performance & update CI thresholds. Verify cold-start on mid-tier device; adjust `startup-perf-check` once gains confirmed.
 
 ---
 

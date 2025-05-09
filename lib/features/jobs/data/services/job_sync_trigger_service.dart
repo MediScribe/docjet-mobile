@@ -1,9 +1,15 @@
-import 'dart:async'; // Import async for Timer
+// Dart imports
+import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
-import 'package:docjet_mobile/core/utils/log_helpers.dart';
+// Flutter imports (widgets only – we don't need full Material)
+import 'package:flutter/widgets.dart';
+
+// Third-party packages
 import 'package:mutex/mutex.dart';
+
+// Project imports
+import 'package:docjet_mobile/core/utils/log_helpers.dart';
+import 'package:docjet_mobile/features/jobs/domain/repositories/job_repository.dart';
 
 // Define a type alias for the timer factory at the top level
 typedef TimerFactory =
@@ -23,6 +29,11 @@ class JobSyncTriggerService with WidgetsBindingObserver {
   final TimerFactory _timerFactory;
   final Mutex _triggerMutex = Mutex(); // Mutex to prevent overlapping syncs
   Timer? _timer;
+  // Flags for gating logic – sync/timer should only start once _firstFrame and
+  // _authenticated are both true. These are explicitly managed via the
+  // [onFirstFrameDisplayed] and [onAuthenticated] entry points.
+  bool _firstFrame = false;
+  bool _authenticated = false;
   bool _isInitialized = false; // Flag to prevent double initialization
 
   // Get a logger for this specific class
@@ -49,6 +60,14 @@ class JobSyncTriggerService with WidgetsBindingObserver {
     if (_isInitialized) return; // Prevent multiple additions
     _logger.i('$_tag Initializing and adding observer.');
     WidgetsBinding.instance.addObserver(this);
+
+    // Defer signalling the first frame until the first frame is actually
+    // rendered. This ensures that the sync logic never blocks the UI thread
+    // during the critical early-render path.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => onFirstFrameDisplayed(),
+    );
+
     _isInitialized = true;
     // Optionally, trigger an initial sync or check current state?
     // final currentState = WidgetsBinding.instance.lifecycleState;
@@ -62,9 +81,8 @@ class JobSyncTriggerService with WidgetsBindingObserver {
     if (!_isInitialized) return;
 
     if (state == AppLifecycleState.resumed) {
-      _triggerSync();
-      startTimer();
-      _logger.i('$_tag App resumed. Triggering sync and starting timer.');
+      _logger.i('$_tag App resumed – attempting to (re)start timer.');
+      _tryStart();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
@@ -144,6 +162,52 @@ class JobSyncTriggerService with WidgetsBindingObserver {
     }
   }
 
+  /// Internal helper guarding timer/sync start. Called whenever one of the
+  /// required pre-conditions changes.
+  void _tryStart() {
+    // Start only once all pre-conditions are satisfied and no timer is active.
+    if (_firstFrame && _authenticated && _timer == null) {
+      _logger.i('$_tag Preconditions met – triggering initial sync & timer.');
+      _triggerSync();
+      startTimer();
+    }
+  }
+
+  /// Notify the service that the very first Flutter frame has been rendered.
+  ///
+  /// Called automatically via a `WidgetsBinding.instance.addPostFrameCallback`
+  /// inside [init], but exposed publicly to make unit testing a breeze without
+  /// having to spin up the full Flutter binding.
+  void onFirstFrameDisplayed() {
+    if (_firstFrame) return; // Idempotent
+    _firstFrame = true;
+    _logger.d('$_tag First frame displayed.');
+    _tryStart();
+  }
+
+  /// Notify the service that the **user became authenticated**.
+  ///
+  /// Called exclusively by [JobSyncAuthGate]; production code should *never*
+  /// call this directly. Exposed only to keep unit-testing easy and to sustain
+  /// the hard separation of concerns between auth-state orchestration and the
+  /// timer logic.
+  void onAuthenticated() {
+    if (_authenticated) return; // Idempotent
+    _authenticated = true;
+    _logger.d('$_tag Authenticated flag set.');
+    _tryStart();
+  }
+
+  /// Notify the service that the **user logged out** – stops the timer and
+  /// resets the authenticated flag. Like [onAuthenticated], this is intended
+  /// for [JobSyncAuthGate] only.
+  void onLoggedOut() {
+    if (!_authenticated) return;
+    _logger.d('$_tag Logged out – stopping timer.');
+    _authenticated = false;
+    stopTimer();
+  }
+
   /// Cleans up resources, like removing the lifecycle observer and stopping the timer.
   void dispose() {
     _logger.i('$_tag Disposing.');
@@ -151,6 +215,8 @@ class JobSyncTriggerService with WidgetsBindingObserver {
       WidgetsBinding.instance.removeObserver(this);
     }
     stopTimer();
+    _firstFrame = false;
+    _authenticated = false;
     _isInitialized = false; // Reset flag on dispose
   }
 }
