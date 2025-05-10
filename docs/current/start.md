@@ -11,7 +11,7 @@ This document serves as the central index for the project documentation.
 *   [Environment Configuration](./setup-environment-config.md)
 *   [Mock Server Integration](./setup-mock-server.md)
 *   [Startup Performance Guide](./performance-startup-guide.md)
-*   [iOS Device Logging Tool](../../packages/devicesyslog_cli/README.md) - Easy debugging of real iOS devices
+*   [iOS Device Logging Guide](./logging_guide.md)
 
 ### Architecture & Core Concepts
 *   [Overall Architecture](./architecture-overview.md)
@@ -67,6 +67,9 @@ This document serves as the central index for the project documentation.
 
 #### [Startup Performance Guide](./performance-startup-guide.md)
 *   **Description**: Provides guidance on measuring, analyzing, and automatically guarding the app's startup performance. Covers key metrics, manual measurement, CI guard workflow, and optimization approaches established through the startup performance initiative.
+
+#### [iOS Device Logging Guide](./logging_guide.md)
+*   **Description**: Comprehensive guide to device-side log collection for real iOS hardware, covering the `devicesyslog` CLI tool, Wi-Fi/USB connectivity, filtering options, and troubleshooting tips.
 
 ### Architecture & Core Concepts
 #### [Overall Architecture](./architecture-overview.md)
@@ -152,7 +155,7 @@ This document serves as the central index for the project documentation.
 The `docs/` directory contains detailed documentation on various aspects of the project:
 
 *   **`docs/current/`**: Contains the most up-to-date guides for active development.
-    *   `logging_guide.md`: Comprehensive details on the logging system and testing patterns.
+    *   `logging_guide.md`: Comprehensive details on the iOS log system and `devicesyslog` usage.
     *   `setup-environment-config.md`: **Crucial guide** explaining how to configure the app for different environments (local dev, staging, prod) using runtime DI and `--dart-define`.
     *   `explicit-di-revisited_done.md`: Detailed plan and status for the migration to explicit dependency injection (Now under `refactoring/`).
     *   `architecture-api-versioning.md`: Explanation of the centralized API versioning strategy.

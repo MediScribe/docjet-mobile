@@ -128,7 +128,7 @@ test('logs error when processing fails', () {
 });
 ```
 
-See [Logging Guide](docs/logging_guide.md) for comprehensive examples and implementation details.
+See [Logging Guide](docs/current/logging_guide.md) for comprehensive examples and implementation details.
 
 ## Development
 

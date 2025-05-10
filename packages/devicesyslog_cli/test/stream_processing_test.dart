@@ -36,10 +36,11 @@ void main() {
         });
 
         final logData = <String>[
-          'May 26 10:00:00 Host device[123] <Notice>: [$targetBundleId] Message 1 for target\n',
-          'May 26 10:00:01 Host device[124] <Error>: [$otherBundleId] Message from other app\n',
-          'May 26 10:00:02 Host device[125] <Warning>: [$targetBundleId] Message 2 for target\n',
-          'May 26 10:00:03 Host device[126] <Notice>: Some system message without bundle ID\n',
+          'May 26 10:00:00 Host device[123] <Notice>: $targetBundleId[123] Message 1 for target\n',
+          'May 26 10:00:01 Host device[124] <Error>: $otherBundleId[124] Message from other app\n',
+          'May 26 10:00:02 Host device[125] <Warning>: $targetBundleId[125] Message 2 for target\n',
+          'May 26 10:00:03 Host device[126] <Notice>: $targetBundleId(UIKitCore)[126] Message 3 for target\n',
+          'May 26 10:00:04 Host device[127] <Notice>: Some system message without bundle ID\n',
         ];
 
         final exitCodeCompleter = Completer<int>();
@@ -83,21 +84,37 @@ void main() {
 
         final logFileContent = await logFiles.first.readAsString();
 
-        expect(
-          logFileContent.contains('[$targetBundleId] Message 1 for target'),
-          isTrue,
+        // Create the same regex that the CLI uses
+        final bundleIdRegex = RegExp(
+          r'(^|\s)' + RegExp.escape(targetBundleId) + r'(\[|\()',
         );
+
+        // Message 1 should be matched by the bundle ID regex
         expect(
-          logFileContent.contains('[$targetBundleId] Message 2 for target'),
+          bundleIdRegex.hasMatch('$targetBundleId[123] Message 1 for target'),
           isTrue,
+          reason: 'Target bundle ID with PID should match regex',
         );
+
+        // Check that logs with the target bundle ID are included
+        final matchCount = bundleIdRegex.allMatches(logFileContent).length;
         expect(
-          logFileContent.contains('[$otherBundleId] Message from other app'),
+          matchCount,
+          equals(3),
+          reason: 'Should capture exactly three messages for target bundle ID',
+        );
+
+        // Check that logs with other bundle IDs are excluded
+        expect(
+          logFileContent.contains('$otherBundleId[124] Message from other app'),
           isFalse,
+          reason: 'Log file should not contain message from other app',
         );
         expect(
           logFileContent.contains('Some system message without bundle ID'),
           isFalse,
+          reason:
+              'Log file should not contain system message without bundle ID',
         );
       },
     );

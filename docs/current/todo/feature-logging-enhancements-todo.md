@@ -66,7 +66,7 @@ sequenceDiagram
 * 0.4. [x] **Update Plan:**
     * Findings: Device pairing issue from 0.2 RESOLVED. Proceeding with CLI scaffolding.
       * Action Items:
-        1. Document one-time pairing and `iproxy` Wi-Fi procedure in `docs/logging_guide.md` (Cycle 4).
+        1. Document one-time pairing and `iproxy` Wi-Fi procedure in `docs/current/logging_guide.md` (Cycle 4).
         2. Implement CLI skeleton (0.3) - COMPLETED.
 * 0.5. [x] **Handover Brief:**
     * Status: Cycle 0 (Setup & Prerequisite Checks) COMPLETED. Dependencies installed, iOS tooling validated, `devicesyslog_cli` skeleton created (arg parsing stub, pubspec executable entry).
@@ -76,7 +76,7 @@ sequenceDiagram
         * Minor linter issues in Dart stub from incorrect string interpolation (`\$`).
     * Recommendations:
         * Proceed to Cycle 1: Build `devicesyslog_cli`.
-        * Ensure `docs/logging_guide.md` (Cycle 4) details iOS pairing (USB first) & `iproxy` for Wi-Fi syslog.
+        * Ensure `docs/current/logging_guide.md` (Cycle 4) details iOS pairing (USB first) & `iproxy` for Wi-Fi syslog.
 
 ---
 
@@ -189,7 +189,7 @@ sequenceDiagram
     * **Recommendations:**
         * Tackle timestamp handling + SIGINT/SIGTERM trapping early in Cycle 2.
         * Consider adding `--docjet` flag (alias for `--bundle-id com.docjet.mobile`) in a future enhancement.
-        * Update `docs/logging_guide.md` with command snippets above.
+        * Update `docs/current/logging_guide.md` with command snippets above.
 
 ---
 
@@ -269,7 +269,7 @@ sequenceDiagram
 
 **Goal** Cement knowledge, ensure devs & QA know how to wield the new toys.
 
-* 4.1. [ ] **Task:** Update `docs/logging_guide.md` with:
+* 4.1. [ ] **Task:** Update `docs/current/logging_guide.md` with:
     * Syslog usage examples & troubleshooting (Wi-Fi, `iproxy`, pairing).
     * Screenshots/GIFs of Debug Menu & share flow.
     * Table of compile-time constants.

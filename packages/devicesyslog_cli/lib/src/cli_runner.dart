@@ -48,19 +48,30 @@ class CliRunner {
         help: 'Specify output directory for saved logs (used with --save).',
         defaultsTo: p.join('logs', 'device'),
       )
+      ..addOption(
+        'bundle-id',
+        help: 'Filter logs for a specific application bundle ID.',
+      )
+      ..addOption(
+        'process',
+        help:
+            'Filter logs for a specific process name (idevicesyslog --process).',
+      )
+      ..addFlag(
+        'flutter-only',
+        negatable: false,
+        help: 'Show only Flutter print/Logger lines (adds --match flutter:).',
+      )
       ..addFlag(
         'utc',
         negatable: false,
-        help: 'Display and save timestamps in UTC instead of local time.',
+        help:
+            '[DEPRECATED] Display timestamps in UTC instead of local time (no-op).',
       )
       ..addFlag(
         'json',
         negatable: false,
-        help: 'Output logs in JSON format (Not yet implemented).',
-      )
-      ..addOption(
-        'bundle-id',
-        help: 'Filter logs for a specific application bundle ID.',
+        help: '[DEPRECATED] Output logs in JSON format (not yet implemented).',
       );
     // Add more options/flags as per 0.3 findings if any are missing
   }
@@ -153,7 +164,24 @@ class CliRunner {
     if (argResults['wifi'] as bool) {
       syslogCmd.add('--network');
     }
-    // TODO: Add other idevicesyslog options based on argResults (filtering, etc.)
+
+    // Pass through utc/json flags to idevicesyslog if requested
+    if (argResults['utc'] as bool) {
+      syslogCmd.add('--utc');
+    }
+    if (argResults['json'] as bool) {
+      syslogCmd.add('--json');
+    }
+
+    final bool flutterOnly = argResults['flutter-only'] as bool;
+    if (flutterOnly) {
+      syslogCmd.addAll(['--match', 'flutter:']);
+    }
+
+    final String? processFilter = argResults['process'] as String?;
+    if (processFilter != null && processFilter.isNotEmpty) {
+      syslogCmd.addAll(['--process', processFilter]);
+    }
 
     Process? syslogProcess;
     IOSink? logFileSink;
@@ -173,9 +201,9 @@ class CliRunner {
           await dir.create(recursive: true);
           // stdout.writeln('Created log directory: ${dir.path}'); // Less verbose
         }
-        final timestamp = DateFormat(
-          'yyyy-MM-dd_HH-mm-ss',
-        ).format(DateTime.now());
+        final DateTime now =
+            argResults['utc'] as bool ? DateTime.now().toUtc() : DateTime.now();
+        final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(now);
         final logFilePath = p.join(dir.path, '$timestamp.log');
         stdout.writeln('Saving logs to: $logFilePath'); // Inform user
         // Create the file AND open the sink for writing.
@@ -186,21 +214,23 @@ class CliRunner {
       syslogProcess = await _processManager.start(syslogCmd, runInShell: true);
 
       final completer = Completer<int>();
-      final String? bundleIdFilter = argResults['bundle-id'] as String?;
-      // Pre-format the filter string for efficiency if it's used
-      final String? bundleIdSearchString =
-          bundleIdFilter != null && bundleIdFilter.isNotEmpty
-              ? '[$bundleIdFilter]'
-              : null;
+
+      // Skip bundle ID filtering if we're already filtering by process
+      RegExp? bundleIdRegex;
+      if (processFilter == null && !flutterOnly) {
+        final String? bundleIdFilter = argResults['bundle-id'] as String?;
+        bundleIdRegex = _createBundleIdRegex(bundleIdFilter);
+      }
 
       stdoutSub = syslogProcess.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(
             (line) {
-              // If bundle ID filter is set, only process matching lines
-              if (bundleIdSearchString == null ||
-                  line.contains(bundleIdSearchString)) {
+              if (bundleIdRegex == null) {
+                stdout.writeln(line);
+                logFileSink?.writeln(line);
+              } else if (bundleIdRegex.hasMatch(line)) {
                 stdout.writeln(line);
                 logFileSink?.writeln(line);
               }
@@ -266,5 +296,22 @@ class CliRunner {
       }
       // stdout.writeln('Syslog process finished and resources cleaned up.'); // For debugging
     }
+  }
+
+  /// Creates a RegExp for matching lines containing the bundle ID in the process field
+  RegExp? _createBundleIdRegex(String? bundleIdFilter) {
+    if (bundleIdFilter == null || bundleIdFilter.isEmpty) {
+      return null;
+    }
+
+    // Match the bundle ID as a standalone token *immediately* followed by
+    // either a '[' (common) or '(' (rare) which denotes the PID / dylib
+    // parent after the process name.
+    // Examples that should match:
+    //   … ai.docjet.mobile[123] <Notice>:
+    //   … ai.docjet.mobile(UIKitCore)[123] <Notice>:
+    // System lines that merely *mention* the bundle ID (fgApp: …) will NOT
+    // match because the bundle-id is preceded by ':' or another char.
+    return RegExp(r'(^|\s)' + RegExp.escape(bundleIdFilter) + r'(\[|\()');
   }
 }
