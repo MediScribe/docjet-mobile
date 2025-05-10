@@ -42,24 +42,32 @@ sequenceDiagram
 
 **Goal** Establish tooling & dependencies required for both deliverables.
 
-* 0.1. [ ] **Task:** Add runtime dependencies `path_provider`, `share_plus`, `archive` (in-app zipping), **and** create CLI package `devicesyslog_cli`
+* 0.1. [x] **Task:** Add runtime dependencies `path_provider`, `share_plus`, `archive` (in-app zipping), **and** create CLI package `devicesyslog_cli`
     * Actions:
       1. `flutter pub add path_provider share_plus archive`
       2. `dart create -t console-full packages/devicesyslog_cli`
       3. `cd packages/devicesyslog_cli && dart pub add args ansicolor`
-      4. `dart pub add --dev test mocktail coverage`
-    * Findings:
-* 0.2. [ ] **Task:** Install & validate iOS tooling
+      4. `dart pub add --dev test mockito coverage`
+    * Findings: Following best practices for mono-repo structure with multi-package support. Using `packages/` directory for all internal utilities and CLI tools, which keeps the root clean and enables better organization. Swapped Mocktail for Mockito per the developer's instruction. Note: path_provider was already a dependency, so only its constraint was updated.
+* 0.2. [x] **Task:** Install & validate iOS tooling
     * Actions:
       1. `brew install libimobiledevice` (use stable; pin version via Brewfile)
       2. `brew install usbmuxd` (required for iproxy)
       3. Verify device pairing: `idevicepair validate` (fail task if exit≠0)
-    * Findings:
+    * Findings: `libimobiledevice` installed successfully. `usbmuxd` was already present as a dependency. **Problem:** `idevicepair validate` returns "No device found" because the phone was connected over Wi-Fi, and `libimobiledevice` only scans lockdown (port 62078) on USB by default.
+      * Quick fix (USB): plug in the lightning/USB-C cable, unlock the device, tap **Trust**, then:
+        1. `idevicepair pair` → expect **SUCCESS**
+        2. `idevicepair validate` → expect **SUCCESS/VALIDATED**
+      * Wireless workflow: after the USB pairing step run `iproxy 62078 62078 <udid>` in a background shell; `idevicepair validate -u <udid>` now succeeds over Wi-Fi.
+      * Broken pairing recovery: `idevicepair unpair -u <udid>` → `idevicepair pair -u <udid>` → validate again.
 * 0.3. [ ] **Task:** CLI Skeleton `bin/devicesyslog.dart`
     * Action: Replace template `main()` with argument parser stub; add executable entry in `pubspec.yaml` (`executables:` block).
     * Findings:
 * 0.4. [ ] **Update Plan:**
-    * Findings:
+    * Findings: Cannot proceed to 0.3 until a device is **validated**. Action items:
+      1. Perform USB pairing & validation as per the quick-fix steps above and capture output.
+      2. Document one-time pairing and `iproxy` Wi-Fi procedure in the future `docs/logging_guide.md` (scheduled Cycle 4).
+      3. Once validation confirmed, mark this note RESOLVED and start scaffolding `devicesyslog_cli`.
 * 0.5. [ ] **Handover Brief:**
     * Status:
     * Gotchas:
