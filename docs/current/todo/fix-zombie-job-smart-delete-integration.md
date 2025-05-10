@@ -71,27 +71,30 @@ IF isLogoutInProgress THEN DO NOT SAVE.
 
 **APPLY MODEL ATTENTION**: The apply model is a bit tricky to work with! For large files, edits can take up to 20s; so you might need to double check if you don't get an affirmative answer right away. Go in smaller edits.
 
-*   0.1. [ ] **Task:** Locate `JobRepository.smartDeleteJob()` method and its unit tests.
+*   0.1. [x] **Task:** Locate `JobRepository.smartDeleteJob()` method and its unit tests.
     *   Action: Run `grep -R "smartDeleteJob(" lib/ test/ | cat`. Open the `job_repository_impl.dart` and `job_repository_impl_test.dart` files. Confirm the method signature `Future<Either<Failure, bool>> smartDeleteJob(String localId)`.
-    *   Findings: [Record path to impl and test. Confirm signature. Note if tests are green or need attention.]
-*   0.2. [ ] **Task:** Confirm no **SmartDeleteJobUseCase** yet exists.
+    *   Findings: Path to impl: `lib/features/jobs/data/repositories/job_repository_impl.dart`. Path to test: `test/features/jobs/data/repositories/job_repository_impl_test.dart`. Signature `Future<Either<Failure, bool>> smartDeleteJob(String localId)` confirmed. All 18 tests in `job_repository_impl_test.dart` are passing.
+*   0.2. [x] **Task:** Confirm no **SmartDeleteJobUseCase** yet exists.
     *   Action: Perform a project-wide symbol search for `SmartDeleteJobUseCase`.
-    *   Findings: [Confirm "No results found" or list existing if any (unlikely based on previous discussion).]
-*   0.3. [ ] **Task:** Trace UI call-chain from `JobListPlayground.confirmDismiss` to `JobListCubit.deleteJob`.
+    *   Findings: Confirmed: "No results found" for a class or file specifically named `SmartDeleteJobUseCase`. Existing related components like `DeleteJobUseCase` and `JobDeleterService.attemptSmartDelete` were found, but no dedicated `SmartDeleteJobUseCase`.
+*   0.3. [x] **Task:** Trace UI call-chain from `JobListPlayground.confirmDismiss` to `JobListCubit.deleteJob`.
     *   Action: Open `lib/features/jobs/presentation/pages/job_list_playground.dart`. Follow the `deleteJob` call into `lib/features/jobs/presentation/cubit/job_list_cubit.dart`.
-    *   Findings: [Confirm current call path and cubit method invoked. Note any intermediate layers.]
-*   0.4. [ ] **Task:** Evaluate current logout data clearing and sync error handling for race condition.
+    *   Findings: Current call path: `JobListPlayground._buildDismissibleJobItem.confirmDismiss` (line 465) calls `context.read<JobListCubit>().deleteJob(job.localId)`. `JobListCubit.deleteJob` (line 153) then calls `_deleteJobUseCase(DeleteJobParams(localId: localId))`. No intermediate layers noted beyond the UseCase.
+*   0.4. [x] **Task:** Evaluate current logout data clearing and sync error handling for race condition.
     *   Action:
         1.  Inspect `JobRepositoryImpl.clearUserData()` and its callers (likely `AuthNotifier` or similar on logout event).
         2.  Inspect `JobSyncProcessorService._handleSyncError()` - specifically the part where it calls `_localDataSource.saveJob(updatedJob)` to persist `SyncStatus.failed`.
         3.  Check how `JobSyncOrchestratorService` (or its equivalent) manages the lifecycle of `JobSyncProcessorService` and if it listens to `AuthEventBus` for logout.
-    *   Findings: [Identify exact lines of code for `saveJob` in error handling. Note current logout event handling and data clearing mechanisms. Assess if any existing "isLoggingOut" flag or cancellation mechanism is present.]
-*   0.5. [ ] **Update Plan:** Based on findings, confirm that data-layer changes for smart delete are indeed complete. Refine tasks for Cycle 1 (UseCase creation) and Cycle 4 (Logout Guard) if any unexpected complexities arise.
-    *   Findings: [e.g., "Plan confirmed. `smartDeleteJob` in repo is robust. No existing logout guard in `JobSyncProcessorService`.", or "Minor refactor needed in `JobDeleterService` before UseCase."]
-*   0.6. [ ] **Handover Brief:**
-    *   Status: [e.g., Recon complete. All necessary components for smart delete data path are verified. UI path identified. Logout race point in `_handleSyncError` confirmed.]
-    *   Gotchas: [Any surprises? e.g., "Realized `DeleteJobUseCase` is tightly coupled elsewhere, new `SmartDeleteJobUseCase` is definitely the way."]
-    *   Recommendations: [Proceed to Cycle 1. Emphasize TDD for the new UseCase.]
+    *   Findings: 
+        1.  `JobRepositoryImpl` listens to `AuthEventBus` for `AuthEvent.loggedOut` (fired by `AuthServiceImpl` or `AuthInterceptor`). On logout, its `_handleLogout` calls `_localDataSource.clearUserData()` (implemented in `HiveJobLocalDataSourceImpl`). `JobRepositoryImpl.clearUserData()` is not called directly externally.
+        2.  `JobSyncProcessorService._handleSyncError` (lines 206-231 in `job_sync_processor_service.dart`) calls `await _localDataSource.saveJob(updatedJob);` (line 223) to persist job with `SyncStatus.failed` or `SyncStatus.error`.
+        3.  `JobSyncOrchestratorService` listens to `AuthEventBus`. Its `_handleLoggedOut` sets an internal `_isLoggedOut = true` flag. This flag prevents *new* sync cycles from starting and aborts *currently running* sync loops between job processing. It does **not** pass a logout status directly to `JobSyncProcessorService` for `_handleSyncError` to check before saving, nor does it explicitly cancel ongoing async operations within `_processorService.processJobSync/Deletion` if one is mid-flight when logout occurs. The `_processorService` is injected and its methods are called by the orchestrator; no specific lifecycle management like 'dispose' or 'cancel' is invoked on `_processorService` upon logout, beyond the orchestrator stopping its calls to it.
+*   0.5. [x] **Update Plan:** Based on findings, confirm that data-layer changes for smart delete are indeed complete. Refine tasks for Cycle 1 (UseCase creation) and Cycle 4 (Logout Guard) if any unexpected complexities arise.
+    *   Findings: Plan confirmed. `smartDeleteJob` in `JobRepositoryImpl` and its delegation to `JobDeleterService.attemptSmartDelete` are robust. Data-layer changes for smart delete are complete. The logout race condition in `JobSyncProcessorService._handleSyncError` is confirmed, as it currently does not check any logout status before saving a job. Cycle 4's plan to introduce a guard mechanism is appropriate. No unexpected complexities arose that require significant plan changes for Cycle 1 or 4.
+*   0.6. [x] **Handover Brief:**
+    *   Status: Recon complete. Data path for `smartDeleteJob` via `JobRepositoryImpl` and `JobDeleterService` is verified and robust with existing tests passing. UI call chain from `JobListPlayground` to `JobListCubit.deleteJob` (currently using `DeleteJobUseCase`) is identified. The logout race condition point in `JobSyncProcessorService._handleSyncError` (specifically the `_localDataSource.saveJob` call) is confirmed, and the existing logout handling in `JobSyncOrchestratorService` via an `_isLoggedOut` flag is understood to be insufficient on its own to prevent this specific race.
+    *   Gotchas: No major surprises. The primary gotcha is the subtlety of the logout race: `JobSyncOrchestratorService` stops *initiating* new work or breaks loops, but an already in-flight `_handleSyncError` in `JobSyncProcessorService` can still complete its `saveJob` call after logout has been signaled to the orchestrator but before the processor is aware or its operation is completed/cancelled.
+    *   Recommendations: Proceed to Cycle 1 for `SmartDeleteJobUseCase` creation (TDD). Cycle 4 will then address the logout race by implementing a more direct guard for `JobSyncProcessorService`.
 
 ---
 
