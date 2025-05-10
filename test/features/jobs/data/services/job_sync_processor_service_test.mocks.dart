@@ -18,6 +18,8 @@ import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'
     as _i11;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i7;
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart'
+    as _i15;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart'
     as _i8;
@@ -60,6 +62,16 @@ class _FakeUnit_1 extends _i1.SmartFake implements _i3.Unit {
 
 class _FakeFileStat_2 extends _i1.SmartFake implements _i4.FileStat {
   _FakeFileStat_2(
+    Object parent,
+    Invocation parentInvocation,
+  ) : super(
+          parent,
+          parentInvocation,
+        );
+}
+
+class _FakeEither_3<L, R> extends _i1.SmartFake implements _i3.Either<L, R> {
+  _FakeEither_3(
     Object parent,
     Invocation parentInvocation,
   ) : super(
@@ -610,4 +622,82 @@ class MockFileSystem extends _i1.Mock implements _i12.FileSystem {
           ),
         ),
       ) as String);
+}
+
+/// A class which mocks [JobSyncOrchestratorService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobSyncOrchestratorService extends _i1.Mock
+    implements _i15.JobSyncOrchestratorService {
+  @override
+  bool get isLogoutInProgress => (super.noSuchMethod(
+        Invocation.getter(#isLogoutInProgress),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>> syncPendingJobs() =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #syncPendingJobs,
+          [],
+        ),
+        returnValue: _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>.value(
+            _FakeEither_3<_i9.Failure, _i3.Unit>(
+          this,
+          Invocation.method(
+            #syncPendingJobs,
+            [],
+          ),
+        )),
+        returnValueForMissingStub:
+            _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>.value(
+                _FakeEither_3<_i9.Failure, _i3.Unit>(
+          this,
+          Invocation.method(
+            #syncPendingJobs,
+            [],
+          ),
+        )),
+      ) as _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>);
+
+  @override
+  _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>> resetFailedJob(
+          {required String? localId}) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #resetFailedJob,
+          [],
+          {#localId: localId},
+        ),
+        returnValue: _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>.value(
+            _FakeEither_3<_i9.Failure, _i3.Unit>(
+          this,
+          Invocation.method(
+            #resetFailedJob,
+            [],
+            {#localId: localId},
+          ),
+        )),
+        returnValueForMissingStub:
+            _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>.value(
+                _FakeEither_3<_i9.Failure, _i3.Unit>(
+          this,
+          Invocation.method(
+            #resetFailedJob,
+            [],
+            {#localId: localId},
+          ),
+        )),
+      ) as _i6.Future<_i3.Either<_i9.Failure, _i3.Unit>>);
+
+  @override
+  void dispose() => super.noSuchMethod(
+        Invocation.method(
+          #dispose,
+          [],
+        ),
+        returnValueForMissingStub: null,
+      );
 }

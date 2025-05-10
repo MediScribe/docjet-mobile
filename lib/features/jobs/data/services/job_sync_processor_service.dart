@@ -21,6 +21,7 @@ class JobSyncProcessorService {
   final JobLocalDataSource _localDataSource;
   final JobRemoteDataSource _remoteDataSource;
   final FileSystem _fileSystem;
+  final bool Function() _isLogoutInProgress;
   final Logger _logger = LoggerFactory.getLogger(JobSyncProcessorService);
   static final String _tag = logTag(JobSyncProcessorService);
 
@@ -28,9 +29,11 @@ class JobSyncProcessorService {
     required JobLocalDataSource localDataSource,
     required JobRemoteDataSource remoteDataSource,
     required FileSystem fileSystem,
+    required bool Function() isLogoutInProgress,
   }) : _localDataSource = localDataSource,
        _remoteDataSource = remoteDataSource,
-       _fileSystem = fileSystem;
+       _fileSystem = fileSystem,
+       _isLogoutInProgress = isLogoutInProgress;
 
   // Placeholder methods - implementation will be moved from JobSyncService
 
@@ -227,6 +230,14 @@ class JobSyncProcessorService {
     _logger.e(
       '$_tag $context for localId: ${job.localId} (attempt ${job.retryCount + 1}/$maxRetryAttempts): $error',
     );
+
+    // Skip persisting error state if logout is already underway
+    if (_isLogoutInProgress()) {
+      _logger.w(
+        '$_tag Logout in progress, skipping save of job ${job.localId} with error state after $context.',
+      );
+      return;
+    }
 
     // Increment retry count.
     final newRetryCount = job.retryCount + 1;

@@ -101,9 +101,9 @@ class JobsModule {
       getIt.registerLazySingleton<JobDeleterService>(
         () => JobDeleterService(
           localDataSource: getIt(),
-          fileSystem: _fileSystem, // Use injected
-          networkInfo: _networkInfo, // Add networkInfo
-          remoteDataSource: getIt(), // Add remoteDataSource
+          remoteDataSource: getIt(),
+          networkInfo: getIt(),
+          fileSystem: getIt(),
         ),
       );
     }
@@ -112,7 +112,10 @@ class JobsModule {
         () => JobSyncProcessorService(
           localDataSource: getIt(),
           remoteDataSource: getIt(),
-          fileSystem: _fileSystem, // Use injected
+          fileSystem: getIt(),
+          // Defer lookup of orchestrator until runtime to avoid circular dependency
+          isLogoutInProgress:
+              () => getIt<JobSyncOrchestratorService>().isLogoutInProgress,
         ),
       );
     }

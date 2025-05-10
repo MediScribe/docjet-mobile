@@ -16,20 +16,24 @@ import 'job_sync_processor_service/_deletion_success_test.dart'
 import 'job_sync_processor_service/_sync_error_test.dart' as sync_error;
 // Import the individual test files
 import 'job_sync_processor_service/_sync_success_test.dart' as sync_success;
+import 'job_sync_processor_service/_logout_guard_test.dart' as logout_guard;
 // Import generated mocks
 import 'job_sync_processor_service_test.mocks.dart';
+import 'package:docjet_mobile/features/jobs/data/services/job_sync_orchestrator_service.dart';
 
 // Generate mocks for all processor tests
 @GenerateNiceMocks([
   MockSpec<JobLocalDataSource>(),
   MockSpec<JobRemoteDataSource>(),
   MockSpec<FileSystem>(),
+  MockSpec<JobSyncOrchestratorService>(),
 ])
 void main() {
   // Define Mocks and Service Instance variables
   late MockJobLocalDataSource mockLocalDataSource;
   late MockJobRemoteDataSource mockRemoteDataSource;
   late MockFileSystem mockFileSystem;
+  late MockJobSyncOrchestratorService mockJobSyncOrchestratorService;
   late JobSyncProcessorService jobSyncProcessorService;
 
   // Setup common mock behaviors before each test in the group
@@ -38,11 +42,17 @@ void main() {
     mockLocalDataSource = MockJobLocalDataSource();
     mockRemoteDataSource = MockJobRemoteDataSource();
     mockFileSystem = MockFileSystem();
+    mockJobSyncOrchestratorService = MockJobSyncOrchestratorService();
     jobSyncProcessorService = JobSyncProcessorService(
       localDataSource: mockLocalDataSource,
       remoteDataSource: mockRemoteDataSource,
       fileSystem: mockFileSystem,
+      isLogoutInProgress:
+          () => mockJobSyncOrchestratorService.isLogoutInProgress,
     );
+
+    // Add default stub for isLogoutInProgress for the main test file's service instance
+    when(mockJobSyncOrchestratorService.isLogoutInProgress).thenReturn(false);
 
     // Default success for file deletion (can be overridden in specific tests)
     when(mockFileSystem.deleteFile(any)).thenAnswer((_) async => true);
@@ -54,6 +64,7 @@ void main() {
     sync_error.main();
     deletion_success.main();
     deletion_error.main();
+    logout_guard.main();
 
     // Test case for retrying failed jobs after backoff
     test(

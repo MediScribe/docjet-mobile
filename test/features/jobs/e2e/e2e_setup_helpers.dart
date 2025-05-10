@@ -294,8 +294,9 @@ E2EDependencyContainer setupDependencies({
 
   final jobSyncProcessorService = JobSyncProcessorService(
     localDataSource: jobLocalDataSource,
-    remoteDataSource: jobRemoteDataSource, // Use real or mock instance
-    fileSystem: mockFileSystem, // Use mock FS
+    remoteDataSource: jobRemoteDataSource,
+    fileSystem: mockFileSystem,
+    isLogoutInProgress: () => false, // no logout guard in E2E helpers
   );
 
   final jobSyncOrchestratorService = JobSyncOrchestratorService(

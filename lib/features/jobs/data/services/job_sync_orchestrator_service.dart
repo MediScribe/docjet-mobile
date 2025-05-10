@@ -31,6 +31,9 @@ class JobSyncOrchestratorService {
   bool _isOfflineFromAuth = false;
   bool _isLoggedOut = false;
 
+  // Getter for the logout status
+  bool get isLogoutInProgress => _isLoggedOut;
+
   // Stream subscription for auth events
   StreamSubscription<AuthEvent>? _authEventSubscription;
 
