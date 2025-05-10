@@ -167,9 +167,11 @@ class JobViewModel extends Equatable {
       return JobUIIcon.pendingDeletion;
     }
 
-    // Happy path: Created
+    // Happy path: Created (or just successfully uploaded and server acknowledged as 'created')
     if (jobStatus == JobStatus.created &&
-        (syncStatus == SyncStatus.pending || syncStatus == null)) {
+        (syncStatus == SyncStatus.pending ||
+            syncStatus == null ||
+            syncStatus == SyncStatus.synced)) {
       return JobUIIcon.created;
     }
 

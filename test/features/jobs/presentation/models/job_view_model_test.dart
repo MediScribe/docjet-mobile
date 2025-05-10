@@ -87,6 +87,17 @@ void main() {
     );
 
     test(
+      'uiIcon should return JobUIIcon.created when jobStatus is created and syncStatus is synced',
+      () {
+        final jobViewModel = JobViewModel.forTest(
+          jobStatus: JobStatus.created,
+          syncStatus: SyncStatus.synced,
+        );
+        expect(jobViewModel.uiIcon, JobUIIcon.created);
+      },
+    );
+
+    test(
       'uiIcon should return JobUIIcon.processing when jobStatus is submitted',
       () {
         final jobViewModel = JobViewModel.forTest(
@@ -151,19 +162,13 @@ void main() {
     test(
       'uiIcon should return JobUIIcon.unknown for unhandled state combinations',
       () {
-        // Example: JobStatus.created but SyncStatus.synced (not covered by .created logic)
-        final jobViewModel = JobViewModel.forTest(
-          jobStatus: JobStatus.created,
-          syncStatus: SyncStatus.synced, // This combination should fall through
-        );
-        expect(jobViewModel.uiIcon, JobUIIcon.unknown);
-
         // Example: JobStatus.completed but SyncStatus.pending (not covered by .completed logic)
-        final jobViewModel2 = JobViewModel.forTest(
+        // This state remains unhandled and should result in 'unknown'.
+        final jobViewModel = JobViewModel.forTest(
           jobStatus: JobStatus.completed,
           syncStatus: SyncStatus.pending,
         );
-        expect(jobViewModel2.uiIcon, JobUIIcon.unknown);
+        expect(jobViewModel.uiIcon, JobUIIcon.unknown);
       },
     );
 
