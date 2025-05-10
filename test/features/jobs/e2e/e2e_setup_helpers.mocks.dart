@@ -1041,6 +1041,24 @@ class MockJobDeleterService extends _i1.Mock implements _i22.JobDeleterService {
           ),
         )),
       ) as _i10.Future<_i8.Either<_i18.Failure, _i8.Unit>>);
+
+  @override
+  _i10.Future<_i8.Either<_i18.Failure, bool>> attemptSmartDelete(
+          String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #attemptSmartDelete,
+          [localId],
+        ),
+        returnValue: _i10.Future<_i8.Either<_i18.Failure, bool>>.value(
+            _FakeEither_7<_i18.Failure, bool>(
+          this,
+          Invocation.method(
+            #attemptSmartDelete,
+            [localId],
+          ),
+        )),
+      ) as _i10.Future<_i8.Either<_i18.Failure, bool>>);
 }
 
 /// A class which mocks [JobSyncOrchestratorService].

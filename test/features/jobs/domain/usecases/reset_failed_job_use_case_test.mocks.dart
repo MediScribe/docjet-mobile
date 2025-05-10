@@ -227,6 +227,32 @@ class MockJobRepository extends _i1.Mock implements _i3.JobRepository {
       ) as _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>>);
 
   @override
+  _i4.Future<_i2.Either<_i5.Failure, bool>> smartDeleteJob(String? localId) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #smartDeleteJob,
+          [localId],
+        ),
+        returnValue: _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
+            _FakeEither_0<_i5.Failure, bool>(
+          this,
+          Invocation.method(
+            #smartDeleteJob,
+            [localId],
+          ),
+        )),
+        returnValueForMissingStub:
+            _i4.Future<_i2.Either<_i5.Failure, bool>>.value(
+                _FakeEither_0<_i5.Failure, bool>(
+          this,
+          Invocation.method(
+            #smartDeleteJob,
+            [localId],
+          ),
+        )),
+      ) as _i4.Future<_i2.Either<_i5.Failure, bool>>);
+
+  @override
   _i4.Future<_i2.Either<_i5.Failure, _i2.Unit>> syncPendingJobs() =>
       (super.noSuchMethod(
         Invocation.method(
