@@ -194,8 +194,11 @@ sequenceDiagram
   - Disables "Create Job" button when the app is offline
   - Passes offline state to JobListItem components to disable interactions when offline
   - Uses the shared JobListCubit instance from the app level (via BlocProvider.of) to prevent recreation
-  - Implements swipe-to-delete functionality allowing users to remove jobs directly from the list
-  - **Note**: There's a known limitation when deleting "orphaned" jobs (jobs with no server counterpart) which can lead to unnecessary retry attempts
+  - Implements swipe-to-delete functionality with smart deletion that:
+    - Immediately purges orphaned jobs (no serverId or confirmed deleted on server)
+    - Uses standard sync-based deletion for server-synchronized jobs
+    - Provides instant feedback for orphaned job deletion while maintaining proper sync for server jobs
+    - Makes intelligent decisions based on job status and server existence checks
 
 ### JobListPlayground
 - **Path**: `lib/features/jobs/presentation/pages/job_list_playground.dart`

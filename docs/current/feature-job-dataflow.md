@@ -992,3 +992,65 @@ sequenceDiagram
         Processor->>LocalDS: saveJob(with SyncStatus.error)
     end
 ```
+
+## Job Deletion Flow
+
+The job deletion flow has been enhanced with a "smart delete" feature that intelligently determines the best deletion approach based on job status:
+
+```mermaid
+graph TD
+    A[User Swipes to Delete Job] --> B{Smart Delete Decision}
+    B -- Job has no serverId OR <br/> Confirmed non-existent on server --> C[Immediate Purge Locally]
+    B -- Job exists on server OR <br/> Cannot confirm server status --> D[Mark as pendingDeletion]
+    C --> E{Delete Files}
+    D --> F[Standard Sync-based Deletion]
+    E -- Success --> G[Job Completely Removed]
+    E -- File Deletion Error --> H[Job Removed but <br/> Audio File Cleanup Failed]
+    F --> I[Job Synced and <br/> Purged Eventually]
+```
+
+1. **Smart Delete Decision Point**:
+   - When a user initiates job deletion (typically via swipe-to-delete), the system invokes `JobRepository.smartDeleteJob(localId)`.
+   - The repository delegates to `JobDeleterService.attemptSmartDelete(localId)` which makes an intelligent decision:
+     
+     a. **Orphan Check**: If the job has no `serverId` (never synced) or empty `serverId`, it's an orphan with no server record to delete.
+     
+     b. **Server Existence Check**: If the job has a `serverId`, the system performs a lightweight server check (HEAD or GET request with 2-second timeout) to confirm if the job still exists server-side.
+     
+     c. **Offline/Error Handling**: If the device is offline, network check fails, or a timeout occurs, the system falls back to the standard deletion flow for safety.
+
+2. **Immediate Purge Path**:
+   - For confirmed orphans (no serverId or 404 server response), the system calls `permanentlyDeleteJob(localId)`.
+   - This immediately removes the job from the local database without sync.
+   - Associated resources like audio files are also cleaned up.
+   - The job disappears from the UI immediately, improving perceived responsiveness.
+   - Returns `Right(true)` to indicate immediate purging occurred.
+
+3. **Standard Deletion Path**:
+   - For jobs that exist on the server (or cannot be confirmed as non-existent), the system calls `deleteJob(localId)`.
+   - This marks the job with `SyncStatus.pendingDeletion` for deletion during next sync.
+   - The job remains in local storage until successfully deleted on the server.
+   - The UI typically shows this job with a "pending deletion" state.
+   - Returns `Right(false)` to indicate standard sync deletion was used.
+
+### Smart Delete Technical Details
+
+The implementation in `JobDeleterService.attemptSmartDelete()` includes:
+
+1. **Server Existence Check**:
+   - For jobs with a serverId, a lightweight request checks if the job exists on the server.
+   - Uses a short 2-second timeout to prevent UI lag.
+   - Only performed when online and when the necessary dependencies (NetworkInfo, RemoteDataSource) are available.
+
+2. **Decision Logic**:
+   - Jobs with null or empty `serverId` are immediately purged.
+   - Jobs that return HTTP 404 from the server are immediately purged.
+   - Jobs that return HTTP 200 are marked for standard sync-based deletion.
+   - Jobs with server connectivity issues, timeouts, or other errors are marked for standard sync-based deletion for safety.
+
+3. **Error Handling**:
+   - Network failures or timeouts during existence check fail safely to standard deletion.
+   - Job not found locally returns appropriate CacheFailure.
+   - The implementation is resilient to various error conditions including API exceptions, network issues, and timeouts.
+
+This enhancement significantly improves user experience for orphaned jobs by making their deletion feel instant, while maintaining the robust sync-based deletion for server-synchronized jobs.

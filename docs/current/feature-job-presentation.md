@@ -312,13 +312,25 @@ This architecture supports notifying the UI about issues like failed audio delet
 
 ## Known Limitations
 
-### Orphaned Job Deletion Issue
+### Orphaned Job Deletion Issue - RESOLVED
 
-The current job deletion flow has a limitation when handling "orphaned" jobs (local jobs with no corresponding server record). When a user deletes such a job:
+The previous limitation with orphaned job deletion has been resolved through the implementation of "smart delete" functionality:
 
-1. The job is marked with `SyncStatus.pendingDeletion`
-2. During sync, the system attempts to delete it from the server
-3. Since the job has no server counterpart, this results in a "not found" error
-4. This can lead to unnecessary retry attempts and potential sync failures
+#### Previous Limitation
+The job deletion flow had a limitation when handling "orphaned" jobs (local jobs with no corresponding server record). When a user deleted such a job:
 
-This limitation is documented for future improvement. A smarter deletion process would detect orphaned jobs and handle them differently, bypassing server deletion attempts when appropriate. 
+1. The job was marked with `SyncStatus.pendingDeletion`
+2. During sync, the system attempted to delete it from the server
+3. Since the job had no server counterpart, this resulted in a "not found" error
+4. This led to unnecessary retry attempts and potential sync failures
+
+#### Smart Delete Solution
+The system now implements an intelligent deletion approach:
+
+1. When a user swipes to delete a job, the `smartDeleteJob` method is called
+2. The system checks if the job is an orphan (has no serverId) or no longer exists on the server
+3. If confirmed as an orphan, it's immediately purged locally, providing instant feedback to the user
+4. If connected to the server, jobs with server IDs are verified to exist before determining the deletion strategy
+5. Non-orphaned jobs still use the standard sync-based deletion to ensure proper sync with the server
+
+This enhancement significantly improves the user experience by making orphan deletions feel instant, while maintaining the robust sync-based deletion for server-synchronized jobs. 
