@@ -99,6 +99,16 @@ class MockJobListCubit extends _i1.Mock implements _i3.JobListCubit {
       ) as _i4.Future<void>);
 
   @override
+  _i4.Future<void> smartDeleteJob(String? localId) => (super.noSuchMethod(
+        Invocation.method(
+          #smartDeleteJob,
+          [localId],
+        ),
+        returnValue: _i4.Future<void>.value(),
+        returnValueForMissingStub: _i4.Future<void>.value(),
+      ) as _i4.Future<void>);
+
+  @override
   _i4.Future<void> close() => (super.noSuchMethod(
         Invocation.method(
           #close,

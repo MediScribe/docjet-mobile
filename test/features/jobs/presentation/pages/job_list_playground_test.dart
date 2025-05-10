@@ -57,6 +57,9 @@ void main() {
       streamController = StreamController<JobListState>.broadcast();
       mockJobListCubit = MockJobListCubit();
 
+      // Stub smartDeleteJob to return successfully
+      when(mockJobListCubit.smartDeleteJob(any)).thenAnswer((_) async {});
+
       // Set up the cubit state
       final jobListLoaded = JobListLoaded(testJobs);
       when(mockJobListCubit.state).thenReturn(jobListLoaded);
@@ -72,7 +75,7 @@ void main() {
       streamController.close();
     });
 
-    testWidgets('swipe to delete calls deleteJob on cubit', (
+    testWidgets('swipe to delete calls smartDeleteJob on cubit', (
       WidgetTester tester,
     ) async {
       // Arrange - Build widget tree with mocked cubit
@@ -103,8 +106,8 @@ void main() {
       // Allow the Dismissible animation to complete
       await tester.pumpAndSettle();
 
-      // Assert - Verify that the deleteJob method was called with the correct ID
-      verify(mockJobListCubit.deleteJob('job_123')).called(1);
+      // Assert - Verify that the smartDeleteJob method was called with the correct ID
+      verify(mockJobListCubit.smartDeleteJob('job_123')).called(1);
     });
   });
 }

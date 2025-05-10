@@ -26,6 +26,7 @@ import 'package:get_it/get_it.dart';
 import 'package:path/path.dart' as path_pkg; // For relative path calculation
 import 'package:path_provider/path_provider.dart'
     as path_provider_pkg; // For app docs path
+import 'dart:async';
 
 /// A playground for experimenting with job list UI components (Cupertino Style)
 /// This doesn't require tests as it's purely for UI experimentation.
@@ -470,8 +471,8 @@ class _JobListPlaygroundContentState extends State<_JobListPlaygroundContent> {
           _locallyRemovedIds.add(job.localId);
           _displayedJobs.removeWhere((j) => j.localId == job.localId);
         });
-        // Trigger the actual deletion on the cubit
-        context.read<JobListCubit>().deleteJob(job.localId);
+        // Trigger the smart deletion on the cubit (fire and forget)
+        unawaited(context.read<JobListCubit>().smartDeleteJob(job.localId));
         // Returning true proceeds with the dismiss animation
         return true;
       },
