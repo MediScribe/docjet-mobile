@@ -145,8 +145,19 @@ sequenceDiagram
         * Fixed the MockProcess implementation to properly handle stream completion and process exit codes.
         * Run tests: 8 tests now PASS (4 device detection, 1 Wi-Fi, 2 log saving path, 1 bundle ID filtering)!
         * TODO: Still need to implement timestamp handling (local/UTC) and signal trapping.
+* 1.3.1 [x] The test files were too damn big – **SPLIT COMPLETE**.
+    * Run the tests; split; run the tests.
+    * Findings:
+        * Broke the monolithic `devicesyslog_cli_test.dart` (≈500 LOC) into four focused test files:
+          * `device_detection_test.dart`
+          * `wifi_flag_test.dart`
+          * `log_saving_test.dart`
+          * `stream_processing_test.dart`
+        * Extracted common `MockProcess` & `MockProcessManager` access into `test_utils.dart` to avoid duplication.
+        * Removed the original mega-file; all 12 unit tests still pass (`./scripts/list_failed_tests.dart packages/devicesyslog_cli/test --except`).
+        * Fixed a tiny regex goof in the log-saving test while at it.
 * 1.4. [ ] **Refactor GREEN:** (As needed after each feature set)
-    * Add flags `--wifi`, `--udid`, `--output-dir`, `--utc`, `--json` (optional structured output).
+    * Add flags `--wifi`, `--udid`, `--output-dir`, `--utc`, `--json` (optional structured output). Write the tests FIRST. Attention: check existing code first (git status, some might have been written already)
     * Compile native binary: `dart compile exe bin/devicesyslog.dart -o ../../tools/devicesyslog`.
     * Findings:
 * 1.5. [ ] **Run Cycle-Specific Tests:** `cd packages/devicesyslog_cli && dart test -r expanded`
