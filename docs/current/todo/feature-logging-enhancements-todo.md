@@ -60,18 +60,23 @@ sequenceDiagram
         2. `idevicepair validate` → expect **SUCCESS/VALIDATED**
       * Wireless workflow: after the USB pairing step run `iproxy 62078 62078 <udid>` in a background shell; `idevicepair validate -u <udid>` now succeeds over Wi-Fi.
       * Broken pairing recovery: `idevicepair unpair -u <udid>` → `idevicepair pair -u <udid>` → validate again.
-* 0.3. [ ] **Task:** CLI Skeleton `bin/devicesyslog.dart`
+* 0.3. [x] **Task:** CLI Skeleton `bin/devicesyslog.dart`
     * Action: Replace template `main()` with argument parser stub; add executable entry in `pubspec.yaml` (`executables:` block).
-    * Findings:
-* 0.4. [ ] **Update Plan:**
-    * Findings: Cannot proceed to 0.3 until a device is **validated**. Action items:
-      1. Perform USB pairing & validation as per the quick-fix steps above and capture output.
-      2. Document one-time pairing and `iproxy` Wi-Fi procedure in the future `docs/logging_guide.md` (scheduled Cycle 4).
-      3. Once validation confirmed, mark this note RESOLVED and start scaffolding `devicesyslog_cli`.
-* 0.5. [ ] **Handover Brief:**
-    * Status:
+    * Findings: Renamed `bin/devicesyslog_cli.dart` to `bin/devicesyslog.dart`. Populated `main()` with an `ArgParser` stub for planned flags (`--output-dir`, `--wifi`, `--udid`, `--save`, `--utc`, `--json`, `--help`). Added `executables: {devicesyslog: devicesyslog}` to `packages/devicesyslog_cli/pubspec.yaml`. Initial linter issues due to incorrect string interpolation (`\$`) fixed.
+* 0.4. [x] **Update Plan:**
+    * Findings: Device pairing issue from 0.2 RESOLVED. Proceeding with CLI scaffolding.
+      * Action Items:
+        1. Document one-time pairing and `iproxy` Wi-Fi procedure in `docs/logging_guide.md` (Cycle 4).
+        2. Implement CLI skeleton (0.3) - COMPLETED.
+* 0.5. [x] **Handover Brief:**
+    * Status: Cycle 0 (Setup & Prerequisite Checks) COMPLETED. Dependencies installed, iOS tooling validated, `devicesyslog_cli` skeleton created (arg parsing stub, pubspec executable entry).
     * Gotchas:
+        * `idevicepair validate` needs USB or `iproxy` for Wi-Fi; Wi-Fi alone initially showed "No device found".
+        * `dart create` can overwrite `pubspec.yaml` if not sequenced correctly with `dart pub add`.
+        * Minor linter issues in Dart stub from incorrect string interpolation (`\$`).
     * Recommendations:
+        * Proceed to Cycle 1: Build `devicesyslog_cli`.
+        * Ensure `docs/logging_guide.md` (Cycle 4) details iOS pairing (USB first) & `iproxy` for Wi-Fi syslog.
 
 ---
 
