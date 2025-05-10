@@ -77,4 +77,7 @@ flutter_app.iml
 
 # Secrets management
 secrets.*.json
-!secrets.*.json.example 
+!secrets.*.json.example
+
+# Dart/CLI package build artifacts
+/packages/*/build/ 

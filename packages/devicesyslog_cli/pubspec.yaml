@@ -1,6 +1,6 @@
 name: devicesyslog_cli
-description: A sample command-line application.
-version: 1.0.0
+description: A command-line utility to stream and manage iOS device syslogs.
+version: 0.1.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
@@ -8,14 +8,18 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  args: ^2.7.0
+  args: ^2.4.2
   ansicolor: ^2.0.3
+  process: ^5.0.2
+  path: ^1.9.0
+  intl: ^0.19.0
 
 dev_dependencies:
+  lints: ^5.1.1
+  test: ^1.24.0
+  mockito: ^5.4.4
   coverage: ^1.13.1
-  lints: ^5.0.0
-  mockito: ^5.4.6
-  test: ^1.25.15
+  build_runner: ^2.4.0
 
 executables:
   devicesyslog: devicesyslog
