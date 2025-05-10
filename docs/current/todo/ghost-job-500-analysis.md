@@ -10,6 +10,20 @@
 * Spec logic (Cycle 0 sequence diagram) maps any **non-404** or network error to **mark job `pendingDeletion`**.
 * Hive write emits through `watchJobs()` → Job re-appears in list with trash-can icon (the "ghost").
 
+## What the log says
+1. The job you swiped has a serverId (bd0d0f49-…).
+2. Smart-delete asked the backend if that ID still exists.
+3. Backend puked a 500.
+4. Per the spec (see JobDeleterService, Step 5) “200 / timeout / any HTTP error ≙ mark pendingDeletion.”
+5. We dutifully saved the job back with syncStatus.pendingDeletion.
+6. watchJobs() emits the update, JobListCubit remaps it, and - voilà – the “ghost” re-renders (now wearing the trash-can icon).
+
+Bottom line
+────────────
+• It’s not an orphan, we can’t prove it’s gone, so we keep it around for sync.
+• Cycles 1-3 only wired the smart-delete plumbing. They never promised to hide pendingDeletion jobs.
+• Cycle 4 (logout race) isn’t even relevant here – you haven’t logged out in that trace.
+
 ## Findings
 1. **Backend returns 500, not 404** – This prevents immediate purge; we can't be sure job is gone.
 2. Front-end logic works as coded/expected: falls back to `pendingDeletion` on error.
