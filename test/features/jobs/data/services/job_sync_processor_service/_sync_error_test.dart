@@ -29,6 +29,7 @@ void main() {
   late MockJobRemoteDataSource mockRemoteDataSource;
   late MockFileSystem mockFileSystem;
   late JobSyncProcessorService service; // Use Processor service
+  late MockJobSyncOrchestratorService mockJobSyncOrchestratorService;
 
   // Test data setup (using helpers)
   final tPendingJobNew = createTestJob(
@@ -104,11 +105,19 @@ void main() {
     mockLocalDataSource = MockJobLocalDataSource();
     mockRemoteDataSource = MockJobRemoteDataSource();
     mockFileSystem = MockFileSystem();
+    mockJobSyncOrchestratorService = MockJobSyncOrchestratorService();
+
     service = JobSyncProcessorService(
       localDataSource: mockLocalDataSource,
       remoteDataSource: mockRemoteDataSource,
       fileSystem: mockFileSystem,
+      isLogoutInProgress:
+          () => mockJobSyncOrchestratorService.isLogoutInProgress,
     );
+
+    // Add default stub for isLogoutInProgress
+    when(mockJobSyncOrchestratorService.isLogoutInProgress).thenReturn(false);
+
     printLog('[JobSyncProcessorTest] Test setup complete');
   });
 

@@ -26,6 +26,7 @@ void main() {
   late MockJobRemoteDataSource mockRemoteDataSource;
   late MockFileSystem mockFileSystem;
   late JobSyncProcessorService service;
+  late MockJobSyncOrchestratorService mockJobSyncOrchestratorService;
 
   // Test data needed for deletion error cases
   final tJobPendingDeletionWithServerId = createTestJob(
@@ -41,11 +42,18 @@ void main() {
     mockLocalDataSource = MockJobLocalDataSource();
     mockRemoteDataSource = MockJobRemoteDataSource();
     mockFileSystem = MockFileSystem();
+    mockJobSyncOrchestratorService = MockJobSyncOrchestratorService();
+
     service = JobSyncProcessorService(
       localDataSource: mockLocalDataSource,
       remoteDataSource: mockRemoteDataSource,
       fileSystem: mockFileSystem,
+      isLogoutInProgress:
+          () => mockJobSyncOrchestratorService.isLogoutInProgress,
     );
+
+    // Add default stub for isLogoutInProgress
+    when(mockJobSyncOrchestratorService.isLogoutInProgress).thenReturn(false);
     printLog('[JobSyncProcessorTest][DeletionError] Test setup complete');
   });
 

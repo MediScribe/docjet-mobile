@@ -338,6 +338,12 @@ class MockJobSyncOrchestratorService extends _i1.Mock
   }
 
   @override
+  bool get isLogoutInProgress => (super.noSuchMethod(
+        Invocation.getter(#isLogoutInProgress),
+        returnValue: false,
+      ) as bool);
+
+  @override
   _i5.Future<_i2.Either<_i6.Failure, _i2.Unit>> syncPendingJobs() =>
       (super.noSuchMethod(
         Invocation.method(
