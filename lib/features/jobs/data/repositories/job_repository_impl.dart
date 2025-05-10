@@ -194,6 +194,14 @@ class JobRepositoryImpl implements JobRepository {
     return _deleterService.deleteJob(localId);
   }
 
+  @override
+  Future<Either<Failure, bool>> smartDeleteJob(String localId) {
+    _logger.d(
+      '$_tag Delegating smartDeleteJob($localId) to JobDeleterService.attemptSmartDelete...',
+    );
+    return _deleterService.attemptSmartDelete(localId);
+  }
+
   // --- SYNC OPERATIONS ---
 
   @override

@@ -96,10 +96,13 @@ class JobsModule {
       );
     }
     if (!getIt.isRegistered<JobDeleterService>()) {
+      // NOTE: remoteDataSource is registered later; factory is lazy so this is safe.
       getIt.registerLazySingleton<JobDeleterService>(
         () => JobDeleterService(
           localDataSource: getIt(),
           fileSystem: _fileSystem, // Use injected
+          networkInfo: _networkInfo, // Add networkInfo
+          remoteDataSource: getIt(), // Add remoteDataSource
         ),
       );
     }

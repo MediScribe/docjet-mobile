@@ -9,9 +9,14 @@ import 'dart:typed_data' as _i11;
 
 import 'package:dartz/dartz.dart' as _i3;
 import 'package:docjet_mobile/core/error/failures.dart' as _i9;
+import 'package:docjet_mobile/core/interfaces/network_info.dart' as _i13;
 import 'package:docjet_mobile/core/platform/file_system.dart' as _i10;
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart'
     as _i5;
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart'
+    as _i14;
+import 'package:docjet_mobile/features/jobs/data/models/job_api_dto.dart'
+    as _i15;
 import 'package:docjet_mobile/features/jobs/data/models/job_hive_model.dart'
     as _i7;
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart' as _i2;
@@ -407,4 +412,141 @@ class MockFileSystem extends _i1.Mock implements _i10.FileSystem {
           ),
         ),
       ) as String);
+}
+
+/// A class which mocks [NetworkInfo].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockNetworkInfo extends _i1.Mock implements _i13.NetworkInfo {
+  MockNetworkInfo() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i6.Future<bool> get isConnected => (super.noSuchMethod(
+        Invocation.getter(#isConnected),
+        returnValue: _i6.Future<bool>.value(false),
+      ) as _i6.Future<bool>);
+
+  @override
+  _i6.Stream<bool> get onConnectivityChanged => (super.noSuchMethod(
+        Invocation.getter(#onConnectivityChanged),
+        returnValue: _i6.Stream<bool>.empty(),
+      ) as _i6.Stream<bool>);
+}
+
+/// A class which mocks [JobRemoteDataSource].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockJobRemoteDataSource extends _i1.Mock
+    implements _i14.JobRemoteDataSource {
+  MockJobRemoteDataSource() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i6.Future<List<_i15.JobApiDTO>> fetchJobs() => (super.noSuchMethod(
+        Invocation.method(
+          #fetchJobs,
+          [],
+        ),
+        returnValue: _i6.Future<List<_i15.JobApiDTO>>.value(<_i15.JobApiDTO>[]),
+      ) as _i6.Future<List<_i15.JobApiDTO>>);
+
+  @override
+  _i6.Future<_i2.Job> fetchJobById(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #fetchJobById,
+          [id],
+        ),
+        returnValue: _i6.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #fetchJobById,
+            [id],
+          ),
+        )),
+      ) as _i6.Future<_i2.Job>);
+
+  @override
+  _i6.Future<_i2.Job> createJob({
+    required String? audioFilePath,
+    String? text,
+    String? additionalText,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #createJob,
+          [],
+          {
+            #audioFilePath: audioFilePath,
+            #text: text,
+            #additionalText: additionalText,
+          },
+        ),
+        returnValue: _i6.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #createJob,
+            [],
+            {
+              #audioFilePath: audioFilePath,
+              #text: text,
+              #additionalText: additionalText,
+            },
+          ),
+        )),
+      ) as _i6.Future<_i2.Job>);
+
+  @override
+  _i6.Future<_i2.Job> updateJob({
+    required String? jobId,
+    required Map<String, dynamic>? updates,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateJob,
+          [],
+          {
+            #jobId: jobId,
+            #updates: updates,
+          },
+        ),
+        returnValue: _i6.Future<_i2.Job>.value(_FakeJob_0(
+          this,
+          Invocation.method(
+            #updateJob,
+            [],
+            {
+              #jobId: jobId,
+              #updates: updates,
+            },
+          ),
+        )),
+      ) as _i6.Future<_i2.Job>);
+
+  @override
+  _i6.Future<List<_i2.Job>> syncJobs(List<_i2.Job>? jobsToSync) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #syncJobs,
+          [jobsToSync],
+        ),
+        returnValue: _i6.Future<List<_i2.Job>>.value(<_i2.Job>[]),
+      ) as _i6.Future<List<_i2.Job>>);
+
+  @override
+  _i6.Future<_i3.Unit> deleteJob(String? serverId) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteJob,
+          [serverId],
+        ),
+        returnValue: _i6.Future<_i3.Unit>.value(_FakeUnit_1(
+          this,
+          Invocation.method(
+            #deleteJob,
+            [serverId],
+          ),
+        )),
+      ) as _i6.Future<_i3.Unit>);
 }

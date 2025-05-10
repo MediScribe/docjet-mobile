@@ -402,4 +402,72 @@ void main() {
       verify(mockReaderService.watchJobById(tLocalId)).called(1);
     });
   });
+
+  group('smartDeleteJob', () {
+    test(
+      'should delegate to deleter service attemptSmartDelete with correct id',
+      () async {
+        // Arrange
+        when(
+          mockDeleterService.attemptSmartDelete(tLocalId),
+        ).thenAnswer((_) async => const Right(true));
+
+        // Act
+        final result = await repository.smartDeleteJob(tLocalId);
+
+        // Assert
+        expect(result, equals(const Right(true)));
+        verify(mockDeleterService.attemptSmartDelete(tLocalId)).called(1);
+      },
+    );
+
+    test(
+      'should pass through true flag when job is purged immediately',
+      () async {
+        // Arrange
+        when(
+          mockDeleterService.attemptSmartDelete(tLocalId),
+        ).thenAnswer((_) async => const Right(true));
+
+        // Act
+        final result = await repository.smartDeleteJob(tLocalId);
+
+        // Assert
+        expect(result, equals(const Right(true)));
+        verify(mockDeleterService.attemptSmartDelete(tLocalId)).called(1);
+      },
+    );
+
+    test(
+      'should pass through false flag when job is marked for standard deletion',
+      () async {
+        // Arrange
+        when(
+          mockDeleterService.attemptSmartDelete(tLocalId),
+        ).thenAnswer((_) async => const Right(false));
+
+        // Act
+        final result = await repository.smartDeleteJob(tLocalId);
+
+        // Assert
+        expect(result, equals(const Right(false)));
+        verify(mockDeleterService.attemptSmartDelete(tLocalId)).called(1);
+      },
+    );
+
+    test('should pass through failures from deleter service', () async {
+      // Arrange
+      final tFailure = CacheFailure('Failed to find job');
+      when(
+        mockDeleterService.attemptSmartDelete(tLocalId),
+      ).thenAnswer((_) async => Left(tFailure));
+
+      // Act
+      final result = await repository.smartDeleteJob(tLocalId);
+
+      // Assert
+      expect(result, equals(Left(tFailure)));
+      verify(mockDeleterService.attemptSmartDelete(tLocalId)).called(1);
+    });
+  });
 }

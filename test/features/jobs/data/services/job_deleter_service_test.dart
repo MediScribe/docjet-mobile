@@ -6,7 +6,9 @@ import 'package:mockito/mockito.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
+import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/data/services/job_deleter_service.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job_status.dart';
@@ -14,7 +16,12 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
 import 'job_deleter_service_test.mocks.dart';
 
-@GenerateMocks([JobLocalDataSource, FileSystem])
+@GenerateMocks([
+  JobLocalDataSource,
+  FileSystem,
+  NetworkInfo,
+  JobRemoteDataSource,
+])
 void main() {
   late JobDeleterService service;
   late MockJobLocalDataSource mockLocalDataSource;
@@ -396,4 +403,297 @@ void main() {
       },
     );
   });
+
+  group('attemptSmartDelete', () {
+    late MockNetworkInfo mockNetworkInfo;
+    late MockJobRemoteDataSource mockRemoteDataSource;
+    late JobDeleterService smartService;
+
+    setUp(() {
+      mockNetworkInfo = MockNetworkInfo();
+      mockRemoteDataSource = MockJobRemoteDataSource();
+      smartService = JobDeleterService(
+        localDataSource: mockLocalDataSource,
+        fileSystem: mockFileSystem,
+        networkInfo: mockNetworkInfo,
+        remoteDataSource: mockRemoteDataSource,
+      );
+    });
+
+    final tJobWithNullServerId = Job(
+      localId: 'local1',
+      userId: 'user1',
+      serverId: null,
+      status: JobStatus.completed,
+      syncStatus: SyncStatus.pending,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      audioFilePath: '/path/to/audio.mp3',
+    );
+
+    final tJobWithEmptyServerId = Job(
+      localId: 'local1',
+      userId: 'user1',
+      serverId: '',
+      status: JobStatus.completed,
+      syncStatus: SyncStatus.pending,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      audioFilePath: '/path/to/audio.mp3',
+    );
+
+    final tJobWithServerId = Job(
+      localId: 'local1',
+      userId: 'user1',
+      serverId: 'server1',
+      status: JobStatus.completed,
+      syncStatus: SyncStatus.synced,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      audioFilePath: '/path/to/audio.mp3',
+    );
+
+    test(
+      'should immediately purge a job with null serverId (orphan)',
+      () async {
+        // Arrange
+        // Initial check needs to be called first for the attemptSmartDelete
+        when(
+          mockLocalDataSource.getJobById('local1'),
+        ).thenAnswer((_) async => tJobWithNullServerId);
+        when(
+          mockLocalDataSource.deleteJob('local1'),
+        ).thenAnswer((_) async => unit);
+        when(
+          mockFileSystem.deleteFile(any),
+        ).thenAnswer((_) async => Future.value());
+
+        // Act
+        final result = await smartService.attemptSmartDelete('local1');
+
+        // Assert
+        expect(result, equals(const Right(true))); // true = immediate purge
+        // Each test only verifies what it needs to care about
+        verify(mockLocalDataSource.getJobById('local1')).called(2);
+        verify(mockLocalDataSource.deleteJob('local1')).called(1);
+        verifyNever(mockNetworkInfo.isConnected);
+        verifyNever(mockRemoteDataSource.fetchJobById(any));
+      },
+    );
+
+    test(
+      'should immediately purge a job with empty serverId (also orphan)',
+      () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById('local1'),
+        ).thenAnswer((_) async => tJobWithEmptyServerId);
+        when(
+          mockLocalDataSource.deleteJob('local1'),
+        ).thenAnswer((_) async => unit);
+        when(
+          mockFileSystem.deleteFile(any),
+        ).thenAnswer((_) async => Future.value());
+
+        // Act
+        final result = await smartService.attemptSmartDelete('local1');
+
+        // Assert
+        expect(result, equals(const Right(true))); // true = immediate purge
+        verify(mockLocalDataSource.getJobById('local1')).called(2);
+        verify(mockLocalDataSource.deleteJob('local1')).called(1);
+        verifyNever(mockNetworkInfo.isConnected);
+        verifyNever(mockRemoteDataSource.fetchJobById(any));
+      },
+    );
+
+    test('should mark for deletion when offline', () async {
+      // Arrange
+      when(
+        mockLocalDataSource.getJobById('local1'),
+      ).thenAnswer((_) async => tJobWithServerId);
+      when(mockNetworkInfo.isConnected).thenAnswer((_) async => false);
+
+      // Test needs to handle the job being set to pendingDeletion
+      when(
+        mockLocalDataSource.saveJob(
+          argThat(
+            predicate<Job>(
+              (j) =>
+                  j.localId == 'local1' &&
+                  j.syncStatus == SyncStatus.pendingDeletion,
+            ),
+          ),
+        ),
+      ).thenAnswer((_) async => unit);
+
+      // Act
+      final result = await smartService.attemptSmartDelete('local1');
+
+      // Assert
+      expect(result, equals(const Right(false))); // false = mark for deletion
+      verify(mockLocalDataSource.getJobById('local1')).called(2);
+      verify(mockNetworkInfo.isConnected).called(1);
+      verify(mockLocalDataSource.saveJob(any)).called(1);
+      verifyNever(mockRemoteDataSource.fetchJobById(any));
+    });
+
+    test(
+      'should mark for deletion when job exists on server (200 status)',
+      () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById('local1'),
+        ).thenAnswer((_) async => tJobWithServerId);
+        when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+        when(
+          mockRemoteDataSource.fetchJobById('server1'),
+        ).thenAnswer((_) async => tJobWithServerId);
+
+        // Test needs to handle the job being set to pendingDeletion
+        when(
+          mockLocalDataSource.saveJob(
+            argThat(
+              predicate<Job>(
+                (j) =>
+                    j.localId == 'local1' &&
+                    j.syncStatus == SyncStatus.pendingDeletion,
+              ),
+            ),
+          ),
+        ).thenAnswer((_) async => unit);
+
+        // Act
+        final result = await smartService.attemptSmartDelete('local1');
+
+        // Assert
+        expect(result, equals(const Right(false))); // false = mark for deletion
+        verify(mockLocalDataSource.getJobById('local1')).called(2);
+        verify(mockNetworkInfo.isConnected).called(1);
+        verify(mockRemoteDataSource.fetchJobById('server1')).called(1);
+        verify(mockLocalDataSource.saveJob(any)).called(1);
+      },
+    );
+
+    test(
+      'should immediately purge when job does not exist on server (404 status)',
+      () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById('local1'),
+        ).thenAnswer((_) async => tJobWithServerId);
+        when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+        when(
+          mockRemoteDataSource.fetchJobById('server1'),
+        ).thenThrow(ApiException(message: 'Not found', statusCode: 404));
+
+        when(
+          mockLocalDataSource.deleteJob('local1'),
+        ).thenAnswer((_) async => unit);
+        when(
+          mockFileSystem.deleteFile(any),
+        ).thenAnswer((_) async => Future.value());
+
+        // Act
+        final result = await smartService.attemptSmartDelete('local1');
+
+        // Assert
+        expect(result, equals(const Right(true))); // true = immediate purge
+        verify(mockLocalDataSource.getJobById('local1')).called(2);
+        verify(mockNetworkInfo.isConnected).called(1);
+        verify(mockRemoteDataSource.fetchJobById('server1')).called(1);
+        verify(mockLocalDataSource.deleteJob('local1')).called(1);
+      },
+    );
+
+    test(
+      'should mark for deletion when API returns non-404 error (assume job exists)',
+      () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById('local1'),
+        ).thenAnswer((_) async => tJobWithServerId);
+        when(mockNetworkInfo.isConnected).thenAnswer((_) async => true);
+        when(
+          mockRemoteDataSource.fetchJobById('server1'),
+        ).thenThrow(ApiException(message: 'Server error', statusCode: 500));
+
+        when(
+          mockLocalDataSource.saveJob(
+            argThat(
+              predicate<Job>(
+                (j) =>
+                    j.localId == 'local1' &&
+                    j.syncStatus == SyncStatus.pendingDeletion,
+              ),
+            ),
+          ),
+        ).thenAnswer((_) async => unit);
+
+        // Act
+        final result = await smartService.attemptSmartDelete('local1');
+
+        // Assert
+        expect(result, equals(const Right(false))); // false = mark for deletion
+        verify(mockLocalDataSource.getJobById('local1')).called(2);
+        verify(mockNetworkInfo.isConnected).called(1);
+        verify(mockRemoteDataSource.fetchJobById('server1')).called(1);
+        verify(mockLocalDataSource.saveJob(any)).called(1);
+      },
+    );
+
+    test('should mark for deletion when network check throws', () async {
+      // Arrange
+      when(
+        mockLocalDataSource.getJobById('local1'),
+      ).thenAnswer((_) async => tJobWithServerId);
+      when(mockNetworkInfo.isConnected).thenThrow(Exception('Network error'));
+
+      when(
+        mockLocalDataSource.saveJob(
+          argThat(
+            predicate<Job>(
+              (j) =>
+                  j.localId == 'local1' &&
+                  j.syncStatus == SyncStatus.pendingDeletion,
+            ),
+          ),
+        ),
+      ).thenAnswer((_) async => unit);
+
+      // Act
+      final result = await smartService.attemptSmartDelete('local1');
+
+      // Assert
+      expect(result, equals(const Right(false))); // false = mark for deletion
+      verify(mockLocalDataSource.getJobById('local1')).called(2);
+      verify(mockNetworkInfo.isConnected).called(1);
+      verify(mockLocalDataSource.saveJob(any)).called(1);
+      verifyNever(mockRemoteDataSource.fetchJobById(any));
+    });
+
+    test(
+      'should return CacheFailure when job not found in local datastore',
+      () async {
+        // Arrange
+        when(
+          mockLocalDataSource.getJobById('local1'),
+        ).thenThrow(CacheException('Job not found'));
+
+        // Act
+        final result = await smartService.attemptSmartDelete('local1');
+
+        // Assert
+        expect(result.isLeft(), isTrue);
+        expect(result, equals(Left(CacheFailure('Job not found'))));
+        verify(mockLocalDataSource.getJobById('local1')).called(1);
+        verifyNever(mockNetworkInfo.isConnected);
+        verifyNever(mockRemoteDataSource.fetchJobById(any));
+        verifyNever(mockLocalDataSource.saveJob(any));
+        verifyNever(mockLocalDataSource.deleteJob(any));
+      },
+    );
+  });
+
+  // SPLIT THIS FILE INTO MULTIPLE FILES; DO NOT ADD ANYTHING ELSE TO THIS FILE
 }

@@ -73,6 +73,19 @@ abstract class JobRepository {
   /// Returns [Left(Failure)] if the job is not found or if a cache error occurs.
   Future<Either<Failure, Unit>> deleteJob(String localId);
 
+  /// Intelligently deletes a job based on its syncing status:
+  /// - If the job is an orphan (no serverId or confirmed non-existent on server),
+  ///   purges it locally immediately.
+  /// - Otherwise, marks it for deletion with [SyncStatus.pendingDeletion] like
+  ///   the standard [deleteJob] method.
+  ///
+  /// Returns [Right(bool)] where the boolean value indicates:
+  /// - `true` if the job was purged immediately
+  /// - `false` if the job was marked for standard sync-based deletion
+  ///
+  /// Returns [Left(Failure)] if the job cannot be found or deletion fails.
+  Future<Either<Failure, bool>> smartDeleteJob(String localId);
+
   /// --- SYNC OPERATIONS ---
 
   /// Synchronizes all locally pending jobs (created, updated, marked for deletion)

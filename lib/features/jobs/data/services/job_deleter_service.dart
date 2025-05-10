@@ -1,9 +1,11 @@
 import 'package:dartz/dartz.dart';
 import 'package:docjet_mobile/core/error/exceptions.dart';
 import 'package:docjet_mobile/core/error/failures.dart';
+import 'package:docjet_mobile/core/interfaces/network_info.dart';
 import 'package:docjet_mobile/core/platform/file_system.dart';
 import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/data/datasources/job_local_data_source.dart';
+import 'package:docjet_mobile/features/jobs/data/datasources/job_remote_data_source.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 
@@ -20,19 +22,31 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 class JobDeleterService {
   final JobLocalDataSource _localDataSource;
   final FileSystem _fileSystem;
+  final NetworkInfo? _networkInfo;
+  final JobRemoteDataSource? _remoteDataSource;
   final Logger _logger = LoggerFactory.getLogger(JobDeleterService);
 
   static final String _tag = logTag(JobDeleterService);
+
+  // Timeout duration for server existence check
+  static const Duration _serverCheckTimeout = Duration(seconds: 2);
 
   /// Creates an instance of [JobDeleterService].
   ///
   /// Requires a [JobLocalDataSource] for database interactions and a
   /// [FileSystem] for managing associated files.
+  ///
+  /// Optionally takes [NetworkInfo] and [JobRemoteDataSource] for smart
+  /// deletion functionality that checks server existence.
   JobDeleterService({
     required JobLocalDataSource localDataSource,
     required FileSystem fileSystem,
+    NetworkInfo? networkInfo,
+    JobRemoteDataSource? remoteDataSource,
   }) : _localDataSource = localDataSource,
-       _fileSystem = fileSystem;
+       _fileSystem = fileSystem,
+       _networkInfo = networkInfo,
+       _remoteDataSource = remoteDataSource;
 
   /// Marks a job for deletion locally by setting its [SyncStatus] to [SyncStatus.pendingDeletion].
   ///
@@ -43,6 +57,9 @@ class JobDeleterService {
   /// - Returns: [Right(unit)] if the job is successfully marked for deletion.
   /// - Returns: [Left(CacheFailure)] if the job with the specified [localId] is not found
   ///   or if there's an error updating the job's status in the local data source.
+  ///
+  /// Note: Unlike [permanentlyDeleteJob], this method returns a [CacheFailure] if the job
+  /// is not found in the local data source.
   Future<Either<Failure, Unit>> deleteJob(String localId) async {
     _logger.i('$_tag Marking job for deletion (localId: $localId)...');
     try {
@@ -75,6 +92,9 @@ class JobDeleterService {
   /// - Returns: [Right(unit)] if the job is successfully deleted from the local data source.
   ///   File deletion errors are logged but do not result in a [Failure].
   /// - Returns: [Left(CacheFailure)] if the job cannot be found or deleted from the local data source.
+  ///
+  /// Note: Unlike [deleteJob], this method returns a [Right(unit)] if the job is not found
+  /// (treating it as already successfully deleted).
   Future<Either<Failure, Unit>> permanentlyDeleteJob(String localId) async {
     _logger.i(
       '$_tag Attempting permanent local deletion (localId: $localId)...',
@@ -120,6 +140,121 @@ class JobDeleterService {
 
     // If we reached here, DB deletion was successful.
     return const Right(unit);
+  }
+
+  /// Attempts to smartly delete a job by:
+  /// - Immediately purging it if it's an orphan (no serverId or confirmed non-existent on server)
+  /// - Otherwise marking it for sync-based deletion (like standard deleteJob)
+  ///
+  /// - Parameter [localId]: The local identifier of the job to delete.
+  /// - Returns: [Right(true)] if the job was purged immediately (orphan case).
+  /// - Returns: [Right(false)] if the job was marked for regular sync-based deletion.
+  /// - Returns: [Left(Failure)] on error fetching job or performing deletion operations.
+  Future<Either<Failure, bool>> attemptSmartDelete(String localId) async {
+    _logger.i('$_tag Attempting smart delete for job (localId: $localId)...');
+
+    Job job;
+
+    // Step 1: Get the job details
+    try {
+      job = await _localDataSource.getJobById(localId);
+      _logger.d('$_tag Found job locally, checking for orphan status');
+    } on CacheException catch (e) {
+      _logger.e('$_tag Failed to find job for smart delete: $e');
+      return Left(CacheFailure(e.message ?? 'Failed to find job'));
+    } catch (e) {
+      _logger.e('$_tag Unexpected error fetching job for smart delete: $e');
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+
+    // Step 2: Handle case where job has no serverId (immediate purge)
+    if (job.serverId == null || job.serverId!.isEmpty) {
+      _logger.i('$_tag Job has no serverId - purging immediately');
+      return _purgeImmediately(localId);
+    }
+
+    // Step 3: For jobs with a serverId, check if we should attempt server existence check
+    bool isOnline = false;
+    if (_networkInfo != null && _remoteDataSource != null) {
+      try {
+        isOnline = await _networkInfo.isConnected;
+      } catch (e) {
+        _logger.w('$_tag Error checking network status: $e, assuming offline');
+        isOnline = false;
+      }
+    }
+
+    // Step 4a: If offline or missing dependencies, fall back to standard deletion
+    if (!isOnline || _networkInfo == null || _remoteDataSource == null) {
+      _logger.i(
+        '$_tag Device offline or missing dependencies - marking for sync-based deletion',
+      );
+      return _markForSyncDeletion(localId);
+    }
+
+    // Step 4b: If online with all dependencies, check server existence with timeout
+    try {
+      _logger.d('$_tag Checking if job exists on server...');
+      bool jobExistsOnServer = true; // Default to true (safer)
+
+      // Apply timeout to server check to avoid UI lag
+      try {
+        await _remoteDataSource
+            .fetchJobById(job.serverId!)
+            .timeout(_serverCheckTimeout);
+        _logger.i('$_tag Job exists on server (200/204)');
+        jobExistsOnServer = true;
+      } on ApiException catch (e) {
+        if (e.statusCode == 404) {
+          _logger.i('$_tag Job does not exist on server (404)');
+          jobExistsOnServer = false;
+        } else {
+          // Other API errors - fall back to standard deletion
+          _logger.w('$_tag Error checking job existence: API error $e');
+          jobExistsOnServer = true; // Assume it exists to be safe
+        }
+      } catch (e) {
+        // Network errors, timeouts, or other unexpected errors
+        _logger.w('$_tag Error checking job existence: $e');
+        jobExistsOnServer = true; // Assume it exists to be safe
+      }
+
+      // Step 5: Delete based on server existence check
+      if (jobExistsOnServer) {
+        // If job exists on server, use standard deletion
+        _logger.i(
+          '$_tag Job exists or cannot confirm non-existence - marking for sync-based deletion',
+        );
+        return _markForSyncDeletion(localId);
+      } else {
+        // Job doesn't exist on server, purge immediately
+        _logger.i('$_tag Job confirmed not on server - purging immediately');
+        return _purgeImmediately(localId);
+      }
+    } catch (e) {
+      // Any unexpected error during server check process
+      _logger.e('$_tag Unexpected error during smart delete server check: $e');
+      // Fall back to standard deletion
+      return _markForSyncDeletion(localId);
+    }
+  }
+
+  /// Helper method to purge a job immediately by delegating to permanentlyDeleteJob
+  /// Returns [Right(true)] if successful or passes through the failure
+  Future<Either<Failure, bool>> _purgeImmediately(String localId) async {
+    return (await permanentlyDeleteJob(localId)).fold(
+      (failure) => Left(failure),
+      (_) => const Right(true), // true indicates immediate purge
+    );
+  }
+
+  /// Helper method to mark a job for sync-based deletion by delegating to deleteJob
+  /// Returns [Right(false)] if successful or passes through the failure
+  Future<Either<Failure, bool>> _markForSyncDeletion(String localId) async {
+    return (await deleteJob(localId)).fold(
+      (failure) => Left(failure),
+      (_) => const Right(false), // false indicates standard deletion
+    );
   }
 
   /// Helper method to attempt file deletion and handle failures non-critically.

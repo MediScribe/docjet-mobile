@@ -95,4 +95,8 @@ class _TestJobRepository implements JobRepository {
   Stream<Either<Failure, List<Job>>> watchJobs() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Either<Failure, bool>> smartDeleteJob(String localId) async =>
+      const Right(false);
 }
