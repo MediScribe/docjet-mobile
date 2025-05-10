@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+# Hard Bob demands strict mode: abort on unset vars & pipe errors too.
+set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [-d SIMULATOR_ID] [-s SECRETS_FILE] [-h]
+Usage: $(basename "$0") [-d SIMULATOR_ID] [-s SECRETS_FILE] [-r] [-h]
 
 Start Flutter app on a simulator with staging secrets.
 If SIMULATOR_ID is not provided, Flutter will attempt to use the current open simulator.
@@ -13,6 +13,7 @@ If SIMULATOR_ID is not provided, Flutter will attempt to use the current open si
 Options:
   -d SIMULATOR_ID    Specify simulator device ID (optional)
   -s SECRETS_FILE    Specify secrets file path (default: secrets.staging.json)
+  -r, --release      Build & run in release mode (optional)
   -h, --help         Show this help message and exit
 EOF
 }
@@ -20,6 +21,7 @@ EOF
 # Default values
 SIMULATOR_ID="" # Optional, Flutter will pick if not set
 SECRETS_FILE="secrets.staging.json" # Default secrets file in project root
+RELEASE_MODE=false   # Toggle via -r|--release
 
 # Translate long options to short ones if any were to be added later
 args=()
@@ -27,18 +29,20 @@ for arg in "$@"; do
   case "$arg" in
     --device|--simulator) args+=("-d") ;;\
     --secrets) args+=("-s") ;;\
+    --release) args+=("-r") ;;\
     --help) args+=("-h") ;;\
     *) args+=("$arg") ;;\
   esac
 done
 set -- "${args[@]}"
 
-# Parse options
-while getopts ":hd:s:" opt; do
+# Parse options (note the trailing colon only for opts requiring args)
+while getopts ":hd:s:r" opt; do
   case $opt in
     h) usage; exit 0 ;;\
     d) SIMULATOR_ID="$OPTARG" ;;\
     s) SECRETS_FILE="$OPTARG" ;;\
+    r) RELEASE_MODE=true ;;\
     :) echo "Error: Option -$OPTARG requires an argument." >&2; usage; exit 1 ;;\
     \\?) echo "Error: Invalid option -$OPTARG" >&2; usage; exit 1 ;;\
   esac
@@ -82,6 +86,11 @@ if [ -n "$SIMULATOR_ID" ]; then
 fi
 # Pass the potentially adjusted SECRETS_FILE_PATH
 flutter_args+=("--dart-define-from-file=$SECRETS_FILE_PATH")
+
+# Add release flag if requested
+if [ "$RELEASE_MODE" = true ]; then
+  flutter_args+=("--release")
+fi
 
 # Launch Flutter app
 echo "Starting Flutter app with secrets file '$SECRETS_FILE_PATH'..."
