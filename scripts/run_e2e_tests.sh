@@ -3,6 +3,26 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Helper: get a usable iOS simulator UDID (boots one if none running)
+first_ios_sim_id() {
+	local sim_id
+	# Prefer booted
+	sim_id=$(xcrun simctl list devices booted | grep -Eo '[A-F0-9-]{36}' | head -n1)
+	if [[ -z "$sim_id" ]]; then
+		sim_id=$(xcrun simctl list devices | grep -m1 'iPhone' | grep -Eo '[A-F0-9-]{36}')
+		if [[ -z "$sim_id" ]]; then
+			echo "No iOS simulators found. Install at least one via Xcode." >&2
+			exit 1
+		fi
+		echo "Booting simulator $sim_id..."
+		xcrun simctl boot "$sim_id"
+		sleep 5
+	fi
+	echo "$sim_id"
+}
+
+SIM_ID="${DOCJET_DEVICE_ID:-$(first_ios_sim_id)}"
+
 PROJECT_ROOT=$(pwd) # Capture project root
 
 # Define API version - MUST match ApiConfig.apiVersion and mock server's _apiVersion
@@ -73,10 +93,10 @@ cd "$PROJECT_ROOT" # Explicitly cd back to project root
 
 echo "Running Flutter integration tests using secrets.test.json..."
 # Run the actual tests, defining variables from the secrets file
-# Always use the iOS simulator to avoid device selection prompt
+# Always use the pre-selected iOS simulator to avoid prompts
 flutter test integration_test/app_test.dart \
 	--dart-define-from-file=secrets.test.json \
-	-d "ios simulator"
+	-d "$SIM_ID"
 
 echo "E2E tests finished."
 

@@ -3,6 +3,30 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Helper: get a usable iOS simulator UDID (boots one if none running)
+first_ios_sim_id() {
+	# Prefer a booted simulator
+	local sim_id
+	sim_id=$(xcrun simctl list devices booted | grep -Eo '[A-F0-9-]{36}' | head -n1)
+
+	# If none booted, boot the first available iPhone simulator
+	if [[ -z "$sim_id" ]]; then
+		sim_id=$(xcrun simctl list devices | grep -m1 'iPhone' | grep -Eo '[A-F0-9-]{36}')
+		if [[ -z "$sim_id" ]]; then
+			echo "No iOS simulators found. Install at least one via Xcode." >&2
+			exit 1
+		fi
+		echo "Booting simulator $sim_id..."
+		xcrun simctl boot "$sim_id"
+		# Give CoreSimulator a moment to settle
+		sleep 5
+	fi
+	echo "$sim_id"
+}
+
+# Allow manual override via env var; otherwise auto-detect
+SIM_ID="${DOCJET_DEVICE_ID:-$(first_ios_sim_id)}"
+
 # Define API version - MUST match ApiConfig.apiVersion and mock server's _apiVersion
 API_VERSION="v1"
 API_PREFIX="api"
@@ -80,8 +104,8 @@ echo "Mock server is ready! (Took $ELAPSED seconds)"
 echo "Starting Flutter app using development entry point (lib/main_dev.dart)..."
 # Run the flutter app using the development entry point which configures
 # AppConfig.development() via DI overrides.
-# Always use the iOS simulator to avoid device selection prompt
-flutter run -t lib/main_dev.dart -d "ios simulator"
+# Always use the pre-selected iOS simulator to avoid prompts
+flutter run -t lib/main_dev.dart -d "$SIM_ID"
 
 # Since flutter run is interactive and we want the trap to handle cleanup
 # when flutter run exits or is interrupted, we don't need a 'wait' here.
