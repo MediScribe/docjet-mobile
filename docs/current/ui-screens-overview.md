@@ -199,6 +199,7 @@ sequenceDiagram
     - Uses standard sync-based deletion for server-synchronized jobs
     - Provides instant feedback for orphaned job deletion while maintaining proper sync for server jobs
     - Makes intelligent decisions based on job status and server existence checks
+  - Includes a thin progress bar underneath each `JobListItem` to visually represent backend processing progress. The bar fills with green as processing advances (based on `JobStatus`) and turns red if a `JobStatus.error` occurs.
 
 ### JobListPlayground
 - **Path**: `lib/features/jobs/presentation/pages/job_list_playground.dart`
