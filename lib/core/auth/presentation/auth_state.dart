@@ -36,13 +36,13 @@ class AuthState extends Equatable {
   });
 
   /// Initial unauthenticated state
-  factory AuthState.initial() {
-    return const AuthState(status: AuthStatus.unauthenticated);
+  factory AuthState.initial({bool isOffline = false}) {
+    return AuthState(status: AuthStatus.unauthenticated, isOffline: isOffline);
   }
 
   /// Loading state during authentication
-  factory AuthState.loading() {
-    return const AuthState(status: AuthStatus.loading);
+  factory AuthState.loading({bool isOffline = false}) {
+    return AuthState(status: AuthStatus.loading, isOffline: isOffline);
   }
 
   /// Successfully authenticated state with user

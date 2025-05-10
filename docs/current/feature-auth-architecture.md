@@ -350,14 +350,15 @@ Immutable state object representing the current authentication state:
 - `user` - The authenticated user entity
 - `status` - Current status (authenticated, unauthenticated, loading, error)
 - `errorMessage` - Error message if authentication failed
-- `isOffline` - Flag indicating if the app is operating in offline mode
+- `isOffline` - Flag indicating if the app is operating in offline mode. As of May-2025 the flag is **carried over automatically** whenever `AuthNotifier` replaces the whole `AuthState` – we added a guard helper so no one forgets it again.
+- On **cold-start** `AuthNotifier` performs a one-off connectivity probe to pick up an `offline` state that may have been emitted *before* the notifier subscribed.
+- Handles connectivity transitions by updating the `isOffline` flag in all states (authenticated, error, unauthenticated, loading) when receiving `offlineDetected` and `onlineRestored` events.
 
 #### AuthNotifier
 State management for authentication, connecting UI to domain services:
 - Exposes the `AuthState` to the UI.
 - Provides methods like `login()`, `logout()`, `checkAuthStatus()`, `getUserProfile()` which interact with the `AuthService`.
 - Listens to `AuthEventBus` for events like `AuthEvent.loggedIn` and `AuthEvent.loggedOut` (fired by `AuthServiceImpl`) to update the `AuthState` reactively, ensuring the UI reflects the current authentication status even when changes originate deeper in the system (e.g., after a background token refresh failure leading to logout).
-- Handles connectivity transitions by updating the `isOffline` flag in all states (authenticated, error, unauthenticated, loading) when receiving `offlineDetected` and `onlineRestored` events.
 - Automatically refreshes user profile when the app comes back online through the `_refreshProfileAfterOnlineRestored()` helper.
 - Integrates with the `AppNotifierService` to display non-critical errors (e.g., 404 on profile endpoint) without blocking the app.
 

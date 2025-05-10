@@ -65,8 +65,8 @@ graph LR
 
 Key notes:
 
-* Initial status is *NOT* broadcast – avoids spurious events during bootstrap.
-* Distinct-until-changed logic guarantees **no duplicate events**.
+* If the very first connectivity snapshot already reports **offline**, `NetworkInfoImpl` now fires `AuthEvent.offlineDetected` *immediately*. This ensures the OfflineBanner shows up right after a cold-start in airplane mode.
+* In all other cases we still debounce: the service emits only **distinct** changes, preventing duplicate events and the infamous "purple flash".
 * Error conditions (e.g. plugin throws) propagate as `addError` on the public stream and are logged with `Logger.f()`.
 
 ---
@@ -110,7 +110,7 @@ sequenceDiagram
 ## 4. Behavioural Contracts
 
 1. **Single Source of Truth** – Only `NetworkInfoImpl` translates raw connectivity into semantic events. All other layers consume these events.
-2. **No Bootstrap Noise** – The implementation *does not* emit an event for the very first connectivity check, preventing false banners during cold-start in tunnels/airplanes.
+2. **Smart Bootstrap Signal** – On cold-start **and** already offline, the implementation now fires `offlineDetected` right away so the UI reflects reality. When starting online we still suppress the initial event to avoid the flash.
 3. **Debounced Profile Refresh** – After `onlineRestored` the `AuthNotifier` waits 1 second before hitting the API to avoid stampeding herds when regaining network.
 4. **App-Level Disposal** – `CoreModule` registers a `dispose` callback that tears down the `NetworkInfoImpl` singleton. You *must* call `GetIt.reset()` in integration tests to avoid bleed-over.
 5. **Logger Hygiene** – Hardcore `Logger.f()` traces are left in for deep debugging but only compile in debug builds. `kDebugMode` gating prevents shipping verbose logs.
@@ -166,4 +166,20 @@ void _debugRawEvent(List<ConnectivityResult> r) {
 
 Use it to capture the bounce in the simulator; remove the method and its call before releasing.
 
---- 
+---
+
+## 8. Flicker Contingency Plan  
+Should we observe a startup **flicker** (banner flashes for <200 ms and disappears) on certain devices/OS versions:
+
+1. revert to the old behaviour by gating the initial event behind a 100 ms timer:  
+   ```dart
+   if (!_lastKnownStatus! /* == offline */) {
+     Future<void>.delayed(const Duration(milliseconds: 100), () {
+       if (!_lastKnownStatus!) authEventBus.add(AuthEvent.offlineDetected);
+     });
+   }
+   ```
+2. keep the docs & tests in sync.  
+3. log the affected device-/OS combo in the bug tracker so we can track regressions.
+
+Until then: **ship it**. 

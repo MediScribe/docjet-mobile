@@ -17,6 +17,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:docjet_mobile/core/network/connectivity_error.dart';
+import 'package:get_it/get_it.dart';
+import 'package:docjet_mobile/core/interfaces/network_info.dart';
 // Import for TextInput
 
 part 'auth_notifier.g.dart';
@@ -55,6 +57,12 @@ class AuthNotifier extends _$AuthNotifier {
     // Listen to auth events
     _listenToAuthEvents();
 
+    // Perform a one-time connectivity probe in case the offline event fired
+    // before this notifier subscribed and therefore was missed. This keeps
+    // `isOffline` in sync on cold-start when the app launches in airplane
+    // mode.
+    _initialConnectivityCheck();
+
     // Initial auth check
     checkAuthStatus();
 
@@ -81,7 +89,7 @@ class AuthNotifier extends _$AuthNotifier {
         case AuthEvent.loggedOut:
           if (state.status != AuthStatus.unauthenticated) {
             _logger.i('$_tag Received loggedOut event, resetting state.');
-            state = AuthState.initial();
+            state = AuthState.initial(isOffline: state.isOffline);
           }
           break;
 
@@ -110,27 +118,44 @@ class AuthNotifier extends _$AuthNotifier {
     _logger.i('$_tag Subscribed to AuthEventBus stream.');
   }
 
+  /// Ensures we reflect the current connectivity status even if the very first
+  /// `AuthEvent.offlineDetected` fired before this notifier subscribed.
+  ///
+  /// – Skips execution when `NetworkInfo` is not registered (unit-test setups
+  ///   that don't rely on real connectivity).
+  /// – Runs *after* the event subscription is active to avoid double flips.
+  Future<void> _initialConnectivityCheck() async {
+    try {
+      // Skip if NetworkInfo is not registered (e.g. in unit-test setups)
+      if (!GetIt.I.isRegistered<NetworkInfo>()) {
+        _logger.d('$_tag NetworkInfo not registered – skipping probe');
+        return;
+      }
+
+      final networkInfo = GetIt.I<NetworkInfo>();
+      final connected = await networkInfo.isConnected;
+      _logger.d('$_tag Initial connectivity probe result: $connected');
+      if (!connected) {
+        _logger.i('$_tag Probe detected OFFLINE state – applying to auth');
+        _setOffline(true);
+      }
+    } catch (e, s) {
+      // Non-fatal – log and continue with online assumption.
+      _logger.w(
+        '$_tag Initial connectivity probe failed – proceeding without',
+        error: e,
+        stackTrace: s,
+      );
+    }
+  }
+
   /// Updates the offline status across all states
   ///
   /// This method ensures that the offline flag is updated consistently
   /// regardless of the current state (authenticated, error, loading, etc.)
   void _setOffline(bool flag) {
-    switch (state.status) {
-      case AuthStatus.authenticated:
-        // Use copyWith to preserve other potential state attributes
-        state = state.copyWith(isOffline: flag);
-        break;
-
-      case AuthStatus.error:
-        state = state.copyWith(isOffline: flag);
-        break;
-
-      case AuthStatus.unauthenticated:
-      case AuthStatus.loading:
-        // Update offline flag for all other states too
-        state = state.copyWith(isOffline: flag);
-        break;
-    }
+    // Simple, status-agnostic update – copyWith preserves all other fields.
+    state = state.copyWith(isOffline: flag);
   }
 
   /// Refreshes the user profile after coming back online
@@ -183,7 +208,7 @@ class AuthNotifier extends _$AuthNotifier {
 
       if (!tokenValid) {
         _logger.w('$_tag Token rejected by server during online restoration');
-        state = AuthState.initial();
+        state = AuthState.initial(isOffline: state.isOffline);
         return false;
       }
 
@@ -194,7 +219,7 @@ class AuthNotifier extends _$AuthNotifier {
           e.type == AuthErrorType.unauthenticated ||
           e.type == AuthErrorType.refreshTokenInvalid) {
         _logger.w('$_tag Server rejected token during validation: ${e.type}');
-        state = AuthState.initial();
+        state = AuthState.initial(isOffline: state.isOffline);
         return false;
       }
 
@@ -229,7 +254,7 @@ class AuthNotifier extends _$AuthNotifier {
       _logger.w(
         '$_tag Token validation failed: ${e.type}, resetting to unauthenticated',
       );
-      state = AuthState.initial();
+      state = AuthState.initial(isOffline: state.isOffline);
     } else {
       // Handle other auth errors (like network issues)
       state = _mapAuthExceptionToState(e, s, context: 'online profile refresh');
@@ -308,7 +333,10 @@ class AuthNotifier extends _$AuthNotifier {
       );
       // Return authenticated state but with anonymous user (profile failed)
       // DO NOT set transientError here anymore
-      return AuthState.authenticated(User.anonymous());
+      return AuthState.authenticated(
+        User.anonymous(),
+        isOffline: state.isOffline,
+      );
     }
 
     // For other DioExceptions, mark as error state
@@ -321,6 +349,7 @@ class AuthNotifier extends _$AuthNotifier {
     return AuthState.error(
       'Failed to complete request. Please try again later.',
       errorType: AuthErrorType.network,
+      isOffline: state.isOffline,
     );
   }
 
@@ -339,6 +368,7 @@ class AuthNotifier extends _$AuthNotifier {
     return AuthState.error(
       'An unexpected error occurred. Please try again.',
       errorType: AuthErrorType.unknown,
+      isOffline: state.isOffline,
     );
   }
 
@@ -351,7 +381,7 @@ class AuthNotifier extends _$AuthNotifier {
 
     _logger.i('$_tag Attempting login for email: $email');
     // Set loading state
-    state = AuthState.loading();
+    state = AuthState.loading(isOffline: state.isOffline);
 
     try {
       // Attempt login
@@ -365,7 +395,7 @@ class AuthNotifier extends _$AuthNotifier {
       // and can now be saved or updated.
       _autofillService.completeAutofillContext(shouldSave: true);
 
-      state = AuthState.authenticated(userProfile);
+      state = AuthState.authenticated(userProfile, isOffline: false);
       _logger.i(
         '$_tag Login successful, user profile fetched for ID: ${userProfile.id}',
       );
@@ -398,7 +428,7 @@ class AuthNotifier extends _$AuthNotifier {
       // Decide on state: maybe stay authenticated but show error?
       // For now, forcefully go to initial state regardless of error, as the main goal is logout.
       if (state.status != AuthStatus.unauthenticated) {
-        state = AuthState.initial();
+        state = AuthState.initial(isOffline: state.isOffline);
       }
     } catch (e, s) {
       _logger.e(
@@ -408,7 +438,7 @@ class AuthNotifier extends _$AuthNotifier {
       );
       // Force state reset even on logout failure
       if (state.status != AuthStatus.unauthenticated) {
-        state = AuthState.initial();
+        state = AuthState.initial(isOffline: state.isOffline);
       }
     }
   }
@@ -443,7 +473,7 @@ class AuthNotifier extends _$AuthNotifier {
           _logger.i(
             '$_tag Profile fetched successfully for ID: ${userProfile.id}',
           );
-          state = AuthState.authenticated(userProfile);
+          state = AuthState.authenticated(userProfile, isOffline: false);
         } on DioException catch (e, s) {
           // On network-related errors, fall back to offline auth
           _logger.w(
@@ -516,7 +546,7 @@ class AuthNotifier extends _$AuthNotifier {
 
     if (!isAuthenticatedOffline) {
       _logger.i('$_tag Not authenticated with any validation method.');
-      state = AuthState.initial();
+      state = AuthState.initial(isOffline: state.isOffline);
       return;
     }
 
@@ -554,7 +584,7 @@ class AuthNotifier extends _$AuthNotifier {
         e.type == AuthErrorType.unauthenticated ||
         e.type == AuthErrorType.refreshTokenInvalid) {
       _logger.w('$_tag Token validation failed during auth check: ${e.type}');
-      state = AuthState.initial();
+      state = AuthState.initial(isOffline: state.isOffline);
     } else {
       state = _mapAuthExceptionToState(e, s, context: 'profile fetch');
     }
@@ -575,7 +605,10 @@ class AuthNotifier extends _$AuthNotifier {
     );
 
     // Still authenticate the user but with anonymous profile
-    state = AuthState.authenticated(User.anonymous());
+    state = AuthState.authenticated(
+      User.anonymous(),
+      isOffline: state.isOffline,
+    );
   }
 }
 

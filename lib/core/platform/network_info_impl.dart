@@ -54,9 +54,22 @@ class NetworkInfoImpl implements NetworkInfo {
         (result) => result != ConnectivityResult.none,
       );
       _logger.i('$_tag Initial connectivity status: $_lastKnownStatus');
-      // DO NOT emit the initial status to the status stream controller here.
-      // Listeners should use `isConnected` for the initial state.
-      // We also DO NOT fire auth events on initialization.
+
+      // NEW: If the app starts without connectivity, immediately propagate the
+      // offline state. This ensures features like the OfflineBanner are shown
+      // right away after a cold-start in airplane mode.
+      if (_lastKnownStatus == false) {
+        _logger.i(
+          '$_tag Initial status is OFFLINE → firing AuthEvent.offlineDetected',
+        );
+        authEventBus.add(AuthEvent.offlineDetected);
+
+        // Emit the value on our broadcast stream. NOTE: because this is a
+        // `broadcast()` controller the value is **not** replayed to
+        // subscribers that attach later; those consumers should instead call
+        // `isConnected` to obtain the snapshot after subscription.
+        _statusStreamController.add(false);
+      }
 
       // Start listening to changes *after* the initial check
       _connectivitySubscription = connectivity.onConnectivityChanged.listen(

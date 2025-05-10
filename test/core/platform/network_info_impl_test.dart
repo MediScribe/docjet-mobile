@@ -214,9 +214,10 @@ void main() {
         connectivityStreamController.add([ConnectivityResult.wifi]);
         await Future.delayed(streamProcessingDelay); // Allow stream processing
 
-        // Assert: Verify event added to bus
+        // Assert: One offlineDetected fired during initialization and one
+        // onlineRestored fired for the transition.
+        verify(mockAuthEventBus.add(AuthEvent.offlineDetected)).called(1);
         verify(mockAuthEventBus.add(AuthEvent.onlineRestored)).called(1);
-        verifyNever(mockAuthEventBus.add(AuthEvent.offlineDetected));
         verifyNoMoreInteractions(mockAuthEventBus);
       },
     );
@@ -246,8 +247,11 @@ void main() {
         connectivityStreamController.add([ConnectivityResult.none]);
         await Future.delayed(streamProcessingDelay); // Allow stream processing
 
-        // Assert: Verify no events were added
-        verifyNever(mockAuthEventBus.add(any));
+        // Assert: Should have fired once during initialization, but not for the
+        // subsequent identical event.
+        verify(mockAuthEventBus.add(AuthEvent.offlineDetected)).called(1);
+        verifyNever(mockAuthEventBus.add(AuthEvent.onlineRestored));
+        verifyNoMoreInteractions(mockAuthEventBus);
       },
     );
 
