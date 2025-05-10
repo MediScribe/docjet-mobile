@@ -40,7 +40,7 @@ dependencies:
   get_it:
   equatable:
   path: # Keep empty entry as it's a path dependency placeholder
-  path_provider:
+  path_provider: ^2.1.5
   permission_handler:
   dartz:
   json_annotation:
@@ -72,9 +72,11 @@ dependencies:
   stack_trace:
   shared_preferences: 
   meta: # Moved from dev_dependencies for @visibleForTesting
-  record: ^6.0.0
-  just_audio: ^0.10.2
-  audio_session: ^0.2.1
+  record: 
+  just_audio: 
+  audio_session: 
+  share_plus: 
+  archive: 
 
 dev_dependencies:
   flutter_test:
