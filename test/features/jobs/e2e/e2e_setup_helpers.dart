@@ -48,7 +48,8 @@ import 'e2e_setup_helpers.mocks.dart'; // Import the generated mocks for this fi
 
 // --- Constants ---
 const String mockApiKey = 'test-api-key';
-const String mockServerScriptRelativePath = 'mock_api_server/bin/server.dart';
+const String mockServerScriptRelativePath =
+    'packages/mock_api_server/bin/server.dart';
 const String testSuiteName = 'JobSyncE2eTest'; // Centralized test suite name
 
 // --- Globals (Managed within setup/teardown) ---

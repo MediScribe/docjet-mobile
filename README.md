@@ -188,7 +188,7 @@ The project includes integration tests that use a mock API server to simulate th
 
 1. **Start the mock server:**
    ```bash
-   cd mock_api_server && dart bin/server.dart
+   cd packages/mock_api_server && dart bin/server.dart
    ```
    The mock server will start on port 8080 with predefined API endpoints.
 
@@ -204,14 +204,14 @@ The project includes integration tests that use a mock API server to simulate th
    
    If you need to run the test manually with a pre-running server, use:
    ```bash
-   cd mock_api_server && dart bin/server.dart &
+   cd packages/mock_api_server && dart bin/server.dart &
    flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
    ```
 
 3. **One-liner (recommended):**
    For the cleanest test run that ensures no stale servers are running:
    ```bash
-   cd mock_api_server && pkill -f "dart bin/server.dart" || true && echo "Mock server stopped. Now running the integration test:" && flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
+   cd packages/mock_api_server && pkill -f "dart bin/server.dart" || true && echo "Mock server stopped. Now running the integration test:" && flutter test test/features/jobs/data/datasources/job_datasources_integration_test.dart
    ```
    This command kills any existing mock server, outputs a status message, and runs the test with verbose output.
 
@@ -228,7 +228,7 @@ The project includes integration tests that use a mock API server to simulate th
 - **Authentication:** Bearer token (any non-empty token works for testing)
 - **Supported endpoints:** auth/login, jobs (GET/POST/PATCH), jobs/:id, jobs/:id/documents
 
-For more details on the available API endpoints, check the mock server implementation in `mock_api_server/bin/server.dart`.
+For more details on the available API endpoints, check the mock server implementation in `packages/mock_api_server/bin/server.dart`.
 
 #### Mock Server Capabilities & Limitations
 
@@ -263,7 +263,7 @@ This script:
 
 > **Note:** When running the app with the mock server (via `main_dev.dart`), you can use any email/password combination for login, as the mock server accepts all credentials. The app will display a simulated user profile from the mock server.
 
-For more details about the mock server, see `mock_api_server/README.md`.
+For more details about the mock server, see `packages/mock_api_server/README.md`.
 
 ### End-to-End (E2E) Tests (integration_test)
 

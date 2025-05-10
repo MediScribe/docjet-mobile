@@ -54,7 +54,7 @@ final baseUrl = ApiConfig.baseUrlFromDomain(_apiDomain);
 The mock server uses the same versioning constants to ensure consistency:
 
 ```dart
-// In mock_api_server/bin/server.dart
+// In packages/mock_api_server/bin/server.dart
 const String _apiVersion = 'v1';
 const String _apiPrefix = 'api';
 const String _versionedApiPath = '$_apiPrefix/$_apiVersion';

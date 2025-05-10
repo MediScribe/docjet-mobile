@@ -3,6 +3,8 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+PROJECT_ROOT=$(pwd) # Capture project root
+
 # Define API version - MUST match ApiConfig.apiVersion and mock server's _apiVersion
 API_VERSION="v1"
 API_PREFIX="api"
@@ -17,7 +19,7 @@ echo "Starting mock API server..."
 echo "Ensuring port $SERVER_PORT is free..."
 lsof -t -i:$SERVER_PORT | xargs kill -9 || true
 
-cd mock_api_server
+cd packages/mock_api_server
 # Start the server in the background and capture its PID
 dart bin/server.dart --port $SERVER_PORT &
 SERVER_PID=$!
@@ -66,6 +68,8 @@ while ! curl -s --fail "$SERVER_URL" >/dev/null; do
 	ELAPSED=$((ELAPSED + WAIT_INTERVAL))
 done
 echo "Mock server is ready! (Took $ELAPSED seconds)"
+
+cd "$PROJECT_ROOT" # Explicitly cd back to project root
 
 echo "Running Flutter integration tests using secrets.test.json..."
 # Run the actual tests, defining variables from the secrets file

@@ -14,7 +14,7 @@ HEALTH_ENDPOINT="$VERSIONED_API_PATH/health"
 echo "Starting mock API server..."
 # Check if mock_api_server exists relative to script location
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-MOCK_SERVER_DIR="$SCRIPT_DIR/../mock_api_server"
+MOCK_SERVER_DIR="$SCRIPT_DIR/../packages/mock_api_server"
 
 if [ ! -d "$MOCK_SERVER_DIR" ]; then
 	echo "Error: Mock server directory not found at $MOCK_SERVER_DIR"

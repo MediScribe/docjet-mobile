@@ -117,7 +117,7 @@ Executes a comprehensive test suite including unit tests, mock API server tests,
 
 **Sequence:**
 1. Runs unit tests via `list_failed_tests.dart`.
-2. Runs mock API server tests via `list_failed_tests.dart mock_api_server`.
+2. Runs mock API server tests via `list_failed_tests.dart packages/mock_api_server`.
 3. Runs E2E tests via `run_e2e_tests.sh`.
 4. Starts the app with the mock server in the background (`run_with_mock.sh`).
 5. Checks if the app started and remains stable for a few seconds.
@@ -133,7 +133,7 @@ Executes a comprehensive test suite including unit tests, mock API server tests,
 
 ### `run_e2e_tests.sh`
 
-Runs the Flutter integration tests (`integration_test/app_test.dart`). It first starts the mock API server (`mock_api_server/bin/server.dart`) in the background, waits for it to become available, runs the tests using `flutter test`, and then shuts down the mock server.
+Runs the Flutter integration tests (`integration_test/app_test.dart`). It first starts the mock API server (`packages/mock_api_server/bin/server.dart`) in the background, waits for it to become available, runs the tests using `flutter test`, and then shuts down the mock server.
 
 **Usage:**
 
@@ -158,7 +158,7 @@ Runs the Flutter app on a specific physical device (hardcoded ID) using staging 
 
 ### `run_with_mock.sh`
 
-Starts the mock API server (`mock_api_server/bin/server.dart`) in the background, waits for it to become ready, and then runs the Flutter app using the development entry point (`lib/main_dev.dart`). This entry point typically configures the app to use the mock server URL. The script ensures the mock server is shut down cleanly when the script exits or is interrupted (e.g., via Ctrl+C).
+Starts the mock API server (`packages/mock_api_server/bin/server.dart`) in the background, waits for it to become ready, and then runs the Flutter app using the development entry point (`lib/main_dev.dart`). This entry point typically configures the app to use the mock server URL. The script ensures the mock server is shut down cleanly when the script exits or is interrupted (e.g., via Ctrl+C).
 
 **Usage:**
 
@@ -170,7 +170,7 @@ Starts the mock API server (`mock_api_server/bin/server.dart`) in the background
 
 ### `toggle_mock_server.sh`
 
-Provides an interactive menu to manage the mock API server (`mock_api_server/bin/server.dart`). It allows starting, stopping, toggling, and checking the status of the mock server.
+Provides an interactive menu to manage the mock API server (`packages/mock_api_server/bin/server.dart`). It allows starting, stopping, toggling, and checking the status of the mock server.
 
 **Features:**
 - Checks for required dependencies (`lsof`, `dart`).

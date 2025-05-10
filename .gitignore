@@ -73,7 +73,7 @@ flutter_app.iml
 **/macos/.symlinks 
 
 # Mock server build artifacts
-/mock_api_server/build/
+/packages/mock_api_server/build/
 
 # Secrets management
 secrets.*.json

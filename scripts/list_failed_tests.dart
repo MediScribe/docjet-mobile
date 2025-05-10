@@ -266,7 +266,7 @@ void _printUsage(ArgParser parser) {
     '  eliminating the need to manually change directories before running tests.',
   );
   print(
-    '  Example: ./scripts/list_failed_tests.dart mock_api_server/test/auth_test.dart',
+    '  Example: ./scripts/list_failed_tests.dart packages/mock_api_server/test/auth_test.dart',
   );
   print('');
   print('Options:');

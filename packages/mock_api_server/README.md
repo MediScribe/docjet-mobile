@@ -9,13 +9,13 @@ This mock server simulates the DocJet backend API for local development and test
 Start the server from the project root using:
 
 ```bash
-cd mock_api_server && dart bin/server.dart
+cd packages/mock_api_server && dart bin/server.dart
 ```
 
 To run in background:
 
 ```bash
-cd mock_api_server && dart bin/server.dart &
+cd packages/mock_api_server && dart bin/server.dart &
 ```
 
 The server will start on `localhost:8080` by default.

@@ -50,7 +50,7 @@ echo "✅ All unit tests are passing!"
 
 # Step 2: Run mock API server tests
 echo "🔎 Checking mock API server tests..."
-if ! ./scripts/list_failed_tests.dart mock_api_server; then
+if ! ./scripts/list_failed_tests.dart packages/mock_api_server; then
     error_exit "Mock API server tests failed! See output above for details."
 fi
 echo "✅ All mock API server tests are passing!"

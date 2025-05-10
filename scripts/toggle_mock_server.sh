@@ -4,7 +4,7 @@
 SERVER_PORT=8080
 MAX_STARTUP_WAIT=5  # Maximum seconds to wait for server startup
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-MOCK_SERVER_DIR="$SCRIPT_DIR/../mock_api_server"
+MOCK_SERVER_DIR="$SCRIPT_DIR/../packages/mock_api_server"
 SERVER_START_CMD="dart bin/server.dart --port $SERVER_PORT"
 MOCK_SERVER_FINGERPRINT="dart bin/server.dart"  # Used to identify our process vs others
 # --- End Configuration ---

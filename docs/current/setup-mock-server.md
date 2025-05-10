@@ -33,7 +33,7 @@ If you cannot use the script, you can run manually, but you **must use the devel
 
 ```bash
 # 1. Start the mock server (if not running)
-# cd mock_api_server && dart bin/server.dart &
+# cd packages/mock_api_server && dart bin/server.dart &
 
 # 2. Run the app using the dev entry point
 flutter run -t lib/main_dev.dart 
