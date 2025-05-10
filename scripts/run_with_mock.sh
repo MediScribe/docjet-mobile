@@ -80,7 +80,8 @@ echo "Mock server is ready! (Took $ELAPSED seconds)"
 echo "Starting Flutter app using development entry point (lib/main_dev.dart)..."
 # Run the flutter app using the development entry point which configures
 # AppConfig.development() via DI overrides.
-flutter run -t lib/main_dev.dart
+# Always use the iOS simulator to avoid device selection prompt
+flutter run -t lib/main_dev.dart -d "ios simulator"
 
 # Since flutter run is interactive and we want the trap to handle cleanup
 # when flutter run exits or is interrupted, we don't need a 'wait' here.

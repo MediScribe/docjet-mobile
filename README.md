@@ -20,6 +20,7 @@ A mobile app for the DocJet platform.
     - [iOS](#ios)
     - [Android](#android)
   - [File Path Normalization](#file-path-normalization)
+  - [iOS Device Logging](#ios-device-logging)
 
 ## Features
 
@@ -336,6 +337,20 @@ We use a centralized approach to API versioning with `ApiConfig`. The version is
 <key>NSMicrophoneUsageDescription</key>
 <string>This app needs access to the microphone to record audio.</string>
 ```
+
+## iOS Device Logging
+
+We've created a specialized tool for capturing and filtering device logs from iOS devices that makes debugging much easier:
+
+```bash
+# Install libimobiledevice first if you haven't
+brew install libimobiledevice
+
+# Connect your device via USB, then run:
+./tools/devicesyslog --bundle-id com.docjet.mobile --save
+```
+
+For detailed instructions, troubleshooting steps, and advanced usage, see our [iOS Device Logging Guide](packages/devicesyslog_cli/README.md).
 
 #### Android
 - Add microphone permission to `android/app/src/main/AndroidManifest.xml`:

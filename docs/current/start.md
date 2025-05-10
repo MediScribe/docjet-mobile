@@ -11,6 +11,7 @@ This document serves as the central index for the project documentation.
 *   [Environment Configuration](./setup-environment-config.md)
 *   [Mock Server Integration](./setup-mock-server.md)
 *   [Startup Performance Guide](./performance-startup-guide.md)
+*   [iOS Device Logging Tool](../../packages/devicesyslog_cli/README.md) - Easy debugging of real iOS devices
 
 ### Architecture & Core Concepts
 *   [Overall Architecture](./architecture-overview.md)

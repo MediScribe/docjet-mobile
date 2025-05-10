@@ -16,8 +16,8 @@ class CliRunner {
       2; // Or some other non-zero for usage errors
 
   CliRunner({ProcessManager? processManager})
-      : _processManager = processManager ?? const LocalProcessManager(),
-        _argParser = _buildParser();
+    : _processManager = processManager ?? const LocalProcessManager(),
+      _argParser = _buildParser();
 
   static ArgParser _buildParser() {
     return ArgParser()
@@ -79,7 +79,8 @@ class CliRunner {
 
       if (udids.isEmpty) {
         stderr.writeln(
-            'No iOS devices found. Ensure a device is connected via USB or paired for Wi-Fi debugging.');
+          'No iOS devices found. Ensure a device is connected via USB or paired for Wi-Fi debugging.',
+        );
         return null;
       }
 
@@ -87,7 +88,8 @@ class CliRunner {
         final detectedUdid = udids.first;
         if (preferredUdid != null && preferredUdid != detectedUdid) {
           stderr.writeln(
-              'Specified UDID \'$preferredUdid\' does not match the only connected device \'$detectedUdid\'.');
+            'Specified UDID \'$preferredUdid\' does not match the only connected device \'$detectedUdid\'.',
+          );
           return null;
         }
         stdout.writeln('Found device: $detectedUdid');
@@ -97,7 +99,8 @@ class CliRunner {
       // Multiple devices connected
       if (preferredUdid == null) {
         stderr.writeln(
-            'Multiple iOS devices found. Please specify one using the --udid flag:');
+          'Multiple iOS devices found. Please specify one using the --udid flag:',
+        );
         for (final udid in udids) {
           stderr.writeln('  - $udid');
         }
@@ -109,7 +112,8 @@ class CliRunner {
         return preferredUdid;
       } else {
         stderr.writeln(
-            'Specified UDID \'$preferredUdid\' not found among connected devices:');
+          'Specified UDID \'$preferredUdid\' not found among connected devices:',
+        );
         for (final udid in udids) {
           stderr.writeln('  - $udid');
         }
@@ -137,8 +141,9 @@ class CliRunner {
       return successExitCode; // Using the public static const
     }
 
-    final String? targetUdid =
-        await _determineTargetUdid(argResults['udid'] as String?);
+    final String? targetUdid = await _determineTargetUdid(
+      argResults['udid'] as String?,
+    );
     if (targetUdid == null) {
       return _errorExitCode;
     }
@@ -168,8 +173,9 @@ class CliRunner {
           await dir.create(recursive: true);
           // stdout.writeln('Created log directory: ${dir.path}'); // Less verbose
         }
-        final timestamp =
-            DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+        final timestamp = DateFormat(
+          'yyyy-MM-dd_HH-mm-ss',
+        ).format(DateTime.now());
         final logFilePath = p.join(dir.path, '$timestamp.log');
         stdout.writeln('Saving logs to: $logFilePath'); // Inform user
         // Create the file AND open the sink for writing.
@@ -190,41 +196,53 @@ class CliRunner {
       stdoutSub = syslogProcess.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
-          .listen((line) {
-        // If bundle ID filter is set, only process matching lines
-        if (bundleIdSearchString == null ||
-            line.contains(bundleIdSearchString)) {
-          stdout.writeln(line);
-          logFileSink?.writeln(line);
-        }
-      }, onDone: () {
-        if (!completer.isCompleted) {
-          // The process ended naturally, we'll get the exit code from exitCode.then
-        }
-      }, onError: (error) {
-        stderr.writeln('Error on syslog stdout stream: $error');
-        if (!completer.isCompleted) completer.complete(_errorExitCode);
-      });
+          .listen(
+            (line) {
+              // If bundle ID filter is set, only process matching lines
+              if (bundleIdSearchString == null ||
+                  line.contains(bundleIdSearchString)) {
+                stdout.writeln(line);
+                logFileSink?.writeln(line);
+              }
+            },
+            onDone: () {
+              if (!completer.isCompleted) {
+                // The process ended naturally, we'll get the exit code from exitCode.then
+              }
+            },
+            onError: (error) {
+              stderr.writeln('Error on syslog stdout stream: $error');
+              if (!completer.isCompleted) completer.complete(_errorExitCode);
+            },
+          );
 
       stderrSub = syslogProcess.stderr
           .transform(utf8.decoder)
           .transform(const LineSplitter())
-          .listen((line) {
-        stderr.writeln(line);
-        logFileSink?.writeln('ERROR: $line');
-      }, onDone: () {
-        // stderr stream completed
-      }, onError: (error) {
-        stderr.writeln('Error on syslog stderr stream: $error');
-      });
+          .listen(
+            (line) {
+              stderr.writeln(line);
+              logFileSink?.writeln('ERROR: $line');
+            },
+            onDone: () {
+              // stderr stream completed
+            },
+            onError: (error) {
+              stderr.writeln('Error on syslog stderr stream: $error');
+            },
+          );
 
-      syslogProcess.exitCode.then((code) {
-        // stdout.writeln('idevicesyslog process exited with code $code.');
-        if (!completer.isCompleted) completer.complete(code);
-      }).catchError((error) {
-        stderr.writeln('Error waiting for syslog process exit code: $error');
-        if (!completer.isCompleted) completer.complete(_errorExitCode);
-      });
+      syslogProcess.exitCode
+          .then((code) {
+            // stdout.writeln('idevicesyslog process exited with code $code.');
+            if (!completer.isCompleted) completer.complete(code);
+          })
+          .catchError((error) {
+            stderr.writeln(
+              'Error waiting for syslog process exit code: $error',
+            );
+            if (!completer.isCompleted) completer.complete(_errorExitCode);
+          });
 
       // TODO: Implement SIGINT/SIGTERM handling here to kill syslogProcess and complete completer
 

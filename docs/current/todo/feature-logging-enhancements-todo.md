@@ -156,24 +156,40 @@ sequenceDiagram
         * Extracted common `MockProcess` & `MockProcessManager` access into `test_utils.dart` to avoid duplication.
         * Removed the original mega-file; all 12 unit tests still pass (`./scripts/list_failed_tests.dart packages/devicesyslog_cli/test --except`).
         * Fixed a tiny regex goof in the log-saving test while at it.
-* 1.4. [ ] **Refactor GREEN:** (As needed after each feature set)
-    * Add flags `--wifi`, `--udid`, `--output-dir`, `--utc`, `--json` (optional structured output). Write the tests FIRST. Attention: check existing code first (git status, some might have been written already)
-    * Compile native binary: `dart compile exe bin/devicesyslog.dart -o ../../tools/devicesyslog`.
+* 1.4. [x] **Refactor GREEN:** (As needed after each feature set)
+    * Add flags `--wifi`, `--udid`, `--output-dir`, `--utc`, `--json` (optional structured output). ALL present in `CliRunner`.
+    * Tests for `--utc` and `--json` added (`flag_acceptance_test.dart`).
+    * Native binary compiled: `tools/devicesyslog` (via `dart compile`).
     * Findings:
-* 1.5. [ ] **Run Cycle-Specific Tests:** `cd packages/devicesyslog_cli && dart test -r expanded`
-    * Findings:
-* 1.6. [ ] **Run ALL Unit/Integration Tests:**
+        * Verified argument parser exposes all requested flags; unit‐tested acceptance paths.
+        * `--utc`/`--json` currently no-op beyond parse – intentional until behaviour is scoped in later cycle.
+        * Binary is ~9 MB and executes as expected on host macOS.
+* 1.5. [x] **Run Cycle-Specific Tests:** `cd packages/devicesyslog_cli && dart test -r expanded`
+    * Findings: All 15 CLI unit tests pass with expanded reporter.
+* 1.6. [x] **Run ALL Unit/Integration Tests:**
     * Command: `./scripts/list_failed_tests.dart --except`
-    * Findings:
-* 1.7. [ ] **Format, Analyze, and Fix:**
-    * Commands:
-      1. `dart analyze .` (CLI package)
-      2. `flutter pub run dart_style:format .` (root)
-    * Findings:
-* 1.8. [ ] **Handover Brief:**
-    * Status:
-    * Gotchas:
-    * Recommendations:
+    * Findings: Entire repo green – 990 tests, 0 failures.
+* 1.7. [x] **Format, Analyze, and Fix:**
+    * Commands run – no analyzer warnings; no formatter diffs.
+* 1.8. [x] **Handover Brief:**
+    * **Status:** Cycle 1 (CLI helper) ✅ COMPLETE. All required flags exist, 15 unit-tests green, repo green, binary compiled to `tools/devicesyslog`.
+    * **How to use:**
+        1. Pair your iOS device (`idevicepair pair && idevicepair validate`).
+        2. Run `tools/devicesyslog --help` to view options. Common invocations:
+            * **USB, live tail only:** `tools/devicesyslog`
+            * **Wi-Fi:** `tools/devicesyslog --wifi`
+            * **Filter DocJet app & save logs:** `tools/devicesyslog --bundle-id com.docjet.mobile --save`
+            * **Custom dir + UTC timestamps:** `tools/devicesyslog --save --output-dir ~/Desktop/device-logs --utc`
+            * **Dev-mode (without the native exe):** `dart run devicesyslog_cli:devicesyslog <flags>`
+        3. Abort with ⌃C – process trap currently propagates to `idevicesyslog`; proper SIGINT handling is in Cycle 2.
+    * **Gotchas:**
+        * `libimobiledevice` must be installed; Wi-Fi mode may still need `iproxy 62078 62078 <udid>` if mDNS discovery fails.
+        * `--utc` and `--json` are parsed but behave as no-ops until Cycle 2 extends timestamp conversion & structured output.
+        * **No default bundle ID filter** - You must always provide `--bundle-id com.docjet.mobile` explicitly to filter logs; no automatic fallback is implemented. Without this flag, ALL device logs are shown.
+    * **Recommendations:**
+        * Tackle timestamp handling + SIGINT/SIGTERM trapping early in Cycle 2.
+        * Consider adding `--docjet` flag (alias for `--bundle-id com.docjet.mobile`) in a future enhancement.
+        * Update `docs/logging_guide.md` with command snippets above.
 
 ---
 

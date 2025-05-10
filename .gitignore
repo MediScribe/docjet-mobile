@@ -80,4 +80,7 @@ secrets.*.json
 !secrets.*.json.example
 
 # Dart/CLI package build artifacts
-/packages/*/build/ 
+/packages/*/build/
+
+# CLI compiled binaries
+/tools/devicesyslog 

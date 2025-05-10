@@ -73,8 +73,10 @@ cd "$PROJECT_ROOT" # Explicitly cd back to project root
 
 echo "Running Flutter integration tests using secrets.test.json..."
 # Run the actual tests, defining variables from the secrets file
+# Always use the iOS simulator to avoid device selection prompt
 flutter test integration_test/app_test.dart \
-	--dart-define-from-file=secrets.test.json
+	--dart-define-from-file=secrets.test.json \
+	-d "ios simulator"
 
 echo "E2E tests finished."
 
