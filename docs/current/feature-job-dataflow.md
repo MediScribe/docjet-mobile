@@ -740,6 +740,7 @@ This separation of concerns allows for:
      * Deletes job on server (if it has a `serverId`)
      * Permanently deletes local job on success
      * Deletes associated audio file
+     * **Note:** A current limitation exists with orphaned jobs (jobs with no server counterpart). When these jobs are marked for deletion, they still go through the sync process, which can result in unnecessary retry attempts when the server returns a "not found" error. A smarter deletion process is needed to identify and directly delete these orphaned jobs without server synchronization attempts.
 
 6. **Error Handling:**
    - If an API call fails (e.g., `createJob`, `updateJob`, `deleteJob`), the `JobSyncProcessorService` catches the exception.

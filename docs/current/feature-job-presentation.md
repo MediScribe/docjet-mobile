@@ -309,3 +309,16 @@ This architecture supports notifying the UI about issues like failed audio delet
 4.  For the list view, the `JobViewModelMapper` creating the `JobViewModel` includes logic to expose a flag like `viewModel.hasFileIssue` based on the counter.
 5.  The `JobListCubit` emits a new `JobListLoaded` state containing the updated `JobViewModel`. The `JobDetailCubit` emits a `JobDetailLoaded` state containing the updated raw `Job` entity.
 6.  The UI rebuilds and can display an indicator based on `viewModel.hasFileIssue` (in the list view) or by accessing the corresponding property directly from the `Job` entity (in the detail view). 
+
+## Known Limitations
+
+### Orphaned Job Deletion Issue
+
+The current job deletion flow has a limitation when handling "orphaned" jobs (local jobs with no corresponding server record). When a user deletes such a job:
+
+1. The job is marked with `SyncStatus.pendingDeletion`
+2. During sync, the system attempts to delete it from the server
+3. Since the job has no server counterpart, this results in a "not found" error
+4. This can lead to unnecessary retry attempts and potential sync failures
+
+This limitation is documented for future improvement. A smarter deletion process would detect orphaned jobs and handle them differently, bypassing server deletion attempts when appropriate. 
