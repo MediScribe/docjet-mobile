@@ -10,6 +10,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/smart_delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -27,6 +28,7 @@ import 'package:docjet_mobile/core/common/models/app_message.dart';
   CreateJobUseCase,
   DeleteJobUseCase,
   AppNotifierService,
+  SmartDeleteJobUseCase,
 ])
 import 'job_list_cubit_test.mocks.dart';
 
@@ -38,6 +40,7 @@ void main() {
   late MockCreateJobUseCase mockCreateJobUseCase;
   late MockDeleteJobUseCase mockDeleteJobUseCase;
   late MockAppNotifierService mockAppNotifierService;
+  late MockSmartDeleteJobUseCase mockSmartDeleteJobUseCase;
   JobListCubit? jobListCubit;
   late StreamController<Either<Failure, List<Job>>> streamController;
 
@@ -104,6 +107,7 @@ void main() {
     mockCreateJobUseCase = MockCreateJobUseCase();
     mockDeleteJobUseCase = MockDeleteJobUseCase();
     mockAppNotifierService = MockAppNotifierService();
+    mockSmartDeleteJobUseCase = MockSmartDeleteJobUseCase();
     streamController = StreamController<Either<Failure, List<Job>>>.broadcast();
 
     // Default stub for use case stream
@@ -125,6 +129,7 @@ void main() {
       createJobUseCase: mockCreateJobUseCase,
       deleteJobUseCase: mockDeleteJobUseCase,
       appNotifierService: mockAppNotifierService,
+      smartDeleteJobUseCase: mockSmartDeleteJobUseCase,
     );
   }
 
@@ -438,6 +443,121 @@ void main() {
       verify: (_) {
         verify(
           mockDeleteJobUseCase.call(DeleteJobParams(localId: tJob1.localId)),
+        ).called(1);
+      },
+    );
+  });
+
+  group('smartDeleteJob', () {
+    const tLocalId = 'job-to-delete-smartly';
+    final tParams = SmartDeleteJobParams(localId: tLocalId);
+    const tUnknownFailure = UnknownFailure('Something went wrong');
+    // Adjusted tAppMessage to match the actual message format from _showErrorBanner
+    final tAppMessageFromCubit = AppMessage(
+      message: 'Failed to delete job: Something went wrong',
+      type: MessageType.error,
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'when SmartDeleteJobUseCase returns Right(true) (immediate purge), it should log success and not emit new state',
+      build: () {
+        when(
+          mockSmartDeleteJobUseCase.call(tParams),
+        ).thenAnswer((_) async => const Right(true));
+        return createCubit();
+      },
+      act: (cubit) => cubit.smartDeleteJob(tLocalId),
+      expect: () => [], // No state emission expected as UI is optimistic
+      verify: (_) {
+        verify(mockSmartDeleteJobUseCase.call(tParams)).called(1);
+        // Verify logging once LoggerService is integrated/mocked
+        // Adjusted verifyNever for named arguments
+        verifyNever(
+          mockAppNotifierService.show(
+            message: anyNamed('message'),
+            type: anyNamed('type'),
+          ),
+        );
+      },
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'when SmartDeleteJobUseCase returns Right(false) (marked for deletion), it should log success and not emit new state',
+      build: () {
+        when(
+          mockSmartDeleteJobUseCase.call(tParams),
+        ).thenAnswer((_) async => const Right(false));
+        return createCubit();
+      },
+      act: (cubit) => cubit.smartDeleteJob(tLocalId),
+      expect: () => [], // No state emission expected
+      verify: (_) {
+        verify(mockSmartDeleteJobUseCase.call(tParams)).called(1);
+        // Verify logging
+        // Adjusted verifyNever for named arguments
+        verifyNever(
+          mockAppNotifierService.show(
+            message: anyNamed('message'),
+            type: anyNamed('type'),
+          ),
+        );
+      },
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'when SmartDeleteJobUseCase returns Left(Failure), it should call AppNotifierService.show() with error message',
+      build: () {
+        when(
+          mockSmartDeleteJobUseCase.call(tParams),
+        ).thenAnswer((_) async => const Left(tUnknownFailure));
+        when(
+          mockAppNotifierService.show(
+            message: anyNamed('message'),
+            type: anyNamed('type'),
+          ),
+        ).thenReturn(null);
+        return createCubit();
+      },
+      act: (cubit) => cubit.smartDeleteJob(tLocalId),
+      expect: () => [],
+      verify: (_) {
+        verify(mockSmartDeleteJobUseCase.call(tParams)).called(1);
+        // Using tAppMessageFromCubit for verification
+        verify(
+          mockAppNotifierService.show(
+            message: tAppMessageFromCubit.message,
+            type: tAppMessageFromCubit.type,
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<JobListCubit, JobListState>(
+      'when SmartDeleteJobUseCase throws an exception, it should call AppNotifierService.show() with error message',
+      build: () {
+        when(
+          mockSmartDeleteJobUseCase.call(tParams),
+        ).thenThrow(Exception('boom'));
+        when(
+          mockAppNotifierService.show(
+            message: anyNamed('message'),
+            type: anyNamed('type'),
+          ),
+        ).thenReturn(null);
+        return createCubit();
+      },
+      act: (cubit) => cubit.smartDeleteJob(tLocalId),
+      expect: () => [],
+      verify: (_) {
+        verify(mockSmartDeleteJobUseCase.call(tParams)).called(1);
+        verify(
+          mockAppNotifierService.show(
+            message: argThat(
+              contains('Failed to delete job'),
+              named: 'message',
+            ),
+            type: MessageType.error,
+          ),
         ).called(1);
       },
     );

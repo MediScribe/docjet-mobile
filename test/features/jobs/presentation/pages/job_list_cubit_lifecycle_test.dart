@@ -8,6 +8,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/job.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/smart_delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,9 @@ class MockJobViewModelMapper extends Mock implements JobViewModelMapper {}
 
 // Manual mock for DeleteJobUseCase (no need for generated mock here)
 class MockDeleteJobUseCase extends Mock implements DeleteJobUseCase {}
+
+// Added manual mock for SmartDeleteJobUseCase
+class MockSmartDeleteJobUseCase extends Mock implements SmartDeleteJobUseCase {}
 
 // Helper to track cubit creation
 class CubitCreationTracker {
@@ -152,6 +156,7 @@ Widget createTestApp({
   required JobViewModelMapper mapper,
   required CreateJobUseCase createJobUseCase,
   required DeleteJobUseCase deleteJobUseCase,
+  required SmartDeleteJobUseCase smartDeleteJobUseCase,
 }) {
   _testLogger.i('$_tag Creating test app with provided dependencies');
   return ProviderScope(
@@ -163,6 +168,7 @@ Widget createTestApp({
               mapper: mapper,
               createJobUseCase: createJobUseCase,
               deleteJobUseCase: deleteJobUseCase,
+              smartDeleteJobUseCase: smartDeleteJobUseCase,
             ),
         child: const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
@@ -176,6 +182,7 @@ void main() {
     late MockCreateJobUseCase mockCreateJobUseCase;
     late MockJobViewModelMapper mockMapper;
     late MockDeleteJobUseCase mockDeleteJobUseCase;
+    late MockSmartDeleteJobUseCase mockSmartDeleteJobUseCase;
 
     setUp(() {
       _testLogger.i('$_tag Test setup starting');
@@ -187,6 +194,7 @@ void main() {
       mockCreateJobUseCase = MockCreateJobUseCase();
       mockMapper = MockJobViewModelMapper();
       mockDeleteJobUseCase = MockDeleteJobUseCase();
+      mockSmartDeleteJobUseCase = MockSmartDeleteJobUseCase();
 
       _testLogger.i('$_tag Test setup complete');
     });
@@ -204,6 +212,7 @@ void main() {
           mapper: mockMapper,
           createJobUseCase: mockCreateJobUseCase,
           deleteJobUseCase: mockDeleteJobUseCase,
+          smartDeleteJobUseCase: mockSmartDeleteJobUseCase,
         );
       }
 

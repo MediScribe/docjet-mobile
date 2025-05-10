@@ -9,6 +9,7 @@ import 'package:docjet_mobile/core/utils/log_helpers.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/smart_delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/features/jobs/presentation/states/job_list_state.dart';
 import 'package:docjet_mobile/features/jobs/presentation/models/job_view_model.dart';
@@ -20,11 +21,14 @@ class JobListCubit extends Cubit<JobListState> {
   static final Logger _logger = LoggerFactory.getLogger(JobListCubit);
   // Create standard log tag
   static final String _tag = logTag(JobListCubit);
+  // Constant for error messages to ensure consistency
+  static const _deleteFailedMsg = 'Failed to delete job';
 
   final WatchJobsUseCase _watchJobsUseCase;
   final JobViewModelMapper _mapper;
   final CreateJobUseCase _createJobUseCase;
   final DeleteJobUseCase _deleteJobUseCase;
+  final SmartDeleteJobUseCase _smartDeleteJobUseCase;
   final AppNotifierService? _appNotifierService;
   // Completer that signals the arrival of the first data/error event when (re)subscribing
   Completer<void>? _firstEventCompleter;
@@ -35,11 +39,13 @@ class JobListCubit extends Cubit<JobListState> {
     required JobViewModelMapper mapper,
     required CreateJobUseCase createJobUseCase,
     required DeleteJobUseCase deleteJobUseCase,
+    required SmartDeleteJobUseCase smartDeleteJobUseCase,
     AppNotifierService? appNotifierService,
   }) : _watchJobsUseCase = watchJobsUseCase,
        _mapper = mapper,
        _createJobUseCase = createJobUseCase,
        _deleteJobUseCase = deleteJobUseCase,
+       _smartDeleteJobUseCase = smartDeleteJobUseCase,
        _appNotifierService = appNotifierService,
        super(const JobListInitial()) {
     _logger.d('$_tag: Initializing...');
@@ -166,7 +172,7 @@ class JobListCubit extends Cubit<JobListState> {
       final result = await _deleteJobUseCase(DeleteJobParams(localId: localId));
       result.fold((failure) {
         _logger.e('$_tag: Failed to delete job: $failure');
-        _showErrorBanner('Failed to delete job', failure);
+        _showErrorBanner(_deleteFailedMsg, failure);
         // Roll-back the optimistic update so the UI reflects actual data
         if (previousJobs != null) {
           emit(JobListLoaded(previousJobs));
@@ -178,11 +184,57 @@ class JobListCubit extends Cubit<JobListState> {
         error: e,
         stackTrace: st,
       );
-      _showErrorBanner('Failed to delete job', null, e);
+      _showErrorBanner(_deleteFailedMsg, null, e);
       if (previousJobs != null) {
         emit(JobListLoaded(previousJobs));
       }
     }
+  }
+
+  /// Smart deletes a job: purges immediately if orphan/404, otherwise marks for deletion.
+  /// UI is expected to be optimistic. This method logs results and shows errors.
+  Future<void> smartDeleteJob(String localId) async {
+    _logger.i('$_tag: Attempting smart delete for job ID: $localId');
+    final params = SmartDeleteJobParams(localId: localId);
+
+    try {
+      final result = await _smartDeleteJobUseCase(params);
+      _handleSmartDeleteResult(localId, result);
+    } catch (e, st) {
+      _handleSmartDeleteException(localId, e, st);
+    }
+  }
+
+  /// Handles the result of the smart delete operation
+  void _handleSmartDeleteResult(String localId, Either<Failure, bool> result) {
+    result.fold(
+      (failure) {
+        _logger.e('$_tag: Smart delete failed for job ID $localId: $failure');
+        _showErrorBanner(_deleteFailedMsg, failure);
+      },
+      (wasPurged) {
+        if (wasPurged) {
+          _logger.i(
+            '$_tag: Smart delete successful: Job ID $localId was purged immediately.',
+          );
+        } else {
+          _logger.i(
+            '$_tag: Smart delete successful: Job ID $localId was marked for deletion.',
+          );
+        }
+        // No state emission here, UI is optimistic & stream watcher updates list
+      },
+    );
+  }
+
+  /// Handles exceptions thrown during smart delete
+  void _handleSmartDeleteException(String localId, Object e, StackTrace st) {
+    _logger.e(
+      '$_tag: Exception during smart delete for job ID $localId: $e',
+      error: e,
+      stackTrace: st,
+    );
+    _showErrorBanner(_deleteFailedMsg, null, e);
   }
 
   @override

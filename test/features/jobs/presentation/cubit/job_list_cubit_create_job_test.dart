@@ -12,6 +12,7 @@ import 'package:docjet_mobile/features/jobs/domain/entities/sync_status.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/smart_delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_list_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,7 @@ void main() {
       mapper: _FakeMapper(),
       createJobUseCase: mockCreateJobUseCase,
       deleteJobUseCase: _FakeDeleteJobUseCase(),
+      smartDeleteJobUseCase: _FakeSmartDeleteJobUseCase(),
       appNotifierService: mockAppNotifierService,
     );
   }
@@ -122,3 +124,11 @@ class _FakeWatchJobsUseCase extends Fake implements WatchJobsUseCase {
 class _FakeMapper extends Mock implements JobViewModelMapper {}
 
 class _FakeDeleteJobUseCase extends Mock implements DeleteJobUseCase {}
+
+class _FakeSmartDeleteJobUseCase extends Fake implements SmartDeleteJobUseCase {
+  @override
+  Future<Either<Failure, bool>> call(SmartDeleteJobParams params) async {
+    // Default behavior, can be overridden if a test needs specific interaction
+    return const Right(false);
+  }
+}

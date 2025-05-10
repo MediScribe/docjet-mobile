@@ -21,6 +21,7 @@ import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.
 import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_job_by_id_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/smart_delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/cubit/job_detail_cubit.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:get_it/get_it.dart';
@@ -191,6 +192,11 @@ class JobsModule {
     }
     if (!getIt.isRegistered<DeleteJobUseCase>()) {
       getIt.registerLazySingleton(() => DeleteJobUseCase(getIt()));
+    }
+    if (!getIt.isRegistered<SmartDeleteJobUseCase>()) {
+      getIt.registerLazySingleton(
+        () => SmartDeleteJobUseCase(repository: getIt<JobRepository>()),
+      );
     }
 
     // Mapper (no dependencies)

@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/watch_jobs_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/create_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/domain/usecases/delete_job_use_case.dart';
+import 'package:docjet_mobile/features/jobs/domain/usecases/smart_delete_job_use_case.dart';
 import 'package:docjet_mobile/features/jobs/presentation/mappers/job_view_model_mapper.dart';
 import 'package:docjet_mobile/core/common/notifiers/app_notifier_service.dart';
 
@@ -89,6 +90,7 @@ class MyApp extends ConsumerWidget {
                 mapper: getIt<JobViewModelMapper>(),
                 createJobUseCase: getIt<CreateJobUseCase>(),
                 deleteJobUseCase: getIt<DeleteJobUseCase>(),
+                smartDeleteJobUseCase: getIt<SmartDeleteJobUseCase>(),
                 appNotifierService: ref.watch(
                   appNotifierServiceProvider.notifier,
                 ),
